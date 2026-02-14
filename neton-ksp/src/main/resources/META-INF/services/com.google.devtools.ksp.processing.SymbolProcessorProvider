@@ -1,0 +1,5 @@
+neton.ksp.ControllerProcessorProvider
+neton.ksp.NetonConfigProcessorProvider
+neton.ksp.RepositoryProcessorProvider
+neton.ksp.EntityStoreProcessorProvider
+neton.ksp.validation.ValidationProcessorProvider
