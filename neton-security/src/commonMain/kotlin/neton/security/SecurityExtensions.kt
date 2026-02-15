@@ -5,7 +5,6 @@ import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
 import neton.core.config.NetonConfigRegistry
 import neton.core.interfaces.SecurityBuilder
-import neton.core.interfaces.SecurityFactory
 import neton.logging.Logger
 import neton.logging.LoggerFactory
 
@@ -26,7 +25,6 @@ object SecurityComponent : NetonComponent<SecurityBuilder> {
         SecurityLog.log = log
         log?.info("security.init")
         ctx.bind(SecurityBuilder::class, config)
-        ctx.bind(SecurityFactory::class, config.getSecurityFactory())
         (config as? RealSecurityBuilder)?.setLogger(log)
         log?.info("security.initialized")
     }
@@ -38,11 +36,13 @@ object SecurityComponent : NetonComponent<SecurityBuilder> {
             ?.forEach { it.configure(ctx, config) }
         val log = ctx.getOrNull(LoggerFactory::class)?.get("neton.security")
         config.getGroupConfigSummary().forEach { entry ->
-            log?.info("security.group.config", mapOf(
-                "group" to (entry.group ?: "default"),
-                "authenticator" to (entry.authenticator ?: "<none>"),
-                "guard" to entry.guard
-            ))
+            log?.info(
+                "security.group.config", mapOf(
+                    "group" to (entry.group ?: "default"),
+                    "authenticator" to (entry.authenticator ?: "<none>"),
+                    "guard" to entry.guard
+                )
+            )
         }
     }
 }

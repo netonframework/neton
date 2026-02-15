@@ -14,12 +14,8 @@ import neton.logging.LoggerFactory
 
 /**
  * Neton Web 框架核心类
- * 
- * 使用正确的模块生命周期：
- * 1. 全局配置 (create)
- * 2. 模块注册 (registerModules) - 自动加载模块配置文件
- * 3. 模块配置 (configure)
- * 4. 启动服务器 (start)
+ *
+ * 使用 Neton.run(args) { http { }; routing { }; onStart { } } 启动应用
  */
 class Neton private constructor() {
     
@@ -27,15 +23,6 @@ class Neton private constructor() {
         /** 框架版本，用于启动 banner */
         const val VERSION = "1.0.0-beta1"
         private const val DEFAULT_PORT = 8080  // 与 application.conf 默认端口保持一致
-        
-        /**
-         * 创建应用程序实例
-         * @deprecated 使用 Neton.run(args) { http { }; routing { }; onStart { } } 替代
-         */
-        @Deprecated("Use Neton.run(args) { http { }; routing { }; onStart { } }", level = DeprecationLevel.ERROR)
-        fun create(configure: (suspend KotlinApplication.() -> Unit)? = null): ComponentRegistrar {
-            error("Neton.create() is removed. Use Neton.run(args) { http { }; routing { }; onStart { } }")
-        }
         
         /**
          * 🚀 主要的 Neton DSL 入口方法 - 现代化体验 (非挂起版本)
@@ -116,50 +103,9 @@ class Neton private constructor() {
     private var componentConfigBlock: (ComponentConfigurator.() -> Unit)? = null
     
     /**
-     * 组件注册器 - 第二步：注册组件（自动加载配置）
-     */
-    class ComponentRegistrar(private val app: Neton) {
-        
-        /**
-         * 注册组件并自动加载配置
-         * 
-         * 新功能：
-         * - 根据组件名自动加载对应配置文件
-         * - 将配置内容传递给组件的 initialize() 方法
-         */
-        /** @deprecated 已移除 Component 体系，请使用 install：http { }、security { }、routing { } */
-        @Deprecated("Use install DSL: http { }, security { }, routing { }", level = DeprecationLevel.ERROR)
-        fun registerComponents(vararg components: Any): ComponentConfigurator {
-            error("Component API removed. Use install DSL: http { }, security { }, routing { }")
-        }
-        
-        @Deprecated("Use install DSL instead", level = DeprecationLevel.ERROR)
-        fun registerModules(vararg modules: Any): ComponentConfigurator {
-            error("Component API removed. Use install DSL: http { }, security { }, routing { }")
-        }
-    }
-    
-    /**
      * 组件配置器 - 配置已注册的组件（从 ctx 获取服务）
      */
     class ComponentConfigurator(private val ctx: NetonContext, private val app: Neton) {
-        
-        /**
-         * 配置已注册的组件
-         */
-        fun configure(configure: ComponentConfigurator.() -> Unit): Application {
-            app.componentConfigBlock = configure
-            return Application(app)
-        }
-        
-        /**
-         * 跳过组件配置，直接启动
-         */
-        suspend fun start(args: Array<String>, port: Int = DEFAULT_PORT): Application {
-            val application = Application(app)
-            application.start(args, port)
-            return application
-        }
         
         /**
          * 确定服务器端口 - 配置优先级处理
@@ -206,21 +152,6 @@ class Neton private constructor() {
             ctx.getOrNull(HttpAdapter::class)?.let { configure(it) }
                 ?: error("HttpAdapter not in ctx. Add: http { port = 8080 }")
             CoreLog.logOrBootstrap().info("neton.config.http.done")
-        }
-    }
-    
-    /**
-     * 应用程序实例 - 第四步：启动服务器（旧路径）
-     * @deprecated 使用 Neton.run(args) { http { }; routing { }; onStart { } } 替代
-     */
-    @Deprecated("Use Neton.run(args) { http { }; routing { }; onStart { } }", level = DeprecationLevel.WARNING)
-    class Application(private val app: Neton) {
-        
-        /**
-         * 启动应用程序
-         */
-        suspend fun start(args: Array<String>, port: Int = DEFAULT_PORT) {
-            error("Application.start() is removed. Use Neton.run(args) { http { }; routing { }; onStart { } }")
         }
     }
 

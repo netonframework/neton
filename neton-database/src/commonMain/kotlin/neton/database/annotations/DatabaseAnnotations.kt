@@ -63,4 +63,29 @@ annotation class Column(
 annotation class Timestamp(
     val onCreate: Boolean = false,
     val onUpdate: Boolean = false
-) 
+)
+
+/**
+ * Phase 1 软删：标记 deleted 字段，destroy 时走 UPDATE 而非 DELETE。
+ * 脚手架默认：deleted: Boolean（false=未删）、deletedAt: Long?（可选，软删时填 epoch millis）。
+ * KSP 可据此生成 SoftDeleteConfig 并传给 Adapter。
+ */
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.SOURCE)
+annotation class SoftDelete
+
+/**
+ * Phase 1 自动填充：标记 createdAt/updatedAt/createdBy/updatedBy 等字段。
+ * @param on 填充时机：INSERT | INSERT_UPDATE
+ * @param value 填充来源：NOW | CURRENT_USER
+ * KSP 可据此生成 AutoFillConfig 并传给 Adapter。
+ */
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.SOURCE)
+annotation class AutoFill(
+    val on: AutoFillOn = AutoFillOn.INSERT_UPDATE,
+    val value: AutoFillValue = AutoFillValue.NOW
+)
+
+enum class AutoFillOn { INSERT, INSERT_UPDATE }
+enum class AutoFillValue { NOW, CURRENT_USER } 

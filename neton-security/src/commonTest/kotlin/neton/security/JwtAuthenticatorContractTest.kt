@@ -9,6 +9,7 @@ import neton.security.internal.HmacSha256
 import neton.security.jwt.JwtAuthenticatorV1
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -137,7 +138,7 @@ class JwtAuthenticatorContractTest {
         val token = validToken(payload)
         val user = jwt.authenticate(ctx(mapOf("authorization" to "Bearer $token")))
             ?: error("Expected IdentityUser")
-        assertEquals(UserId.parse("123").value, user.id.value)
+        assertEquals(UserId.parse("123").value, user.userId.value)
     }
 
     // 8. 无 Authorization → null
@@ -145,5 +146,62 @@ class JwtAuthenticatorContractTest {
     fun noAuthorization_returnsNull() = runBlocking {
         val result = jwt.authenticate(ctx(emptyMap()))
         assertNull(result)
+    }
+
+    // ── createToken 测试 ────────────────────────────────────────
+
+    // 9. createToken round-trip：签发后 authenticate 能正确解析
+    @Test
+    fun createToken_roundTrip() = runBlocking {
+        val userId = UserId.parse("12345")
+        val roles = setOf("admin", "user")
+        val perms = setOf("read", "write")
+
+        val token = jwt.createToken(userId, roles, perms)
+        val user = jwt.authenticate(ctx(mapOf("Authorization" to "Bearer $token")))
+
+        assertNotNull(user)
+        assertEquals(userId.value, user.userId.value)
+        assertEquals(roles, user.roles)
+        assertEquals(perms, user.permissions)
+    }
+
+    // 10. createToken 无 roles/perms → authenticate 返回空集合
+    @Test
+    fun createToken_noRolesPerms() = runBlocking {
+        val userId = UserId.parse("999")
+        val token = jwt.createToken(userId)
+        val user = jwt.authenticate(ctx(mapOf("Authorization" to "Bearer $token")))
+
+        assertNotNull(user)
+        assertEquals(userId.value, user.userId.value)
+        assertEquals(emptySet<String>(), user.roles)
+        assertEquals(emptySet<String>(), user.permissions)
+    }
+
+    // 11. createToken 带 extraClaims → authenticate 不报错
+    @Test
+    fun createToken_withExtraClaims() = runBlocking {
+        val userId = UserId.parse("42")
+        val token = jwt.createToken(
+            userId,
+            extraClaims = mapOf("tenant" to "acme", "level" to 5)
+        )
+        val user = jwt.authenticate(ctx(mapOf("Authorization" to "Bearer $token")))
+
+        assertNotNull(user)
+        assertEquals(userId.value, user.userId.value)
+    }
+
+    // 12. createToken expiresInSeconds=0 → 立即过期 → TokenExpired
+    @Test
+    fun createToken_expired() = runBlocking {
+        val userId = UserId.parse("1")
+        val token = jwt.createToken(userId, expiresInSeconds = 0)
+
+        val ex = kotlin.runCatching {
+            jwt.authenticate(ctx(mapOf("Authorization" to "Bearer $token")))
+        }.exceptionOrNull() as? AuthenticationException ?: error("Expected AuthenticationException")
+        assertEquals("TokenExpired", ex.code)
     }
 }

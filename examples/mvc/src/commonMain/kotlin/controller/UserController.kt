@@ -2,6 +2,7 @@ package controller
 
 import model.User
 import model.UserTable
+import neton.database.dsl.ColumnRef
 import model.UserWithRoles
 import neton.core.annotations.*
 import neton.core.http.*
@@ -18,7 +19,7 @@ class UserController(
 
     @Get
     suspend fun all(): List<User> =
-        UserTable.where { User::status eq 1 }.list()
+        UserTable.query { where { ColumnRef("status") eq 1 } }.list()
 
     @Get("/{id}")
     suspend fun get(id: Long): User? {

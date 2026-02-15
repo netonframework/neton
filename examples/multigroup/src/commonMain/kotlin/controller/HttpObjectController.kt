@@ -4,30 +4,30 @@ import neton.core.annotations.*
 import neton.core.http.HttpRequest
 import neton.core.http.HttpResponse
 import neton.core.http.HttpSession
-import neton.core.interfaces.Principal
+import neton.core.interfaces.Identity
 
 /**
  * HTTP 对象控制器 - 展示 HTTP 对象的直接注入使用
- * 
+ *
  * 本控制器专注展示：
  * - HttpRequest 对象注入和使用
  * - HttpResponse 对象注入和使用
  * - HttpSession 对象注入和使用
  * - HTTP 对象与其他参数的组合使用
  * - 现代化的参数注入模式
- * 
+ *
  * 基础路径：/api/http
  */
 @Controller("/api/http")
 class HttpObjectController {
-    
+
     /**
      * 获取当前时间戳的辅助函数
      */
     private fun getCurrentTimeMillis(): Long {
         return 1750329600000L // 使用固定时间戳进行演示
     }
-    
+
     /**
      * HttpRequest 对象使用示例
      * 展示如何直接注入和使用 HttpRequest 对象
@@ -48,7 +48,7 @@ class HttpObjectController {
             - 接受HTML: ${request.acceptsHtml()}
         """.trimIndent()
     }
-    
+
     /**
      * HttpResponse 对象使用示例
      * 展示如何直接操作响应对象
@@ -58,16 +58,16 @@ class HttpObjectController {
         // 设置自定义响应头
         response.header("X-API-Version", "1.0")
         response.header("X-Response-Time", getCurrentTimeMillis().toString())
-        
+
         // 设置Cookie
         response.cookie("demo-cookie", "demo-value", maxAge = 3600, httpOnly = true)
-        
+
         // 设置内容类型（虽然会被框架覆盖，但展示用法）
         response.contentType = "application/json; charset=utf-8"
-        
+
         return "✨ HttpResponse 演示 - 检查响应头和Cookie"
     }
-    
+
     /**
      * HttpSession 对象使用示例
      * 展示会话管理功能
@@ -77,11 +77,11 @@ class HttpObjectController {
         // 获取或设置访问计数
         val visitCount = (session.getAttribute("visitCount") as? Int) ?: 0
         session.setAttribute("visitCount", visitCount + 1)
-        
+
         // 设置其他会话属性
         session.setAttribute("lastAccess", getCurrentTimeMillis())
         session.setAttribute("userPreference", "dark-theme")
-        
+
         return """
             🔗 HTTP Session 信息:
             - 会话ID: ${session.id}
@@ -96,7 +96,7 @@ class HttpObjectController {
             - 是否为空: ${session.isEmpty()}
         """.trimIndent()
     }
-    
+
     /**
      * 组合使用示例 - 混合注入多种对象
      * 展示现代化的参数注入模式
@@ -109,13 +109,13 @@ class HttpObjectController {
         request: HttpRequest,
         response: HttpResponse,
         session: HttpSession,
-        @AuthenticationPrincipal principal: Principal?
+        @CurrentUser principal: Identity?
     ): String {
         // 记录请求信息到会话
         session.setAttribute("lastAction", action ?: "unknown")
         session.setAttribute("lastFormat", format)
         session.setAttribute("lastUserAgent", userAgent)
-        
+
         // 根据用户身份设置不同的响应头
         if (principal != null) {
             response.header("X-User-ID", principal.id)
@@ -123,23 +123,23 @@ class HttpObjectController {
         } else {
             response.header("X-User-Status", "anonymous")
         }
-        
+
         // 设置内容类型
         when (format.lowercase()) {
             "xml" -> response.contentType = "application/xml"
             "plain" -> response.contentType = "text/plain"
             else -> response.contentType = "application/json"
         }
-        
+
         // 记录响应时间
         response.header("X-Process-Time", "1ms") // 模拟处理时间
-        
+
         val userInfo = if (principal != null) {
             "认证用户: ${principal.id} (${principal.roles.joinToString(", ")})"
         } else {
             "匿名用户"
         }
-        
+
         return """
             🚀 综合HTTP对象使用演示:
             - 请求路径: ${request.path}
@@ -152,7 +152,7 @@ class HttpObjectController {
             - 用户代理: ${userAgent ?: "未知"}
         """.trimIndent()
     }
-    
+
     /**
      * 文件上传处理示例
      * 展示请求体处理和响应操作
@@ -162,45 +162,48 @@ class HttpObjectController {
         request: HttpRequest,
         response: HttpResponse,
         session: HttpSession,
-        @AuthenticationPrincipal principal: Principal?
+        @CurrentUser principal: Identity?
     ) {
         try {
             // 检查内容类型
             val contentType = request.contentType
-            if (contentType?.contains("multipart/form-data") != true && 
-                contentType?.contains("application/octet-stream") != true) {
+            if (contentType?.contains("multipart/form-data") != true &&
+                contentType?.contains("application/octet-stream") != true
+            ) {
                 response.badRequest("不支持的内容类型: $contentType")
                 return
             }
-            
+
             // 读取请求体
             val body = request.body()
             val bodySize = body.size
-            
+
             // 记录上传信息到会话
             session.setAttribute("lastUploadSize", bodySize)
             session.setAttribute("lastUploadTime", getCurrentTimeMillis())
-            
+
             // 设置响应头
             response.header("X-Upload-Size", bodySize.toString())
             response.header("X-Upload-User", principal?.id ?: "anonymous")
-            
+
             // 返回成功响应
-            response.json(mapOf(
-                "success" to true,
-                "message" to "文件上传成功",
-                "size" to bodySize,
-                "uploader" to (principal?.id ?: "anonymous"),
-                "sessionId" to session.id,
-                "timestamp" to getCurrentTimeMillis()
-            ))
-            
+            response.json(
+                mapOf(
+                    "success" to true,
+                    "message" to "文件上传成功",
+                    "size" to bodySize,
+                    "uploader" to (principal?.id ?: "anonymous"),
+                    "sessionId" to session.id,
+                    "timestamp" to getCurrentTimeMillis()
+                )
+            )
+
         } catch (e: Exception) {
             // 错误处理
             response.internalServerError("上传失败: ${e.message}")
         }
     }
-    
+
     /**
      * 重定向示例
      * 展示响应重定向功能
@@ -217,7 +220,7 @@ class HttpObjectController {
             else -> response.redirect("/api/http/request-info")
         }
     }
-    
+
     /**
      * 错误响应示例
      * 展示不同类型的错误响应
@@ -236,7 +239,7 @@ class HttpObjectController {
             else -> response.badRequest("未知错误类型: $errorType")
         }
     }
-    
+
     /**
      * Cookie 管理示例
      * 展示Cookie的设置和删除
@@ -259,6 +262,7 @@ class HttpObjectController {
                     return ""
                 }
             }
+
             "delete" -> {
                 if (name != null) {
                     response.cookie(name, "", maxAge = 0) // 删除Cookie的标准方法
@@ -268,14 +272,16 @@ class HttpObjectController {
                     return ""
                 }
             }
+
             "list" -> {
                 val cookies = request.cookies.entries.joinToString(", ") { "${it.key}=${it.value.value}" }
                 return "🍪 当前Cookies: $cookies"
             }
+
             else -> {
                 response.badRequest("不支持的操作: $action")
                 return ""
             }
         }
     }
-} 
+}

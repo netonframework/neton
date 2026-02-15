@@ -8,12 +8,15 @@ import neton.core.http.HttpRequest
 import neton.core.http.HttpResponse
 import neton.core.http.HttpSession
 import neton.core.http.HttpStatus
-import neton.core.interfaces.Principal
+import neton.core.interfaces.Identity
 import neton.core.interfaces.RequestContext
 import neton.core.interfaces.RouteDefinition
+import neton.core.interfaces.RouteGroupSecurityConfig
+import neton.core.interfaces.RouteGroupSecurityConfigs
+import neton.core.interfaces.SecurityAttributes
 import neton.core.interfaces.SecurityConfiguration
 import neton.core.mock.MockAuthenticationContext
-import neton.core.mock.MockPrincipal
+import neton.core.mock.MockIdentity
 import neton.core.mock.MockAuthenticator
 import neton.core.mock.MockDefaultGuard
 import kotlin.test.Test
@@ -22,8 +25,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 安全管道契约测试（v1 冻结）
- * 锁住 Mode A/B、Guard 选择、fail-fast 语义，防止 routing/ksp 重构悄悄破坏。
+ * 安全管道契约测试（v1.2）
+ * 锁住 Mode A/B、Guard 选择、@Permission、PermissionEvaluator、路由组白名单。
  */
 class SecurityPipelineContractTest {
 
@@ -91,15 +94,21 @@ class SecurityPipelineContractTest {
         }
     }
 
-    private fun reqCtx(path: String = "/", method: String = "GET") = object : RequestContext {
-        override val path = path
-        override val method = method
-        override val headers = emptyMap<String, String>()
-        override val routeGroup: String? = null
-    }
+    private fun reqCtx(path: String = "/", method: String = "GET", routeGroup: String? = null) =
+        object : RequestContext {
+            override val path = path
+            override val method = method
+            override val headers = emptyMap<String, String>()
+            override val routeGroup: String? = routeGroup
+        }
 
-    private fun route(allowAnonymous: Boolean = false, requireAuth: Boolean = false) = RouteDefinition(
-        pattern = "/test",
+    private fun route(
+        allowAnonymous: Boolean = false,
+        requireAuth: Boolean = false,
+        permission: String? = null,
+        pattern: String = "/test"
+    ) = RouteDefinition(
+        pattern = pattern,
         method = HttpMethod.GET,
         handler = object : neton.core.interfaces.RouteHandler {
             override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs) = "ok"
@@ -107,7 +116,20 @@ class SecurityPipelineContractTest {
         controllerClass = "TestController",
         methodName = "test",
         allowAnonymous = allowAnonymous,
-        requireAuth = requireAuth
+        requireAuth = requireAuth,
+        permission = permission
+    )
+
+    private fun secConfig(
+        identity: MockIdentity? = null,
+        hasGuard: Boolean = true
+    ) = SecurityConfiguration(
+        isEnabled = true,
+        authenticatorCount = if (identity != null) 1 else 0,
+        guardCount = if (hasGuard) 1 else 0,
+        authenticationContext = MockAuthenticationContext(),
+        defaultAuthenticator = if (identity != null) MockAuthenticator(identity) else null,
+        defaultGuard = if (hasGuard) MockDefaultGuard() else null
     )
 
     // --- Test 1: Mode A 默认开放 ---
@@ -115,7 +137,7 @@ class SecurityPipelineContractTest {
     fun modeA_plainRoute_noSecurity_returns200() = runBlocking {
         val ctx = testCtx()
         runSecurityPreHandle(route(allowAnonymous = false, requireAuth = false), ctx, reqCtx(), null)
-        assertNull(ctx.getAttribute("principal"))
+        assertNull(ctx.getAttribute(SecurityAttributes.IDENTITY))
     }
 
     // --- Test 2: Mode A + @RequireAuth fail-fast 500 ---
@@ -130,43 +152,29 @@ class SecurityPipelineContractTest {
         assertTrue(ex.message?.contains("SecurityComponent") == true)
     }
 
-    // --- Test 3: Mode B + RequireAuth + MockAuthenticator → 200, principal set ---
+    // --- Test 3: Mode B + RequireAuth + MockAuthenticator → 200, identity set ---
     @Test
-    fun modeB_requireAuth_withMockAuthenticator_setsPrincipal() = runBlocking {
+    fun modeB_requireAuth_withMockAuthenticator_setsIdentity() = runBlocking {
         val attrs = mutableMapOf<String, Any>()
         val ctx = testCtx(attrs)
-        val mockPrincipal = MockPrincipal("user-1", listOf("user"))
-        val config = SecurityConfiguration(
-            isEnabled = true,
-            authenticatorCount = 1,
-            guardCount = 1,
-            authenticationContext = MockAuthenticationContext(),
-            defaultAuthenticator = MockAuthenticator(mockPrincipal),
-            defaultGuard = MockDefaultGuard()
-        )
+        val mockId = MockIdentity("user-1", setOf("user"))
+        val config = secConfig(mockId)
         runSecurityPreHandle(route(requireAuth = true), ctx, reqCtx(), config)
-        val principal = ctx.getAttribute("principal") as? Principal
-        assertEquals("user-1", principal?.id)
+        val identity = ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
+        assertEquals("user-1", identity?.id)
     }
 
-    // --- Test 4: AllowAnonymous 永远放行，principal 为 null ---
+    // --- Test 4: AllowAnonymous 永远放行，identity 为 null ---
     @Test
-    fun allowAnonymous_alwaysPasses_principalNull() = runBlocking {
+    fun allowAnonymous_alwaysPasses_identityNull() = runBlocking {
         val attrs = mutableMapOf<String, Any>()
         val ctx = testCtx(attrs)
-        val config = SecurityConfiguration(
-            isEnabled = true,
-            authenticatorCount = 1,
-            guardCount = 1,
-            authenticationContext = MockAuthenticationContext(),
-            defaultAuthenticator = MockAuthenticator(MockPrincipal("x", listOf())),
-            defaultGuard = MockDefaultGuard()
-        )
+        val config = secConfig(MockIdentity("x", emptySet()))
         runSecurityPreHandle(route(allowAnonymous = true), ctx, reqCtx(), config)
-        assertNull(ctx.getAttribute("principal"))
+        assertNull(ctx.getAttribute(SecurityAttributes.IDENTITY))
     }
 
-    // --- 额外：已安装 Security 但未注册 Authenticator，requireAuth → 500 ---
+    // --- Test 5: 已安装 Security 但未注册 Authenticator，requireAuth → 500 ---
     @Test
     fun modeB_requireAuth_noAuthenticator_throws500() = runBlocking {
         val ctx = testCtx()
@@ -184,5 +192,136 @@ class SecurityPipelineContractTest {
             ?: error("Expected HttpException")
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
         assertTrue(ex.message?.contains("Authenticator") == true)
+    }
+
+    // --- Test 6: @Permission 有权限 → 放行 ---
+    @Test
+    fun permission_allowed_passes() = runBlocking {
+        val attrs = mutableMapOf<String, Any>()
+        val ctx = testCtx(attrs)
+        val mockId = MockIdentity("admin", setOf("admin"), setOf("system:user:edit"))
+        val config = secConfig(mockId)
+        runSecurityPreHandle(route(requireAuth = true, permission = "system:user:edit"), ctx, reqCtx(), config)
+        val identity = ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
+        assertEquals("admin", identity?.id)
+    }
+
+    // --- Test 7: @Permission 无权限 → 403 ---
+    @Test
+    fun permission_denied_throws403() = runBlocking {
+        val ctx = testCtx()
+        val mockId = MockIdentity("user-1", setOf("user"), setOf("read"))
+        val config = secConfig(mockId)
+        val ex = kotlin.runCatching {
+            runSecurityPreHandle(route(requireAuth = true, permission = "system:user:edit"), ctx, reqCtx(), config)
+        }.exceptionOrNull() as? HttpException
+            ?: error("Expected HttpException")
+        assertEquals(HttpStatus.FORBIDDEN, ex.status)
+        assertTrue(ex.message?.contains("system:user:edit") == true)
+    }
+
+    // --- Test 8: PermissionEvaluator 自定义逻辑（superadmin 绕过） ---
+    @Test
+    fun permissionEvaluator_superadmin_bypasses() = runBlocking {
+        val attrs = mutableMapOf<String, Any>()
+        val ctx = testCtx(attrs)
+        val mockId = MockIdentity("superadmin", setOf("superadmin"), emptySet())
+        val config = SecurityConfiguration(
+            isEnabled = true,
+            authenticatorCount = 1,
+            guardCount = 1,
+            authenticationContext = MockAuthenticationContext(),
+            defaultAuthenticator = MockAuthenticator(mockId),
+            defaultGuard = MockDefaultGuard(),
+            permissionEvaluator = neton.core.interfaces.PermissionEvaluator { identity, _, _ ->
+                identity.hasRole("superadmin") || identity.hasPermission("system:user:edit")
+            }
+        )
+        runSecurityPreHandle(route(requireAuth = true, permission = "system:user:edit"), ctx, reqCtx(), config)
+        val identity = ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
+        assertEquals("superadmin", identity?.id)
+    }
+
+    // --- Test 9: 路由组白名单放行 ---
+    @Test
+    fun routeGroupWhitelist_allowsAnonymous() = runBlocking {
+        val ctx = testCtx()
+        val groupConfigs = RouteGroupSecurityConfigs(
+            mapOf(
+                "admin" to RouteGroupSecurityConfig(requireAuth = true, allowAnonymous = setOf("/login"))
+            )
+        )
+        val config = secConfig(MockIdentity("x", emptySet()))
+        runSecurityPreHandle(
+            route(pattern = "/login", requireAuth = false),
+            ctx,
+            reqCtx(routeGroup = "admin"),
+            config,
+            groupConfigs
+        )
+        assertNull(ctx.getAttribute(SecurityAttributes.IDENTITY))
+    }
+
+    // --- Test 10: 路由组 requireAuth 强制认证 ---
+    @Test
+    fun routeGroup_requireAuth_enforcesAuth() = runBlocking {
+        val ctx = testCtx()
+        val groupConfigs = RouteGroupSecurityConfigs(
+            mapOf(
+                "admin" to RouteGroupSecurityConfig(requireAuth = true, allowAnonymous = emptySet())
+            )
+        )
+        val config = SecurityConfiguration(
+            isEnabled = true,
+            authenticatorCount = 0,
+            guardCount = 0,
+            authenticationContext = MockAuthenticationContext(),
+            defaultAuthenticator = null,
+            defaultGuard = null
+        )
+        val ex = kotlin.runCatching {
+            runSecurityPreHandle(
+                route(pattern = "/dashboard", requireAuth = false),
+                ctx,
+                reqCtx(routeGroup = "admin"),
+                config,
+                groupConfigs
+            )
+        }.exceptionOrNull() as? HttpException
+            ?: error("Expected HttpException")
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
+    }
+
+    // --- Test 11: @Permission + 无 evaluator + 空 permissions → 403（默认行为冻结） ---
+    @Test
+    fun permission_noEvaluator_emptyPermissions_throws403() = runBlocking {
+        val ctx = testCtx()
+        val mockId = MockIdentity("user-1", setOf("user"), emptySet())
+        val config = secConfig(mockId)
+        val ex = kotlin.runCatching {
+            runSecurityPreHandle(route(requireAuth = true, permission = "system:user:edit"), ctx, reqCtx(), config)
+        }.exceptionOrNull() as? HttpException
+            ?: error("Expected HttpException")
+        assertEquals(HttpStatus.FORBIDDEN, ex.status)
+        assertTrue(ex.message?.contains("system:user:edit") == true)
+    }
+
+    // --- Test 12: @Permission + identity == null → 401（未认证） ---
+    @Test
+    fun permission_noIdentity_throws401() = runBlocking {
+        val ctx = testCtx()
+        val config = SecurityConfiguration(
+            isEnabled = true,
+            authenticatorCount = 1,
+            guardCount = 1,
+            authenticationContext = MockAuthenticationContext(),
+            defaultAuthenticator = MockAuthenticator(null),
+            defaultGuard = MockDefaultGuard()
+        )
+        val ex = kotlin.runCatching {
+            runSecurityPreHandle(route(requireAuth = false, permission = "any:perm"), ctx, reqCtx(), config)
+        }.exceptionOrNull() as? HttpException
+            ?: error("Expected HttpException")
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
     }
 }

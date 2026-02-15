@@ -5,6 +5,10 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.add
 import kotlin.io.encoding.Base64
 import neton.security.RequestContext
 import neton.security.identity.AuthenticationException
@@ -24,6 +28,60 @@ class JwtAuthenticatorV1(
 
     private val secretBytes = secretKey.encodeToByteArray()
     private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * 签发 JWT token
+     * @param userId 用户 ID
+     * @param roles 角色集合
+     * @param permissions 权限集合
+     * @param expiresInSeconds token 有效期（秒），默认 7200（2小时）
+     * @param extraClaims 额外的自定义 claims（支持 String / Number / Boolean 值）
+     * @return 签名后的 JWT 字符串（header.payload.signature）
+     */
+    fun createToken(
+        userId: UserId,
+        roles: Set<String> = emptySet(),
+        permissions: Set<String> = emptySet(),
+        expiresInSeconds: Long = 7200,
+        extraClaims: Map<String, Any> = emptyMap()
+    ): String {
+        val nowSeconds = kotlin.time.Clock.System.now().toEpochMilliseconds() / 1000
+
+        val headerJson = buildJsonObject {
+            put("alg", "HS256")
+            put("typ", "JWT")
+        }
+
+        val payloadJson = buildJsonObject {
+            put("sub", userId.value.toString())
+            put("iat", nowSeconds)
+            put("exp", nowSeconds + expiresInSeconds)
+            if (roles.isNotEmpty()) {
+                put("roles", buildJsonArray { roles.forEach { add(it) } })
+            }
+            if (permissions.isNotEmpty()) {
+                put("perms", buildJsonArray { permissions.forEach { add(it) } })
+            }
+            for ((k, v) in extraClaims) {
+                when (v) {
+                    is String -> put(k, v)
+                    is Long -> put(k, v)
+                    is Int -> put(k, v.toLong())
+                    is Boolean -> put(k, v)
+                    is Double -> put(k, v)
+                    else -> put(k, v.toString())
+                }
+            }
+        }
+
+        val headerB64 = base64UrlEncode(headerJson.toString().encodeToByteArray())
+        val payloadB64 = base64UrlEncode(payloadJson.toString().encodeToByteArray())
+        val signingInput = "$headerB64.$payloadB64"
+        val signature = HmacSha256.sign(secretBytes, signingInput.encodeToByteArray())
+        val signatureB64 = base64UrlEncode(signature)
+
+        return "$headerB64.$payloadB64.$signatureB64"
+    }
 
     /**
      * 按 spec 第七节「解析失败映射规则」顺序执行
@@ -74,6 +132,9 @@ class JwtAuthenticatorV1(
 
         return IdentityUser(userId, roles.toSet(), perms.toSet())
     }
+
+    private fun base64UrlEncode(data: ByteArray): String =
+        Base64.UrlSafe.encode(data).replace("=", "")
 
     private fun decodeBase64Url(s: String): String =
         decodeBase64UrlRaw(s).decodeToString()

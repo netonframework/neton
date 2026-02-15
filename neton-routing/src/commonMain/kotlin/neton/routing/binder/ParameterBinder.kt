@@ -7,11 +7,11 @@ import kotlin.reflect.KClass
 
 /**
  * 参数绑定器
- * 
+ *
  * 负责从 HTTP 上下文中提取和转换参数值
  */
 interface ParameterBinder {
-    
+
     /**
      * 绑定参数值
      */
@@ -20,7 +20,7 @@ interface ParameterBinder {
         context: HttpContext,
         pathParameters: Map<String, String>
     ): Any?
-    
+
     /**
      * 设置认证上下文
      */
@@ -29,17 +29,17 @@ interface ParameterBinder {
 
 /**
  * 默认参数绑定器实现
- * 
+ *
  * 支持路径参数、请求体、认证主体和上下文对象的绑定
  */
 class DefaultParameterBinder : ParameterBinder {
-    
+
     private var authenticationContext: AuthenticationContext? = null
-    
+
     override fun setAuthenticationContext(authContext: AuthenticationContext) {
         this.authenticationContext = authContext
     }
-    
+
     override suspend fun bindParameter(
         binding: ParameterBinding,
         context: HttpContext,
@@ -49,14 +49,14 @@ class DefaultParameterBinder : ParameterBinder {
             when (binding) {
                 is ParameterBinding.PathVariable -> bindPathVariable(binding, pathParameters)
                 is ParameterBinding.RequestBody -> bindRequestBody(binding, context)
-                is ParameterBinding.AuthenticationPrincipal -> bindAuthenticationPrincipal(binding)
+                is ParameterBinding.CurrentUser -> bindCurrentUser(binding)
                 is ParameterBinding.ContextObject -> bindContextObject(binding, context)
             }
         } catch (e: Exception) {
             throw RequestProcessingException.ParameterBindingException(binding.parameterName, e)
         }
     }
-    
+
     /**
      * 绑定路径参数
      */
@@ -66,10 +66,10 @@ class DefaultParameterBinder : ParameterBinder {
     ): Any? {
         val value = pathParameters[binding.pathKey]
             ?: throw IllegalArgumentException("Path parameter '${binding.pathKey}' not found")
-        
+
         return TypeConverter.convertFromString(value, binding.parameterType)
     }
-    
+
     /**
      * 绑定请求体
      */
@@ -81,7 +81,7 @@ class DefaultParameterBinder : ParameterBinder {
         if (jsonText.isEmpty()) {
             throw IllegalArgumentException("Request body is empty")
         }
-        
+
         return when (binding.parameterType) {
             String::class -> jsonText
             else -> {
@@ -91,22 +91,22 @@ class DefaultParameterBinder : ParameterBinder {
             }
         }
     }
-    
+
     /**
-     * 绑定认证主体
+     * 绑定当前用户
      */
-    private fun bindAuthenticationPrincipal(
-        binding: ParameterBinding.AuthenticationPrincipal
+    private fun bindCurrentUser(
+        binding: ParameterBinding.CurrentUser
     ): Any? {
-        val principal = authenticationContext?.currentUser()
-        
-        if (principal == null && binding.required) {
-            throw IllegalArgumentException("Authentication required but no principal found")
+        val identity = authenticationContext?.currentUser()
+
+        if (identity == null && binding.required) {
+            throw IllegalArgumentException("Authentication required but no user found")
         }
-        
-        return principal
+
+        return identity
     }
-    
+
     /**
      * 绑定上下文对象
      */
@@ -128,7 +128,7 @@ class DefaultParameterBinder : ParameterBinder {
  * 类型转换工具
  */
 object TypeConverter {
-    
+
     /**
      * 支持的基础类型转换
      */
@@ -137,13 +137,17 @@ object TypeConverter {
             String::class -> value
             Int::class -> value.toIntOrNull() ?: throw IllegalArgumentException("Cannot convert '$value' to Int")
             Long::class -> value.toLongOrNull() ?: throw IllegalArgumentException("Cannot convert '$value' to Long")
-            Boolean::class -> value.toBooleanStrictOrNull() ?: throw IllegalArgumentException("Cannot convert '$value' to Boolean")
-            Double::class -> value.toDoubleOrNull() ?: throw IllegalArgumentException("Cannot convert '$value' to Double")
+            Boolean::class -> value.toBooleanStrictOrNull()
+                ?: throw IllegalArgumentException("Cannot convert '$value' to Boolean")
+
+            Double::class -> value.toDoubleOrNull()
+                ?: throw IllegalArgumentException("Cannot convert '$value' to Double")
+
             Float::class -> value.toFloatOrNull() ?: throw IllegalArgumentException("Cannot convert '$value' to Float")
             else -> throw IllegalArgumentException("Unsupported type conversion to $targetType")
         }
     }
-    
+
     /**
      * 检查类型是否支持转换
      */
@@ -153,4 +157,4 @@ object TypeConverter {
             else -> false
         }
     }
-} 
+}

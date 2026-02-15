@@ -165,7 +165,7 @@ KSP auto-generates single-table operations:
 
 ```kotlin
 UserTable.get(id)
-UserTable.where { User::status eq id }.list()
+UserTable.query { where { ColumnRef("status") eq id } }.list()
 UserTable.destroy(id)
 ```
 

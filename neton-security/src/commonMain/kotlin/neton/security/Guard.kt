@@ -1,31 +1,17 @@
 package neton.security
 
-/**
- * 权限守卫接口 - 专注于权限控制逻辑
- */
-interface Guard {
-    /**
-     * 执行权限检查
-     * @param principal 已认证的用户主体，可能为 null
-     * @param context 请求上下文
-     * @return true 如果允许访问，false 如果拒绝访问
-     */
-    suspend fun authorize(principal: Principal?, context: RequestContext): Boolean
-    
-    /**
-     * 守卫名称
-     */
-    val name: String
-}
+import neton.core.interfaces.Guard
+import neton.core.interfaces.Identity
+import neton.core.interfaces.RequestContext
 
 /**
  * 默认守卫 - 允许所有已认证用户访问
  */
 class DefaultGuard : Guard {
     override val name = "default"
-    
-    override suspend fun authorize(principal: Principal?, context: RequestContext): Boolean {
-        return principal != null
+
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean {
+        return identity != null
     }
 }
 
@@ -34,8 +20,8 @@ class DefaultGuard : Guard {
  */
 class PublicGuard : Guard {
     override val name = "public"
-    
-    override suspend fun authorize(principal: Principal?, context: RequestContext): Boolean {
+
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean {
         return true
     }
 }
@@ -45,9 +31,9 @@ class PublicGuard : Guard {
  */
 class AdminGuard : Guard {
     override val name = "admin"
-    
-    override suspend fun authorize(principal: Principal?, context: RequestContext): Boolean {
-        return principal?.hasRole("admin") ?: false
+
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean {
+        return identity?.hasRole("admin") ?: false
     }
 }
 
@@ -59,16 +45,16 @@ class RoleGuard(
     private val requireAll: Boolean = false
 ) : Guard {
     override val name = "role"
-    
+
     constructor(vararg roles: String, requireAll: Boolean = false) : this(roles.toList(), requireAll)
-    
-    override suspend fun authorize(principal: Principal?, context: RequestContext): Boolean {
-        if (principal == null) return false
-        
+
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean {
+        if (identity == null) return false
+
         return if (requireAll) {
-            principal.hasAllRoles(*requiredRoles.toTypedArray())
+            identity.hasAllRoles(*requiredRoles.toTypedArray())
         } else {
-            principal.hasAnyRole(*requiredRoles.toTypedArray())
+            identity.hasAnyRole(*requiredRoles.toTypedArray())
         }
     }
 }
@@ -78,9 +64,9 @@ class RoleGuard(
  */
 class CustomGuard(
     override val name: String,
-    private val authorizer: suspend (principal: Principal?, context: RequestContext) -> Boolean
+    private val authorizer: suspend (identity: Identity?, context: RequestContext) -> Boolean
 ) : Guard {
-    override suspend fun authorize(principal: Principal?, context: RequestContext): Boolean {
-        return authorizer(principal, context)
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean {
+        return authorizer(identity, context)
     }
-} 
+}

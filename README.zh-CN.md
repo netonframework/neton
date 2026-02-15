@@ -165,7 +165,7 @@ KSP 自动生成单表 Table：
 ```kotlin
 // 用户表
 UserTable.get(id)
-UserTable.where { User::status eq id }.list()
+UserTable.query { where { ColumnRef("status") eq id } }.list()
 UserTable.destroy(id)
 ```
 

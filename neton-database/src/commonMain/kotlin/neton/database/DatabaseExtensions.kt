@@ -30,7 +30,7 @@ class DatabaseInstallConfig {
     /**
      * 可选：v2 Query API 的 Table 查找函数。
      * 设置后会自动注入 QueryRuntime.executor 和 EntityPersistence.saver，
-     * 业务层即可使用 query 包下的 UserTable.where { } / get / save()（需 KSP 生成 Table）。
+     * 业务层即可使用 UserTable.query { } / get / save()（需 KSP 生成 Table）。
      */
     var tableRegistry: TableRegistry? = null
 }
@@ -60,7 +60,7 @@ object DatabaseComponent : NetonComponent<DatabaseInstallConfig> {
             QueryRuntime.executor = DefaultQueryExecutor(registry)
             EntityPersistence.saver = { entity ->
                 @Suppress("UNCHECKED_CAST")
-                (registry((entity as Any)::class) as? Table<Any>)?.save(entity as Any)
+                (registry((entity as Any)::class) as? Table<Any, *>)?.save(entity as Any)
             }
             log?.info("database.query_runtime.set")
         }

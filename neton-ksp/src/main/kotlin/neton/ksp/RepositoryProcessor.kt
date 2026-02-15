@@ -376,7 +376,12 @@ import neton.database.api.Table
 
 internal class ${repoName}Impl : $repoName {
     private val table = ${entityName}Table
-    override suspend fun findById(id: kotlin.Any) = table.get(id)
+    private fun idToLong(id: kotlin.Any): Long = when (id) {
+        is Long -> id
+        is Number -> id.toLong()
+        else -> throw IllegalArgumentException("id must be Long or Number")
+    }
+    override suspend fun findById(id: kotlin.Any) = table.get(idToLong(id))
     override suspend fun findAll() = table.findAll()
     override suspend fun save(entity: $entityRef) = table.save(entity)
     override suspend fun saveAll(entities: List<$entityRef>) = table.saveAll(entities)
@@ -384,10 +389,10 @@ internal class ${repoName}Impl : $repoName {
     override suspend fun insertBatch(entities: List<$entityRef>) = table.insertBatch(entities)
     override suspend fun update(entity: $entityRef) = table.update(entity)
     override suspend fun updateBatch(entities: List<$entityRef>) = table.updateBatch(entities)
-    override suspend fun deleteById(id: kotlin.Any) = table.destroy(id)
+    override suspend fun deleteById(id: kotlin.Any) = table.destroy(idToLong(id))
     override suspend fun delete(entity: $entityRef) = table.delete(entity)
     override suspend fun count() = table.count()
-    override suspend fun exists(id: kotlin.Any) = table.exists(id)
+    override suspend fun exists(id: kotlin.Any) = table.exists(idToLong(id))
     override fun query() = table.query()
     override suspend fun <R> withTransaction(block: suspend Table<$entityRef>.() -> R) = table.withTransaction(block)$customBlock
 }

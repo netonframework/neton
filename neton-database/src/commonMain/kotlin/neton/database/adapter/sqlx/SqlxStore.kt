@@ -3,10 +3,7 @@ package neton.database.adapter.sqlx
 import io.github.smyrgeorge.sqlx4k.QueryExecutor
 import io.github.smyrgeorge.sqlx4k.RowMapper
 import io.github.smyrgeorge.sqlx4k.Statement
-import neton.database.api.Predicate
-import neton.database.api.Query
 import neton.database.api.QueryBuilder
-import neton.database.api.PredicateScope
 import neton.database.api.Table
 
 /**
@@ -19,12 +16,12 @@ abstract class SqlxStore<T : Any>(
     protected val mapper: RowMapper<T>,
     protected val toParams: (T) -> Map<String, Any?>,
     protected val getId: (T) -> Any?
-) : Table<T> {
+) : Table<T, Long> {
 
     private fun isNew(id: Any?): Boolean =
         id == null || (id is Number && id.toLong() == 0L)
 
-    override suspend fun get(id: Any): T? =
+    override suspend fun get(id: Long): T? =
         db.fetchAll(statements.selectById.bind("id", id), mapper).getOrThrow().firstOrNull()
 
     override suspend fun findAll(): List<T> =
@@ -33,13 +30,10 @@ abstract class SqlxStore<T : Any>(
     override suspend fun count(): Long =
         findAll().size.toLong()
 
-    override suspend fun exists(id: Any): Boolean = get(id) != null
+    override suspend fun exists(id: Long): Boolean = get(id) != null
 
-    override suspend fun destroy(id: Any): Boolean =
+    override suspend fun destroy(id: Long): Boolean =
         db.execute(statements.deleteById.bind("id", id)).getOrThrow() > 0
-
-    override suspend fun updateById(id: Any, block: T.() -> T): T? =
-        get(id)?.let { save(block(it)) }
 
     override suspend fun insert(entity: T): T {
         val params = toParams(entity).filterKeys { it != "id" }
@@ -93,17 +87,19 @@ abstract class SqlxStore<T : Any>(
 
     override suspend fun delete(entity: T): Boolean {
         val id = getId(entity) ?: return false
-        return destroy(id)
+        val idLong = when (id) {
+            is Long -> id
+            is Number -> id.toLong()
+            else -> return false
+        }
+        return destroy(idLong)
     }
 
-    override suspend fun <R> withTransaction(block: suspend Table<T>.() -> R): R =
+    override suspend fun <R> withTransaction(block: suspend Table<T, Long>.() -> R): R =
         (db as io.github.smyrgeorge.sqlx4k.QueryExecutor.Transactional).transaction { this@SqlxStore.block() }
 
     override fun query(): QueryBuilder<T> =
         SqlxQueryBuilder { findAll() }
-
-    override fun where(block: PredicateScope<T>.() -> Predicate): Query<T> =
-        throw UnsupportedOperationException("where DSL requires SqlxStoreAdapter; use KSP v3 Store generation")
 
     /** KSP 生成 Repository 实现用：自定义 Statement 查单条 */
     suspend fun queryOne(statement: Statement, params: Map<String, Any?>): T? =

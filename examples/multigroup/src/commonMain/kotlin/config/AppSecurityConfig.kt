@@ -19,20 +19,11 @@ class AppSecurityConfig : SecurityConfigurer {
         security.setDefaultGuard(RealAnonymousGuard())
 
         // admin 组：Mock 认证 + 默认守卫（requireAuth 时生效）
-        val factory = security.getSecurityFactory()
-        security.setGroupAuthenticator("admin", factory.createAuthenticator("mock", mapOf(
-            "userId" to "admin-user",
-            "roles" to listOf("admin"),
-            "attributes" to emptyMap<String, Any>()
-        )))
+        security.registerMockAuthenticator("admin", "admin-user", setOf("admin"), emptySet())
         security.setGroupGuard("admin", RealDefaultGuard())
 
         // app 组：Mock 认证 + 默认守卫
-        security.setGroupAuthenticator("app", factory.createAuthenticator("mock", mapOf(
-            "userId" to "app-user",
-            "roles" to listOf("user"),
-            "attributes" to emptyMap<String, Any>()
-        )))
+        security.registerMockAuthenticator("app", "app-user", setOf("user"), emptySet())
         security.setGroupGuard("app", RealDefaultGuard())
     }
 }

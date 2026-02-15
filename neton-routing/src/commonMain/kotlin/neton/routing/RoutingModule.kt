@@ -35,7 +35,9 @@ data class RoutingConfig(
  */
 data class RouteGroup(
     val name: String,
-    val mount: RouteMountConfig
+    val mount: RouteMountConfig,
+    val requireAuth: Boolean = false,
+    val allowAnonymous: List<String> = emptyList()
 )
 
 /**
@@ -51,7 +53,7 @@ data class RouteMountConfig(
  */
 enum class RouteMountType {
     PATH,    // 路径挂载：/admin
-    DOMAIN   // 域名挂载：admin.example.com  
+    DOMAIN   // 域名挂载：admin.example.com
 }
 
 /**
@@ -80,11 +82,12 @@ class RoutingRequestEngineAdapter(
             methodName = route.methodName ?: "unknown",
             allowAnonymous = route.allowAnonymous,
             requireAuth = route.requireAuth,
-            routeGroup = route.routeGroup
+            routeGroup = route.routeGroup,
+            permission = route.permission
         )
         routingEngine.registerRoute(routingRoute)
     }
-    
+
     override fun getRoutes(): List<CoreRouteDefinition> {
         return routingEngine.getRoutes().map { routingRoute ->
             CoreRouteDefinition(
@@ -95,11 +98,12 @@ class RoutingRequestEngineAdapter(
                 methodName = routingRoute.methodName,
                 allowAnonymous = routingRoute.allowAnonymous,
                 requireAuth = routingRoute.requireAuth,
-                routeGroup = routingRoute.routeGroup
+                routeGroup = routingRoute.routeGroup,
+                permission = routingRoute.permission
             )
         }
     }
-    
+
     override fun setAuthenticationContext(authContext: AuthenticationContext) {
         // RESERVED FOR v1.1: 认证上下文设置
     }
@@ -142,4 +146,4 @@ data class RouteStatistics(
             )
         )
     }
-} 
+}

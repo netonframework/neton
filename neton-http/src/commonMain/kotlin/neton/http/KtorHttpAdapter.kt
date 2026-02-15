@@ -59,11 +59,12 @@ class KtorHttpAdapter(
         }
         return false
     }
-    
+
     private suspend fun run(port: Int, args: Array<String>, onStarted: ((coldStartMs: Long) -> Unit)? = null) {
         val startMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
         // KTOR_LOG_LEVEL 与框架 logging.level 同步
         val appConfig = ConfigLoader.loadApplicationConfig("config", ConfigLoader.resolveEnvironment(args), args)
+
         @Suppress("UNCHECKED_CAST")
         val loggingSection = appConfig?.let { ConfigLoader.getConfigValue(it, "logging") as? Map<String, Any?> }
         val levelStr = (loggingSection?.get("level") as? String)?.uppercase() ?: "INFO"
@@ -85,15 +86,16 @@ class KtorHttpAdapter(
                     }
                     // /aaa 与 /aaa/ 视为同一地址
                     install(IgnoreTrailingSlash)
-                    
+
                     routing {
                         // === 动态注册控制器路由 ===
                         val engine = requestEngine
                         if (engine != null) {
                             val routes = engine.getRoutes()
                             val groupMounts = appContext?.getOrNull(RouteGroupMounts::class)?.groupToMount ?: emptyMap()
-                            val configuredGroups = appContext?.getOrNull(ConfiguredRouteGroups::class)?.names ?: emptySet()
-                            
+                            val configuredGroups =
+                                appContext?.getOrNull(ConfiguredRouteGroups::class)?.names ?: emptySet()
+
                             val rootRoute = this
                             val routesByGroup = routes.groupBy { route ->
                                 route.routeGroup ?: inferRouteGroup(route.controllerClass, configuredGroups)
@@ -101,9 +103,11 @@ class KtorHttpAdapter(
                             // 无 mount 的默认组优先注册，确保 get("/") 在 route("{...}") 之前
                             val ordered = routesByGroup.entries.sortedBy { (g, _) -> if (g == null) 0 else 1 }
                             ordered.forEach { (group, groupRoutes) ->
-                                val mount = if (group != null) groupMounts[group]?.takeIf { it.isNotEmpty() } ?: "" else ""
+                                val mount =
+                                    if (group != null) groupMounts[group]?.takeIf { it.isNotEmpty() } ?: "" else ""
                                 // 更具体的路径优先注册（否则根路径 get("/") 可能贪婪匹配）
-                                val sorted = groupRoutes.sortedBy { if (it.pattern == "/" || it.pattern == "") 1 else 0 }
+                                val sorted =
+                                    groupRoutes.sortedBy { if (it.pattern == "/" || it.pattern == "") 1 else 0 }
                                 val registerBlock: io.ktor.server.routing.Route.() -> Unit = {
                                     sorted.forEach { route ->
                                         // 嵌套 route(mount) 内需用相对路径，去掉首斜杠
@@ -113,7 +117,8 @@ class KtorHttpAdapter(
                                             route.pattern
                                         }
                                         // 根路径 "" 需同时注册 get("/") 以匹配带尾斜杠的 /admin/
-                                        val paths = if (mount.isNotEmpty() && path == "") listOf("", "/") else listOf(path)
+                                        val paths =
+                                            if (mount.isNotEmpty() && path == "") listOf("", "/") else listOf(path)
                                         paths.forEach { p ->
                                             when (route.method.name) {
                                                 "GET" -> get(p) { handleRoute(route, call) }
@@ -123,7 +128,8 @@ class KtorHttpAdapter(
                                                 "PATCH" -> patch(p) { handleRoute(route, call) }
                                                 "HEAD" -> head(p) { handleRoute(route, call) }
                                                 "OPTIONS" -> options(p) { handleRoute(route, call) }
-                                                else -> { /* unsupported method */ }
+                                                else -> { /* unsupported method */
+                                                }
                                             }
                                         }
                                     }
@@ -132,34 +138,36 @@ class KtorHttpAdapter(
                                     val mountPath = mount.trimStart('/')
                                     // 扁平化：route("admin/index") { get { } } 避免嵌套路径匹配问题
                                     sorted.forEach { route ->
-                                        val rel = if (route.pattern.startsWith("/")) route.pattern.removePrefix("/") else route.pattern
+                                        val rel =
+                                            if (route.pattern.startsWith("/")) route.pattern.removePrefix("/") else route.pattern
                                         val full = if (rel.isEmpty()) "/$mountPath" else "/$mountPath/$rel"
                                         listOf(full).forEach { fp ->
-                                        when (route.method.name) {
-                                            "GET" -> route(fp) { get { handleRoute(route, call) } }
-                                            "POST" -> route(fp) { post { handleRoute(route, call) } }
-                                            "PUT" -> route(fp) { put { handleRoute(route, call) } }
-                                            "DELETE" -> route(fp) { delete { handleRoute(route, call) } }
-                                            "PATCH" -> route(fp) { patch { handleRoute(route, call) } }
-                                            "HEAD" -> route(fp) { head { handleRoute(route, call) } }
-                                            "OPTIONS" -> route(fp) { options { handleRoute(route, call) } }
-                                            else -> { /* unsupported method */ }
-                                        }
+                                            when (route.method.name) {
+                                                "GET" -> route(fp) { get { handleRoute(route, call) } }
+                                                "POST" -> route(fp) { post { handleRoute(route, call) } }
+                                                "PUT" -> route(fp) { put { handleRoute(route, call) } }
+                                                "DELETE" -> route(fp) { delete { handleRoute(route, call) } }
+                                                "PATCH" -> route(fp) { patch { handleRoute(route, call) } }
+                                                "HEAD" -> route(fp) { head { handleRoute(route, call) } }
+                                                "OPTIONS" -> route(fp) { options { handleRoute(route, call) } }
+                                                else -> { /* unsupported method */
+                                                }
+                                            }
                                         }
                                     }
                                 } else {
                                     rootRoute.apply(registerBlock)
                                 }
                             }
-                            
+
                         } else {
                         }
-                        
+
                         // 根路径 "/" 需优先于 route("{...}") 注册，否则 tailcard 会抢占
                         engine?.getRoutes()?.find { it.pattern == "/" && it.method.name == "GET" }?.let { rootGet ->
                             get("/") { handleRoute(rootGet, call) }
                         }
-                        
+
                         // 处理未匹配的路由 - 返回 404
                         route("{...}") {
                             handle {
@@ -168,8 +176,8 @@ class KtorHttpAdapter(
                         }
                     }
                 }
-                
-                
+
+
                 try {
                     addShutdownHandler()
                     // 启动成功后回调框架层（端口占用会 exit，不会执行到 delay 后）
@@ -189,7 +197,7 @@ class KtorHttpAdapter(
                     gracefulShutdown()
                     throw e
                 }
-                
+
             } catch (e: Throwable) {
                 if (isPortInUse(e)) {
                     kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
@@ -213,7 +221,7 @@ class KtorHttpAdapter(
             }
         }
     }
-    
+
     /**
      * 显示从 RequestEngine 获取的路由信息
      */
@@ -242,7 +250,7 @@ class KtorHttpAdapter(
             embeddedServer = null
         }
     }
-    
+
     /**
      * 统一处理路由请求。请求入口注入 LogContext；finally 打 access log（msg=http.access），异常打 http.error。
      */
@@ -274,12 +282,26 @@ class KtorHttpAdapter(
             call.respond(io.ktor.http.HttpStatusCode.BadRequest, body)
         } catch (e: neton.core.http.HttpException) {
             status = e.status.code
-            log?.warn("http.error", fields = mapOf("method" to method, "path" to path, "status" to status, "traceId" to traceId), cause = e)
+            log?.warn(
+                "http.error",
+                fields = mapOf("method" to method, "path" to path, "status" to status, "traceId" to traceId),
+                cause = e
+            )
             val body = neton.core.http.ErrorResponse(message = e.message, errors = e.errors)
             call.respond(mapToKtorStatus(e.status), body)
         } catch (e: Exception) {
             status = 500
-            log?.error("http.error", fields = mapOf("method" to method, "path" to path, "status" to status, "traceId" to traceId, "route" to routeInfo), cause = e)
+            log?.error(
+                "http.error",
+                fields = mapOf(
+                    "method" to method,
+                    "path" to path,
+                    "status" to status,
+                    "traceId" to traceId,
+                    "route" to routeInfo
+                ),
+                cause = e
+            )
             val body = neton.core.http.ErrorResponse(message = "Internal Server Error")
             call.respond(io.ktor.http.HttpStatusCode.InternalServerError, body)
         } finally {
@@ -307,8 +329,8 @@ class KtorHttpAdapter(
     }
 
     /**
-     * 安全预处理：认证 + 授权，principal 写入 httpContext.attributes["principal"]
-     * v1.1：仅 AllowAnonymous / RequireAuth；Mode A（未安装 Security）时 @RequireAuth → 500
+     * 安全预处理：认证 + 授权，identity 写入 httpContext.attributes["identity"]
+     * v1.2：Identity 体系 + @Permission + PermissionEvaluator + 路由组白名单
      */
     private suspend fun securityPreHandle(
         route: RouteDefinition,
@@ -318,9 +340,8 @@ class KtorHttpAdapter(
         call: io.ktor.server.application.ApplicationCall,
         log: neton.logging.Logger?
     ) {
-        val allowAnonymous = route.allowAnonymous
-        val requireAuth = route.requireAuth
         val securityConfig = appContext?.getOrNull(SecurityConfiguration::class)
+        val routeGroupSecurityConfigs = appContext?.getOrNull(RouteGroupSecurityConfigs::class)
         val reqHeaders = mutableMapOf<String, String>().apply {
             call.request.headers.forEach { name, values -> values.firstOrNull()?.let { put(name, it) } }
         }
@@ -335,11 +356,13 @@ class KtorHttpAdapter(
         )
 
         try {
-            runSecurityPreHandle(route, httpContext, requestContext, securityConfig)
+            runSecurityPreHandle(route, httpContext, requestContext, securityConfig, routeGroupSecurityConfigs)
         } catch (e: HttpException) {
             when (e.status) {
                 HttpStatus.INTERNAL_SERVER_ERROR -> log?.warn("security.config.error", mapOf("message" to e.message))
-                HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN -> { /* 401/403 正常业务拒绝 */ }
+                HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN -> { /* 401/403 正常业务拒绝 */
+                }
+
                 else -> {}
             }
             throw e
@@ -364,7 +387,7 @@ class KtorHttpAdapter(
         val r = (0 until 100000).random()
         return "req-$ts-$r"
     }
-    
+
     private fun mapToKtorStatus(s: neton.core.http.HttpStatus): io.ktor.http.HttpStatusCode = when (s) {
         neton.core.http.HttpStatus.BAD_REQUEST -> io.ktor.http.HttpStatusCode.BadRequest
         neton.core.http.HttpStatus.UNAUTHORIZED -> io.ktor.http.HttpStatusCode.Unauthorized
@@ -407,6 +430,7 @@ class KtorHttpAdapter(
                                     if (idx < parts.size) path[name] = parts[idx]
                                 }
                             }
+
                             else -> {}
                         }
                     }
@@ -421,47 +445,60 @@ class KtorHttpAdapter(
         }
         return ArgsView(path, query)
     }
-    
-    
+
+
     /** Map/List 转 JSON 字符串，避免 Ktor ContentNegotiation 对 Map<String,Any> 序列化失败 */
     private fun mapToJsonString(obj: Any): String = when (obj) {
         is Map<*, *> -> obj.entries.joinToString(",", "{", "}") { (k, v) ->
-            "\"${k.toString().replace("\\", "\\\\").replace("\"", "\\\"")}\":${if (v != null) mapToJsonString(v) else "null"}"
+            "\"${
+                k.toString().replace("\\", "\\\\").replace("\"", "\\\"")
+            }\":${if (v != null) mapToJsonString(v) else "null"}"
         }
+
         is List<*> -> obj.joinToString(",", "[", "]") { if (it != null) mapToJsonString(it) else "null" }
         is String -> "\"${obj.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         is Number -> obj.toString()
         is Boolean -> obj.toString()
         else -> "\"${obj}\""
     }
-    
+
     /**
      * 处理控制器方法返回值，返回 HTTP 状态码（用于 access log）。
      */
-    private suspend fun handleResponse(call: io.ktor.server.application.ApplicationCall, result: Any?, routeInfo: String, log: neton.logging.Logger?): Int {
+    private suspend fun handleResponse(
+        call: io.ktor.server.application.ApplicationCall,
+        result: Any?,
+        routeInfo: String,
+        log: neton.logging.Logger?
+    ): Int {
         return try {
             when (result) {
                 null, is Unit -> {
                     call.respond(HttpStatusCode.NoContent)
                     204
                 }
+
                 is String -> {
                     call.respondText(result, ContentType.Text.Plain)
                     200
                 }
+
                 is Map<*, *> -> {
                     val json = mapToJsonString(result)
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
+
                 is Number -> {
                     call.respondText(result.toString(), ContentType.Text.Plain)
                     200
                 }
+
                 is Boolean -> {
                     call.respondText(result.toString(), ContentType.Text.Plain)
                     200
                 }
+
                 else -> {
                     call.respond(result)
                     200
@@ -494,17 +531,17 @@ private class KtorHttpContext(
 
 /**
  * 简化的 Ktor HttpRequest 适配器
- */  
+ */
 private class SimpleKtorHttpRequest(private val call: io.ktor.server.application.ApplicationCall) : HttpRequest {
-    
+
     override suspend fun body(): ByteArray = call.receiveChannel().readRemaining().readByteArray()
-    
+
     override suspend fun text(): String = body().decodeToString()
-    
+
     override suspend fun json(): Any = mapOf<String, Any>() // @Body 使用 context.request.text() + Json.decodeFromString
-    
+
     override suspend fun form(): neton.core.http.Parameters = SimpleParameters()
-    
+
     override val method: neton.core.http.HttpMethod = when (call.request.httpMethod.value) {
         "GET" -> neton.core.http.HttpMethod.GET
         "POST" -> neton.core.http.HttpMethod.POST
@@ -512,7 +549,7 @@ private class SimpleKtorHttpRequest(private val call: io.ktor.server.application
         "DELETE" -> neton.core.http.HttpMethod.DELETE
         else -> neton.core.http.HttpMethod.GET
     }
-    
+
     override val path: String = call.request.uri
     override val url: String = call.request.uri
     override val version: String = "HTTP/1.1"
@@ -573,23 +610,25 @@ private class SimpleKtorHttpResponse(private val call: io.ktor.server.applicatio
  * 简化的 HttpSession 适配器
  */
 private class SimpleKtorHttpSession : HttpSession {
-    
+
     private val data = mutableMapOf<String, Any>()
-    
+
     override fun getAttribute(name: String): Any? = data[name]
-    
-    override fun setAttribute(name: String, value: Any?) { 
-        if (value != null) data[name] = value 
+
+    override fun setAttribute(name: String, value: Any?) {
+        if (value != null) data[name] = value
     }
-    
+
     override fun removeAttribute(name: String): Any? = data.remove(name)
-    
+
     override fun getAttributeNames(): Set<String> = data.keys
-    
-    override fun invalidate() { data.clear() }
-    
+
+    override fun invalidate() {
+        data.clear()
+    }
+
     override fun touch() {}
-    
+
     override val id: String = "simple-session"
     override val creationTime: Long = 0L
     override val lastAccessTime: Long = 0L
@@ -621,7 +660,7 @@ private class SimpleHeaders : neton.core.http.Headers {
 }
 
 /**
- * 简化的 MutableHeaders 实现 
+ * 简化的 MutableHeaders 实现
  */
 private class SimpleMutableHeaders : neton.core.http.MutableHeaders {
     override fun get(name: String): String? = null
@@ -633,4 +672,4 @@ private class SimpleMutableHeaders : neton.core.http.MutableHeaders {
     override fun add(name: String, value: String) {}
     override fun remove(name: String) {}
     override fun clear() {}
-} 
+}

@@ -38,10 +38,12 @@ class EntityStoreProcessor(
         val idColumn = columns.find { it.isId }?.columnName ?: "id"
         val pkg = entityPkg
 
+        val idCol = columns.find { it.isId || it.propName == "id" }
+        val idType = idCol?.propType?.removeSuffix("?") ?: "Long"
         generateMeta(pkg, entityName, entityPkg, tableName, columns, idColumn)
         generateRowMapper(pkg, entityName, entityPkg, columns)
-        generateTable(pkg, entityName, entityPkg, tableName, columns, idColumn)
-        generateExtensions(pkg, entityName, entityPkg, columns)
+        generateTable(pkg, entityName, entityPkg, tableName, columns, idColumn, idType)
+        generateExtensions(pkg, entityName, entityPkg, columns, idType)
     }
 
     private fun resolveTableName(entity: KSClassDeclaration): String? {
@@ -137,7 +139,7 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
         }
     }
 
-    private fun generateTable(pkg: String, entityName: String, entityPkg: String, tableName: String, columns: List<EntityColumnInfo>, idColumn: String) {
+    private fun generateTable(pkg: String, entityName: String, entityPkg: String, tableName: String, columns: List<EntityColumnInfo>, idColumn: String, idType: String) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val insertCols = columns.filter { !it.isId }.joinToString(", ") { it.columnName }
         val insertVals = columns.filter { !it.isId }.joinToString(", ") { ":" + it.columnName }
@@ -147,14 +149,14 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
         OutputStreamWriter(file).use { w ->
             w.write("""
 // AUTO-GENERATED - DO NOT EDIT
-// 对外只暴露 Table<User> 接口，不暴露底层实现，便于未来换引擎
+// 对外只暴露 Table<User, ID> 接口，不暴露底层实现，便于未来换引擎
 package $pkg
 
 import neton.database.api.Table
 import neton.database.adapter.sqlx.SqlxTableAdapter
 import neton.database.adapter.sqlx.SqlxDatabase
 
-object ${entityName}Table : Table<$entityRef> by SqlxTableAdapter(
+object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$entityRef, $idType>(
     meta = ${entityName}Meta,
     dbProvider = { SqlxDatabase.require() },
     mapper = ${entityName}RowMapper,
@@ -167,7 +169,7 @@ object ${entityName}Table : Table<$entityRef> by SqlxTableAdapter(
         }
     }
 
-    private fun generateExtensions(pkg: String, entityName: String, entityPkg: String, columns: List<EntityColumnInfo>) {
+    private fun generateExtensions(pkg: String, entityName: String, entityPkg: String, columns: List<EntityColumnInfo>, idType: String) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val nonId = columns.filter { !it.isId && it.propName != "id" }
         val scopeVars = nonId.joinToString("\n    ") { "var ${it.propName}: ${it.propType}" }
@@ -177,7 +179,7 @@ object ${entityName}Table : Table<$entityRef> by SqlxTableAdapter(
         OutputStreamWriter(file).use { w ->
             w.write("""
 // AUTO-GENERATED - DO NOT EDIT
-// 定型 API：UserTable.get(id) / UserTable.destroy(id) / UserTable.update(id){ } / UserTable.where{ } / user.save() / user.delete()
+// 定型 API：UserTable.get(id) / UserTable.destroy(id) / UserTable.update(id){ } / UserTable.query{ } / user.save() / user.delete()
 // update(id){ } 为 mutate 风格：lambda 内直接赋值，copy 由框架内部生成
 package $pkg
 
@@ -194,7 +196,7 @@ class ${entityName}UpdateScope(initial: $entityRef) {
 }
 
 // ---------- 表级 UserTable.update(id){ }（mutate 风格）----------
-suspend fun ${entityName}Table.update(id: kotlin.Any, block: ${entityName}UpdateScope.() -> kotlin.Unit): $entityRef? {
+suspend fun ${entityName}Table.update(id: $idType, block: ${entityName}UpdateScope.() -> kotlin.Unit): $entityRef? {
     val current = ${entityName}Table.get(id) ?: return null
     val scope = ${entityName}UpdateScope(current)
     scope.block()

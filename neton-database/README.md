@@ -35,6 +35,10 @@ neton-database/
 └── 示例见 examples/mvc
 ```
 
+### Phase 1 真实数据库验收
+
+单元测试与契约测试不连库；若需用**本机 PostgreSQL** 做一次完整流程验收（建表、插入、软删、query/page、many、existsWhere），见 **[docs/INTEGRATION_TEST.md](docs/INTEGRATION_TEST.md)**。
+
 ## 🚀 快速开始
 
 ### 1. 定义实体模型
@@ -90,24 +94,23 @@ fun main(args: Array<String>) {
 
 ### 4. 使用 Entity 为中心的 API（KSP 生成，无 Table/Store 暴露）
 
-实体用 `@Table` + `@Id`，KSP 生成 `object UserTable : Table<User>` 及 `user.save` / `user.delete`：
+实体用 `@Table` + `@Id`，KSP 生成 `object UserTable : Table<User, Long>` 及 `user.save` / `user.delete`：
 
 ```kotlin
 // 主键查询
 val user = UserTable.get(1)
 
-// 条件查询
-val activeUsers = UserTable.where { User::status eq 1 }.list()
-val adults = UserTable.where { (User::age gt 18) and (User::status eq 1) }
-    .orderBy(User::id.desc())
-    .limit(20)
-    .list()
+// 条件查询（query { where { } } 为唯一入口，where 内用 ColumnRef）
+import neton.database.dsl.ColumnRef
+val activeUsers = UserTable.query { where { ColumnRef("status") eq 1 } }.list()
+val adults = UserTable.query {
+    where { and(ColumnRef("age") gt 18, ColumnRef("status") eq 1) }
+    orderBy(ColumnRef("id").desc())
+    limitOffset(20, 0)
+}.list()
 
 // 分页
-val page = UserTable.where { User::status eq 1 }.page(1, 20).listPage()
-
-// 流式（大数据/导出）
-UserTable.where { User::status eq 1 }.flow().collect { println(it) }
+val page = UserTable.query { where { ColumnRef("status") eq 1 } }.page(1, 20)
 
 // 按 id 删除 / 更新（update 为 mutate 风格，copy 由 KSP 内部生成）
 UserTable.destroy(id)

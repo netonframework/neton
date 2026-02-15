@@ -1,61 +1,41 @@
 package neton.core.interfaces
 
 /**
- * 用户主体接口 - 代表已认证的用户
+ * 身份接口 — 代表已认证的用户
+ *
+ * roles 与 permissions 均为一等公民：
+ * - roles：粗粒度分组（admin, user, ops），用于 @RolesAllowed
+ * - permissions：细粒度动作（system:user:edit），用于 @Permission
+ *
+ * @see Neton-Security-Spec-v1.1-API-Freeze.md
  */
-interface Principal {
+interface Identity {
     val id: String
-    val roles: List<String>
-    val attributes: Map<String, Any> get() = mapOf()
-    
-    /**
-     * 检查用户是否具有指定角色
-     */
-    fun hasRole(role: String): Boolean = roles.contains(role)
-    
-    /**
-     * 检查用户是否具有任意一个指定角色
-     */
-    fun hasAnyRole(vararg roles: String): Boolean = roles.any { hasRole(it) }
-    
-    /**
-     * 检查用户是否具有所有指定角色
-     */
-    fun hasAllRoles(vararg roles: String): Boolean = roles.all { hasRole(it) }
+    val roles: Set<String>
+    val permissions: Set<String>
+
+    fun hasRole(role: String): Boolean = role in roles
+    fun hasPermission(p: String): Boolean = p in permissions
+
+    fun hasAnyRole(vararg rs: String): Boolean = rs.any { it in roles }
+    fun hasAllRoles(vararg rs: String): Boolean = rs.all { it in roles }
+    fun hasAnyPermission(vararg ps: String): Boolean = ps.any { it in permissions }
+    fun hasAllPermissions(vararg ps: String): Boolean = ps.all { it in permissions }
 }
 
 /**
- * 身份验证器接口 - 专注于验证用户身份
+ * 身份验证器接口
  */
 interface Authenticator {
-    /**
-     * 执行身份验证
-     * @param context 请求上下文
-     * @return 验证成功返回 Principal，失败返回 null
-     */
-    suspend fun authenticate(context: RequestContext): Principal?
-    
-    /**
-     * 认证器名称
-     */
+    suspend fun authenticate(context: RequestContext): Identity?
     val name: String
 }
 
 /**
- * 权限守卫接口 - 专注于权限检查
+ * 权限守卫接口
  */
 interface Guard {
-    /**
-     * 检查权限
-     * @param principal 用户主体
-     * @param context 请求上下文
-     * @return true 表示有权限，false 表示无权限
-     */
-    suspend fun checkPermission(principal: Principal?, context: RequestContext): Boolean
-    
-    /**
-     * 守卫名称
-     */
+    suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean
     val name: String
 }
 
@@ -70,22 +50,18 @@ interface RequestContext {
 }
 
 /**
- * 安全工厂接口 - 用于创建安全组件实例
+ * 权限评估器 — 业务可替换实现（如 superadmin 逻辑）
+ * 默认实现：permission in identity.permissions
  */
-interface SecurityFactory {
-    
-    /**
-     * 创建认证器
-     */
-    fun createAuthenticator(type: String, config: Map<String, Any> = mapOf()): Authenticator
-    
-    /**
-     * 创建守卫
-     */
-    fun createGuard(type: String, config: Map<String, Any> = mapOf()): Guard
-    
-    /**
-     * 创建用户主体
-     */
-    fun createPrincipal(id: String, roles: List<String>, attributes: Map<String, Any> = mapOf()): Principal
-} 
+fun interface PermissionEvaluator {
+    fun allowed(identity: Identity, permission: String, context: RequestContext): Boolean
+}
+
+/**
+ * 安全属性键名常量 — v1.2 冻结
+ * 全链路统一引用，禁止硬编码字符串
+ */
+object SecurityAttributes {
+    /** HttpContext attribute key for the authenticated Identity */
+    const val IDENTITY = "identity"
+}

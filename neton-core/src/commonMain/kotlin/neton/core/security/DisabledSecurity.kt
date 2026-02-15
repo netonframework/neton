@@ -1,7 +1,7 @@
 package neton.core.security
 
 import neton.core.interfaces.Guard
-import neton.core.interfaces.Principal
+import neton.core.interfaces.Identity
 import neton.core.interfaces.RequestContext
 
 /**
@@ -16,13 +16,13 @@ class DisabledAuthenticationContext : AuthenticationContext {
  */
 class AllowAllGuard : Guard {
     override val name = "allow-all"
-    override suspend fun checkPermission(principal: Principal?, context: RequestContext): Boolean = true
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean = true
 }
 
 /**
- * 要求已认证的守卫（@RequireAuth 且未配置守卫时使用）：principal 非空则允许。
+ * 要求已认证的守卫（@RequireAuth 且未配置守卫时使用）：identity 非空则允许。
  */
-class RequirePrincipalGuard : Guard {
-    override val name = "require-principal"
-    override suspend fun checkPermission(principal: Principal?, context: RequestContext): Boolean = principal != null
+class RequireIdentityGuard : Guard {
+    override val name = "require-identity"
+    override suspend fun checkPermission(identity: Identity?, context: RequestContext): Boolean = identity != null
 }

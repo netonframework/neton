@@ -19,7 +19,7 @@ Kotlin Symbol Processing 编译器插件，为 Neton 提供编译时代码生成
     ↓
 UserMeta          (EntityMeta)
 UserRowMapper     (sqlx4k RowMapper)
-UserTable         (object : Table<User> by SqlxTableAdapter)
+UserTable         (object : Table<User, Long> by SqlxTableAdapter<User, Long>)
 UserExtensions   (update(id){ }, save(), delete())
 ```
 

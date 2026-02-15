@@ -355,7 +355,7 @@ curl http://localhost:8080/secure/admin
 # 员工端点 - 需要 staff 角色
 curl http://localhost:8080/secure/staff
 
-# 用户资料 - 使用 @AuthenticationPrincipal 注解
+# 用户资料 - 使用 @CurrentUser 注解
 curl http://localhost:8080/secure/profile
 
 # 可选认证端点 - 支持未认证用户访问
@@ -365,9 +365,9 @@ curl http://localhost:8080/secure/optional-auth
 curl http://localhost:8080/secure/admin-profile
 ```
 
-**@AuthenticationPrincipal 注解优势**：
-- 🎯 **直接注入**：无需手动从 `call` 或 `SecurityContext` 获取用户
-- 🔒 **类型安全**：编译时确保用户类型正确
-- 🚀 **简化代码**：减少样板代码，提高开发效率
-- 🛡️ **安全保障**：自动处理认证检查和异常情况
-- 🔄 **可选支持**：支持可选认证场景，灵活应对不同需求
+**@CurrentUser / Identity 自动注入优势**：
+- 直接注入：无需手动从 HttpContext 获取用户
+- 类型安全：编译时确保用户类型正确
+- 零注解可用：Identity 类型参数自动注入
+- 安全保障：自动处理认证检查和异常情况
+- 可选支持：支持可选认证场景，灵活应对不同需求

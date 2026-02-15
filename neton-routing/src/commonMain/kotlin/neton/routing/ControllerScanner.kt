@@ -9,21 +9,21 @@ interface ControllerRegistrar {
 
 /**
  * 控制器扫描器 - 使用 KSP 生成的注册代码
- * 
+ *
  * 在编译时，KSP 会扫描所有 @Controller 注解的类，
  * 并生成 ControllerRegistry 来注册所有控制器。
  */
 object ControllerScanner {
-    
+
     private var registrar: ControllerRegistrar? = null
-    
+
     /**
      * 设置控制器注册器（由生成的代码调用）
      */
     fun setRegistrar(registrar: ControllerRegistrar) {
         this.registrar = registrar
     }
-    
+
     /**
      * 注册所有控制器
      * 直接使用 KSP 生成的注册代码，无需指定路径
@@ -41,7 +41,10 @@ object ControllerScanner {
                 log?.warn("routing.scan.registrar.failed", mapOf("message" to (e.message ?: "")))
             }
         }
-        log?.info("routing.scan.no_registrar", mapOf("hint" to "Use GeneratedInitializer.initialize() or register a custom ControllerRegistrar"))
+        log?.info(
+            "routing.scan.no_registrar",
+            mapOf("hint" to "Use GeneratedInitializer.initialize() or register a custom ControllerRegistrar")
+        )
     }
 }
 
@@ -95,7 +98,7 @@ data class MethodMetadata(
 data class ParamInfo(
     val name: String,
     val type: String,
-    val isAuthenticationPrincipal: Boolean = false,
+    val isCurrentUser: Boolean = false,
     val authenticationRequired: Boolean = true
 )
 
@@ -107,26 +110,29 @@ internal class FallbackRouteHandler(
     private val controllerClass: String,
     private val methodName: String
 ) : neton.routing.engine.RouteHandler {
-    
+
     override suspend fun invoke(context: neton.core.http.HttpContext, args: neton.core.http.HandlerArgs): Any? {
-        return when("$controllerClass.$methodName") {
+        return when ("$controllerClass.$methodName") {
             "SimpleController.hello" -> "Hello from SimpleController!"
             "HomeController.index" -> "🏠 欢迎来到 Neton 框架首页！"
             "ParameterBindingController.pathParam" -> {
                 val userId = args.first("userId") ?: context.request.pathParams["userId"] ?: "unknown"
                 "👤 路径参数 userId: $userId"
             }
+
             "ParameterBindingController.queryParam" -> {
                 val keyword = args.first("keyword") ?: context.request.queryParams["keyword"] ?: "unknown"
                 val page = args.first("page") ?: "1"
                 val size = args.first("size") ?: "10"
                 "🔍 查询参数 - keyword: '$keyword', page: $page, size: $size"
             }
+
             "SimpleController.getUser" -> {
                 val userId = args.first("id") ?: context.request.pathParams["id"] ?: "unknown"
                 "👤 用户信息 - ID: $userId"
             }
+
             else -> "📤 Response from $controllerClass.$methodName"
         }
     }
-} 
+}

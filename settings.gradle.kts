@@ -20,9 +20,10 @@ include(":neton-cache")      // 统一缓存抽象（L1+L2，强绑定 neton-red
 include(":neton-database")   // 数据库模块
 include(":neton-ksp")        // KSP 编译器插件
 include(":neton-validation") // 校验模块（内建 Konform，仅服务 Neton）
+include(":neton-storage")    // 统一存储抽象（Local + S3，借鉴 OpenDAL Operator）
 
 // 示例项目
 include(":examples:helloworld")
 include(":examples:multigroup")
 include(":examples:mvc")
-include(":examples:redis-sample") 
+include(":examples:redis-sample")

@@ -12,7 +12,7 @@ class ControllerProcessor(
     // 注解的完全限定名称 - 不再直接依赖类
     private val controllerAnnotationName = "neton.core.annotations.Controller"
     private val lockAnnotationName = "neton.redis.lock.Lock"
-    
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
         // 使用字符串名称查找注解，不依赖具体类
         val symbols = resolver.getSymbolsWithAnnotation(controllerAnnotationName)
@@ -48,26 +48,35 @@ class ControllerProcessor(
                 import neton.core.http.HttpMethod
                 import neton.core.http.ParamConverters
                 import neton.core.http.UnsupportedMediaTypeException
-                import neton.core.interfaces.Principal
-                
+                import neton.core.interfaces.Identity
+                import neton.core.interfaces.SecurityAttributes
+
                 """.trimIndent()
             )
-            
+
             // 导入控制器类
             controllers.forEach { controller ->
                 writer.write("import ${controller.qualifiedName!!.asString()}\n")
             }
             // 收集 Body 参数类型（@Body 或约定推断的 POST/PUT/PATCH 复杂类型）
             val bodyMethods = setOf("Post", "Put", "Patch")
-            val simpleTypes = setOf("kotlin.String","kotlin.Int","kotlin.Long","kotlin.Boolean","kotlin.Double","kotlin.Float")
-            val contextTypes = setOf("neton.core.http.HttpContext","neton.core.http.Ctx","neton.core.http.HttpRequest","neton.core.http.HttpResponse","neton.core.http.HttpSession","neton.core.interfaces.Principal")
+            val simpleTypes =
+                setOf("kotlin.String", "kotlin.Int", "kotlin.Long", "kotlin.Boolean", "kotlin.Double", "kotlin.Float")
+            val contextTypes = setOf(
+                "neton.core.http.HttpContext",
+                "neton.core.http.Ctx",
+                "neton.core.http.HttpRequest",
+                "neton.core.http.HttpResponse",
+                "neton.core.http.HttpSession",
+                "neton.core.interfaces.Identity"
+            )
             val bodyParamTypes = controllers.flatMap { c ->
                 c.getAllFunctions().flatMap { f ->
                     val isBodyMethod = f.annotations.any { bodyMethods.contains(it.shortName.asString()) }
                     f.parameters.filter { p ->
                         val typeName = p.type.resolve().declaration.qualifiedName!!.asString()
                         p.annotations.any { it.shortName.asString() == "Body" } ||
-                        (isBodyMethod && !simpleTypes.contains(typeName) && !contextTypes.contains(typeName))
+                                (isBodyMethod && !simpleTypes.contains(typeName) && !contextTypes.contains(typeName))
                     }.map { it.type.resolve().declaration.qualifiedName!!.asString() }
                 }
             }.toSet()
@@ -110,7 +119,7 @@ class ControllerProcessor(
                 c.primaryConstructor?.parameters?.any { p ->
                     val decl = p.type.resolve().declaration
                     (decl as? KSClassDeclaration)?.qualifiedName?.asString() == "neton.logging.Logger" ||
-                    p.type.resolve().toString().contains("neton.logging.Logger")
+                            p.type.resolve().toString().contains("neton.logging.Logger")
                 } == true
             }
             if (anyLog) {
@@ -122,20 +131,23 @@ class ControllerProcessor(
                 bodyParamTypes.forEach { writer.write("import $it\n") }
             }
 
-            writer.write("""
+            writer.write(
+                """
 
 /**
  * KSP 自动生成的初始化器
- * 
+ *
  * 此文件由 Neton KSP 处理器自动生成，请勿手动编辑。
  * 包含 ${controllers.size} 个控制器的路由注册。
  */
 object GeneratedInitializer {
-""")
+"""
+            )
             if (bodyParamTypes.isNotEmpty()) {
                 writer.write("    private var _netonValidationWarned = false\n\n")
             }
-            writer.write("""
+            writer.write(
+                """
     /**
      * 初始化所有 KSP 生成的路由（从 ctx 获取 RequestEngine）
      * 签名必须与 neton-core 的 fallback 一致：initialize(ctx: NetonContext?)
@@ -145,31 +157,33 @@ object GeneratedInitializer {
         println("🔧 [Neton KSP] Initializing generated routes...")
         val engine = ctx.get(neton.core.interfaces.RequestEngine::class)
         registerRoutes(engine, ctx)
-        
+
         println("✅ [Neton KSP] Successfully initialized routes from ${controllers.size} controllers")
     }
-    
+
     /**
      * 注册所有路由到请求引擎
      */
     private fun registerRoutes(engine: RequestEngine, ctx: neton.core.component.NetonContext) {
-""")
+"""
+            )
 
             // 为每个控制器生成路由注册代码
             controllers.forEach { controller ->
                 generateControllerRoutes(writer, controller, "ctx")
             }
 
-            writer.write("""
+            writer.write(
+                """
     }
-    
+
     /**
      * 获取总路由数量
      */
     private fun getTotalRoutes(): Int {
         return ${getTotalRouteCount(controllers)}
     }
-    
+
     /**
      * 获取控制器统计信息
      */
@@ -177,7 +191,8 @@ object GeneratedInitializer {
         return "Controllers: ${controllers.size}, Routes: ${'$'}{getTotalRoutes()}"
     }
 }
-""")
+"""
+            )
         }
     }
 
@@ -206,15 +221,17 @@ object GeneratedInitializer {
         val controllerName = controller.qualifiedName!!.asString()
         val controllerClassName = controller.simpleName.asString()
         val controllerInstantiation = buildControllerInstantiation(controller, ctxParam)
-        
+
         // 获取控制器基础路径
         val controllerBasePath = controller.annotations
             .firstOrNull { it.shortName.asString() == "Controller" }
             ?.arguments?.firstOrNull()?.value as? String ?: ""
 
-        writer.write("""
+        writer.write(
+            """
         // === ${controllerClassName} 控制器路由 ===
-""")
+"""
+        )
 
         controller.getAllFunctions()
             .filter { f -> f.annotations.any { httpAnnotations.containsKey(it.shortName.asString()) } }
@@ -236,12 +253,12 @@ object GeneratedInitializer {
     ) {
         val controllerName = controller.qualifiedName!!.asString()
         val methodName = function.simpleName.asString()
-        
+
         // 获取 HTTP 注解信息
         val httpAnnotation = function.annotations.first { annotation ->
             httpAnnotations.containsKey(annotation.shortName.asString())
         }
-        
+
         val httpMethod = httpAnnotations[httpAnnotation.shortName.asString()]!!
         val functionPath = httpAnnotation.arguments.firstOrNull()?.value as? String ?: ""
         // 规范化路径：去掉多余尾斜杠，使 GET /api/products 可匹配（列表接口无尾斜杠）
@@ -272,9 +289,27 @@ object GeneratedInitializer {
         }
 
         val allowAnonymous = function.annotations.any { it.shortName.asString() == "AllowAnonymous" } ||
-            controller.annotations.any { it.shortName.asString() == "AllowAnonymous" }
+                controller.annotations.any { it.shortName.asString() == "AllowAnonymous" }
         val requireAuth = function.annotations.any { it.shortName.asString() == "RequireAuth" } ||
-            controller.annotations.any { it.shortName.asString() == "RequireAuth" }
+                controller.annotations.any { it.shortName.asString() == "RequireAuth" }
+        // @Permission: 方法级覆盖类级，不允许多个（fail-fast）
+        val methodPermissions = function.annotations.filter { it.shortName.asString() == "Permission" }.toList()
+        if (methodPermissions.size > 1) {
+            logger.error(
+                "Neton: Multiple @Permission annotations on ${controller.simpleName.asString()}#${function.simpleName.asString()} is not allowed. Use a single @Permission with a composite key like \"module:action\".",
+                function
+            )
+        }
+        val classPermissions = controller.annotations.filter { it.shortName.asString() == "Permission" }.toList()
+        if (classPermissions.size > 1) {
+            logger.error(
+                "Neton: Multiple @Permission annotations on ${controller.simpleName.asString()} is not allowed.",
+                controller
+            )
+        }
+        val permissionAnn = methodPermissions.firstOrNull()
+            ?: classPermissions.firstOrNull()
+        val permission = permissionAnn?.arguments?.firstOrNull()?.value as? String
 
         val cacheableAnn = function.annotations.firstOrNull { ann ->
             (ann.annotationType.resolve().declaration as? KSClassDeclaration)?.qualifiedName?.asString() == "neton.cache.Cacheable"
@@ -313,7 +348,8 @@ object GeneratedInitializer {
 """
         }
 
-        writer.write("""
+        writer.write(
+            """
         engine.registerRoute(
             RouteDefinition(
                 pattern = "$fullPath",
@@ -327,30 +363,37 @@ object GeneratedInitializer {
                 controllerClass = "$controllerName",
                 methodName = "$methodName",
                 allowAnonymous = $allowAnonymous,
-                requireAuth = $requireAuth
+                requireAuth = $requireAuth,
+                permission = ${if (permission != null) "\"$permission\"" else "null"}
             )
         )
-""")
+"""
+        )
     }
 
-    private fun generateMethodCallParameters(function: KSFunctionDeclaration, fullPath: String, httpMethod: String): String {
+    private fun generateMethodCallParameters(
+        function: KSFunctionDeclaration,
+        fullPath: String,
+        httpMethod: String
+    ): String {
         val pathParamNames = Regex("\\{([^}]+)\\}").findAll(fullPath).map { it.groupValues[1] }.toSet()
         val bodyMethods = setOf("POST", "PUT", "PATCH")
         val queryMethods = setOf("GET", "HEAD", "DELETE") + bodyMethods // POST 简单类型也走 query
-        
+
         return function.parameters.joinToString(", ") { param ->
             val paramName = param.name!!.asString()
             val paramType = param.type.resolve().declaration.qualifiedName!!.asString()
             val isNullable = param.type.resolve().isMarkedNullable
-            
+
             when {
                 paramType == "neton.core.http.HttpContext" || paramType == "neton.core.http.Ctx" -> "context"
                 paramType == "neton.core.http.HttpRequest" -> "context.request"
                 paramType == "neton.core.http.HttpResponse" -> "context.response"
                 paramType == "neton.core.http.HttpSession" -> "context.session"
-                paramType == "neton.core.interfaces.Principal" -> {
-                    if (isNullable) "context.getAttribute(\"principal\") as? $paramType" else "context.getAttribute(\"principal\") as $paramType"
+                paramType == "neton.core.interfaces.Identity" -> {
+                    if (isNullable) "context.getAttribute(SecurityAttributes.IDENTITY) as? Identity" else "context.getAttribute(SecurityAttributes.IDENTITY) as Identity"
                 }
+
                 else -> {
                     val pathVar = param.annotations.firstOrNull { it.shortName.asString() == "PathVariable" }
                     val queryParam = param.annotations.firstOrNull { it.shortName.asString() == "QueryParam" }
@@ -359,17 +402,22 @@ object GeneratedInitializer {
                     val header = param.annotations.firstOrNull { it.shortName.asString() == "Header" }
                     val cookie = param.annotations.firstOrNull { it.shortName.asString() == "Cookie" }
                     val formParam = param.annotations.firstOrNull { it.shortName.asString() == "FormParam" }
-                    val authPrincipal = param.annotations.firstOrNull { it.shortName.asString() == "AuthenticationPrincipal" }
-                    
+                    val authPrincipal =
+                        param.annotations.firstOrNull { it.shortName.asString() == "CurrentUser" || it.shortName.asString() == "AuthenticationPrincipal" }
+
                     val (actualParamName, isBody) = when {
                         pathVar != null -> (pathVar.arguments.firstOrNull()?.value as? String ?: paramName) to false
-                        queryParam != null -> (queryParam.arguments.firstOrNull()?.value as? String ?: paramName) to false
-                        query != null -> ((query.arguments.firstOrNull()?.value as? String)?.takeIf { it.isNotEmpty() } ?: paramName) to false
+                        queryParam != null -> (queryParam.arguments.firstOrNull()?.value as? String
+                            ?: paramName) to false
+
+                        query != null -> ((query.arguments.firstOrNull()?.value as? String)?.takeIf { it.isNotEmpty() }
+                            ?: paramName) to false
+
                         bodyAnn != null -> "body" to true
                         header != null -> (header.arguments.firstOrNull()?.value as? String ?: paramName) to false
                         cookie != null -> (cookie.arguments.firstOrNull()?.value as? String ?: paramName) to false
                         formParam != null -> (formParam.arguments.firstOrNull()?.value as? String ?: paramName) to false
-                        authPrincipal != null -> "principal" to false
+                        authPrincipal != null -> "identity" to false
                         else -> {
                             // 约定推断（规范 v1.0.1）
                             val isSimple = paramType in SIMPLE_TYPES
@@ -380,7 +428,7 @@ object GeneratedInitializer {
                             }
                         }
                     }
-                    
+
                     when {
                         isBody -> {
                             val typeName = paramType.substringAfterLast('.')
@@ -402,23 +450,30 @@ object GeneratedInitializer {
                                 body
                             }"""
                         }
+
                         header != null -> {
                             val h = header.arguments.firstOrNull()?.value as? String ?: paramName
                             if (isNullable) "context.request.header(\"$h\")" else "context.request.header(\"$h\") ?: \"\""
                         }
+
                         cookie != null -> {
                             val c = cookie.arguments.firstOrNull()?.value as? String ?: paramName
                             if (isNullable) "context.request.cookie(\"$c\")?.value" else "context.request.cookie(\"$c\")!!.value"
                         }
+
                         else -> generateArgConversion(param, actualParamName, paramType, isNullable)
                     }
                 }
             }
         }
     }
-    
+
     /** 歧义检测：多 Body 候选 → 编译失败 */
-    private fun checkBodyAmbiguity(controller: KSClassDeclaration, function: KSFunctionDeclaration, httpMethod: String) {
+    private fun checkBodyAmbiguity(
+        controller: KSClassDeclaration,
+        function: KSFunctionDeclaration,
+        httpMethod: String
+    ) {
         val bodyMethods = setOf("POST", "PUT", "PATCH")
         val noBodyMethods = setOf("GET", "HEAD", "DELETE")
         val explicitBody = mutableListOf<KSValueParameter>()
@@ -428,19 +483,32 @@ object GeneratedInitializer {
             val typeName = param.type.resolve().declaration.qualifiedName!!.asString()
             val hasBody = param.annotations.any { it.shortName.asString() == "Body" }
             val hasExplicit = param.annotations.any {
-                it.shortName.asString() in listOf("QueryParam", "Query", "FormParam", "Header", "Cookie", "PathVariable")
+                it.shortName.asString() in listOf(
+                    "QueryParam",
+                    "Query",
+                    "FormParam",
+                    "Header",
+                    "Cookie",
+                    "PathVariable"
+                )
             }
-            val isCtx = typeName in setOf("neton.core.http.HttpContext", "neton.core.http.Ctx", "neton.core.http.HttpRequest",
-                "neton.core.http.HttpResponse", "neton.core.http.HttpSession", "neton.core.interfaces.Principal")
+            val isCtx = typeName in setOf(
+                "neton.core.http.HttpContext", "neton.core.http.Ctx", "neton.core.http.HttpRequest",
+                "neton.core.http.HttpResponse", "neton.core.http.HttpSession", "neton.core.interfaces.Identity"
+            )
             val isComplex = typeName !in SIMPLE_TYPES && typeName != "kotlin.collections.List" && !isCtx
 
             when {
                 hasBody -> {
                     if (noBodyMethods.contains(httpMethod)) {
-                        logger.error("Neton: GET/DELETE/HEAD with @Body is not allowed. Use POST/PUT or query params.", param)
+                        logger.error(
+                            "Neton: GET/DELETE/HEAD with @Body is not allowed. Use POST/PUT or query params.",
+                            param
+                        )
                     }
                     explicitBody.add(param)
                 }
+
                 bodyMethods.contains(httpMethod) && isComplex && !hasExplicit -> implicitBodyCandidates.add(param)
             }
         }
@@ -448,30 +516,58 @@ object GeneratedInitializer {
         when {
             explicitBody.size > 1 -> logger.error(
                 "Neton binding ambiguity: multiple @Body parameters in ${controller.simpleName.asString()}#${function.simpleName.asString()}. " +
-                "Fix: use a single request DTO.", function)
+                        "Fix: use a single request DTO.", function
+            )
+
             explicitBody.isEmpty() && implicitBodyCandidates.size > 1 -> logger.error(
                 "Neton binding ambiguity: multiple body candidates in ${controller.simpleName.asString()}#${function.simpleName.asString()}. " +
-                "Candidates: ${implicitBodyCandidates.joinToString { "${it.type.resolve().toString().substringAfterLast('.')} ${it.name!!.asString()}" }}. " +
-                "Fix: annotate body with @Body, or others with @Query/@Form/@Header/@Cookie.", function)
+                        "Candidates: ${
+                            implicitBodyCandidates.joinToString {
+                                "${
+                                    it.type.resolve().toString().substringAfterLast('.')
+                                } ${it.name!!.asString()}"
+                            }
+                        }. " +
+                        "Fix: annotate body with @Body, or others with @Query/@Form/@Header/@Cookie.", function
+            )
         }
     }
 
     private val SIMPLE_TYPES = setOf(
-        "kotlin.String", "kotlin.Int", "kotlin.Long", "kotlin.Boolean", "kotlin.Double", "kotlin.Float",
-        "java.lang.String", "java.lang.Integer", "java.lang.Long", "java.lang.Boolean", "java.lang.Double", "java.lang.Float"
+        "kotlin.String",
+        "kotlin.Int",
+        "kotlin.Long",
+        "kotlin.Boolean",
+        "kotlin.Double",
+        "kotlin.Float",
+        "java.lang.String",
+        "java.lang.Integer",
+        "java.lang.Long",
+        "java.lang.Boolean",
+        "java.lang.Double",
+        "java.lang.Float"
     )
-    
+
     /** 单值/List 逐元素 parse（规范 v1.0.2）；必填时先 Missing 再 Type，Int/Long→integer、Double/Float→number */
-    private fun generateArgConversion(param: com.google.devtools.ksp.symbol.KSValueParameter, actualParamName: String, paramType: String, isNullable: Boolean): String {
+    private fun generateArgConversion(
+        param: com.google.devtools.ksp.symbol.KSValueParameter,
+        actualParamName: String,
+        paramType: String,
+        isNullable: Boolean
+    ): String {
         val raw = "args.first(\"$actualParamName\") as? String"
         val rawOrEmpty = "($raw ?: \"\")"
         val hasDefault = param.hasDefault
         val required = !isNullable && !hasDefault
-        fun missingThrow() = "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"is required\", code = \"Missing\")))"
-        fun typeThrow(msg: String) = "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"$msg\", code = \"Type\")))"
+        fun missingThrow() =
+            "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"is required\", code = \"Missing\")))"
+
+        fun typeThrow(msg: String) =
+            "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"$msg\", code = \"Type\")))"
         return when (paramType) {
             "kotlin.collections.List" -> {
-                val elemType = param.type.element?.typeArguments?.firstOrNull()?.type?.resolve()?.toString()?.substringAfterLast('.') ?: "String"
+                val elemType = param.type.element?.typeArguments?.firstOrNull()?.type?.resolve()?.toString()
+                    ?.substringAfterLast('.') ?: "String"
                 val typeMsg = when (elemType) {
                     "Int", "Long" -> "must be a valid integer"
                     "Double", "Float" -> "must be a valid number"
@@ -500,13 +596,43 @@ object GeneratedInitializer {
                     }
                 }
             }
+
             "kotlin.String" -> if (isNullable) raw else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; _r }" else rawOrEmpty
-            "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: 0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r ?: \"\") ?: ${typeThrow("must be a valid integer")} }"
-            "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: 0L" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r ?: \"\") ?: ${typeThrow("must be a valid integer")} }"
-            "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: false" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r ?: \"\") ?: ${typeThrow("must be true/false/1/0/on/off")} }"
-            "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: 0.0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r ?: \"\") ?: ${typeThrow("must be a valid number")} }"
-            "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: 0f" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r ?: \"\")?.toFloat() ?: ${typeThrow("must be a valid number")} }"
-            else -> if (isNullable) "($raw as? ${paramType.substringAfterLast('.')})" else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; ($raw as? ${paramType.substringAfterLast('.')}) ?: ${typeThrow("invalid value")} }" else "($raw as ${paramType.substringAfterLast('.')}) ?: ${typeThrow("invalid value")}"
+            "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: 0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r ?: \"\") ?: ${
+                typeThrow(
+                    "must be a valid integer"
+                )
+            } }"
+
+            "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: 0L" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r ?: \"\") ?: ${
+                typeThrow(
+                    "must be a valid integer"
+                )
+            } }"
+
+            "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: false" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r ?: \"\") ?: ${
+                typeThrow(
+                    "must be true/false/1/0/on/off"
+                )
+            } }"
+
+            "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: 0.0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r ?: \"\") ?: ${
+                typeThrow(
+                    "must be a valid number"
+                )
+            } }"
+
+            "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: 0f" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r ?: \"\")?.toFloat() ?: ${
+                typeThrow(
+                    "must be a valid number"
+                )
+            } }"
+
+            else -> if (isNullable) "($raw as? ${paramType.substringAfterLast('.')})" else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; ($raw as? ${
+                paramType.substringAfterLast(
+                    '.'
+                )
+            }) ?: ${typeThrow("invalid value")} }" else "($raw as ${paramType.substringAfterLast('.')}) ?: ${typeThrow("invalid value")}"
         }
     }
 
@@ -523,8 +649,10 @@ object GeneratedInitializer {
         val keyTemplate = (ann.arguments.firstOrNull { it.name?.asString() == "key" }?.value as? String) ?: ""
         val ttlMs = (ann.arguments.firstOrNull { it.name?.asString() == "ttlMs" }?.value as? Long) ?: 0L
         val returnType = function.returnType?.resolve()?.declaration ?: return null
-        val returnTypeQualified = (returnType as? KSClassDeclaration)?.qualifiedName?.asString() ?: returnType.toString()
-        val returnTypeSimple = (returnType as? KSClassDeclaration)?.simpleName?.asString() ?: returnTypeQualified.substringAfterLast('.')
+        val returnTypeQualified =
+            (returnType as? KSClassDeclaration)?.qualifiedName?.asString() ?: returnType.toString()
+        val returnTypeSimple =
+            (returnType as? KSClassDeclaration)?.simpleName?.asString() ?: returnTypeQualified.substringAfterLast('.')
         val paramNames = function.parameters.map { it.name!!.asString() }
 
         val keyExpr = if (keyTemplate.isEmpty()) {
@@ -552,6 +680,7 @@ object GeneratedInitializer {
                         return cache.getOrPut(key, ttl) { $innerInvoke }
 """.trimIndent()
             }
+
             cachePutAnn != null -> {
                 if (returnTypeQualified == "kotlin.Unit" || returnTypeQualified == "kotlin.Nothing") {
                     logger.warn("@CachePut on function ${function.simpleName} with return type $returnTypeQualified is not supported; skipping")
@@ -567,8 +696,10 @@ object GeneratedInitializer {
                         return result
 """.trimIndent()
             }
+
             cacheEvictAnn != null -> {
-                val allEntries = (ann.arguments.firstOrNull { it.name?.asString() == "allEntries" }?.value as? Boolean) ?: false
+                val allEntries =
+                    (ann.arguments.firstOrNull { it.name?.asString() == "allEntries" }?.value as? Boolean) ?: false
                 """
                         val result = $innerInvoke
                         $ctxBlock
@@ -577,6 +708,7 @@ object GeneratedInitializer {
                         return result
 """.trimIndent()
             }
+
             else -> null
         }
     }
@@ -609,7 +741,7 @@ object GeneratedInitializer {
     // HTTP 注解映射表
     private val httpAnnotations = mapOf(
         "Get" to "GET",
-        "Post" to "POST", 
+        "Post" to "POST",
         "Put" to "PUT",
         "Delete" to "DELETE",
         "Patch" to "PATCH",

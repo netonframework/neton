@@ -5,7 +5,7 @@
 - **UserTable.get(id)** — 主键查询
 - **UserTable.destroy(id)** — 按 id 删除
 - **UserTable.update(id) { name = x; email = y }** — mutate 风格，KSP 内部生成 copy，业务层直接赋值
-- **UserTable.where { ... }.list()** / **.flow()** / **.page(1, 20).listPage()**
+- **UserTable.query { where { } }.list()** / **.page(1, 20)**
 - **user.save()** / **user.delete()**
 
 无 Table/Store/Impl 暴露，KSP 生成扩展。

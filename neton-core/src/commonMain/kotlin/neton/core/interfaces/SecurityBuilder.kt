@@ -13,126 +13,139 @@ data class SecurityGroupConfig(
 
 /**
  * 安全构建器接口 - Core 模块定义的标准接口
- * 
+ *
  * 使用工厂模式，用户通过方法配置安全组件，而不直接依赖具体实现
  */
 interface SecurityBuilder {
-    
-    /**
-     * 获取安全工厂
-     */
-    fun getSecurityFactory(): SecurityFactory
-    
+
     // ===== 认证器配置方法 =====
-    
+
     /**
      * 注册模拟认证器 - 开发测试使用
      */
-    fun registerMockAuthenticator(userId: String, roles: List<String>, attributes: Map<String, Any> = mapOf())
-    
+    fun registerMockAuthenticator(
+        userId: String,
+        roles: Set<String> = emptySet(),
+        permissions: Set<String> = emptySet()
+    )
+
     /**
      * 注册命名模拟认证器
      */
-    fun registerMockAuthenticator(name: String, userId: String, roles: List<String>, attributes: Map<String, Any> = mapOf())
-    
+    fun registerMockAuthenticator(
+        name: String,
+        userId: String,
+        roles: Set<String> = emptySet(),
+        permissions: Set<String> = emptySet()
+    )
+
     /**
      * 注册 JWT 认证器
      */
-    fun registerJwtAuthenticator(secretKey: String, headerName: String = "Authorization", tokenPrefix: String = "Bearer ")
-    
+    fun registerJwtAuthenticator(
+        secretKey: String,
+        headerName: String = "Authorization",
+        tokenPrefix: String = "Bearer "
+    )
+
     /**
      * 注册会话认证器
      */
     fun registerSessionAuthenticator(sessionKey: String = "user_id")
-    
+
     /**
      * 注册 Basic 认证器
      */
-    fun registerBasicAuthenticator(userProvider: suspend (username: String, password: String) -> Principal?)
-    
+    fun registerBasicAuthenticator(userProvider: suspend (username: String, password: String) -> Identity?)
+
     // ===== 守卫配置方法 =====
-    
+
     /**
      * 绑定默认守卫 - 允许所有已认证用户
      */
     fun bindDefaultGuard()
-    
+
     /**
      * 绑定管理员守卫 - 只允许管理员角色
      */
     fun bindAdminGuard()
-    
+
     /**
      * 绑定角色守卫 - 允许指定角色
      */
     fun bindRoleGuard(vararg roles: String)
-    
+
     /**
      * 绑定命名角色守卫
      */
     fun bindNamedRoleGuard(name: String, vararg roles: String)
-    
+
     /**
      * 绑定匿名守卫 - 允许匿名访问
      */
     fun bindAnonymousGuard()
-    
+
     // ===== 组配置 API（推荐：配置类直接调用，调试友好） =====
-    
+
     /**
      * 设置默认组认证器（routeGroup = null）
      */
     fun setDefaultAuthenticator(auth: Authenticator?)
-    
+
     /**
      * 设置默认组守卫（routeGroup = null）
      */
     fun setDefaultGuard(guard: Guard)
-    
+
     /**
      * 设置指定组的认证器
      * @throws IllegalArgumentException 当 group 为空或非法时 fail-fast
      */
     fun setGroupAuthenticator(group: String, auth: Authenticator?)
-    
+
     /**
      * 设置指定组的守卫
      * @throws IllegalArgumentException 当 group 为空或非法时 fail-fast
      */
     fun setGroupGuard(group: String, guard: Guard)
-    
+
     // ===== 通用方法（与 set* 等效，保留兼容） =====
-    
+
     /**
      * 注册自定义认证器（默认组），等价于 setDefaultAuthenticator
      */
     fun registerAuthenticator(authenticator: Authenticator)
-    
+
     /**
      * 注册命名自定义认证器（指定组），等价于 setGroupAuthenticator
      */
     fun registerAuthenticator(name: String, authenticator: Authenticator)
-    
+
     /**
      * 绑定自定义守卫（默认组），等价于 setDefaultGuard
      */
     fun bindGuard(guard: Guard)
-    
+
     /**
      * 绑定命名自定义守卫（指定组），等价于 setGroupGuard
      */
     fun bindGuard(name: String, guard: Guard)
-    
+
     /**
      * 构建安全配置
      */
     fun build(): SecurityConfiguration
-    
+
     /**
      * 获取认证上下文
      */
     fun getAuthenticationContext(): AuthenticationContext
-    
+
+    /**
+     * 设置权限评估器（业务可替换，实现 superadmin 等自定义逻辑）
+     */
+    fun setPermissionEvaluator(evaluator: PermissionEvaluator)
+
     /**
      * 获取当前组配置（用于启动期审计日志）
      */
@@ -149,8 +162,9 @@ data class SecurityConfiguration(
     val authenticatorCount: Int,
     val guardCount: Int,
     val authenticationContext: AuthenticationContext,
-    val defaultAuthenticator: Authenticator? = null,  // 安全管道用，首个认证器
-    val defaultGuard: Guard? = null,                 // 安全管道用，首个守卫
+    val defaultAuthenticator: Authenticator? = null,
+    val defaultGuard: Guard? = null,
     val getAuthenticatorByGroup: ((String?) -> Authenticator?)? = null,
-    val getGuardByGroup: ((String?) -> Guard?)? = null
+    val getGuardByGroup: ((String?) -> Guard?)? = null,
+    val permissionEvaluator: PermissionEvaluator? = null
 )

@@ -6,7 +6,7 @@ package neton.security.identity
  * @see Neton-Security-Spec-v1.1-API-Freeze.md
  */
 data class IdentityUser(
-    override val id: UserId,
+    override val userId: UserId,
     override val roles: Set<String> = emptySet(),
     override val permissions: Set<String> = emptySet()
 ) : Identity

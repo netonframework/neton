@@ -40,7 +40,7 @@ private fun Op.toSql(): String = when (this) {
  * 由 DatabaseComponent 注入：根据 KClass 查找 Store，无则 null。
  * 注：DefaultQueryExecutor 需 SqlxTableAdapter（executeQuery 等），delegation 的 UserTable 不适用
  */
-typealias TableRegistry = (KClass<*>) -> Table<*>?
+typealias TableRegistry = (KClass<*>) -> Table<*, *>?
 
 /**
  * 使用 SqlxTableAdapter 实现 v2 QueryExecutor。
@@ -50,7 +50,7 @@ class DefaultQueryExecutor(private val tableRegistry: TableRegistry) : QueryExec
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun <T : Any> list(query: Query<T>): List<T> {
-        val store = tableRegistry(query.entity) as? SqlxTableAdapter<T> ?: return emptyList()
+        val store = tableRegistry(query.entity) as? SqlxTableAdapter<T, *> ?: return emptyList()
         val predicate = when {
             query.predicates.isEmpty() -> ApiPredicate.True
             query.predicates.size == 1 -> query.predicates.single().toApiPredicate(store::propToColumn)
@@ -71,7 +71,7 @@ class DefaultQueryExecutor(private val tableRegistry: TableRegistry) : QueryExec
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun <T : Any> count(query: Query<T>): Long {
-        val store = tableRegistry(query.entity) as? SqlxTableAdapter<T> ?: return 0L
+        val store = tableRegistry(query.entity) as? SqlxTableAdapter<T, *> ?: return 0L
         val predicate = when {
             query.predicates.isEmpty() -> ApiPredicate.True
             query.predicates.size == 1 -> query.predicates.single().toApiPredicate(store::propToColumn)
@@ -82,7 +82,12 @@ class DefaultQueryExecutor(private val tableRegistry: TableRegistry) : QueryExec
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun <T : Any> findById(entity: KClass<T>, id: Any): T? {
-        val store = tableRegistry(entity) as? SqlxTableAdapter<T> ?: return null
-        return store.get(id)
+        val store = tableRegistry(entity) as? SqlxTableAdapter<T, Long> ?: return null
+        val idLong = when (id) {
+            is Long -> id
+            is Number -> id.toLong()
+            else -> return null
+        }
+        return store.get(idLong)
     }
 }
