@@ -24,7 +24,7 @@ data class RoutingConfig(
             mapOf(
                 "debug" to debug,
                 "groups" to groups.size,
-                "groupNames" to groups.map { it.name }
+                "groupNames" to groups.map { it.group }
             )
         )
     }
@@ -34,7 +34,7 @@ data class RoutingConfig(
  * 路由组配置
  */
 data class RouteGroup(
-    val name: String,
+    val group: String,
     val mount: RouteMountConfig,
     val requireAuth: Boolean = false,
     val allowAnonymous: List<String> = emptyList()

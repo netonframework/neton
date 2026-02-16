@@ -275,6 +275,8 @@ Hello Neton!
 | neton-database | Table + Store 架构 | ✅ 稳定 |
 | neton-redis | Redis + lock | ✅ 稳定 |
 | neton-cache | L1/L2 Cache | ✅ 稳定 |
+| neton-storage | 文件存储（本地 + S3） | ✅ 稳定 |
+| neton-jobs | 定时任务调度（Cron + FixedRate） | ✅ 稳定 |
 | neton-ksp | 编译期生成支持 | ✅ 稳定 |
 
 ---

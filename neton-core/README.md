@@ -164,13 +164,13 @@ port = 8080
 ### routing.conf
 ```toml
 [[groups]]
-name = "admin"
+group = "admin"
 mount = "/admin"
 requireAuth = true
 allowAnonymous = ["/login"]
 
 [[groups]]
-name = "app"
+group = "app"
 mount = "/app"
 ```
 

@@ -3,3 +3,4 @@ neton.ksp.NetonConfigProcessorProvider
 neton.ksp.RepositoryProcessorProvider
 neton.ksp.EntityStoreProcessorProvider
 neton.ksp.validation.ValidationProcessorProvider
+neton.ksp.JobProcessorProvider

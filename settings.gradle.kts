@@ -21,6 +21,7 @@ include(":neton-database")   // 数据库模块
 include(":neton-ksp")        // KSP 编译器插件
 include(":neton-validation") // 校验模块（内建 Konform，仅服务 Neton）
 include(":neton-storage")    // 统一存储抽象（Local + S3，借鉴 OpenDAL Operator）
+include(":neton-jobs")       // 定时任务调度（cron + fixedRate，SINGLE_NODE/ALL_NODES）
 
 // 示例项目
 include(":examples:helloworld")

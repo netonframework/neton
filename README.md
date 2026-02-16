@@ -269,6 +269,8 @@ Hello Neton!
 | neton-database | Table + Store architecture | Stable |
 | neton-redis | Redis + distributed lock | Stable |
 | neton-cache | L1/L2 Cache | Stable |
+| neton-storage | File storage (Local + S3) | Stable |
+| neton-jobs | Job scheduling (Cron + FixedRate) | Stable |
 | neton-ksp | Compile-time code generation | Stable |
 
 ---

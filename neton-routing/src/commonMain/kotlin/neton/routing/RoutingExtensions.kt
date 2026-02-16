@@ -35,15 +35,15 @@ object RoutingComponent : NetonComponent<RequestEngine> {
         val routingConfig = parseRoutingConfig(rawConfig)
         if (routingConfig != null) {
             val configuredGroups =
-                neton.core.interfaces.ConfiguredRouteGroups(routingConfig.groups.map { it.name }.toSet())
+                neton.core.interfaces.ConfiguredRouteGroups(routingConfig.groups.map { it.group }.toSet())
             ctx.bind(configuredGroups)
             val groupToMount = routingConfig.groups
                 .filter { it.mount.type == RouteMountType.PATH }
-                .associate { it.name to it.mount.value }
+                .associate { it.group to it.mount.value }
             ctx.bind(neton.core.interfaces.RouteGroupMounts(groupToMount))
             val securityConfigs = RouteGroupSecurityConfigs(
                 routingConfig.groups.associate { g ->
-                    g.name to RouteGroupSecurityConfig(
+                    g.group to RouteGroupSecurityConfig(
                         requireAuth = g.requireAuth,
                         allowAnonymous = g.allowAnonymous.toSet()
                     )
@@ -79,14 +79,14 @@ object RoutingComponent : NetonComponent<RequestEngine> {
             val groupsData = (rawConfig["groups"] as? List<*>) ?: emptyList<Map<*, *>>()
             val routeGroups = groupsData.mapNotNull { item ->
                 val groupData = item as? Map<*, *> ?: return@mapNotNull null
-                val name = groupData["name"] as? String ?: return@mapNotNull null
+                val group = groupData["group"] as? String ?: return@mapNotNull null
                 val mount = groupData["mount"] as? String ?: return@mapNotNull null
                 val requireAuth = groupData["requireAuth"] as? Boolean ?: false
 
                 @Suppress("UNCHECKED_CAST")
                 val allowAnonymous =
                     (groupData["allowAnonymous"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
-                RouteGroup(name, RouteMountConfig(RouteMountType.PATH, mount), requireAuth, allowAnonymous)
+                RouteGroup(group, RouteMountConfig(RouteMountType.PATH, mount), requireAuth, allowAnonymous)
             }
             return RoutingConfig(debug = debug, groups = routeGroups)
         } catch (_: Exception) {
