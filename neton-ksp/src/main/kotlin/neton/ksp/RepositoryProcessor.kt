@@ -54,7 +54,18 @@ class RepositoryProcessor(
         val insertVals = columns.filter { !it.isId }.joinToString(", ") { ":" + it.columnName }
         val updateSet = columns.filter { !it.isId }.joinToString(", ") { "${it.columnName} = :${it.columnName}" }
 
-        generateStatements(pkg, entityName, entityPkg, tableName, columns, idColumn, insertCols, insertVals, updateSet, repo)
+        generateStatements(
+            pkg,
+            entityName,
+            entityPkg,
+            tableName,
+            columns,
+            idColumn,
+            insertCols,
+            insertVals,
+            updateSet,
+            repo
+        )
         generateRowMapper(pkg, entityName, entityPkg, columns)
         generateParamMapper(pkg, entityName, entityPkg, columns)
         generateTable(pkg, entityName, entityPkg, tableName, columns)
@@ -70,7 +81,8 @@ class RepositoryProcessor(
         val imports = repositories.map { "import ${it.qualifiedName!!.asString()}" }.joinToString("\n")
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "GeneratedDatabaseRegistry")
         OutputStreamWriter(file).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
@@ -82,19 +94,22 @@ internal object GeneratedDatabaseRegistry {
         $bindings
     }
 }
-""".trimIndent())
+""".trimIndent()
+            )
         }
         // 生成 installGeneratedRepositories 供 database { onRepositoriesInstall = { installGeneratedRepositories(it) } } 使用
         val installFile = codeGenerator.createNewFile(Dependencies(true), pkg, "GeneratedDatabaseInstall")
         OutputStreamWriter(installFile).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
 import neton.core.component.NetonContext
 
 fun installGeneratedRepositories(ctx: NetonContext) = GeneratedDatabaseRegistry.install(ctx)
-""".trimIndent())
+""".trimIndent()
+            )
         }
     }
 
@@ -121,6 +136,7 @@ fun installGeneratedRepositories(ctx: NetonContext) = GeneratedDatabaseRegistry.
                     val v = ann.arguments.find { it.name?.asString() == "value" }?.value as? String
                     if (!v.isNullOrBlank()) return v
                 }
+
                 qn == "neton.database.annotations.Entity" -> {
                     val v = ann.arguments.find { it.name?.asString() == "tableName" }?.value as? String
                     if (!v.isNullOrBlank()) return v
@@ -145,6 +161,7 @@ fun installGeneratedRepositories(ctx: NetonContext) = GeneratedDatabaseRegistry.
                         val v = (arg?.value) as? String
                         if (!v.isNullOrBlank()) colName = v
                     }
+
                     "neton.database.annotations.Id" -> isId = true
                 }
             }
@@ -153,7 +170,18 @@ fun installGeneratedRepositories(ctx: NetonContext) = GeneratedDatabaseRegistry.
         return columns
     }
 
-    private fun generateStatements(pkg: String, entityName: String, entityPkg: String, tableName: String, columns: List<ColumnInfo>, idColumn: String, insertCols: String, insertVals: String, updateSet: String, repo: KSClassDeclaration) {
+    private fun generateStatements(
+        pkg: String,
+        entityName: String,
+        entityPkg: String,
+        tableName: String,
+        columns: List<ColumnInfo>,
+        idColumn: String,
+        insertCols: String,
+        insertVals: String,
+        updateSet: String,
+        repo: KSClassDeclaration
+    ) {
         val customMethods = mutableListOf<String>()
         for (func in repo.getDeclaredFunctions()) {
             val name = func.simpleName.asString()
@@ -172,7 +200,8 @@ fun installGeneratedRepositories(ctx: NetonContext) = GeneratedDatabaseRegistry.
 
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Statements")
         OutputStreamWriter(file).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
@@ -187,7 +216,8 @@ internal object ${entityName}Statements : EntityStatements {
     override val update = Statement.create("UPDATE $tableName SET $updateSet WHERE $idColumn = :id")
     override val deleteById = Statement.create("DELETE FROM $tableName WHERE $idColumn = :id")$customBlock
 }
-""".trimIndent())
+""".trimIndent()
+            )
         }
     }
 
@@ -198,11 +228,13 @@ internal object ${entityName}Statements : EntityStatements {
                 val field = toSnake(rest.substringBefore("Between"))
                 "SELECT * FROM $table WHERE $field BETWEEN :min AND :max" to field
             }
+
             rest.contains("And") -> {
                 val parts = rest.split("And")
                 val conds = parts.map { toSnake(it) + " = :" + toSnake(it) }
                 "SELECT * FROM $table WHERE ${conds.joinToString(" AND ")}" to null
             }
+
             else -> "SELECT * FROM $table WHERE ${toSnake(rest)} = :${toSnake(rest)}" to toSnake(rest)
         }
     }
@@ -224,8 +256,16 @@ internal object ${entityName}Statements : EntityStatements {
         val mappings = columns.map { col ->
             val rhs = when {
                 col.isId || col.propName == "id" || col.columnName == "id" -> "row.get(\"${col.columnName}\").toString().toLong()"
-                col.columnName.endsWith("_at") || col.propName in listOf("createdAt", "updatedAt") -> "row.get(\"${col.columnName}\").toString().toLong()"
-                col.columnName in listOf("age", "status") || col.propName in listOf("age", "status") -> "row.get(\"${col.columnName}\").toString().toInt()"
+                col.columnName.endsWith("_at") || col.propName in listOf(
+                    "createdAt",
+                    "updatedAt"
+                ) -> "row.get(\"${col.columnName}\").toString().toLong()"
+
+                col.columnName in listOf("age", "status") || col.propName in listOf(
+                    "age",
+                    "status"
+                ) -> "row.get(\"${col.columnName}\").toString().toInt()"
+
                 else -> "row.get(\"${col.columnName}\").toString()"
             }
             "${col.propName} = $rhs"
@@ -233,7 +273,8 @@ internal object ${entityName}Statements : EntityStatements {
 
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}RowMapper")
         OutputStreamWriter(file).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
@@ -246,7 +287,8 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
         $mappings
     )
 }
-""".trimIndent())
+""".trimIndent()
+            )
         }
     }
 
@@ -255,7 +297,8 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
         val mappings = columns.map { "\"${it.columnName}\" to it.${it.propName}" }.joinToString(",\n            ")
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}ParamMapper")
         OutputStreamWriter(file).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
@@ -264,7 +307,8 @@ internal object ${entityName}ParamMapper {
             $mappings
     )
 }
-""".trimIndent())
+""".trimIndent()
+            )
         }
     }
 
@@ -283,12 +327,19 @@ internal object ${entityName}ParamMapper {
         return "CREATE TABLE IF NOT EXISTS $tableName (${defs.joinToString(", ")})"
     }
 
-    private fun generateTable(pkg: String, entityName: String, entityPkg: String, tableName: String, columns: List<ColumnInfo>) {
+    private fun generateTable(
+        pkg: String,
+        entityName: String,
+        entityPkg: String,
+        tableName: String,
+        columns: List<ColumnInfo>
+    ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val ddl = generateDdl(tableName, columns)
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Table")
         OutputStreamWriter(file).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
@@ -307,7 +358,8 @@ internal object ${entityName}Table : SqlxStore<$entityRef>(
         SqlxDatabase.executeDdl("$ddl")
     }
 }
-""".trimIndent())
+""".trimIndent()
+            )
         }
     }
 
@@ -321,6 +373,7 @@ internal object ${entityName}Table : SqlxStore<$entityRef>(
                 else -> listOf(toSnake(rest))
             }
         }
+
         name.startsWith("countBy") -> listOf(toSnake(name.removePrefix("countBy")))
         name.startsWith("deleteBy") -> listOf(toSnake(name.removePrefix("deleteBy")))
         else -> emptyList()
@@ -331,7 +384,14 @@ internal object ${entityName}Table : SqlxStore<$entityRef>(
         return str.startsWith("List<") || str == "List"
     }
 
-    private fun generateRepositoryImpl(pkg: String, repoName: String, entityName: String, entityPkg: String, tableName: String, repo: KSClassDeclaration) {
+    private fun generateRepositoryImpl(
+        pkg: String,
+        repoName: String,
+        entityName: String,
+        entityPkg: String,
+        tableName: String,
+        repo: KSClassDeclaration
+    ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val customImpls = mutableListOf<String>()
         for (func in repo.getDeclaredFunctions()) {
@@ -343,19 +403,23 @@ internal object ${entityName}Table : SqlxStore<$entityRef>(
                 name == "ensureTable" -> {
                     customImpls.add("override suspend fun ensureTable() { ${entityName}Table.ensureTable() }")
                 }
+
                 (name.startsWith("findBy") || name.startsWith("findAllBy")) && name != "findById" -> {
-                    val mapEntries = paramNames.zip(params).joinToString(", ") { pair -> "\"${pair.first}\" to ${pair.second.name?.asString()}" }
+                    val mapEntries = paramNames.zip(params)
+                        .joinToString(", ") { pair -> "\"${pair.first}\" to ${pair.second.name?.asString()}" }
                     val mapArg = "mapOf($mapEntries)"
                     val call = if (returnsList(func)) "queryList" else "queryOne"
                     val paramSig = params.joinToString(", ") { p -> "${p.name?.asString()}: ${p.type}" }
                     customImpls.add("override suspend fun $name($paramSig) = ${entityName}Table.$call(${entityName}Statements.$name, $mapArg)")
                 }
+
                 name.startsWith("countBy") -> {
                     val key = paramNames.firstOrNull() ?: continue
                     val pName = params.firstOrNull()?.name?.asString() ?: key
                     val paramSig = params.joinToString(", ") { p -> "${p.name?.asString()}: ${p.type}" }
                     customImpls.add("override suspend fun $name($paramSig) = ${entityName}Table.queryScalar(${entityName}Statements.$name, mapOf(\"$key\" to $pName))")
                 }
+
                 name.startsWith("deleteBy") -> {
                     val key = paramNames.firstOrNull() ?: continue
                     val pName = params.firstOrNull()?.name?.asString() ?: key
@@ -368,7 +432,8 @@ internal object ${entityName}Table : SqlxStore<$entityRef>(
 
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${repoName}Impl")
         OutputStreamWriter(file).use { w ->
-            w.write("""
+            w.write(
+                """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
@@ -394,9 +459,10 @@ internal class ${repoName}Impl : $repoName {
     override suspend fun count() = table.count()
     override suspend fun exists(id: kotlin.Any) = table.exists(idToLong(id))
     override fun query() = table.query()
-    override suspend fun <R> withTransaction(block: suspend Table<$entityRef>.() -> R) = table.withTransaction(block)$customBlock
+    override suspend fun <R> transaction(block: suspend Table<$entityRef>.() -> R) = table.transaction(block)$customBlock
 }
-""".trimIndent())
+""".trimIndent()
+            )
         }
     }
 }

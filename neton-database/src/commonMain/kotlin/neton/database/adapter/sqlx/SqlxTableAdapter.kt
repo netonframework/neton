@@ -53,7 +53,12 @@ class SqlxTableAdapter<T : Any, ID : Any>(
 
     override suspend fun findAll(): List<T> {
         val (sql, bind) = if (softDeleteConfig != null) {
-            "SELECT * FROM ${meta.table} WHERE ${softDeleteConfig.deletedColumn} = :deleted" to { s: Statement -> s.bind("deleted", false) }
+            "SELECT * FROM ${meta.table} WHERE ${softDeleteConfig.deletedColumn} = :deleted" to { s: Statement ->
+                s.bind(
+                    "deleted",
+                    false
+                )
+            }
         } else {
             "SELECT * FROM ${meta.table}" to { s: Statement -> s }
         }
@@ -82,7 +87,13 @@ class SqlxTableAdapter<T : Any, ID : Any>(
             executeSoftDeleteMany(ids)
         } else {
             val placeholders = ids.mapIndexed { i, _ -> ":id$i" }.joinToString(", ")
-            val stmt = ids.foldIndexed(Statement.create("DELETE FROM ${meta.table} WHERE ${meta.idColumn} IN ($placeholders)")) { i, s, v -> s.bind("id$i", v) }
+            val stmt =
+                ids.foldIndexed(Statement.create("DELETE FROM ${meta.table} WHERE ${meta.idColumn} IN ($placeholders)")) { i, s, v ->
+                    s.bind(
+                        "id$i",
+                        v
+                    )
+                }
             db.execute(stmt).getOrThrow().toInt()
         }
     }
@@ -91,10 +102,12 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         val cfg = softDeleteConfig!!
         val now = cfg.deletedAtColumn?.let { autoFillProvider?.nowMillis() ?: 0L } ?: 0L
         val setParts = mutableListOf<String>("${cfg.deletedColumn} = :deleted")
-        val stmt0 = Statement.create("UPDATE ${meta.table} SET ${setParts.joinToString(", ")} WHERE ${meta.idColumn} = :id")
+        val stmt0 =
+            Statement.create("UPDATE ${meta.table} SET ${setParts.joinToString(", ")} WHERE ${meta.idColumn} = :id")
         var stmt = stmt0.bind("deleted", true).bind("id", id)
         cfg.deletedAtColumn?.let { col ->
-            val sql = "UPDATE ${meta.table} SET ${cfg.deletedColumn} = :deleted, $col = :deletedAt WHERE ${meta.idColumn} = :id"
+            val sql =
+                "UPDATE ${meta.table} SET ${cfg.deletedColumn} = :deleted, $col = :deletedAt WHERE ${meta.idColumn} = :id"
             stmt = Statement.create(sql).bind("deleted", true).bind("deletedAt", now).bind("id", id)
         }
         return db.execute(stmt).getOrThrow() > 0
@@ -144,7 +157,14 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     }
 
     override suspend fun many(ids: Collection<ID>): List<T> =
-        query { where { neton.database.dsl.Predicate.In(ColumnRef(meta.idColumn), ids.map { it as Any? }.toList()) } }.list()
+        query {
+            where {
+                neton.database.dsl.Predicate.In(
+                    ColumnRef(meta.idColumn),
+                    ids.map { it as Any? }.toList()
+                )
+            }
+        }.list()
 
     override suspend fun oneWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): T? =
         query { where(block) }.list().firstOrNull()
@@ -159,23 +179,29 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         db.execute(insertStatement(withAutoFill)).getOrThrow()
         return entity
     }
+
     override suspend fun insertBatch(entities: List<T>): Int = transactionBlock {
         entities.count { e ->
             val params = toParams(e).filterKeys { it != "id" }
             db.execute(insertStatement(mergeAutoFillForInsert(params))).getOrThrow() > 0
         }
     }
+
     override suspend fun update(entity: T): Boolean =
         db.execute(updateStatement(mergeAutoFillForUpdate(toParams(entity)))).getOrThrow() > 0
+
     override suspend fun updateBatch(entities: List<T>): Int =
         entities.count { update(it) }
+
     override suspend fun delete(entity: T): Boolean {
         val id = getId(entity) ?: return false
         return destroy(id)
     }
+
     override fun query(): neton.database.api.QueryBuilder<T> =
         SqlxQueryBuilder { findAll() }
-    override suspend fun <R> withTransaction(block: suspend Table<T, ID>.() -> R): R =
+
+    override suspend fun <R> transaction(block: suspend Table<T, ID>.() -> R): R =
         transactionBlock { this@SqlxTableAdapter.block() }
 
     override suspend fun ensureTable() {
@@ -196,6 +222,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
                     neton.database.config.DatabaseDriver.MYSQL -> "$c BIGINT AUTO_INCREMENT PRIMARY KEY"
                     else -> "$c INTEGER PRIMARY KEY AUTOINCREMENT"
                 }
+
                 "age", "status" -> "$c INTEGER"
                 else -> when {
                     c in listOf("created_at", "updated_at") || c.endsWith("_at") -> "$c BIGINT"
@@ -234,28 +261,37 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         val placeholders = params.keys.joinToString(", ") { ":$it" }
         return Statement.create("INSERT INTO ${meta.table} ($cols) VALUES ($placeholders)")
     }
+
     private fun updateStatement(params: Map<String, Any?>): Statement {
         val set = params.keys.filter { it != meta.idColumn }.joinToString(", ") { "$it = :$it" }
         return Statement.create("UPDATE ${meta.table} SET $set WHERE ${meta.idColumn} = :${meta.idColumn}")
     }
 
-    internal suspend fun executeQuery(predicate: Predicate, orderBy: Pair<String, Boolean>?, limit: Int?, offset: Int?): List<T> {
+    internal suspend fun executeQuery(
+        predicate: Predicate,
+        orderBy: Pair<String, Boolean>?,
+        limit: Int?,
+        offset: Int?
+    ): List<T> {
         val (sql, params) = buildSelect(predicate, orderBy, limit, offset)
         val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
         return db.fetchAll(stmt, mapper).getOrThrow()
     }
+
     internal suspend fun executeCount(predicate: Predicate): Long {
         val (sql, params) = buildSelect(predicate, null, null, null, count = true)
         val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
         val rows = db.fetchAll(stmt).getOrThrow()
         return rows.firstOrNull()?.get(0)?.toString()?.toLongOrNull() ?: 0L
     }
+
     internal suspend fun executeDelete(predicate: Predicate): Long {
         val (whereSql, whereParams) = buildWhere(predicate)
         val fullSql = "DELETE FROM ${meta.table} WHERE $whereSql"
         val stmt = whereParams.entries.fold(Statement.create(fullSql)) { s, (k, v) -> s.bind(k, v) }
         return db.execute(stmt).getOrThrow().toLong()
     }
+
     internal suspend fun executeUpdate(predicate: Predicate, setColumns: Map<String, Any?>): Long {
         val (whereSql, whereParams) = buildWhere(predicate)
         val setPart = setColumns.keys.joinToString(", ") { "$it = :set_$it" }
@@ -264,37 +300,69 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         val stmt2 = whereParams.entries.fold(stmt) { s, (k, v) -> s.bind(k, v) }
         return db.execute(stmt2).getOrThrow().toLong()
     }
+
     private fun buildWhere(predicate: Predicate): Pair<String, MutableMap<String, Any?>> {
         val params = mutableMapOf<String, Any?>()
         val clauses = predicate.toClausesList()
         val parts = mutableListOf<String>()
         clauses.forEachIndexed { i, c ->
             when (c.op) {
-                "=" -> { val k = "p$i"; parts.add("${c.column} = :$k"); params[k] = c.value }
-                "!=" -> { val k = "p$i"; parts.add("${c.column} != :$k"); params[k] = c.value }
-                ">" -> { val k = "p$i"; parts.add("${c.column} > :$k"); params[k] = c.value }
-                ">=" -> { val k = "p$i"; parts.add("${c.column} >= :$k"); params[k] = c.value }
-                "<" -> { val k = "p$i"; parts.add("${c.column} < :$k"); params[k] = c.value }
-                "<=" -> { val k = "p$i"; parts.add("${c.column} <= :$k"); params[k] = c.value }
-                "LIKE" -> { val k = "p$i"; parts.add("${c.column} LIKE :$k"); params[k] = c.value }
+                "=" -> {
+                    val k = "p$i"; parts.add("${c.column} = :$k"); params[k] = c.value
+                }
+
+                "!=" -> {
+                    val k = "p$i"; parts.add("${c.column} != :$k"); params[k] = c.value
+                }
+
+                ">" -> {
+                    val k = "p$i"; parts.add("${c.column} > :$k"); params[k] = c.value
+                }
+
+                ">=" -> {
+                    val k = "p$i"; parts.add("${c.column} >= :$k"); params[k] = c.value
+                }
+
+                "<" -> {
+                    val k = "p$i"; parts.add("${c.column} < :$k"); params[k] = c.value
+                }
+
+                "<=" -> {
+                    val k = "p$i"; parts.add("${c.column} <= :$k"); params[k] = c.value
+                }
+
+                "LIKE" -> {
+                    val k = "p$i"; parts.add("${c.column} LIKE :$k"); params[k] = c.value
+                }
+
                 "IN" -> {
                     val coll = (c.value as? Collection<*>) ?: return@forEachIndexed
                     val placeholders = coll.mapIndexed { j, _ -> ":p${i}_$j" }.joinToString(", ")
                     parts.add("${c.column} IN ($placeholders)")
                     coll.forEachIndexed { j, v -> params["p${i}_$j"] = v }
                 }
+
                 "BETWEEN" -> {
                     val r = c.value as? Pair<*, *> ?: return@forEachIndexed
-                    val k1 = "p${i}_a"; val k2 = "p${i}_b"
+                    val k1 = "p${i}_a";
+                    val k2 = "p${i}_b"
                     parts.add("${c.column} BETWEEN :$k1 AND :$k2")
                     params[k1] = r.first; params[k2] = r.second
                 }
+
                 else -> {}
             }
         }
         return if (parts.isEmpty()) "1=1" to params else parts.joinToString(" AND ") to params
     }
-    private fun buildSelect(predicate: Predicate, orderBy: Pair<String, Boolean>?, limit: Int?, offset: Int?, count: Boolean = false): Pair<String, Map<String, Any?>> {
+
+    private fun buildSelect(
+        predicate: Predicate,
+        orderBy: Pair<String, Boolean>?,
+        limit: Int?,
+        offset: Int?,
+        count: Boolean = false
+    ): Pair<String, Map<String, Any?>> {
         val (whereSql, params) = buildWhere(predicate)
         val select = if (count) "SELECT COUNT(*) FROM ${meta.table}" else "SELECT * FROM ${meta.table}"
         var sql = "$select WHERE $whereSql"

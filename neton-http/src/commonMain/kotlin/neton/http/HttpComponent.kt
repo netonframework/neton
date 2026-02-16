@@ -1,5 +1,6 @@
 package neton.http
 
+import neton.core.component.CorsConfig
 import neton.core.component.HttpConfig
 import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
@@ -22,16 +23,23 @@ object HttpComponent : NetonComponent<HttpConfig> {
             ?: neton.core.http.DefaultParamConverterRegistry()
         ctx.bindIfAbsent(neton.core.http.ParamConverterRegistry::class, registry)
         // v1.1：HTTP 配置仅来自 application.conf（[server] + [http]），不再读 http.conf；优先级 CLI/ENV > application.conf > DSL
-        val appConfig = ConfigLoader.loadApplicationConfig(configPath = "config", environment = ConfigLoader.resolveEnvironment(ctx.args), args = ctx.args)
+        val appConfig = ConfigLoader.loadApplicationConfig(
+            configPath = "config",
+            environment = ConfigLoader.resolveEnvironment(ctx.args),
+            args = ctx.args
+        )
         val port = resolveInt(appConfig, "server.port") ?: config.port
         val timeout = resolveLong(appConfig, "http.timeout") ?: 30000L
         val maxConnections = resolveInt(appConfig, "http.maxConnections") ?: 1000
         val enableCompression = resolveBoolean(appConfig, "http.enableCompression") ?: true
+        // CORS: application.conf [cors] 优先，fallback 到 DSL
+        val corsConfig = resolveCorsConfig(appConfig) ?: config.corsConfig
         val serverConfig = HttpServerConfig(
             port = port,
             timeout = timeout,
             maxConnections = maxConnections,
-            enableCompression = enableCompression
+            enableCompression = enableCompression,
+            corsConfig = corsConfig
         )
         ctx.bind(serverConfig)
         ctx.bind(HttpAdapter::class, KtorHttpAdapter(serverConfig, registry))
@@ -59,8 +67,24 @@ object HttpComponent : NetonComponent<HttpConfig> {
         val raw = ConfigLoader.getConfigValue(config, path) ?: return null
         return when (raw) {
             is Boolean -> raw
-            is String -> when (raw.lowercase()) { "true", "1", "yes" -> true; "false", "0", "no" -> false; else -> null }
+            is String -> when (raw.lowercase()) {
+                "true", "1", "yes" -> true; "false", "0", "no" -> false; else -> null
+            }
+
             else -> null
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun resolveCorsConfig(appConfig: Map<String, Any?>?): CorsConfig? {
+        val corsSection = appConfig?.let { ConfigLoader.getConfigValue(it, "cors") as? Map<String, Any?> }
+            ?: return null
+        return CorsConfig().apply {
+            (corsSection["allowedOrigins"] as? List<*>)?.filterIsInstance<String>()?.let { allowedOrigins = it }
+            (corsSection["allowedMethods"] as? List<*>)?.filterIsInstance<String>()?.let { allowedMethods = it }
+            (corsSection["allowedHeaders"] as? List<*>)?.filterIsInstance<String>()?.let { allowedHeaders = it }
+            (corsSection["allowCredentials"] as? Boolean)?.let { allowCredentials = it }
+            (corsSection["maxAgeSeconds"] as? Number)?.toLong()?.let { maxAgeSeconds = it }
         }
     }
 }
@@ -69,7 +93,8 @@ data class HttpServerConfig(
     val port: Int,
     val timeout: Long = 30000L,
     val maxConnections: Int = 1000,
-    val enableCompression: Boolean = true
+    val enableCompression: Boolean = true,
+    val corsConfig: CorsConfig? = null
 ) {
     fun printSummary() {
         // 端口等信息由 access log / 启动统计统一输出，此处不再 println

@@ -95,7 +95,7 @@ abstract class SqlxStore<T : Any>(
         return destroy(idLong)
     }
 
-    override suspend fun <R> withTransaction(block: suspend Table<T, Long>.() -> R): R =
+    override suspend fun <R> transaction(block: suspend Table<T, Long>.() -> R): R =
         (db as io.github.smyrgeorge.sqlx4k.QueryExecutor.Transactional).transaction { this@SqlxStore.block() }
 
     override fun query(): QueryBuilder<T> =

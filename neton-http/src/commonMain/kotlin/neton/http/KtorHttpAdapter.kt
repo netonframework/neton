@@ -12,10 +12,12 @@ import neton.core.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.http.*
 import io.ktor.utils.io.readRemaining
@@ -86,6 +88,23 @@ class KtorHttpAdapter(
                     }
                     // /aaa 与 /aaa/ 视为同一地址
                     install(IgnoreTrailingSlash)
+
+                    // CORS
+                    serverConfig.corsConfig?.let { cors ->
+                        install(CORS) {
+                            cors.allowedOrigins.forEach { origin ->
+                                if (origin == "*") anyHost() else allowHost(origin)
+                            }
+                            cors.allowedMethods.forEach { m ->
+                                allowMethod(io.ktor.http.HttpMethod.parse(m))
+                            }
+                            cors.allowedHeaders.forEach { h ->
+                                if (h == "*") allowHeaders { true } else allowHeader(h)
+                            }
+                            if (cors.allowCredentials) allowCredentials = true
+                            maxAgeInSeconds = cors.maxAgeSeconds
+                        }
+                    }
 
                     routing {
                         // === 动态注册控制器路由 ===
@@ -542,6 +561,31 @@ private class SimpleKtorHttpRequest(private val call: io.ktor.server.application
 
     override suspend fun form(): neton.core.http.Parameters = SimpleParameters()
 
+    override suspend fun uploadFiles(): neton.core.http.UploadFiles {
+        val multipartData = call.receiveMultipart()
+        val files = mutableListOf<neton.core.http.UploadFile>()
+        multipartData.forEachPart { part ->
+            when (part) {
+                is PartData.FileItem -> {
+                    val bytes = part.provider().readRemaining().readByteArray()
+                    files.add(
+                        KtorUploadFile(
+                            fieldName = part.name ?: "",
+                            filename = part.originalFileName ?: "",
+                            contentType = part.contentType?.toString(),
+                            size = bytes.size.toLong(),
+                            data = bytes
+                        )
+                    )
+                }
+
+                else -> {}
+            }
+            part.dispose()
+        }
+        return neton.core.http.UploadFiles(files)
+    }
+
     override val method: neton.core.http.HttpMethod = when (call.request.httpMethod.value) {
         "GET" -> neton.core.http.HttpMethod.GET
         "POST" -> neton.core.http.HttpMethod.POST
@@ -635,6 +679,19 @@ private class SimpleKtorHttpSession : HttpSession {
     override var maxInactiveInterval: Int = 1800
     override val isNew: Boolean = true
     override val isValid: Boolean = true
+}
+
+/**
+ * Ktor 上传文件实现
+ */
+private class KtorUploadFile(
+    override val fieldName: String,
+    override val filename: String,
+    override val contentType: String?,
+    override val size: Long,
+    private val data: ByteArray
+) : neton.core.http.UploadFile {
+    override suspend fun bytes(): ByteArray = data
 }
 
 /**

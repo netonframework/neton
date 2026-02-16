@@ -64,8 +64,12 @@ class TableUserContractTest {
         override suspend fun destroy(id: Long): Boolean = false
         override suspend fun destroyMany(ids: Collection<Long>): Int = 0
         override suspend fun many(ids: Collection<Long>): List<ContractTestEntity> = emptyList()
-        override suspend fun oneWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): ContractTestEntity? = null
-        override suspend fun existsWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): Boolean = false
+        override suspend fun oneWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): ContractTestEntity? =
+            null
+
+        override suspend fun existsWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): Boolean =
+            false
+
         override suspend fun delete(entity: ContractTestEntity): Boolean = false
         override suspend fun count(): Long = 0L
         override suspend fun exists(id: Long): Boolean = false
@@ -74,14 +78,17 @@ class TableUserContractTest {
             object : EntityQuery<ContractTestEntity> {
                 override suspend fun list() = emptyList<ContractTestEntity>()
                 override suspend fun count() = 0L
-                override suspend fun page(page: Int, size: Int) = Page.of(emptyList<ContractTestEntity>(), 0L, page, size)
+                override suspend fun page(page: Int, size: Int) =
+                    Page.of(emptyList<ContractTestEntity>(), 0L, page, size)
+
                 override fun select(vararg columnNames: String): ProjectionQuery = object : ProjectionQuery {
                     override suspend fun rows() = emptyList<Row>()
                     override suspend fun count() = 0L
                     override suspend fun page(page: Int, size: Int) = Page.of(emptyList<Row>(), 0L, page, size)
                 }
             }
-        override suspend fun <R> withTransaction(block: suspend Table<ContractTestEntity, Long>.() -> R): R = error("stub")
+
+        override suspend fun <R> transaction(block: suspend Table<ContractTestEntity, Long>.() -> R): R = error("stub")
     }
 
     @Test

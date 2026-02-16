@@ -37,6 +37,7 @@ kotlin {
                 implementation(libs.ktor.server.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.ktor.server.sessions)
+                implementation(libs.ktor.server.cors)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }

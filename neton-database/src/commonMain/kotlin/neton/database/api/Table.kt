@@ -22,12 +22,16 @@ interface Table<T : Any, ID : Any> {
     suspend fun updateBatch(entities: List<T>): Int
     suspend fun update(entity: T): Boolean
     suspend fun destroy(id: ID): Boolean
+
     /** Phase 1：批量删除（有 @SoftDelete 时走 UPDATE deleted = true），返回影响行数 */
     suspend fun destroyMany(ids: Collection<ID>): Int
+
     /** Phase 1：按 id 批量查询，等价于 query { where { id in ids } }.list()，ids 空则返回空列表 */
     suspend fun many(ids: Collection<ID>): List<T>
+
     /** Phase 1：条件查单条，等价于 query { where(block) }.list().firstOrNull() */
     suspend fun oneWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): T?
+
     /** Phase 1：条件是否存在，等价于 query { where(block) }.count() > 0 */
     suspend fun existsWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): Boolean
     suspend fun delete(entity: T): Boolean
@@ -37,9 +41,10 @@ interface Table<T : Any, ID : Any> {
     // ===== 查询构建器 =====
 
     fun query(): QueryBuilder<T>
+
     /** Phase 1：query { } 块，返回 EntityQuery（list/count/page 与 SqlBuilder 同源） */
     fun query(block: neton.database.dsl.QueryScope<T>.() -> Unit): EntityQuery<T>
-    suspend fun <R> withTransaction(block: suspend Table<T, ID>.() -> R): R
+    suspend fun <R> transaction(block: suspend Table<T, ID>.() -> R): R
     suspend fun ensureTable() {}
 }
 
@@ -50,7 +55,12 @@ interface QueryBuilder<T : Any> {
     fun where(block: QueryContext<T>.() -> QueryCondition): QueryBuilder<T>
     fun and(block: QueryContext<T>.() -> QueryCondition): QueryBuilder<T>
     fun or(block: QueryContext<T>.() -> QueryCondition): QueryBuilder<T>
-    fun <R : Any> join(targetEntity: KClass<R>, type: JoinType = JoinType.INNER, block: QueryContext<R>.() -> QueryCondition): QueryBuilder<T>
+    fun <R : Any> join(
+        targetEntity: KClass<R>,
+        type: JoinType = JoinType.INNER,
+        block: QueryContext<R>.() -> QueryCondition
+    ): QueryBuilder<T>
+
     fun with(vararg relations: KClass<*>): QueryBuilder<T>
     fun <V> orderBy(orderBy: OrderBy<T, V>): QueryBuilder<T>
     fun orderBy(vararg orderBys: OrderBy<T, *>): QueryBuilder<T>

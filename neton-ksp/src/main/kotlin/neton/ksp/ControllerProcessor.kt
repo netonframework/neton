@@ -50,6 +50,8 @@ class ControllerProcessor(
                 import neton.core.http.UnsupportedMediaTypeException
                 import neton.core.interfaces.Identity
                 import neton.core.interfaces.SecurityAttributes
+                import neton.core.http.UploadFile
+                import neton.core.http.UploadFiles
 
                 """.trimIndent()
             )
@@ -394,6 +396,18 @@ object GeneratedInitializer {
                     if (isNullable) "context.getAttribute(SecurityAttributes.IDENTITY) as? Identity" else "context.getAttribute(SecurityAttributes.IDENTITY) as Identity"
                 }
 
+                paramType == "neton.core.http.UploadFile" -> {
+                    if (isNullable) "context.request.uploadFiles().first(\"$paramName\")" else "context.request.uploadFiles().require(\"$paramName\")"
+                }
+
+                paramType == "neton.core.http.UploadFiles" -> {
+                    "context.request.uploadFiles()"
+                }
+
+                paramType == "kotlin.collections.List" && param.type.resolve().arguments.firstOrNull()?.type?.resolve()?.declaration?.qualifiedName?.asString() == "neton.core.http.UploadFile" -> {
+                    "context.request.uploadFiles().get(\"$paramName\")"
+                }
+
                 else -> {
                     val pathVar = param.annotations.firstOrNull { it.shortName.asString() == "PathVariable" }
                     val queryParam = param.annotations.firstOrNull { it.shortName.asString() == "QueryParam" }
@@ -494,7 +508,8 @@ object GeneratedInitializer {
             }
             val isCtx = typeName in setOf(
                 "neton.core.http.HttpContext", "neton.core.http.Ctx", "neton.core.http.HttpRequest",
-                "neton.core.http.HttpResponse", "neton.core.http.HttpSession", "neton.core.interfaces.Identity"
+                "neton.core.http.HttpResponse", "neton.core.http.HttpSession", "neton.core.interfaces.Identity",
+                "neton.core.http.UploadFile", "neton.core.http.UploadFiles"
             )
             val isComplex = typeName !in SIMPLE_TYPES && typeName != "kotlin.collections.List" && !isCtx
 
