@@ -1,7 +1,7 @@
 # Phase 1 真实数据库集成测试
 
 当前所有单元测试均在「SQL 字符串 / AST 层」验证，不连接真实数据库。  
-要确认 **占位符顺序、PG $1 / MySQL ?、LIMIT 语法、AutoFill 写入、SoftDelete 过滤** 在真实环境中正确，需要跑一次 **真实 PostgreSQL（建议优先）或 MySQL** 的集成测试。
+要确认 **占位符顺序、PG $1 / MySQL ?、LIMIT 语法、@CreatedAt/@UpdatedAt 写入、SoftDelete 过滤** 在真实环境中正确，需要跑一次 **真实 PostgreSQL（建议优先）或 MySQL** 的集成测试。
 
 ## 为何不放在仓库内自动跑？
 
@@ -35,14 +35,14 @@ docker run -d --name neton-pg -e POSTGRES_USER=u -e POSTGRES_PASSWORD=p -e POSTG
 然后执行一次「Phase 1 验收流程」：
 
 1. **建表**：包含 `id`, `name`, `status`, `deleted`, `created_at`, `updated_at` 等字段。
-2. **插入 3 条**（依赖 @AutoFill 填 `created_at`/`updated_at`）。
+2. **插入 3 条**（依赖 @CreatedAt/@UpdatedAt 填 `created_at`/`updated_at`）。
 3. **软删 1 条**：`destroy(id)` → 该行 `deleted = true`。
 4. **query { }.list()**：应只剩 2 条（未删）。
 5. **query { }.page(1, 10)**：`page.total == 2`，且 `page.total == query { }.count()`。
 6. **many(ids)**：用未删的 2 个 id，应返回 2 条。
 7. **existsWhere**：按 `status` 等条件验证 true/false。
 
-若以上全部通过，可认为：**占位符、LIMIT、SoftDelete、AutoFill 在真实 PG 上行为正确**。
+若以上全部通过，可认为：**占位符、LIMIT、SoftDelete、@CreatedAt/@UpdatedAt 在真实 PG 上行为正确**。
 
 ### 3. MySQL 可选
 
