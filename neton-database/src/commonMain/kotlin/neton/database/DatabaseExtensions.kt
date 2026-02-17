@@ -74,7 +74,12 @@ object DatabaseComponent : NetonComponent<DatabaseInstallConfig> {
      */
     private fun loadDatabaseConfig(ctx: NetonContext, configMap: Map<String, Any>?, log: Logger?): DatabaseConfig {
         return try {
-            val rawConfig = configMap ?: ConfigLoader.loadModuleConfig("database", configPath = "config", environment = ConfigLoader.resolveEnvironment(ctx.args), args = ctx.args)
+            val rawConfig = configMap ?: ConfigLoader.loadModuleConfig(
+                "database",
+                configPath = "config",
+                environment = ConfigLoader.resolveEnvironment(ctx.args),
+                args = ctx.args
+            )
             if (rawConfig == null) {
                 log?.warn("database.config.missing", mapOf("fallback" to "sqlite::memory:"))
                 return DatabaseConfig(driver = DatabaseDriver.MEMORY, uri = "sqlite::memory:", debug = true)

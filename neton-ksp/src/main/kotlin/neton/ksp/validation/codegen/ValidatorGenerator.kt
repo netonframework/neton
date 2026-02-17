@@ -2,7 +2,7 @@ package neton.ksp.validation.codegen
 
 import neton.ksp.validation.ValidationModel
 import neton.ksp.validation.ValidationRule
-import java.io.OutputStreamWriter
+import java.io.Writer
 
 /** Size 支持的属性类型 FQN：String→length，其余→size */
 private val SIZE_LENGTH_TYPES = setOf("kotlin.String")
@@ -25,7 +25,7 @@ private fun escapeKotlinStringLiteral(s: String): String =
  */
 object ValidatorGenerator {
 
-    fun generateValidator(writer: OutputStreamWriter, model: ValidationModel) {
+    fun generateValidator(writer: Writer, model: ValidationModel) {
         writer.write(
             """
             internal object ${model.simpleName}Validator : neton.validation.Validator<${model.simpleName}> {

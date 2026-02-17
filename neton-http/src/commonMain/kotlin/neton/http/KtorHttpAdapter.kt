@@ -497,6 +497,11 @@ class KtorHttpAdapter(
                     204
                 }
 
+                is neton.core.http.JsonContent -> {
+                    call.respondText(result.json, ContentType.Application.Json)
+                    200
+                }
+
                 is String -> {
                     call.respondText(result, ContentType.Text.Plain)
                     200
@@ -598,11 +603,11 @@ private class SimpleKtorHttpRequest(private val call: io.ktor.server.application
     override val url: String = call.request.uri
     override val version: String = "HTTP/1.1"
     override val pathParams: neton.core.http.Parameters = SimpleParameters()
-    override val queryParams: neton.core.http.Parameters = SimpleParameters()
-    override val headers: neton.core.http.Headers = SimpleHeaders()
+    override val queryParams: neton.core.http.Parameters = KtorQueryParameters(call)
+    override val headers: neton.core.http.Headers = KtorRequestHeaders(call)
     override val cookies: Map<String, neton.core.http.Cookie> = emptyMap()
-    override val remoteAddress: String = "127.0.0.1"
-    override val isSecure: Boolean = false
+    override val remoteAddress: String = call.request.local.remoteAddress
+    override val isSecure: Boolean = call.request.local.scheme == "https"
 }
 
 /**
@@ -714,6 +719,42 @@ private class SimpleHeaders : neton.core.http.Headers {
     override fun contains(name: String): Boolean = false
     override fun names(): Set<String> = emptySet()
     override fun toMap(): Map<String, List<String>> = emptyMap()
+}
+
+/**
+ * Ktor 请求头适配
+ */
+private class KtorRequestHeaders(private val call: io.ktor.server.application.ApplicationCall) :
+    neton.core.http.Headers {
+    override fun get(name: String): String? = call.request.headers[name]
+    override fun getAll(name: String): List<String> = call.request.headers.getAll(name) ?: emptyList()
+    override fun contains(name: String): Boolean = call.request.headers.contains(name)
+    override fun names(): Set<String> = call.request.headers.names()
+    override fun toMap(): Map<String, List<String>> {
+        val map = mutableMapOf<String, List<String>>()
+        for (name in call.request.headers.names()) {
+            map[name] = call.request.headers.getAll(name) ?: emptyList()
+        }
+        return map
+    }
+}
+
+/**
+ * Ktor 查询参数适配
+ */
+private class KtorQueryParameters(private val call: io.ktor.server.application.ApplicationCall) :
+    neton.core.http.Parameters {
+    override fun get(name: String): String? = call.request.queryParameters[name]
+    override fun getAll(name: String): List<String> = call.request.queryParameters.getAll(name) ?: emptyList()
+    override fun contains(name: String): Boolean = call.request.queryParameters.contains(name)
+    override fun names(): Set<String> = call.request.queryParameters.names()
+    override fun toMap(): Map<String, List<String>> {
+        val map = mutableMapOf<String, List<String>>()
+        for (name in call.request.queryParameters.names()) {
+            map[name] = call.request.queryParameters.getAll(name) ?: emptyList()
+        }
+        return map
+    }
 }
 
 /**

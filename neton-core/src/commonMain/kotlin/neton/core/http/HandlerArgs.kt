@@ -7,8 +7,10 @@ package neton.core.http
 interface HandlerArgs {
     /** 单值：path 优先，否则 query 首个 */
     fun first(name: String): Any?
+
     /** 多值：仅 query，path 不参与 */
     fun all(name: String): List<String>?
+
     /** Map 兼容：等价于 first(name) */
     operator fun get(name: String): Any? = first(name)
 }
@@ -33,3 +35,9 @@ class MapBackedHandlerArgs(private val map: Map<String, Any?>) : HandlerArgs {
     override fun first(name: String): Any? = map[name]
     override fun all(name: String): List<String>? = (map[name] as? List<*>)?.mapNotNull { it?.toString() }
 }
+
+/**
+ * KSP 生成的处理器在返回 @Serializable 对象时，会在编译期将其序列化为 JSON 字符串，
+ * 用 JsonContent 包装以便 HTTP 适配器识别并以 application/json 内容类型响应。
+ */
+class JsonContent(val json: String)

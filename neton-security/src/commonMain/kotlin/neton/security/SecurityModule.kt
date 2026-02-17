@@ -16,9 +16,9 @@ data class SecurityConfig(
 }
 
 /**
- * 真正的安全构建器实现 - 实现 Core 模块接口
+ * 安全构建器实现 - 实现 Core 模块 SecurityBuilder 接口
  */
-class RealSecurityBuilder : neton.core.interfaces.SecurityBuilder {
+class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
 
     private var logger: neton.logging.Logger? = null
     fun setLogger(log: neton.logging.Logger?) {
@@ -89,32 +89,32 @@ class RealSecurityBuilder : neton.core.interfaces.SecurityBuilder {
     }
 
     override fun registerMockAuthenticator(userId: String, roles: Set<String>, permissions: Set<String>) {
-        val authenticator = RealMockAuthenticator(userId, roles, permissions)
+        val authenticator = MockAuthenticatorAdapter(userId, roles, permissions)
         setDefaultAuthenticator(authenticator)
         logger?.info("security.authenticator.mock", mapOf("userId" to userId))
     }
 
     override fun registerMockAuthenticator(name: String, userId: String, roles: Set<String>, permissions: Set<String>) {
         validateGroupName(name)
-        val authenticator = RealMockAuthenticator(userId, roles, permissions)
+        val authenticator = MockAuthenticatorAdapter(userId, roles, permissions)
         setGroupAuthenticator(name, authenticator)
         logger?.info("security.authenticator.mock.named", mapOf("name" to name))
     }
 
     override fun registerJwtAuthenticator(secretKey: String, headerName: String, tokenPrefix: String) {
-        val authenticator = RealJwtAuthenticator(secretKey, headerName, tokenPrefix)
+        val authenticator = JwtAuthenticatorAdapter(secretKey, headerName, tokenPrefix)
         setDefaultAuthenticator(authenticator)
         logger?.info("security.authenticator.jwt")
     }
 
     override fun registerSessionAuthenticator(sessionKey: String) {
-        val authenticator = RealSessionAuthenticator(sessionKey)
+        val authenticator = SessionAuthenticatorAdapter(sessionKey)
         setDefaultAuthenticator(authenticator)
         logger?.info("security.authenticator.session")
     }
 
     override fun registerBasicAuthenticator(userProvider: suspend (username: String, password: String) -> Identity?) {
-        val authenticator = RealBasicAuthenticator(userProvider)
+        val authenticator = BasicAuthenticatorAdapter(userProvider)
         setDefaultAuthenticator(authenticator)
         logger?.info("security.authenticator.basic")
     }
@@ -122,28 +122,28 @@ class RealSecurityBuilder : neton.core.interfaces.SecurityBuilder {
     // ===== 守卫配置方法 =====
 
     override fun bindDefaultGuard() {
-        setDefaultGuard(RealDefaultGuard())
+        setDefaultGuard(DefaultGuardImpl())
         logger?.info("security.guard.default")
     }
 
     override fun bindAdminGuard() {
-        setDefaultGuard(RealAdminGuard())
+        setDefaultGuard(AdminGuardImpl())
         logger?.info("security.guard.admin")
     }
 
     override fun bindRoleGuard(vararg roles: String) {
-        setDefaultGuard(RealRoleGuard(*roles))
+        setDefaultGuard(RoleGuardImpl(*roles))
         logger?.info("security.guard.role", mapOf("roles" to roles.toList()))
     }
 
     override fun bindNamedRoleGuard(name: String, vararg roles: String) {
-        val guard = RealRoleGuard(*roles)
+        val guard = RoleGuardImpl(*roles)
         setGroupGuard(name, guard)
         logger?.info("security.guard.named", mapOf("name" to name))
     }
 
     override fun bindAnonymousGuard() {
-        setDefaultGuard(RealAnonymousGuard())
+        setDefaultGuard(AnonymousGuardImpl())
         logger?.info("security.guard.anonymous")
     }
 
@@ -196,7 +196,7 @@ class RealSecurityBuilder : neton.core.interfaces.SecurityBuilder {
             isEnabled = auths.isNotEmpty() || gs.isNotEmpty(),
             authenticatorCount = auths.size,
             guardCount = gs.size,
-            authenticationContext = RealAuthenticationContext(auths, gs),
+            authenticationContext = AuthenticationContextImpl(auths, gs),
             defaultAuthenticator = defaultAuthenticator,
             defaultGuard = defaultGuard,
             getAuthenticatorByGroup = { g ->
@@ -211,14 +211,14 @@ class RealSecurityBuilder : neton.core.interfaces.SecurityBuilder {
     }
 
     override fun getAuthenticationContext(): AuthenticationContext {
-        return RealAuthenticationContext(allAuthenticators(), allGuards())
+        return AuthenticationContextImpl(allAuthenticators(), allGuards())
     }
 }
 
 /**
- * 真正的认证上下文实现
+ * 认证上下文实现
  */
-class RealAuthenticationContext(
+class AuthenticationContextImpl(
     private val authenticators: List<neton.core.interfaces.Authenticator>,
     private val guards: List<neton.core.interfaces.Guard>
 ) : AuthenticationContext {
@@ -233,7 +233,7 @@ class RealAuthenticationContext(
 /**
  * 实现 Core 接口的 Mock 认证器
  */
-class RealMockAuthenticator(
+class MockAuthenticatorAdapter(
     private val mockUserId: String,
     private val mockRoles: Set<String> = emptySet(),
     private val mockPermissions: Set<String> = emptySet()
@@ -252,30 +252,40 @@ class RealMockAuthenticator(
 /**
  * 实现 Core 接口的 JWT 认证器
  */
-class RealJwtAuthenticator(
-    private val secretKey: String,
+class JwtAuthenticatorAdapter(
+    secretKey: String,
     private val headerName: String = "Authorization",
     private val tokenPrefix: String = "Bearer "
 ) : neton.core.interfaces.Authenticator {
     override val name = "jwt"
 
-    override suspend fun authenticate(context: neton.core.interfaces.RequestContext): Identity? {
-        val authHeader = context.headers[headerName] ?: return null
-        val token = if (authHeader.startsWith(tokenPrefix)) {
-            authHeader.substring(tokenPrefix.length)
-        } else {
-            authHeader
-        }
+    private val delegate = neton.security.jwt.JwtAuthenticatorV1(secretKey, headerName, tokenPrefix)
 
-        // TODO: 实现 JWT 验证逻辑（delegate to JwtAuthenticatorV1）
-        return null
+    override suspend fun authenticate(context: neton.core.interfaces.RequestContext): Identity? {
+        val securityContext = object : neton.security.RequestContext {
+            override val path = context.path
+            override val method = context.method
+            override val headers = context.headers
+            override val routeGroup = context.routeGroup
+            override fun getQueryParameter(name: String): String? = null
+            override fun getQueryParameters(): Map<String, List<String>> = emptyMap()
+            override suspend fun getBodyAsString(): String? = null
+            override fun getSessionId(): String? = null
+            override fun getRemoteAddress(): String? = null
+        }
+        return try {
+            val identity = delegate.authenticate(securityContext) ?: return null
+            identity
+        } catch (e: neton.security.identity.AuthenticationException) {
+            null
+        }
     }
 }
 
 /**
  * 实现 Core 接口的会话认证器
  */
-class RealSessionAuthenticator(
+class SessionAuthenticatorAdapter(
     private val sessionKey: String = "user_id"
 ) : neton.core.interfaces.Authenticator {
     override val name = "session"
@@ -289,7 +299,7 @@ class RealSessionAuthenticator(
 /**
  * 实现 Core 接口的 Basic 认证器
  */
-class RealBasicAuthenticator(
+class BasicAuthenticatorAdapter(
     private val userProvider: suspend (username: String, password: String) -> Identity?
 ) : neton.core.interfaces.Authenticator {
     override val name = "basic"
@@ -310,7 +320,7 @@ class RealBasicAuthenticator(
 /**
  * 实现 Core 接口的默认守卫
  */
-class RealDefaultGuard : neton.core.interfaces.Guard {
+class DefaultGuardImpl : neton.core.interfaces.Guard {
     override val name = "default"
 
     override suspend fun checkPermission(identity: Identity?, context: neton.core.interfaces.RequestContext): Boolean {
@@ -321,7 +331,7 @@ class RealDefaultGuard : neton.core.interfaces.Guard {
 /**
  * 实现 Core 接口的管理员守卫
  */
-class RealAdminGuard : neton.core.interfaces.Guard {
+class AdminGuardImpl : neton.core.interfaces.Guard {
     override val name = "admin"
 
     override suspend fun checkPermission(identity: Identity?, context: neton.core.interfaces.RequestContext): Boolean {
@@ -332,7 +342,7 @@ class RealAdminGuard : neton.core.interfaces.Guard {
 /**
  * 实现 Core 接口的角色守卫
  */
-class RealRoleGuard(vararg allowedRoles: String) : neton.core.interfaces.Guard {
+class RoleGuardImpl(vararg allowedRoles: String) : neton.core.interfaces.Guard {
     private val roles = allowedRoles.toList()
     override val name = "role"
 
@@ -344,7 +354,7 @@ class RealRoleGuard(vararg allowedRoles: String) : neton.core.interfaces.Guard {
 /**
  * 实现 Core 接口的匿名守卫
  */
-class RealAnonymousGuard : neton.core.interfaces.Guard {
+class AnonymousGuardImpl : neton.core.interfaces.Guard {
     override val name = "anonymous"
 
     override suspend fun checkPermission(identity: Identity?, context: neton.core.interfaces.RequestContext): Boolean {

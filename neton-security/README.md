@@ -16,16 +16,25 @@ Neton Security 模块提供了完整的安全认证和授权功能，基于 Iden
 ## 核心组件
 
 ### 认证系统
-- `Authenticator`：认证器接口和实现（MockAuthenticator、JwtAuthenticatorV1）
+- `Authenticator`：认证器接口和实现
+  - `JwtAuthenticatorV1`：底层 JWT 解析实现（HS256，解析 sub/roles/perms）
+  - `JwtAuthenticatorAdapter`：桥接 neton-core `Authenticator` 接口，委托 V1 执行
+  - `MockAuthenticatorAdapter`：桥接 Mock 认证器
+  - `SessionAuthenticatorAdapter`、`BasicAuthenticatorAdapter`：占位
 - `Identity`：用户身份接口，继承 neton-core Identity，新增 `userId: UserId`
 - `IdentityUser`：Identity 默认数据类实现
 - `SecurityContext`：安全上下文管理（辅助用途）
 
 ### 授权系统
 - `Guard`：守卫接口（实现 neton-core Guard.checkPermission）
-- `DefaultGuard`、`PublicGuard`、`AdminGuard`、`RoleGuard`、`CustomGuard`
-- `SecurityBuilder`：安全配置构建器
+- `DefaultGuardImpl`、`AdminGuardImpl`、`RoleGuardImpl`、`AnonymousGuardImpl`
+- `SecurityBuilderImpl`：安全配置构建器实现
+- `AuthenticationContextImpl`：认证上下文实现
 - `SecurityRegistry`：安全组件注册表
+
+### 命名规范
+- `*Adapter`：桥接两个不同接口（如 neton-core `RequestContext` ↔ neton-security `RequestContext`）
+- `*Impl`：同一接口的标准实现
 
 ## 使用示例
 
@@ -69,8 +78,9 @@ neton-security: Identity { userId: UserId; override val id = userId.value.toStri
 
 - 多种认证方式支持（JWT、Mock、Session、Basic）
 - 基于角色和权限的访问控制
-- `@Permission` 注解驱动权限检查
+- `@Permission` 注解驱动权限检查（permission implies auth：标注 @Permission 隐含强制认证）
 - `PermissionEvaluator` 可扩展权限评估
 - 请求级 Identity 存储（HttpContext.attributes）
 - 高性能的安全检查（编译期代码生成）
 - Kotlin/Native 原生支持
+- 契约测试覆盖：SecurityPipelineContractTest（15 条）、JwtAuthenticatorAdapterContractTest（6 条）

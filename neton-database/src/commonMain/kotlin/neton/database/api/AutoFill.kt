@@ -1,20 +1,10 @@
 package neton.database.api
 
 /**
- * Phase 1 自动填充：提供「当前时间」与「当前用户 ID」注入点。
- * 由应用在启动时绑定（如从 NetonContext / Identity 取）。
- */
-interface AutoFillProvider {
-    fun nowMillis(): Long
-    fun currentUserId(): Long?
-}
-
-/**
- * 自动填充列名（DB 列名，如 created_at）。
+ * 审计时间戳自动填充配置（DB 列名）。
+ * v1 冻结：框架只内建时间戳审计（@CreatedAt / @UpdatedAt），不内建用户审计。
  */
 data class AutoFillConfig(
-    val createdAtColumn: String = "created_at",
-    val updatedAtColumn: String = "updated_at",
-    val createdByColumn: String = "created_by",
-    val updatedByColumn: String = "updated_by"
+    val createdAtColumn: String? = null,
+    val updatedAtColumn: String? = null
 )

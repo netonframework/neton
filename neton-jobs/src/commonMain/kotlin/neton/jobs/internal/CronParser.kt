@@ -1,12 +1,12 @@
 package neton.jobs.internal
 
 import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 /**
  * 极简 5 段 cron 解析器。
@@ -32,8 +32,9 @@ internal object CronParser {
 
         // 从 after + 1 分钟开始，秒归零
         var year = startDt.year
-        var month = startDt.monthNumber
-        var day = startDt.dayOfMonth
+
+        var month = startDt.month.ordinal + 1  // Month enum ordinal: 0=JAN → 1-based
+        var day = startDt.day
         var hour = startDt.hour
         var minute = startDt.minute + 1
 

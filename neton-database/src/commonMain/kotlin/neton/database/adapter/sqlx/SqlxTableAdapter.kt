@@ -4,7 +4,6 @@ import io.github.smyrgeorge.sqlx4k.QueryExecutor
 import io.github.smyrgeorge.sqlx4k.RowMapper
 import io.github.smyrgeorge.sqlx4k.Statement
 import neton.database.api.AutoFillConfig
-import neton.database.api.AutoFillProvider
 import neton.database.api.EntityMeta
 import neton.database.api.EntityQuery
 import neton.database.api.Page
@@ -15,6 +14,8 @@ import neton.database.api.toClausesList
 import neton.database.dsl.ColumnRef
 import neton.database.dsl.QueryMeta
 import neton.database.dsl.TableMeta
+
+private fun currentTimeMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
 
 /**
  * SQLx 的 Table 适配器（表级 CRUD，adapter 包）
@@ -27,8 +28,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     private val toParams: (T) -> Map<String, Any?>,
     private val getId: (T) -> ID?,
     private val softDeleteConfig: SoftDeleteConfig? = null,
-    private val autoFillConfig: AutoFillConfig? = null,
-    private val autoFillProvider: AutoFillProvider? = null
+    private val autoFillConfig: AutoFillConfig? = null
 ) : Table<T, ID> {
 
     private val db: QueryExecutor get() = dbProvider()
@@ -47,17 +47,15 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         else
             "${meta.idColumn} = :id"
         val stmt = Statement.create("SELECT * FROM ${meta.table} WHERE $whereClause")
-        val bound = if (softDeleteConfig != null) stmt.bind("id", id).bind("deleted", false) else stmt.bind("id", id)
+        val bound = if (softDeleteConfig != null) stmt.bind("id", id)
+            .bind("deleted", softDeleteConfig.notDeletedValue) else stmt.bind("id", id)
         return db.fetchAll(bound, mapper).getOrThrow().firstOrNull()
     }
 
     override suspend fun findAll(): List<T> {
         val (sql, bind) = if (softDeleteConfig != null) {
             "SELECT * FROM ${meta.table} WHERE ${softDeleteConfig.deletedColumn} = :deleted" to { s: Statement ->
-                s.bind(
-                    "deleted",
-                    false
-                )
+                s.bind("deleted", softDeleteConfig.notDeletedValue)
             }
         } else {
             "SELECT * FROM ${meta.table}" to { s: Statement -> s }
@@ -69,7 +67,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     override suspend fun count(): Long {
         val stmt = Statement.create("SELECT COUNT(*) FROM ${meta.table}")
         val rows = db.fetchAll(stmt).getOrThrow()
-        return rows.firstOrNull()?.get(0)?.toString()?.toLongOrNull() ?: 0L
+        return rows.firstOrNull()?.get(0)?.asString()?.toLongOrNull() ?: 0L
     }
 
     override suspend fun destroy(id: ID): Boolean {
@@ -100,7 +98,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
 
     private suspend fun executeSoftDeleteById(id: ID): Boolean {
         val cfg = softDeleteConfig!!
-        val now = cfg.deletedAtColumn?.let { autoFillProvider?.nowMillis() ?: 0L } ?: 0L
+        val now = cfg.deletedAtColumn?.let { currentTimeMillis() } ?: 0L
         val setParts = mutableListOf<String>("${cfg.deletedColumn} = :deleted")
         val stmt0 =
             Statement.create("UPDATE ${meta.table} SET ${setParts.joinToString(", ")} WHERE ${meta.idColumn} = :id")
@@ -115,7 +113,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
 
     private suspend fun executeSoftDeleteMany(ids: Collection<ID>): Int {
         val cfg = softDeleteConfig!!
-        val now = cfg.deletedAtColumn?.let { autoFillProvider?.nowMillis() ?: 0L } ?: 0L
+        val now = cfg.deletedAtColumn?.let { currentTimeMillis() } ?: 0L
         val placeholders = ids.mapIndexed { i, _ -> ":id$i" }.joinToString(", ")
         val setClause = cfg.deletedAtColumn?.let { "${cfg.deletedColumn} = :deleted, $it = :deletedAt" }
             ?: "${cfg.deletedColumn} = :deleted"
@@ -152,8 +150,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         val queryMeta = QueryMeta<T>(TableMeta(meta.table))
         val scope = neton.database.dsl.QueryScope(queryMeta)
         scope.block()
-        val deletedCol = softDeleteConfig?.let { ColumnRef(it.deletedColumn) }
-        return SqlxEntityQuery(this, scope.build(), deletedCol)
+        return SqlxEntityQuery(this, scope.build(), softDeleteConfig)
     }
 
     override suspend fun many(ids: Collection<ID>): List<T> =
@@ -215,6 +212,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
 
     private fun buildDdl(table: String, columns: List<String>, idColumn: String): String {
         val dialect = SqlxDatabase.currentDriver()
+        val types = meta.columnTypes
         val defs = columns.map { c ->
             when (c) {
                 idColumn -> when (dialect) {
@@ -223,11 +221,12 @@ class SqlxTableAdapter<T : Any, ID : Any>(
                     else -> "$c INTEGER PRIMARY KEY AUTOINCREMENT"
                 }
 
-                "age", "status" -> "$c INTEGER"
-                else -> when {
-                    c in listOf("created_at", "updated_at") || c.endsWith("_at") -> "$c BIGINT"
-                    dialect == neton.database.config.DatabaseDriver.MYSQL -> "$c VARCHAR(255)"
-                    else -> "$c TEXT"
+                else -> {
+                    val sqlType = types[c] ?: when {
+                        dialect == neton.database.config.DatabaseDriver.MYSQL -> "VARCHAR(255)"
+                        else -> "TEXT"
+                    }
+                    "$c $sqlType"
                 }
             }
         }
@@ -235,36 +234,33 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     }
 
     private fun mergeAutoFillForInsert(params: Map<String, Any?>): Map<String, Any?> {
-        if (autoFillConfig == null || autoFillProvider == null) return params
-        val now = autoFillProvider.nowMillis()
-        val userId = autoFillProvider.currentUserId()
-        return params + mapOf(
-            autoFillConfig.createdAtColumn to now,
-            autoFillConfig.updatedAtColumn to now,
-            autoFillConfig.createdByColumn to userId,
-            autoFillConfig.updatedByColumn to userId
-        )
+        if (autoFillConfig == null) return params
+        val now = currentTimeMillis()
+        val extra = mutableMapOf<String, Any?>()
+        autoFillConfig.createdAtColumn?.let { extra[it] = now }
+        autoFillConfig.updatedAtColumn?.let { extra[it] = now }
+        return params + extra
     }
 
     private fun mergeAutoFillForUpdate(params: Map<String, Any?>): Map<String, Any?> {
-        if (autoFillConfig == null || autoFillProvider == null) return params
-        val now = autoFillProvider.nowMillis()
-        val userId = autoFillProvider.currentUserId()
-        return params + mapOf(
-            autoFillConfig.updatedAtColumn to now,
-            autoFillConfig.updatedByColumn to userId
-        )
+        if (autoFillConfig == null) return params
+        val now = currentTimeMillis()
+        val extra = mutableMapOf<String, Any?>()
+        autoFillConfig.updatedAtColumn?.let { extra[it] = now }
+        return params + extra
     }
 
     private fun insertStatement(params: Map<String, Any?>): Statement {
         val cols = params.keys.joinToString(", ")
         val placeholders = params.keys.joinToString(", ") { ":$it" }
-        return Statement.create("INSERT INTO ${meta.table} ($cols) VALUES ($placeholders)")
+        val stmt = Statement.create("INSERT INTO ${meta.table} ($cols) VALUES ($placeholders)")
+        return params.entries.fold(stmt) { s, (k, v) -> s.bind(k, v) }
     }
 
     private fun updateStatement(params: Map<String, Any?>): Statement {
         val set = params.keys.filter { it != meta.idColumn }.joinToString(", ") { "$it = :$it" }
-        return Statement.create("UPDATE ${meta.table} SET $set WHERE ${meta.idColumn} = :${meta.idColumn}")
+        val stmt = Statement.create("UPDATE ${meta.table} SET $set WHERE ${meta.idColumn} = :${meta.idColumn}")
+        return params.entries.fold(stmt) { s, (k, v) -> s.bind(k, v) }
     }
 
     internal suspend fun executeQuery(
@@ -282,7 +278,7 @@ class SqlxTableAdapter<T : Any, ID : Any>(
         val (sql, params) = buildSelect(predicate, null, null, null, count = true)
         val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
         val rows = db.fetchAll(stmt).getOrThrow()
-        return rows.firstOrNull()?.get(0)?.toString()?.toLongOrNull() ?: 0L
+        return rows.firstOrNull()?.get(0)?.asString()?.toLongOrNull() ?: 0L
     }
 
     internal suspend fun executeDelete(predicate: Predicate): Long {

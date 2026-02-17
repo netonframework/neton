@@ -18,14 +18,14 @@ internal object SecurityLog {
  */
 object SecurityComponent : NetonComponent<SecurityBuilder> {
 
-    override fun defaultConfig(): SecurityBuilder = RealSecurityBuilder()
+    override fun defaultConfig(): SecurityBuilder = SecurityBuilderImpl()
 
     override suspend fun init(ctx: NetonContext, config: SecurityBuilder) {
         val log = ctx.getOrNull(LoggerFactory::class)?.get("neton.security")
         SecurityLog.log = log
         log?.info("security.init")
         ctx.bind(SecurityBuilder::class, config)
-        (config as? RealSecurityBuilder)?.setLogger(log)
+        (config as? SecurityBuilderImpl)?.setLogger(log)
         log?.info("security.initialized")
     }
 

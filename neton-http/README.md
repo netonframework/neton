@@ -34,11 +34,22 @@ HTTP 模块为 Neton 框架提供真正的 HTTP 服务器实现，基于 Ktor �
 - 支持所有 HTTP 方法（GET, POST, PUT, DELETE 等）
 - 自动将 Ktor 请求转换为 Neton HttpContext
 - 支持会话管理
+- **JsonContent 响应**：检测 `JsonContent` 返回值，直接以 `application/json` 响应，绕过 Ktor content negotiation
 
 ### HttpComponent
 - 负责模块初始化和注册
 - 通过 `ctx.bind(HttpAdapter::class, KtorHttpAdapter(...))` 注册到 NetonContext
 - 通过 `http { }` install DSL 暴露，组件对业务层隐藏
+
+### SecurityPreHandle
+- 安全管道前置处理（认证 + 授权 + 权限检查）
+- **permission implies auth** 规则：`@Permission` 注解隐含强制认证，即使路由组 requireAuth=false
+
+### 泛型序列化（KSP 编译期生成）
+- Kotlin/Native 下 Ktor 的 `guessSerializer()` 无法处理泛型 `@Serializable` 类型
+- KSP `ControllerProcessor` 在编译期检测 `@Serializable` 返回类型，生成显式序列化代码
+- 返回值包装为 `JsonContent(Json.encodeToString(serializer, result))`
+- 支持嵌套泛型，如 `PageResponse<UserVO>`、`ApiResponse<PageResponse<UserVO>>`
 
 ## 📦 使用方式
 
@@ -111,14 +122,15 @@ Neton.run(args) {
 ## 🧪 开发状态
 
 - ✅ 基础架构完成
-- ⏳ Ktor 服务器集成进行中
-- ⏳ 完整的请求/响应处理
+- ✅ Ktor 服务器集成完成
+- ✅ 完整的请求/响应处理
+- ✅ 安全管道（认证 + 授权 + 权限）
+- ✅ 泛型序列化（KSP 编译期 JsonContent）
+- ✅ 契约测试：SecurityPipelineContractTest（15 条）、GenericSerializerContractTest（5 条）
 - ⏳ 性能优化
 
 ## 📋 TODO
 
-- [ ] 完善 Ktor 服务器启动逻辑
-- [ ] 实现完整的 HTTP 上下文适配
 - [ ] 添加性能监控
 - [ ] 支持 HTTPS
-- [ ] 添加更多 HTTP 库支持（Netty、Vertx 等） 
+- [ ] 添加更多 HTTP 库支持（Netty、Vertx 等）

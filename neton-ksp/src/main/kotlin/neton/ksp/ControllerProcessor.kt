@@ -6,8 +6,11 @@ import java.io.OutputStreamWriter
 
 class ControllerProcessor(
     private val codeGenerator: CodeGenerator,
-    private val logger: KSPLogger
+    private val logger: KSPLogger,
+    private val options: Map<String, String> = emptyMap()
 ) : SymbolProcessor {
+
+    private val moduleId: String? = options["neton.moduleId"]?.takeIf { it.isNotBlank() }
 
     // 注解的完全限定名称 - 不再直接依赖类
     private val controllerAnnotationName = "neton.core.annotations.Controller"
@@ -29,16 +32,34 @@ class ControllerProcessor(
     }
 
     private fun generateInitializer(controllers: List<KSClassDeclaration>) {
+        // 模块模式：生成 internal 路由帮助类 + 写 sink 片段
+        // 兼容模式：生成全局 GeneratedInitializer
+        val generatedPkg = if (moduleId != null) "neton.module.$moduleId.generated" else "neton.core.generated"
+        val generatedClassName =
+            if (moduleId != null) "${moduleId.toPascalCase()}RouteInitializer" else "GeneratedInitializer"
+
+        if (moduleId != null) {
+            // 写 sink 片段：ModuleInitializer 委托调用
+            ModuleFragmentSink.addStat(moduleId, "routes", getTotalRouteCount(controllers))
+            ModuleFragmentSink.addImport(moduleId, "import $generatedPkg.$generatedClassName")
+            ModuleFragmentSink.addFragment(
+                moduleId,
+                "routes",
+                "注册路由（${controllers.size} 个控制器）",
+                "        $generatedClassName.initialize(ctx)"
+            )
+        }
+
         val file = codeGenerator.createNewFile(
             dependencies = Dependencies(true, *controllers.mapNotNull { it.containingFile }.toTypedArray()),
-            packageName = "neton.core.generated",
-            fileName = "GeneratedInitializer"
+            packageName = generatedPkg,
+            fileName = generatedClassName
         )
 
         OutputStreamWriter(file).use { writer ->
             writer.write(
                 """
-                package neton.core.generated
+                package $generatedPkg
 
                 import neton.core.interfaces.RequestEngine
                 import neton.core.interfaces.RouteDefinition
@@ -127,27 +148,46 @@ class ControllerProcessor(
             if (anyLog) {
                 writer.write("import neton.logging.LoggerFactory\n")
             }
-            if (bodyParamTypes.isNotEmpty()) {
+            // 收集 @Serializable 返回类型（用于 JSON 序列化）
+            val serializableReturnImports = mutableSetOf<String>()
+            controllers.forEach { c ->
+                c.getAllFunctions()
+                    .filter { f -> f.annotations.any { httpAnnotations.containsKey(it.shortName.asString()) } }
+                    .forEach { f ->
+                        val rt = f.returnType?.resolve() ?: return@forEach
+                        val expr = buildSerializerExpression(rt)
+                        if (expr != null) {
+                            collectSerializableImports(rt, serializableReturnImports)
+                        }
+                    }
+            }
+            val hasSerializableReturn = serializableReturnImports.isNotEmpty()
+            val needsJson = bodyParamTypes.isNotEmpty() || hasSerializableReturn
+            if (needsJson) {
                 writer.write("import kotlinx.serialization.json.Json\n")
+            }
+            if (bodyParamTypes.isNotEmpty()) {
                 writer.write("import neton.validation.ValidatorRegistry\n")
                 bodyParamTypes.forEach { writer.write("import $it\n") }
+            }
+            if (hasSerializableReturn) {
+                writer.write("import neton.core.http.JsonContent\n")
+                serializableReturnImports.forEach { writer.write("import $it\n") }
             }
 
             writer.write(
                 """
 
 /**
- * KSP 自动生成的初始化器
+ * KSP 自动生成的路由初始化器
  *
  * 此文件由 Neton KSP 处理器自动生成，请勿手动编辑。
  * 包含 ${controllers.size} 个控制器的路由注册。
  */
-object GeneratedInitializer {
+${if (moduleId != null) "internal " else ""}object $generatedClassName {
 """
             )
-            if (bodyParamTypes.isNotEmpty()) {
-                writer.write("    private var _netonValidationWarned = false\n\n")
-            }
+
             writer.write(
                 """
     /**
@@ -156,11 +196,8 @@ object GeneratedInitializer {
      */
     fun initialize(ctx: neton.core.component.NetonContext?) {
         if (ctx == null) return
-        println("🔧 [Neton KSP] Initializing generated routes...")
         val engine = ctx.get(neton.core.interfaces.RequestEngine::class)
         registerRoutes(engine, ctx)
-
-        println("✅ [Neton KSP] Successfully initialized routes from ${controllers.size} controllers")
     }
 
     /**
@@ -324,11 +361,32 @@ object GeneratedInitializer {
         }
 
         val innerInvoke = "ctrl.$methodName(${generateMethodCallParameters(function, fullPath, httpMethod)})"
+        // 检查返回类型是否为 @Serializable，如果是则在编译期生成 JSON 序列化代码
+        val returnType = function.returnType?.resolve()
+        val serializerExpr = returnType?.let { buildSerializerExpression(it) }
+
+        /**
+         * 将控制器方法调用包装为 JsonContent（如果返回 @Serializable 类型）。
+         * 生成: val _r = ctrl.method(...); return JsonContent(Json.encodeToString(Serializer, _r))
+         * 这样 Ktor 不需要在运行时通过 guessSerializer() 解析泛型类型。
+         */
+        fun wrapWithJsonContent(invokeExpr: String): String {
+            return if (serializerExpr != null) {
+                "val _r = $invokeExpr\n                        return JsonContent(Json.encodeToString($serializerExpr, _r))"
+            } else {
+                "return $invokeExpr"
+            }
+        }
+
         val cacheBody = buildCacheBody(function, innerInvoke, cacheableAnn, cachePutAnn, cacheEvictAnn)
         val body = if (lockKeyExpr != null) {
             val innerBlock = when {
                 cacheBody != null -> cacheBody.replaceFirst("return ", "")
-                else -> innerInvoke
+                else -> if (serializerExpr != null) {
+                    "val _r = $innerInvoke\n                            JsonContent(Json.encodeToString($serializerExpr, _r))"
+                } else {
+                    innerInvoke
+                }
             }
             """
                         val ctx = context.getApplicationContext() ?: throw IllegalStateException("@Lock requires NetonContext")
@@ -346,7 +404,7 @@ object GeneratedInitializer {
             if (cacheBody != null) """
                         $cacheBody
 """ else """
-                        return $innerInvoke
+                        ${wrapWithJsonContent(innerInvoke)}
 """
         }
 
@@ -457,7 +515,6 @@ object GeneratedInitializer {
                                     throw ValidationException(listOf(ValidationError(path = "\$", message = "Invalid JSON body", code = "InvalidJson")))
                                 }
                                 val registry = context.getApplicationContext()?.getOrNull(neton.validation.ValidatorRegistry::class)
-                                if (registry == null && !_netonValidationWarned) { _netonValidationWarned = true; kotlin.io.println("WARN [Neton] ValidatorRegistry not bound; validation skipped for body. Bind neton.validation.generated.GeneratedValidatorRegistry.bindTo(ctx) in init when using @NotBlank etc.") }
                                 val validator = registry?.get($typeName::class)
                                 val errors = validator?.validate(body)
                                 if (!errors.isNullOrEmpty()) throw ValidationException(errors)
@@ -753,6 +810,66 @@ object GeneratedInitializer {
         }
     }
 
+    /**
+     * 检查一个 KSType 的声明是否标注了 @Serializable
+     */
+    private fun isSerializableType(type: KSType): Boolean {
+        val decl = type.declaration as? KSClassDeclaration ?: return false
+        val qn = decl.qualifiedName?.asString() ?: return false
+        if (qn in SIMPLE_TYPES || qn == "kotlin.Unit" || qn == "kotlin.Nothing") return false
+        return decl.annotations.any {
+            val annQn = (it.annotationType.resolve().declaration as? KSClassDeclaration)?.qualifiedName?.asString()
+            annQn == "kotlinx.serialization.Serializable"
+        }
+    }
+
+    /**
+     * 构建 kotlinx.serialization 序列化器表达式。
+     * 对于 PageResponse<UserVO> 生成: PageResponse.serializer(UserVO.serializer())
+     * 对于 UserVO 生成: UserVO.serializer()
+     * 对于 List<UserVO> 生成: kotlinx.serialization.builtins.ListSerializer(UserVO.serializer())
+     */
+    private fun buildSerializerExpression(type: KSType): String? {
+        val decl = type.declaration
+        val qn = (decl as? KSClassDeclaration)?.qualifiedName?.asString() ?: return null
+        val simpleName = qn.substringAfterLast('.')
+
+        // List/Set 等集合
+        if (qn == "kotlin.collections.List" || qn == "kotlin.collections.MutableList") {
+            val elemType = type.arguments.firstOrNull()?.type?.resolve() ?: return null
+            val elemSerializer = buildSerializerExpression(elemType) ?: return null
+            return "kotlinx.serialization.builtins.ListSerializer($elemSerializer)"
+        }
+
+        if (!isSerializableType(type)) return null
+
+        val typeArgs = type.arguments
+        return if (typeArgs.isEmpty()) {
+            "$simpleName.serializer()"
+        } else {
+            val argSerializers = typeArgs.mapNotNull { arg ->
+                val argType = arg.type?.resolve() ?: return@mapNotNull null
+                buildSerializerExpression(argType)
+            }
+            if (argSerializers.size != typeArgs.size) return null
+            "$simpleName.serializer(${argSerializers.joinToString(", ")})"
+        }
+    }
+
+    /**
+     * 递归收集一个类型及其泛型参数中涉及的所有 @Serializable 类型的完全限定名（用于 import）。
+     */
+    private fun collectSerializableImports(type: KSType, out: MutableSet<String>) {
+        val decl = type.declaration as? KSClassDeclaration ?: return
+        val qn = decl.qualifiedName?.asString() ?: return
+        if (isSerializableType(type)) {
+            out.add(qn)
+        }
+        type.arguments.forEach { arg ->
+            arg.type?.resolve()?.let { collectSerializableImports(it, out) }
+        }
+    }
+
     // HTTP 注解映射表
     private val httpAnnotations = mapOf(
         "Get" to "GET",
@@ -767,6 +884,13 @@ object GeneratedInitializer {
 
 class ControllerProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        return ControllerProcessor(environment.codeGenerator, environment.logger)
+        return ControllerProcessor(environment.codeGenerator, environment.logger, environment.options)
+    }
+}
+
+/** 将 kebab-case / snake_case / dot-case 转为 PascalCase */
+private fun String.toPascalCase(): String {
+    return split('-', '_', '.').joinToString("") { part ->
+        part.replaceFirstChar { it.uppercaseChar() }
     }
 }

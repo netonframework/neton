@@ -8,4 +8,7 @@ interface EntityMeta<T : Any> {
     val table: String
     val idColumn: String
     val columns: List<String>
+
+    /** 列名 → SQL 类型 (e.g. "INTEGER", "TEXT", "BIGINT")，由 KSP 生成 */
+    val columnTypes: Map<String, String> get() = emptyMap()
 }

@@ -71,10 +71,12 @@ class SqlBuilder(private val dialect: Dialect) {
             val parts = p.children.map(::buildPredicate).filter { it.isNotBlank() }
             if (parts.isEmpty()) "" else parts.joinToString(" AND ", "(", ")")
         }
+
         is Predicate.Or -> {
             val parts = p.children.map(::buildPredicate).filter { it.isNotBlank() }
             if (parts.isEmpty()) "" else parts.joinToString(" OR ", "(", ")")
         }
+
         is Predicate.Eq -> "${dialect.quoteIdent(p.column.name)} = ${addArg(p.value)}"
         is Predicate.Gt -> cmp(p.column, ">", p.value)
         is Predicate.Ge -> cmp(p.column, ">=", p.value)
@@ -82,9 +84,10 @@ class SqlBuilder(private val dialect: Dialect) {
         is Predicate.Le -> cmp(p.column, "<=", p.value)
         is Predicate.Like -> {
             val col = dialect.quoteIdent(p.column.name)
-            val ph = addArg(escapeLike(p.value))
+            val ph = addArg(p.value)
             dialect.likeExpression(col, ph)
         }
+
         is Predicate.In -> {
             if (p.values.isEmpty()) "1 = 0"
             else "${dialect.quoteIdent(p.column.name)} IN (${p.values.map { addArg(it) }.joinToString(", ")})"

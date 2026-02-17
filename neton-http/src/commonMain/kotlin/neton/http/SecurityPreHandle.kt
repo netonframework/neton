@@ -26,9 +26,10 @@ internal suspend fun runSecurityPreHandle(
 ) {
     // 1. 计算 isAnonymousAllowed
     val groupConfig = requestContext.routeGroup?.let { routeGroupSecurityConfigs?.configs?.get(it) }
+    val hasPermission = route.permission != null
     val isAnonymousAllowed = route.allowAnonymous
             || (groupConfig != null && route.pattern in groupConfig.allowAnonymous)
-            || (groupConfig != null && !groupConfig.requireAuth && !route.requireAuth)
+            || (groupConfig != null && !groupConfig.requireAuth && !route.requireAuth && !hasPermission)
 
     if (isAnonymousAllowed) {
         httpContext.removeAttribute(SecurityAttributes.IDENTITY)
@@ -36,7 +37,7 @@ internal suspend fun runSecurityPreHandle(
     }
 
     // 2. 安全未配置时的 fail-fast
-    val requireAuth = route.requireAuth || (groupConfig?.requireAuth == true)
+    val requireAuth = route.requireAuth || (groupConfig?.requireAuth == true) || hasPermission
 
     if (securityConfig == null || !securityConfig.isEnabled) {
         if (requireAuth) {

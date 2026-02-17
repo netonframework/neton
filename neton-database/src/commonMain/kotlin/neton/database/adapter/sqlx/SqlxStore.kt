@@ -112,7 +112,7 @@ abstract class SqlxStore<T : Any>(
     /** KSP 生成 Repository 实现用：COUNT 等标量查询 */
     suspend fun queryScalar(statement: Statement, params: Map<String, Any?>): Long {
         val rows = db.fetchAll(bindAll(statement, params)).getOrThrow()
-        return rows.firstOrNull()?.get(0)?.toString()?.toLongOrNull() ?: 0L
+        return rows.firstOrNull()?.get(0)?.asString()?.toLongOrNull() ?: 0L
     }
 
     /** KSP 生成 Repository 实现用：DELETE 等执行 */

@@ -324,4 +324,84 @@ class SecurityPipelineContractTest {
             ?: error("Expected HttpException")
         assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
     }
+
+    // ── beta1 冻结：permission implies auth ─────────────────────
+
+    // --- Test 13: @Permission 隐含认证 — open 组下无 requireAuth 也必须 401 ---
+    // 冻结规则：route.permission != null → requireAuth 强制为 true
+    @Test
+    fun permissionImpliesAuth_openGroup_noToken_throws401() = runBlocking {
+        val ctx = testCtx()
+        val groupConfigs = RouteGroupSecurityConfigs(
+            mapOf(
+                "admin" to RouteGroupSecurityConfig(requireAuth = false, allowAnonymous = emptySet())
+            )
+        )
+        val config = SecurityConfiguration(
+            isEnabled = true,
+            authenticatorCount = 1,
+            guardCount = 1,
+            authenticationContext = MockAuthenticationContext(),
+            defaultAuthenticator = MockAuthenticator(null),  // 无 token → identity = null
+            defaultGuard = MockDefaultGuard()
+        )
+        val ex = kotlin.runCatching {
+            runSecurityPreHandle(
+                route(requireAuth = false, permission = "system:user:page"),
+                ctx,
+                reqCtx(routeGroup = "admin"),
+                config,
+                groupConfigs
+            )
+        }.exceptionOrNull() as? HttpException
+            ?: error("Expected HttpException for permission-implies-auth")
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
+    }
+
+    // --- Test 14: @Permission + 有效 identity → 放行（open 组下也行） ---
+    @Test
+    fun permissionImpliesAuth_openGroup_withToken_passes() = runBlocking {
+        val attrs = mutableMapOf<String, Any>()
+        val ctx = testCtx(attrs)
+        val groupConfigs = RouteGroupSecurityConfigs(
+            mapOf(
+                "admin" to RouteGroupSecurityConfig(requireAuth = false, allowAnonymous = emptySet())
+            )
+        )
+        val mockId = MockIdentity("admin", setOf("admin"), setOf("system:user:page"))
+        val config = SecurityConfiguration(
+            isEnabled = true,
+            authenticatorCount = 1,
+            guardCount = 1,
+            authenticationContext = MockAuthenticationContext(),
+            defaultAuthenticator = MockAuthenticator(mockId),
+            defaultGuard = MockDefaultGuard()
+        )
+        runSecurityPreHandle(
+            route(requireAuth = false, permission = "system:user:page"),
+            ctx,
+            reqCtx(routeGroup = "admin"),
+            config,
+            groupConfigs
+        )
+        val identity = ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
+        assertEquals("admin", identity?.id)
+    }
+
+    // --- Test 15: @Permission 无安全配置 → 500（fail-fast） ---
+    // 冻结规则：permission 隐含 requireAuth，安全未配置时必须 500 而非静默放行
+    @Test
+    fun permissionImpliesAuth_noSecurity_throws500() = runBlocking {
+        val ctx = testCtx()
+        val ex = kotlin.runCatching {
+            runSecurityPreHandle(
+                route(requireAuth = false, permission = "system:user:page"),
+                ctx,
+                reqCtx(),
+                null
+            )
+        }.exceptionOrNull() as? HttpException
+            ?: error("Expected HttpException for permission-implies-auth fail-fast")
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
+    }
 }

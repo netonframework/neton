@@ -27,7 +27,7 @@ neton-core/src/commonMain/kotlin/
 ├── mock/                     # Mock 实现
 │   └── MockImplementations.kt # MockIdentity, MockAuthenticator, MockGuard
 └── module/                   # 模块系统
-    └── NetonModule.kt        # 模块接口
+    └── ModuleInitializer.kt   # 模块初始化器接口（moduleId, stats, dependsOn）
 ```
 
 ## 核心功能
@@ -42,10 +42,14 @@ neton-core/src/commonMain/kotlin/
 - **环境配置覆盖**：支持 dev/test/prod 环境
 - **配置合并**：智能合并主配置和环境配置
 
-### 3. 模块系统
+### 3. 模块系统（ModuleInitializer）
 - **静态注册**：编译时确定，无反射
-- **优先级排序**：控制模块初始化顺序
+- **拓扑排序**：按 `dependsOn` 声明自动排序，循环依赖 fail-fast
 - **自动配置映射**：模块名自动对应配置文件
+- **启动统计日志**：
+  - `modules.loaded`：版本 + 模块列表概览
+  - `module.initialized`：每个模块的 stats（routes、validators、jobs 等）
+  - `modules.summary`：汇总统计（totalModules、totalRoutes 等）
 
 ### 4. 安全接口层（v1.2）
 

@@ -18,8 +18,11 @@ private fun KSClassDeclaration.getDeclaredFunctions(): Sequence<KSFunctionDeclar
  */
 class RepositoryProcessor(
     private val codeGenerator: CodeGenerator,
-    private val logger: KSPLogger
+    private val logger: KSPLogger,
+    private val options: Map<String, String> = emptyMap()
 ) : SymbolProcessor {
+
+    private val moduleId: String? = options["neton.moduleId"]?.takeIf { it.isNotBlank() }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         val symbols = resolver.getSymbolsWithAnnotation("neton.database.annotations.Repository")
@@ -74,6 +77,34 @@ class RepositoryProcessor(
 
     private fun generateDatabaseRegistry(resolver: Resolver, repositories: List<KSClassDeclaration>) {
         val pkg = repositories.firstOrNull()?.packageName?.asString() ?: return
+
+        if (moduleId != null) {
+            // 模块模式：写片段到 sink
+            writeRepositorySink(pkg, repositories)
+        } else {
+            // 兼容模式：生成独立文件
+            generateDatabaseRegistryFile(pkg, repositories)
+        }
+    }
+
+    /** 模块模式：写 repository 绑定到 sink */
+    private fun writeRepositorySink(pkg: String, repositories: List<KSClassDeclaration>) {
+        ModuleFragmentSink.addStat(moduleId!!, "repositories", repositories.size)
+        repositories.forEach { repo ->
+            val fqn = repo.qualifiedName!!.asString()
+            ModuleFragmentSink.addImport(moduleId!!, "import $fqn")
+            ModuleFragmentSink.addImport(moduleId, "import $pkg.${repo.simpleName.asString()}Impl")
+        }
+
+        val bindings = repositories.joinToString("\n") { repo ->
+            val repoName = repo.simpleName.asString()
+            "        ctx.bind($repoName::class, ${repoName}Impl())"
+        }
+        ModuleFragmentSink.addFragment(moduleId!!, "repositories", "注册仓库", bindings)
+    }
+
+    /** 兼容模式：生成独立文件 */
+    private fun generateDatabaseRegistryFile(pkg: String, repositories: List<KSClassDeclaration>) {
         val bindings = repositories.map { repo ->
             val repoName = repo.simpleName.asString()
             "ctx.bind($repoName::class, ${repoName}Impl())"
@@ -97,7 +128,6 @@ internal object GeneratedDatabaseRegistry {
 """.trimIndent()
             )
         }
-        // 生成 installGeneratedRepositories 供 database { onRepositoriesInstall = { installGeneratedRepositories(it) } } 使用
         val installFile = codeGenerator.createNewFile(Dependencies(true), pkg, "GeneratedDatabaseInstall")
         OutputStreamWriter(installFile).use { w ->
             w.write(
@@ -469,6 +499,6 @@ internal class ${repoName}Impl : $repoName {
 
 class RepositoryProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        return RepositoryProcessor(environment.codeGenerator, environment.logger)
+        return RepositoryProcessor(environment.codeGenerator, environment.logger, environment.options)
     }
 }
