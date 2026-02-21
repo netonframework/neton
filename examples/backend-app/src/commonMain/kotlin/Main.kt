@@ -1,6 +1,5 @@
 import config.JWT_SECRET
-import model.SystemUser
-import model.SystemUserTable
+import model.*
 import neton.core.Neton
 import neton.core.component.NetonContext
 import neton.core.generated.GeneratedNetonConfigRegistry
@@ -10,8 +9,8 @@ import neton.logging.LoggerFactory
 import neton.routing.routing
 import neton.security.security
 import neton.security.jwt.JwtAuthenticatorV1
-import service.AuthService
-import service.UserService
+import logic.AuthLogic
+import logic.UserLogic
 
 fun main(args: Array<String>) {
     Neton.run(args) {
@@ -26,6 +25,8 @@ fun main(args: Array<String>) {
                 @Suppress("UNCHECKED_CAST")
                 when (clazz) {
                     SystemUser::class -> SystemUserTable
+                    Role::class -> RoleTable
+                    UserRole::class -> UserRoleTable
                     else -> null
                 }
             }
@@ -39,32 +40,50 @@ fun main(args: Array<String>) {
             val ctx = get(NetonContext::class)
             val loggerFactory = get(LoggerFactory::class)
 
-            // bind AuthService
+            // ===== NetonSQL v2 架构：Logic 层 =====
+            // 直接使用 Table + DbContext，不需要 Store 层
+
+            // bind AuthLogic
             val jwt = JwtAuthenticatorV1(JWT_SECRET)
-            val authService = AuthService(loggerFactory.get("service.auth"), jwt)
-            ctx.bind(AuthService::class, authService)
+            val authLogic = AuthLogic(loggerFactory.get("logic.auth"), jwt)
+            ctx.bind(AuthLogic::class, authLogic)
 
-            // bind UserService
-            val userService = UserService(loggerFactory.get("service.user"))
-            ctx.bind(UserService::class, userService)
+            // bind UserLogic
+            val userLogic = UserLogic(loggerFactory.get("logic.user"))
+            ctx.bind(UserLogic::class, userLogic)
 
-            // ensure table + seed admin user
+            // ensure tables + seed data
             SystemUserTable.ensureTable()
-            seedAdminUser(loggerFactory)
+            RoleTable.ensureTable()
+            UserRoleTable.ensureTable()
+
+            seedData(loggerFactory)
         }
     }
 }
 
-private suspend fun seedAdminUser(loggerFactory: LoggerFactory) {
+/**
+ * 初始化种子数据（NetonSQL v2 示例）
+ */
+private suspend fun seedData(loggerFactory: LoggerFactory) {
     val log = loggerFactory.get("app.seed")
-    val existing = SystemUserTable.get(1L)
-    if (existing == null) {
-        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+    val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+
+    // 1. 创建角色
+    if (RoleTable.get(1L) == null) {
+        RoleTable.insert(Role(null, "admin", "管理员", "系统管理员，拥有所有权限", now, now))
+        RoleTable.insert(Role(null, "editor", "编辑", "可以编辑内容", now, now))
+        RoleTable.insert(Role(null, "viewer", "查看者", "只能查看内容", now, now))
+        log.info("seed.roles.created", mapOf("count" to 3))
+    }
+
+    // 2. 创建管理员用户
+    if (SystemUserTable.get(1L) == null) {
         SystemUserTable.insert(
             SystemUser(
                 id = null,
                 username = "admin",
-                passwordHash = "admin123",
+                passwordHash = "admin123",  // 生产环境应使用 bcrypt
                 nickname = "Administrator",
                 status = 0,
                 deleted = 0,
@@ -73,5 +92,15 @@ private suspend fun seedAdminUser(loggerFactory: LoggerFactory) {
             )
         )
         log.info("seed.admin.created", mapOf("username" to "admin"))
+    }
+
+    // 3. 为管理员分配角色（展示 NetonSQL v2 的 JOIN 查询场景）
+    val adminUserRoles = UserRoleTable.query {
+        where { UserRole::userId eq 1L }
+    }.list()
+
+    if (adminUserRoles.isEmpty()) {
+        UserRoleTable.insert(UserRole(null, userId = 1L, roleId = 1L, createdAt = now))  // admin role
+        log.info("seed.userRole.created", mapOf("userId" to 1L, "roleId" to 1L))
     }
 }
