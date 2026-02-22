@@ -15,7 +15,7 @@ Neton 是一个面向生产环境、工程化 Web 框架，它与传统 JVM 框�
 - **📄 单一配置入口**：TOML 格式配置，优先级 CLI/ENV > 环境 conf > defaults
 - **📊 结构化日志**：内置 multi-sink、异步写、WARN/ERROR 不丢
 - **🔐 安全认证体系**：JWT 主路径稳定、Guard/Authenticator 可组合
-- **🗂 数据库语义清晰**：Table（单表）+ Store（聚合）分层
+- **🗂 数据库语义清晰**：Entity（数据类）+ Table（单表 CRUD）+ Logic（业务聚合）
 - **🧪 契约测试保障**：核心行为通过 Contract Tests 固定
 
 ---
@@ -32,7 +32,7 @@ Neton 是一个面向生产环境、工程化 Web 框架，它与传统 JVM 框�
 | 100 并发内存占用 | ~20MB | 400MB+ | 10~30MB | 15~40MB | 100MB+ |
 | 反射依赖 | ✅ 无 | ❌ 大量使用 | ✅ 无 | ✅ 无 | ✅ 无 |
 | 编译期生成 | ✅ KSP 路由/Table/安全 | ❌ 运行时扫描 | ❌ 无 | ❌ 无 | ❌ 无 |
-| 架构抽象层级 | 明确 Core/Adapter/Table/Store 分层 | IoC 容器驱动 | 库拼装 | 库拼装 | 中间件拼装 |
+| 架构抽象层级 | 明确 Core/Adapter/Entity/Table/Logic 分层 | IoC 容器驱动 | 库拼装 | 库拼装 | 中间件拼装 |
 | 可维护性 | API Freeze + Contract Test 固化 | 成熟但庞大 | 强类型但分散 | 简洁但松散 | 依赖生态规范 |
 | 扩展性 | Adapter 化（DB/Redis/HTTP 可替换） | 生态成熟 | 高度可定制 | 中等 | 依赖插件 |
 | 配置体系 | 统一 TOML + CLI/ENV 强优先级 | YAML + Profiles | 手写 | 手写 | JSON/YAML |
@@ -156,7 +156,7 @@ fun profile(@CurrentUser user: User): User {
 
 ---
 
-### 🗄️ 数据库（Table + Store）
+### 🗄️ 数据库（Entity + Table + Logic）
 
 **🔹 Table（单表 CRUD）**
 
@@ -211,7 +211,7 @@ Neton 的核心行为通过 contract tests 固定：
 | Logging | sinks/async/error 不丢/字段冻结 |
 | HTTP | commit 语义/access log 字段冻结 |
 | Security/JWT | 错误码/认证/Guard 行为 |
-| Database | Table/Store 语义 |
+| Database | Entity/Table/Query DSL 语义 |
 
 ---
 
@@ -272,7 +272,7 @@ Hello Neton!
 | neton-logging | 结构化日志 + sinks/async | ✅ 稳定 |
 | neton-routing | 路由 DSL + KSP Controller | ✅ 稳定 |
 | neton-security | Guard + JWT 主路径 | ✅ 稳定 |
-| neton-database | Table + Store 架构 | ✅ 稳定 |
+| neton-database | Entity + Table 架构、Query DSL | ✅ 稳定 |
 | neton-redis | Redis + lock | ✅ 稳定 |
 | neton-cache | L1/L2 Cache | ✅ 稳定 |
 | neton-storage | 文件存储（本地 + S3） | ✅ 稳定 |

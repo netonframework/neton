@@ -17,7 +17,7 @@ Neton is a production-ready, engineering-focused web framework that differs from
 - **Unified configuration**: TOML-based config with priority: CLI/ENV > environment conf > defaults
 - **Structured logging**: Built-in multi-sink, async writing, WARN/ERROR guaranteed delivery
 - **Security**: JWT authentication with composable Guard/Authenticator
-- **Clear database semantics**: Table (single-table CRUD) + Store (aggregate) layering
+- **Clear database semantics**: Entity (data class) + Table (single-table CRUD) + Logic (business aggregation)
 - **Contract tests**: Core behaviors locked down via contract tests
 
 ---
@@ -34,7 +34,7 @@ Neton is a production-ready, engineering-focused web framework that differs from
 | Memory (100 conns) | ~20MB | 400MB+ | 10~30MB | 15~40MB | 100MB+ |
 | Reflection | None | Heavy | None | None | None |
 | Compile-time codegen | KSP routes/Table/security | Runtime scanning | None | None | None |
-| Architecture | Core/Adapter/Table/Store layers | IoC container driven | Library composition | Library composition | Middleware composition |
+| Architecture | Core/Adapter/Entity/Table/Logic layers | IoC container driven | Library composition | Library composition | Middleware composition |
 | Maintainability | API Freeze + Contract Tests | Mature but large | Strongly typed but scattered | Simple but loose | Ecosystem dependent |
 | Extensibility | Adapter-based (DB/Redis/HTTP swappable) | Mature ecosystem | Highly customizable | Medium | Plugin dependent |
 | Configuration | Unified TOML + CLI/ENV priority | YAML + Profiles | Manual | Manual | JSON/YAML |
@@ -157,7 +157,7 @@ fun profile(@CurrentUser user: User): User {
 
 ---
 
-### Database (Table + Store)
+### Database (Entity + Table + Logic)
 
 **Table (Single-table CRUD)**
 
@@ -211,7 +211,7 @@ Core behaviors are locked down via contract tests:
 | Logging | Sinks/async/error guaranteed/field freeze |
 | HTTP | Commit semantics/access log field freeze |
 | Security/JWT | Error codes/auth/Guard behavior |
-| Database | Table/Store semantics |
+| Database | Entity/Table/Query DSL semantics |
 
 ---
 
@@ -266,7 +266,7 @@ Hello Neton!
 | neton-logging | Structured logging + sinks/async | Stable |
 | neton-routing | Routing DSL + KSP Controller | Stable |
 | neton-security | Guard + JWT | Stable |
-| neton-database | Table + Store architecture | Stable |
+| neton-database | Entity + Table architecture, Query DSL | Stable |
 | neton-redis | Redis + distributed lock | Stable |
 | neton-cache | L1/L2 Cache | Stable |
 | neton-storage | File storage (Local + S3) | Stable |
