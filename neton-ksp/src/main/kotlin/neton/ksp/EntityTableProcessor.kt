@@ -49,10 +49,40 @@ class EntityTableProcessor(
 
         val idCol = columns.find { it.isId || it.propName == "id" }
         val idType = idCol?.propType?.removeSuffix("?") ?: "Long"
+
+        // 检测用户是否已手写 XxxTable（Facade 模式）
+        // 若用户已定义 XxxTable，则只生成 XxxTableImpl（internal），避免冲突
+        // 约定：Facade 可以在 entity 同包，也可以在 "table" 包
+        val facadeName = "${entityName}Table"
+        val candidateFqns = listOf("$pkg.$facadeName", "table.$facadeName")
+        val userDefinedTable = candidateFqns.firstNotNullOfOrNull { fqn ->
+            resolver.getClassDeclarationByName(resolver.getKSNameFromString(fqn))?.takeIf {
+                it.origin != Origin.SYNTHETIC &&
+                it.origin != Origin.KOTLIN_LIB &&
+                it.origin != Origin.JAVA_LIB
+            }
+        }
+        val hasFacade = userDefinedTable != null
+        // Facade 的全限定包名（用于 import）
+        val facadePkg = userDefinedTable?.packageName?.asString()
+
+        if (hasFacade && userDefinedTable != null) {
+            // Facade 必须是 object，否则编译期直接报错
+            if (userDefinedTable.classKind != ClassKind.OBJECT) {
+                logger.error(
+                    "Facade $facadeName must be declared as 'object', " +
+                    "but found '${userDefinedTable.classKind}'. " +
+                    "Expected: object $facadeName : Table<$entityName, $idType> by ${entityName}TableImpl"
+                )
+                return
+            }
+            logger.info("Facade detected: $facadeName is user-defined (package: $facadePkg), generating ${entityName}TableImpl instead")
+        }
+
         generateMeta(pkg, entityName, entityPkg, tableName, columns, idColumn)
         generateRowMapper(pkg, entityName, entityPkg, columns)
-        generateTable(pkg, entityName, entityPkg, tableName, columns, idColumn, idType)
-        generateExtensions(pkg, entityName, entityPkg, columns, idType)
+        generateTable(pkg, entityName, entityPkg, tableName, columns, idColumn, idType, hasFacade)
+        generateExtensions(pkg, entityName, entityPkg, columns, idType, hasFacade, facadePkg)
         generateTableDef(pkg, entityName, entityPkg, tableName, columns)  // Phase 2
         generateEntityMapper(pkg, entityName, entityPkg, columns)  // Phase 3
     }
@@ -221,12 +251,10 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
         tableName: String,
         columns: List<EntityColumnInfo>,
         idColumn: String,
-        idType: String
+        idType: String,
+        hasFacade: Boolean = false
     ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
-        val insertCols = columns.filter { !it.isId }.joinToString(", ") { it.columnName }
-        val insertVals = columns.filter { !it.isId }.joinToString(", ") { ":" + it.columnName }
-        val updateSet = columns.filter { !it.isId }.joinToString(", ") { "${it.columnName} = :${it.columnName}" }
         val toParamsEntries =
             columns.map { "\"${it.columnName}\" to it.${it.propName}" }.joinToString(",\n            ")
 
@@ -249,10 +277,38 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
             ",\n    autoFillConfig = neton.database.api.AutoFillConfig(${args.joinToString(", ")})"
         } else ""
 
-        val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Table")
-        OutputStreamWriter(file).use { w ->
-            w.write(
-                """
+        if (hasFacade) {
+            // 用户已手写 XxxTable Facade → 生成 XxxTableImpl（internal）
+            val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}TableImpl")
+            OutputStreamWriter(file).use { w ->
+                w.write(
+                    """
+// AUTO-GENERATED - DO NOT EDIT
+// 用户已手写 ${entityName}Table Facade，此处仅生成内部实现
+package $pkg
+
+import neton.database.api.Table
+import neton.database.adapter.sqlx.SqlxTableAdapter
+import neton.database.adapter.sqlx.SqlxDatabase
+
+internal object ${entityName}TableImpl : Table<$entityRef, $idType> by SqlxTableAdapter<$entityRef, $idType>(
+    meta = ${entityName}Meta,
+    dbProvider = { SqlxDatabase.require() },
+    mapper = ${entityName}RowMapper,
+    toParams = { it -> mapOf(
+            $toParamsEntries
+    )},
+    getId = { it.id }$softDeleteParam$autoFillParam
+)
+""".trimIndent()
+                )
+            }
+        } else {
+            // 默认模式：直接生成 XxxTable（向后兼容）
+            val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Table")
+            OutputStreamWriter(file).use { w ->
+                w.write(
+                    """
 // AUTO-GENERATED - DO NOT EDIT
 // 对外只暴露 Table<User, ID> 接口，不暴露底层实现，便于未来换引擎
 package $pkg
@@ -271,7 +327,8 @@ object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$enti
     getId = { it.id }$softDeleteParam$autoFillParam
 )
 """.trimIndent()
-            )
+                )
+            }
         }
     }
 
@@ -280,13 +337,19 @@ object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$enti
         entityName: String,
         entityPkg: String,
         columns: List<EntityColumnInfo>,
-        idType: String
+        idType: String,
+        hasFacade: Boolean = false,
+        facadePkg: String? = null
     ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val nonId = columns.filter { !it.isId && it.propName != "id" }
         val scopeVars = nonId.joinToString("\n    ") { "var ${it.propName}: ${it.propType}" }
         val scopeInit = nonId.joinToString("\n        ") { "${it.propName} = initial.${it.propName}" }
         val copyArgs = nonId.joinToString(", ") { "${it.propName} = scope.${it.propName}" }
+        // Facade 不在 entity 同包时，需要显式 import
+        val facadeImport = if (hasFacade && facadePkg != null && facadePkg != pkg) {
+            "\nimport $facadePkg.${entityName}Table"
+        } else ""
         val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Extensions")
         OutputStreamWriter(file).use { w ->
             w.write(
@@ -298,7 +361,7 @@ package $pkg
 
 import neton.database.api.Predicate
 import neton.database.api.PredicateScope
-import neton.database.api.Query
+import neton.database.api.Query$facadeImport
 
 /** 用于 UserTable.update(id) { name = x; email = y } 的可变作用域，copy 在内部生成 */
 class ${entityName}UpdateScope(initial: $entityRef) {

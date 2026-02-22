@@ -15,7 +15,8 @@
 | **统一执行入口** | ✅ 冻结 | 所有查询走 `DbContext.query()` / `DbContext.executeBuilt()` |
 | **Interceptor 链** | ✅ 冻结 | `beforeQuery` → `beforeSelect` → `onExecute` → `onError` |
 | **AST 不可变** | ✅ 冻结 | 所有 AST 类型为 `data class`，rewrite 返回新实例 |
-| **无 Store 层** | ✅ 冻结 | Controller → Logic → Table/DbContext → Driver |
+| **无 Store 层** | ✅ 冻结 | Controller → Logic → Table → DbContext → Driver |
+| **Table Facade** | ✅ 冻结 | 手写 `object XxxTable`（`table` 包）+ KSP 生成 `XxxTableImpl`（`internal`） |
 | **强类型安全** | ✅ 冻结 | 无字符串列名，无反射，KProperty1 引用 |
 | **KMP Native-first** | ✅ 冻结 | 无 ThreadLocal，无全局状态 |
 

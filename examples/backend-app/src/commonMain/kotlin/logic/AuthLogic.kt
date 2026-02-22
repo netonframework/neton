@@ -3,7 +3,7 @@ package logic
 import controller.admin.auth.dto.LoginRequest
 import controller.admin.auth.dto.LoginResponse
 import model.SystemUser
-import model.SystemUserTable
+import table.SystemUserTable
 import neton.database.dsl.eq
 import neton.logging.Logger
 import neton.security.identity.UserId

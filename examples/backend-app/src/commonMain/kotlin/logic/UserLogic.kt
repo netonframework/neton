@@ -5,6 +5,7 @@ import dto.RoleVO
 import dto.UserVO
 import dto.UserWithRolesVO
 import model.*
+import table.*
 import neton.database.api.DbContext
 import neton.database.dbContext
 import neton.database.dsl.*

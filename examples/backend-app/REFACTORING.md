@@ -23,6 +23,8 @@ Controller → Logic → Table → DbContext → Driver
 - ✅ `service/` → `logic/`（符合 NetonSQL v1 最终架构）
 - ✅ **移除 Store 层**（不再需要）
 - ✅ Logic 直接使用 `Table` + `DbContext`
+- ✅ **Table Facade 模式**：手写 `table/XxxTable.kt` + KSP 生成 `XxxTableImpl`（internal）
+- ✅ **包分离**：实体在 `model/`，Facade 在 `table/`，`import table.SystemUserTable` 语义清晰
 
 ---
 
@@ -406,8 +408,10 @@ GET /user/by-role/admin
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
+| `model/SystemUser.kt` | Entity | 系统用户实体 |
 | `model/Role.kt` | Entity | 角色实体 |
 | `model/UserRole.kt` | Entity | 用户-角色关联 |
+| `table/SystemUserTable.kt` | Table Facade | 手写 Facade，`by SystemUserTableImpl` |
 | `logic/UserLogic.kt` | Logic | 用户业务逻辑（含 JOIN 查询示例） |
 | `logic/AuthLogic.kt` | Logic | 认证业务逻辑 |
 | `controller/admin/user/UserController.kt` | Controller | 用户管理接口 |
@@ -480,7 +484,7 @@ Store 层的职责已被替代：
 **最终架构**：
 
 ```
-Controller → Logic → Table/DbContext → Driver
+Controller → Logic → Table → DbContext → Driver
 ```
 
 参考：jOOQ、Exposed、ktorm 都无 Store 层。

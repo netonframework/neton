@@ -52,9 +52,7 @@ data class User(
     val email: String,
     val status: Int,
     val age: Int
-) {
-    // 无 companion，KSP 生成 UserTable
-}
+)
 ```
 
 ### 2. 配置数据库连接
@@ -92,7 +90,33 @@ fun main(args: Array<String>) {
 }
 ```
 
-### 4. 使用 Entity 为中心的 API（KSP 生成，无 Table/Store 暴露）
+### 4. Table Facade 模式（推荐，IDE 友好）
+
+手写 Table Facade，KSP 只生成内部实现 `XxxTableImpl`：
+
+```kotlin
+// model/User.kt — 实体定义
+@Table("users")
+data class User(@Id val id: Long?, val name: String, val email: String, val status: Int, val age: Int)
+
+// table/UserTable.kt — 手写 Facade（IDE Go to Definition 跳到这里）
+package table
+import model.User
+import model.UserTableImpl
+import neton.database.api.Table
+
+object UserTable : Table<User, Long> by UserTableImpl
+```
+
+业务代码使用：
+
+```kotlin
+import table.UserTable  // 语义清晰：table 层
+```
+
+> 也可以不写 Facade，KSP 会直接生成 `UserTable`（向后兼容）。
+
+### 5. 使用 Entity 为中心的 API
 
 实体用 `@Table` + `@Id`，KSP 生成 `object UserTable : Table<User, Long>` 及 `user.save` / `user.delete`：
 
@@ -183,10 +207,25 @@ connectionTimeout = 30000
 - [x] PostgreSQL/MySQL 支持（sqlx4k-postgres、sqlx4k-mysql），按 database.conf 的 driver 自动选择
 - [ ] 查询缓存
 
-## 📦 Table 与 Logic
+## 📦 架构分层
 
-- **Table**：表级 CRUD（≈ MyBatis-Plus Mapper），KSP 生成，单表 `get/where/list`。
+```
+Controller → Logic → Table → DbContext → Driver
+```
+
+- **Table**：表级 CRUD（≈ MyBatis-Plus Mapper），手写 Facade + KSP 生成实现，单表 `get/where/list`。
 - **Logic**：业务聚合层，手写，持 `DbContext` 做 JOIN / 事务。
+
+**推荐目录结构**：
+
+```
+kotlin/
+├── model/       ← 实体（@Table data class）
+├── table/       ← Table Facade（手写，import table.*）
+├── logic/       ← 业务逻辑
+├── controller/  ← HTTP 接口
+└── dto/         ← 数据传输对象
+```
 
 ```kotlin
 // 多对多：User + Role via user_roles

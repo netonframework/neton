@@ -1,5 +1,6 @@
 import config.JWT_SECRET
 import model.*
+import table.*
 import neton.core.Neton
 import neton.core.component.NetonContext
 import neton.core.generated.GeneratedNetonConfigRegistry
