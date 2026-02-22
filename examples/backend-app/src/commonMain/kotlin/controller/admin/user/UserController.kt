@@ -7,7 +7,7 @@ import neton.core.annotations.*
 import logic.UserLogic
 
 /**
- * 用户管理 Controller（NetonSQL v2 架构示例）
+ * 用户管理 Controller（NetonSQL v1 架构示例）
  *
  * 架构层级：Controller → Logic → Table → DbContext
  */
@@ -33,7 +33,7 @@ class UserController(private val userLogic: UserLogic) {
      */
     @Get("/{id}/with-roles")
     @Permission("system:user:detail")
-    suspend fun getUserWithRoles(@Path("id") id: Long): UserWithRolesVO {
+    suspend fun getUserWithRoles(@PathVariable("id") id: Long): UserWithRolesVO {
         return userLogic.getUserWithRoles(id)
             ?: throw IllegalArgumentException("User not found: $id")
     }
@@ -43,7 +43,7 @@ class UserController(private val userLogic: UserLogic) {
      */
     @Get("/by-role/{roleCode}")
     @Permission("system:user:page")
-    suspend fun listByRole(@Path("roleCode") roleCode: String): List<UserVO> {
+    suspend fun listByRole(@PathVariable("roleCode") roleCode: String): List<UserVO> {
         return userLogic.listUsersByRole(roleCode)
     }
 }

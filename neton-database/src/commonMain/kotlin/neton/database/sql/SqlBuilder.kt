@@ -99,4 +99,145 @@ class SqlBuilder(private val dialect: Dialect) {
 
     private fun escapeLike(input: String): String =
         input.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    // ===== Phase 4: SelectAst → SQL =====
+
+    fun buildSelect(ast: neton.database.dsl.SelectAst): BuiltSql {
+        reset()
+
+        // FROM
+        val fromSql = "${dialect.quoteIdent(ast.fromTable)} AS ${ast.fromAlias}"
+
+        // JOIN
+        val joinsSql = ast.joins.joinToString(" ") { join ->
+            val keyword = when (join.type) {
+                neton.database.dsl.JoinType.INNER -> "INNER JOIN"
+                neton.database.dsl.JoinType.LEFT -> "LEFT JOIN"
+                neton.database.dsl.JoinType.RIGHT -> "RIGHT JOIN"
+                neton.database.dsl.JoinType.FULL -> "FULL JOIN"
+            }
+            val target = "${dialect.quoteIdent(join.targetTableName)} AS ${join.targetAlias}"
+            val on = "${join.on.leftAlias}.${dialect.quoteIdent(join.on.leftColumn)} = " +
+                     "${join.on.rightAlias}.${dialect.quoteIdent(join.on.rightColumn)}"
+            "$keyword $target ON $on"
+        }
+
+        // SELECT — 所有列必须加 AS {alias}_{column} 别名（原则 13）
+        val selectClause = if (ast.projection.isEmpty()) {
+            "SELECT *"
+        } else {
+            "SELECT " + ast.projection.joinToString(", ") { expr ->
+                when (expr) {
+                    is neton.database.dsl.ProjectionExpr.Col ->
+                        "${expr.tableAlias}.${dialect.quoteIdent(expr.columnName)} AS ${expr.tableAlias}_${expr.columnName}"
+                    is neton.database.dsl.ProjectionExpr.Agg ->
+                        "${expr.expression} AS ${dialect.quoteIdent(expr.outputAlias)}"
+                }
+            }
+        }
+
+        // WHERE
+        val whereClause = ast.where?.let { "WHERE ${buildColumnPredicate(it)}" } ?: ""
+
+        // GROUP BY
+        val groupByClause = if (ast.groupBy.isEmpty()) "" else {
+            "GROUP BY " + ast.groupBy.joinToString(", ") { expr ->
+                when (expr) {
+                    is neton.database.dsl.ProjectionExpr.Col -> "${expr.tableAlias}.${dialect.quoteIdent(expr.columnName)}"
+                    is neton.database.dsl.ProjectionExpr.Agg -> expr.outputAlias  // Phase 5
+                }
+            }
+        }
+
+        // HAVING
+        val havingClause = ast.having?.let { "HAVING ${buildColumnPredicate(it)}" } ?: ""
+
+        // ORDER BY
+        val orderClause = if (ast.orderBy.isEmpty()) "" else {
+            "ORDER BY " + ast.orderBy.joinToString(", ") {
+                "${it.tableAlias}.${dialect.quoteIdent(it.column)} ${it.dir.name}"
+            }
+        }
+
+        // LIMIT/OFFSET
+        val limitClause = buildLimitOffset(ast.limit, ast.offset)
+
+        val distinct = if (ast.distinct) "DISTINCT " else ""
+        val sql = listOf(
+            selectClause.replaceFirst("SELECT ", "SELECT $distinct"),
+            "FROM $fromSql", joinsSql,
+            whereClause, groupByClause, havingClause, orderClause, limitClause
+        ).filter { it.isNotBlank() }.joinToString(" ")
+
+        return BuiltSql(sql, args.toList())
+    }
+
+    fun buildCount(ast: neton.database.dsl.SelectAst): BuiltSql {
+        reset()
+        if (ast.groupBy.isEmpty()) {
+            // 无 GROUP BY → 直接 COUNT(*)
+            val fromSql = "${dialect.quoteIdent(ast.fromTable)} AS ${ast.fromAlias}"
+            val joinsSql = buildJoins(ast)
+            val whereClause = ast.where?.let { "WHERE ${buildColumnPredicate(it)}" } ?: ""
+            val sql = listOf("SELECT COUNT(*)", "FROM $fromSql", joinsSql, whereClause)
+                .filter { it.isNotBlank() }.joinToString(" ")
+            return BuiltSql(sql, args.toList())
+        } else {
+            // 有 GROUP BY → 子查询包裹（原则 14）
+            val innerSql = buildSelect(ast.copy(limit = null, offset = null)).sql
+            return BuiltSql("SELECT COUNT(*) FROM ($innerSql) AS _count_tmp", args.toList())
+        }
+    }
+
+    private fun buildJoins(ast: neton.database.dsl.SelectAst): String =
+        ast.joins.joinToString(" ") { join ->
+            val keyword = when (join.type) {
+                neton.database.dsl.JoinType.INNER -> "INNER JOIN"
+                neton.database.dsl.JoinType.LEFT -> "LEFT JOIN"
+                neton.database.dsl.JoinType.RIGHT -> "RIGHT JOIN"
+                neton.database.dsl.JoinType.FULL -> "FULL JOIN"
+            }
+            val on = "${join.on.leftAlias}.${dialect.quoteIdent(join.on.leftColumn)} = " +
+                     "${join.on.rightAlias}.${dialect.quoteIdent(join.on.rightColumn)}"
+            "$keyword ${dialect.quoteIdent(join.targetTableName)} AS ${join.targetAlias} ON $on"
+        }
+
+    private fun buildLimitOffset(limit: Int?, offset: Int?): String {
+        if (limit == null) return ""
+        val lp = addArg(limit)
+        val op = if (offset != null) addArg(offset) else null
+        return dialect.limitOffset(lp, op)
+    }
+
+    private fun buildColumnPredicate(p: neton.database.dsl.ColumnPredicate): String = when (p) {
+        is neton.database.dsl.ColumnPredicate.Eq -> {
+            "${p.tableAlias}.${dialect.quoteIdent(p.column)} = ${addArg(p.value)}"
+        }
+        is neton.database.dsl.ColumnPredicate.Ne -> {
+            "${p.tableAlias}.${dialect.quoteIdent(p.column)} != ${addArg(p.value)}"
+        }
+        is neton.database.dsl.ColumnPredicate.Like -> {
+            dialect.likeExpression(
+                "${p.tableAlias}.${dialect.quoteIdent(p.column)}",
+                addArg(p.value)
+            )
+        }
+        is neton.database.dsl.ColumnPredicate.In -> {
+            if (p.values.isEmpty()) "1 = 0"
+            else "${p.tableAlias}.${dialect.quoteIdent(p.column)} IN (${p.values.map { addArg(it) }.joinToString(", ")})"
+        }
+        is neton.database.dsl.ColumnPredicate.IsNull -> "${p.tableAlias}.${dialect.quoteIdent(p.column)} IS NULL"
+        is neton.database.dsl.ColumnPredicate.IsNotNull -> "${p.tableAlias}.${dialect.quoteIdent(p.column)} IS NOT NULL"
+        is neton.database.dsl.ColumnPredicate.Between -> {
+            val lo = addArg(p.low); val hi = addArg(p.high)
+            "${p.tableAlias}.${dialect.quoteIdent(p.column)} BETWEEN $lo AND $hi"
+        }
+        is neton.database.dsl.ColumnPredicate.Gt -> "${p.tableAlias}.${dialect.quoteIdent(p.column)} > ${addArg(p.value)}"
+        is neton.database.dsl.ColumnPredicate.Ge -> "${p.tableAlias}.${dialect.quoteIdent(p.column)} >= ${addArg(p.value)}"
+        is neton.database.dsl.ColumnPredicate.Lt -> "${p.tableAlias}.${dialect.quoteIdent(p.column)} < ${addArg(p.value)}"
+        is neton.database.dsl.ColumnPredicate.Le -> "${p.tableAlias}.${dialect.quoteIdent(p.column)} <= ${addArg(p.value)}"
+        is neton.database.dsl.ColumnPredicate.And -> p.children.joinToString(" AND ") { "(${buildColumnPredicate(it)})" }
+        is neton.database.dsl.ColumnPredicate.Or -> p.children.joinToString(" OR ") { "(${buildColumnPredicate(it)})" }
+        is neton.database.dsl.ColumnPredicate.True -> "1 = 1"
+    }
 }

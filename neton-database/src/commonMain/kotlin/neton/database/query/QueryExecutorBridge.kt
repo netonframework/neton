@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.flow
 import kotlin.reflect.KClass
 
 /**
- * 将 v2 query.Predicate 转为现有 api.Predicate（QueryClause 体系），供 SqlxTableAdapter 执行。
+ * 将 v1 query.Predicate 转为现有 api.Predicate（QueryClause 体系），供 SqlxTableAdapter 执行。
  */
 internal fun neton.database.query.Predicate.toApiPredicate(propToColumn: (String) -> String): ApiPredicate = when (this) {
     is BinaryPredicate -> ApiPredicate.Clause(
@@ -43,7 +43,7 @@ private fun Op.toSql(): String = when (this) {
 typealias TableRegistry = (KClass<*>) -> Table<*, *>?
 
 /**
- * 使用 SqlxTableAdapter 实现 v2 QueryExecutor。
+ * 使用 SqlxTableAdapter 实现 v1 QueryExecutor。
  * 当 registry 返回 delegation 的 Table（如 UserTable）时，无法执行，返回空。
  */
 class DefaultQueryExecutor(private val tableRegistry: TableRegistry) : QueryExecutor {

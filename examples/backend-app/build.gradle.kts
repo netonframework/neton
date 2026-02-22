@@ -45,17 +45,24 @@ dependencies {
     add("kspMacosArm64", project(":neton-ksp"))
 }
 
-val kspOut = file("build/generated/ksp/macosArm64/macosArm64Main/kotlin")
-kotlin.sourceSets.named("commonMain") {
-    kotlin.srcDir(kspOut)
-}
-
 afterEvaluate {
+    // 延迟配置：将 KSP 生成的代码添加到 commonMain 源码集
+    val kspOut = file("build/generated/ksp/macosArm64/macosArm64Main/kotlin")
+    kotlin.sourceSets.named("commonMain") {
+        kotlin.srcDir(kspOut)
+    }
+
+    // 从 macosArm64Main 中移除 KSP 生成的代码（避免重复）
     val ss = kotlin.sourceSets.findByName("macosArm64Main")
     if (ss != null) {
         val filtered = ss.kotlin.srcDirs.filter { !it.path.contains("generated/ksp") }
         if (filtered.size < ss.kotlin.srcDirs.size) ss.kotlin.setSrcDirs(filtered)
     }
+}
+
+// 关键修复：确保所有编译任务都依赖 KSP 生成
+tasks.matching { it.name == "compileCommonMainKotlinMetadata" }.configureEach {
+    dependsOn("kspKotlinMacosArm64")
 }
 
 tasks.matching { it.name.matches(Regex("compileKotlin(MacosArm64|MacosX64|LinuxX64|LinuxArm64|MingwX64)")) }.configureEach {

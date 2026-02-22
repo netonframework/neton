@@ -1,24 +1,11 @@
 package neton.database.annotations
 
-import kotlin.reflect.KClass
-
 /**
  * 标记数据库表（KSP 生成用，与 @Entity 等效）
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class Table(val value: String = "")
-
-/**
- * 标记 Repository 接口，KSP 自动生成实现
- * 业务层唯一需要编写的持久层代码
- */
-@Target(AnnotationTarget.CLASS)
-@Retention(AnnotationRetention.SOURCE)
-annotation class Repository(
-    val entity: KClass<*> = Any::class,
-    val table: String = ""
-)
 
 /**
  * 标记数据库实体类

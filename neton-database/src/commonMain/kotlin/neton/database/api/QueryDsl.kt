@@ -11,7 +11,7 @@ data class QueryClause(
     val value: Any?
 )
 
-/** v2：条件表达式，可 and/or 组合 */
+/** v1：条件表达式，可 and/or 组合 */
 sealed class Predicate {
     data class Clause(val queryClause: QueryClause) : Predicate()
     data class And(val left: Predicate, val right: Predicate) : Predicate()
@@ -28,7 +28,7 @@ internal fun Predicate.toClausesList(): List<QueryClause> = when (this) {
     is Predicate.True -> emptyList()
 }
 
-/** v2：与 PredicateScope 同义，DSL 条件容器 */
+/** v1：与 PredicateScope 同义，DSL 条件容器 */
 typealias PredicateScope<T> = QueryScope<T>
 
 /** 组合条件 */
@@ -59,7 +59,7 @@ class QueryScope<T : Any>(
 }
 
 /**
- * Query - v2 惰性查询：where / orderBy / limit / offset / page / list / first / one / count / exists / flow / delete / update
+ * Query - v1 惰性查询：where / orderBy / limit / offset / page / list / first / one / count / exists / flow / delete / update
  */
 interface Query<T : Any> {
     fun orderBy(prop: KProperty1<T, *>, ascending: Boolean = true): Query<T>

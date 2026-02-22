@@ -21,4 +21,4 @@
 
 设计目标：Laravel 手感 + Kotlin 类型安全 + 轻量、可冻结。
 
-详见 [neton-database-query-dsl-v2.md](../../../neton-docs/neton-database-query-dsl-v2.md)。
+详见 [neton-database-query-dsl-v1.md](../../../neton-docs/neton-database-query-dsl-v1.md)。

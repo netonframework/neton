@@ -1,7 +1,6 @@
 package dto
 
 import kotlinx.serialization.Serializable
-import logic.RoleVO
 
 @Serializable
 data class UserWithRolesVO(

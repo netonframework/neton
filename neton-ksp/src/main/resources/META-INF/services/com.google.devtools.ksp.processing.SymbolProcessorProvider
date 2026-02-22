@@ -1,7 +1,6 @@
 neton.ksp.ControllerProcessorProvider
 neton.ksp.NetonConfigProcessorProvider
-neton.ksp.RepositoryProcessorProvider
-neton.ksp.EntityStoreProcessorProvider
+neton.ksp.EntityTableProcessorProvider
 neton.ksp.validation.ValidationProcessorProvider
 neton.ksp.JobProcessorProvider
 neton.ksp.ModuleInitializerProcessorProvider

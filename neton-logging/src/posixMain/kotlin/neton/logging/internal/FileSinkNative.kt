@@ -9,7 +9,6 @@ import platform.posix.O_CREAT
 import platform.posix.O_WRONLY
 import platform.posix.close
 import platform.posix.fsync
-import platform.posix.mkdir
 import platform.posix.open
 import platform.posix.write
 
@@ -31,8 +30,7 @@ internal class FileSinkNative(private val path: String) : Sink {
             val next = dir.indexOf('/', i)
             val segment = if (next < 0) dir else dir.substring(0, next)
             if (segment.isNotEmpty()) {
-                @Suppress("EXPERIMENTAL_UNSIGNED_LITERALS")
-                mkdir(segment, 509u) // 0755; 已存在则 EEXIST 忽略
+                createDirWithMode(segment) // 0755; 已存在则 EEXIST 忽略
             }
             i = if (next < 0) dir.length else next + 1
         }

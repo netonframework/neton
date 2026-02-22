@@ -1,7 +1,7 @@
 package controller
 
+import logic.UserRoleLogic
 import model.UserRole
-import model.UserRoleTable
 import neton.core.annotations.*
 import neton.core.http.*
 import neton.logging.Logger
@@ -9,24 +9,26 @@ import neton.logging.Log
 
 @Controller("/api/user-roles")
 @Log
-class UserRoleController(private val log: Logger) {
+class UserRoleController(
+    private val log: Logger,
+    private val userRoleLogic: UserRoleLogic = UserRoleLogic()
+) {
 
     @Get
     suspend fun all(): List<UserRole> =
-        UserRoleTable.findAll()
+        userRoleLogic.all()
 
     @Get("/{id}")
     suspend fun get(id: Long): UserRole? {
         log.info("userRole.get", mapOf("userRoleId" to id))
-        return UserRoleTable.get(id)
+        return userRoleLogic.get(id)
     }
 
     @Post
     suspend fun create(@Body userRole: UserRole): UserRole =
-        UserRoleTable.save(userRole)
+        userRoleLogic.create(userRole)
 
     @Delete("/{id}")
-    suspend fun delete(id: Long) {
-        UserRoleTable.destroy(id)
-    }
+    suspend fun delete(id: Long) =
+        userRoleLogic.delete(id)
 }

@@ -10,7 +10,7 @@ import neton.security.identity.UserId
 import neton.security.jwt.JwtAuthenticatorV1
 
 /**
- * 认证业务逻辑（NetonSQL v2 架构）
+ * 认证业务逻辑（NetonSQL v1 架构）
  *
  * 架构层级：
  * Controller → Logic → Table → DbContext → Driver

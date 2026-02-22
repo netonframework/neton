@@ -51,6 +51,39 @@ internal class SqlxEntityQuery<T : Any>(
         val newAst = ast.copy(projection = projection)
         return SqlxProjectionQuery(adapter, newAst, softDeleteConfig)
     }
+
+    // Phase 3 typed select（TODO: 实现单表 typed projection）
+    override fun <A> select(c1: kotlin.reflect.KProperty1<T, A>): neton.database.api.TypedProjection1<A> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>): neton.database.api.TypedProjection2<A, B> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B, C> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>, c3: kotlin.reflect.KProperty1<T, C>): neton.database.api.TypedProjection3<A, B, C> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B, C, D> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>, c3: kotlin.reflect.KProperty1<T, C>, c4: kotlin.reflect.KProperty1<T, D>): neton.database.api.TypedProjection4<A, B, C, D> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B, C, D, E> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>, c3: kotlin.reflect.KProperty1<T, C>, c4: kotlin.reflect.KProperty1<T, D>, c5: kotlin.reflect.KProperty1<T, E>): neton.database.api.TypedProjection5<A, B, C, D, E> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B, C, D, E, F> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>, c3: kotlin.reflect.KProperty1<T, C>, c4: kotlin.reflect.KProperty1<T, D>, c5: kotlin.reflect.KProperty1<T, E>, c6: kotlin.reflect.KProperty1<T, F>): neton.database.api.TypedProjection6<A, B, C, D, E, F> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B, C, D, E, F, G> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>, c3: kotlin.reflect.KProperty1<T, C>, c4: kotlin.reflect.KProperty1<T, D>, c5: kotlin.reflect.KProperty1<T, E>, c6: kotlin.reflect.KProperty1<T, F>, c7: kotlin.reflect.KProperty1<T, G>): neton.database.api.TypedProjection7<A, B, C, D, E, F, G> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
+
+    override fun <A, B, C, D, E, F, G, H> select(c1: kotlin.reflect.KProperty1<T, A>, c2: kotlin.reflect.KProperty1<T, B>, c3: kotlin.reflect.KProperty1<T, C>, c4: kotlin.reflect.KProperty1<T, D>, c5: kotlin.reflect.KProperty1<T, E>, c6: kotlin.reflect.KProperty1<T, F>, c7: kotlin.reflect.KProperty1<T, G>, c8: kotlin.reflect.KProperty1<T, H>): neton.database.api.TypedProjection8<A, B, C, D, E, F, G, H> {
+        TODO("Phase 3: Single-table typed projection not yet implemented")
+    }
 }
 
 /**
@@ -140,4 +173,11 @@ private class Phase1Row(private val row: io.github.smyrgeorge.sqlx4k.ResultSet.R
         str(name)?.toBooleanStrictOrNull() ?: throw IllegalArgumentException("null or invalid boolean: $name")
 
     override fun booleanOrNull(name: String): Boolean? = str(name)?.toBooleanStrictOrNull()
+
+    override fun bytes(name: String): ByteArray {
+        val s = str(name) ?: throw IllegalArgumentException("null bytes: $name")
+        return s.encodeToByteArray()
+    }
+
+    override fun bytesOrNull(name: String): ByteArray? = str(name)?.encodeToByteArray()
 }

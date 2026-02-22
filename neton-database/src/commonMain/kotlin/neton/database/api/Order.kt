@@ -3,7 +3,7 @@ package neton.database.api
 import kotlin.reflect.KProperty1
 
 /**
- * 排序规则（v2 DSL）
+ * 排序规则（v1 DSL）
  * User.where { }.orderBy(User::age.desc())
  */
 data class Order<T : Any>(

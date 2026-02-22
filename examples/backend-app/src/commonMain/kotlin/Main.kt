@@ -4,6 +4,7 @@ import neton.core.Neton
 import neton.core.component.NetonContext
 import neton.core.generated.GeneratedNetonConfigRegistry
 import neton.database.database
+import neton.database.dsl.eq
 import neton.http.http
 import neton.logging.LoggerFactory
 import neton.routing.routing
@@ -40,7 +41,7 @@ fun main(args: Array<String>) {
             val ctx = get(NetonContext::class)
             val loggerFactory = get(LoggerFactory::class)
 
-            // ===== NetonSQL v2 架构：Logic 层 =====
+            // ===== NetonSQL v1 架构：Logic 层 =====
             // 直接使用 Table + DbContext，不需要 Store 层
 
             // bind AuthLogic
@@ -63,7 +64,7 @@ fun main(args: Array<String>) {
 }
 
 /**
- * 初始化种子数据（NetonSQL v2 示例）
+ * 初始化种子数据（NetonSQL v1 示例）
  */
 private suspend fun seedData(loggerFactory: LoggerFactory) {
     val log = loggerFactory.get("app.seed")
@@ -94,7 +95,7 @@ private suspend fun seedData(loggerFactory: LoggerFactory) {
         log.info("seed.admin.created", mapOf("username" to "admin"))
     }
 
-    // 3. 为管理员分配角色（展示 NetonSQL v2 的 JOIN 查询场景）
+    // 3. 为管理员分配角色（展示 NetonSQL v1 的 JOIN 查询场景）
     val adminUserRoles = UserRoleTable.query {
         where { UserRole::userId eq 1L }
     }.list()

@@ -3,7 +3,7 @@ package neton.database.api
 import kotlin.reflect.KProperty1
 
 /**
- * 批量更新 DSL（v2）
+ * 批量更新 DSL（v1）
  * User.where { User::status eq 0 }.update { set(User::status, 1) }
  */
 interface UpdateScope<T : Any> {

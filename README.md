@@ -169,19 +169,19 @@ UserTable.query { where { ColumnRef("status") eq id } }.list()
 UserTable.destroy(id)
 ```
 
-**Store (Aggregate semantics)**
+**Logic (Business aggregation)**
 
 ```kotlin
-class UserStore {
+class UserLogic(private val db: DbContext = dbContext()) : DbContext by db {
     suspend fun getWithRoles(id: Long): UserWithRoles? { ... }
 }
 ```
 
 Principles:
 
-- Table = single-table CRUD
-- Store = aggregate logic (multi-table joins / domain)
-- Never mix Table/Store semantics
+- Controller → Logic → Table → Model (frozen layering)
+- Table = single-table CRUD (KSP generated)
+- Logic = business aggregation (multi-table joins / transactions / domain)
 
 ---
 

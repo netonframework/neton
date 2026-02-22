@@ -1,28 +1,33 @@
 package logic
 
 import dto.PageResponse
+import dto.RoleVO
 import dto.UserVO
 import dto.UserWithRolesVO
 import model.*
-import neton.database.adapter.sqlx.SqlxDbContext
-import neton.database.api.intoOrNull
+import neton.database.api.DbContext
+import neton.database.dbContext
 import neton.database.dsl.*
 import neton.logging.Logger
 
 /**
- * 用户业务逻辑（NetonSQL v2 架构：Logic 层直接使用 Table + DbContext）
+ * 用户业务逻辑（NetonSQL v1 架构最佳实践）
  *
- * 架构层级：
- * Controller → Logic → Table → DbContext → Driver
- *
- * 不再需要 Store 层。
+ * 架构层级：Controller → Logic → Table/DbContext → Driver
+ * 查询路径：80% DSL + 20% raw SQL escape hatch
  */
-class UserLogic(private val log: Logger) {
-
-    private val db = SqlxDbContext
+class UserLogic(
+    private val log: Logger,
+    private val db: DbContext = dbContext()
+) {
 
     /**
-     * Phase 1：单表分页查询（保持兼容）
+     * Phase 1：单表分页查询
+     *
+     * 特性演示：
+     * - KProperty1 列引用（SystemUser::username）
+     * - 条件构建器（whenNotBlank / whenPresent）
+     * - 自动分页（count + select）
      */
     suspend fun page(
         page: Int,
@@ -64,120 +69,135 @@ class UserLogic(private val log: Logger) {
     }
 
     /**
-     * Phase 4：JOIN 查询 - 获取用户及其角色列表
+     * Phase 4：三表 JOIN 查询（获取用户及角色列表）
      *
-     * 使用 NetonSQL v2 的强类型 JOIN + 手动映射（一对多场景）
+     * 架构特性：
+     * - 显式列选择（typed projection）
+     * - 自动 alias（t1, t2, t3）
+     * - 强类型 Record8 返回
+     * - 手动聚合一对多
+     *
+     * SQL 等价：
+     * SELECT
+     *   u.id, u.username, u.nickname, u.status, u.created_at, u.updated_at,
+     *   r.id, r.name
+     * FROM system_users u
+     * LEFT JOIN user_roles ur ON u.id = ur.user_id
+     * LEFT JOIN roles r ON ur.role_id = r.id
+     * WHERE u.id = ?
      */
     suspend fun getUserWithRoles(userId: Long): UserWithRolesVO? {
-        // 构建三表 JOIN 查询
         val (q, U) = db.from(SystemUserTable)
-        val UR = q.leftJoin(UserRoleTable).on { U[SystemUser::id] eq it[UserRole::userId] }
-        val R = q.leftJoin(RoleTable).on { UR[UserRole::roleId] eq it[Role::id] }
+        val UR = q.leftJoin(UserRoleTable).on { ur ->
+            U.id eq ur.userId
+        }
+        val R = q.leftJoin(RoleTable).on { r ->
+            UR.roleId eq r.id
+        }
 
-        // WHERE 条件
-        q.where(U[SystemUser::id] eq userId)
+        // typed projection 返回 Record8<Long?, String, String, Int, Long, Long, Long?, String>
+        val records = q.where(U.id eq userId)
+            .select(
+                U.id,           // v1: Long?
+                U.username,     // v2: String
+                U.nickname,     // v3: String
+                U.status,       // v4: Int
+                U.createdAt,    // v5: Long
+                U.updatedAt,    // v6: Long
+                R.id,           // v7: Long? (LEFT JOIN 可能为 null)
+                R.name          // v8: String
+            )
+            .fetch()
 
-        // 执行查询（Row 逃生口，适合一对多聚合）
-        val rows = q.selectAllRows().fetchRows()
+        if (records.isEmpty()) return null
 
-        if (rows.isEmpty()) return null
+        // 手动聚合：第一行 → User，所有行 → Roles（去重）
+        val firstRow = records.first()
+        val user = UserVO(
+            id = firstRow.v1!!,
+            username = firstRow.v2,
+            nickname = firstRow.v3,
+            status = firstRow.v4,
+            createdAt = firstRow.v5,
+            updatedAt = firstRow.v6
+        )
 
-        // 手动映射：一对多聚合
-        val firstRow = rows.first()
-        val user = firstRow.into<SystemUser>()
-
-        val roles = rows.mapNotNull { row ->
-            // LEFT JOIN 可能为 null，使用 intoOrNull
-            row.intoOrNull<Role>("", Role::id)
+        // 过滤 NULL JOIN 结果：v7 (Role.id) 为 null 表示无角色
+        val roles = records.mapNotNull { row ->
+            val roleId = row.v7
+            if (roleId != null) {
+                RoleVO(
+                    id = roleId,
+                    code = "",
+                    name = row.v8,
+                    description = null
+                )
+            } else null
         }.distinctBy { it.id }
 
-        log.info("user.getUserWithRoles", mapOf("userId" to userId, "rolesCount" to roles.size))
+        log.info("user.getUserWithRoles", mapOf("userId" to userId, "roleCount" to roles.size))
 
         return UserWithRolesVO(
-            id = user.id!!,
+            id = user.id,
             username = user.username,
             nickname = user.nickname,
             status = user.status,
-            roles = roles.map { RoleVO(it.id!!, it.code, it.name) },
+            roles = roles,
             createdAt = user.createdAt,
             updatedAt = user.updatedAt
         )
     }
 
     /**
-     * Phase 4：JOIN 查询 - 按角色筛选用户（typed projection 示例）
+     * Phase 4：按角色筛选用户（typed projection）
      *
-     * 使用强类型投影，不手动映射
+     * 架构特性：
+     * - INNER JOIN（只返回有该角色的用户）
+     * - 6 列投影 → Record6
+     * - 强类型访问（v1, v2, ..., v6）
+     *
+     * SQL 等价：
+     * SELECT u.id, u.username, u.nickname, u.status, u.created_at, u.updated_at
+     * FROM system_users u
+     * INNER JOIN user_roles ur ON u.id = ur.user_id
+     * INNER JOIN roles r ON ur.role_id = r.id
+     * WHERE r.code = ?
      */
     suspend fun listUsersByRole(roleCode: String): List<UserVO> {
         val (q, U) = db.from(SystemUserTable)
-        val UR = q.innerJoin(UserRoleTable).on { U[SystemUser::id] eq it[UserRole::userId] }
-        val R = q.innerJoin(RoleTable).on { UR[UserRole::roleId] eq it[Role::id] }
+        val UR = q.innerJoin(UserRoleTable).on { ur ->
+            U.id eq ur.userId
+        }
+        val R = q.innerJoin(RoleTable).on { r ->
+            UR.roleId eq r.id
+        }
 
-        q.where(R[Role::code] eq roleCode)
+        // 强类型投影（6 列 → Record6<Long?, String, String, Int, Long, Long>）
+        val records = q.where(R.code eq roleCode)
+            .select(
+                U.id,
+                U.username,
+                U.nickname,
+                U.status,
+                U.createdAt,
+                U.updatedAt
+            )
+            .fetch()
 
-        // 使用 typed projection：强类型返回
-        val records = q.select(
-            U[SystemUser::id],
-            U[SystemUser::username],
-            U[SystemUser::nickname],
-            U[SystemUser::status],
-            U[SystemUser::createdAt],
-            U[SystemUser::updatedAt]
-        ).fetch()
-
-        log.info("user.listUsersByRole", mapOf("roleCode" to roleCode, "count" to records.size))
-
-        return records.map { (id, username, nickname, status, createdAt, updatedAt) ->
+        // Record6 强类型访问
+        val items = records.map { record ->
             UserVO(
-                id = id!!,
-                username = username,
-                nickname = nickname,
-                status = status,
-                createdAt = createdAt,
-                updatedAt = updatedAt
+                id = record.v1!!,
+                username = record.v2,
+                nickname = record.v3,
+                status = record.v4,
+                createdAt = record.v5,
+                updatedAt = record.v6
             )
         }
-    }
 
-    /**
-     * Phase 1：创建用户（单表操作）
-     */
-    suspend fun createUser(username: String, password: String, nickname: String): Long {
-        val user = SystemUser(
-            id = null,
-            username = username,
-            passwordHash = password, // 生产环境应使用 bcrypt
-            nickname = nickname,
-            status = 0,
-            deleted = 0
-        )
+        log.info("user.listUsersByRole", mapOf("roleCode" to roleCode, "count" to items.size))
 
-        val id = SystemUserTable.insert(user)
-        log.info("user.create", mapOf("userId" to id, "username" to username))
-        return id
-    }
-
-    /**
-     * 为用户分配角色（展示事务场景 - TODO: 等 DbContext.transaction 实现）
-     */
-    suspend fun assignRole(userId: Long, roleId: Long) {
-        // TODO: 使用 db.transaction { ... } 包裹
-        val userRole = UserRole(
-            id = null,
-            userId = userId,
-            roleId = roleId
-        )
-        UserRoleTable.insert(userRole)
-        log.info("user.assignRole", mapOf("userId" to userId, "roleId" to roleId))
+        return items
     }
 }
-
-// ===== DTO =====
-
-@kotlinx.serialization.Serializable
-data class RoleVO(
-    val id: Long,
-    val code: String,
-    val name: String
-)

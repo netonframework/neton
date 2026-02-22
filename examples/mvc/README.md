@@ -1,6 +1,6 @@
 # Neton MVC 示例
 
-MVC 结构示例：users、roles、user_roles 三表 + 聚合 Store。
+MVC 结构示例：users、roles、user_roles 三表 + Logic 聚合层。
 
 ## 结构
 
@@ -11,12 +11,14 @@ mvc/
 │   ├── Role.kt
 │   ├── UserRole.kt
 │   └── UserWithRoles.kt   # 聚合 DTO
+├── logic/           # Logic 层（业务聚合 / 跨表联查）
+│   ├── UserLogic.kt
+│   ├── RoleLogic.kt
+│   └── UserRoleLogic.kt
 ├── controller/      # 控制器
 │   ├── UserController.kt
 │   ├── RoleController.kt
 │   └── UserRoleController.kt
-├── store/           # 聚合 Store（跨表联查）
-│   └── UserStore.kt
 └── Main.kt
 ```
 
@@ -24,9 +26,10 @@ mvc/
 
 | 层级 | 职责 | 示例 |
 |------|------|------|
-| **Table** | 单表 CRUD（KSP 生成） | UserTable、RoleTable、UserRoleTable |
-| **Store** | 聚合/联查 | UserStore.getWithRoles() |
 | **Controller** | HTTP 入口 | UserController、RoleController |
+| **Logic** | 业务聚合/联查 | UserLogic.getWithRoles() |
+| **Table** | 单表 CRUD（KSP 生成） | UserTable、RoleTable、UserRoleTable |
+| **Model** | 实体定义 | User、Role、UserRole |
 
 ## API
 

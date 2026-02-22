@@ -69,7 +69,7 @@ internal actual object NativeFileSystem {
             if (stat(absolutePath, st.ptr) != 0) return null
             NativeFileStat(
                 size = st.st_size,
-                lastModifiedMs = st.st_mtime * 1000L,
+                lastModifiedMs = st.st_mtim.tv_sec * 1000L,
                 isDirectory = (st.st_mode.toInt() and S_IFDIR) == S_IFDIR
             )
         }

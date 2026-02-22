@@ -9,7 +9,7 @@ import neton.logging.Logger
 import logic.AuthLogic
 
 /**
- * 认证 Controller（NetonSQL v2 架构示例）
+ * 认证 Controller（NetonSQL v1 架构示例）
  *
  * 架构层级：Controller → Logic → Table → DbContext
  */

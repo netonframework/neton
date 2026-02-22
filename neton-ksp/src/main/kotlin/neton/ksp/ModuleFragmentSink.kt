@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * KSP 处理器间的内存片段共享中心（per-moduleId 隔离）
  *
- * 当 moduleId 存在时，各 Processor（Controller、Validation、Job、Config、Repository）
+ * 当 moduleId 存在时，各 Processor（Controller、Validation、Job、Config）
  * 把自己的注册代码片段写入此 sink，而不是独立生成文件。
  * ModuleInitializerProcessor 最后从 sink 读取所有片段，聚合成唯一的 {Id}ModuleInitializer。
  *
@@ -27,7 +27,7 @@ object ModuleFragmentSink {
     private val sinks = ConcurrentHashMap<String, SinkData>()
 
     data class Fragment(
-        val domain: String,     // "routes", "validators", "repositories", "jobs", "configs"
+        val domain: String,     // "routes", "validators", "jobs", "configs"
         val comment: String,    // 注释
         val code: String        // initialize() 方法体内的代码
     )

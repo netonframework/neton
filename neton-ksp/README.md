@@ -7,9 +7,8 @@ Kotlin Symbol Processing 编译器插件，为 Neton 提供编译时代码生成
 | Processor | 注解 | 生成物 |
 |-----------|------|--------|
 | **ControllerProcessor** | `@Controller`、`@Get`/`@Post` 等 | 路由注册、Controller 调用桥接、泛型序列化 |
-| **EntityStoreProcessor** | `@Table`、`@Id` | UserMeta、UserRowMapper、UserTable、UserExtensions |
+| **EntityTableProcessor** | `@Table`、`@Id` | UserMeta、UserRowMapper、UserTable、UserExtensions |
 | **NetonConfigProcessor** | `@NetonConfig` | 配置注册表、自动应用 |
-| **RepositoryProcessor** | `@Repository` | Statements、RowMapper、Table、RepositoryImpl |
 | **ValidationProcessor** | `@Valid` 等 | 校验代码生成 |
 | **JobProcessor** | `@Job` | GeneratedJobRegistry、任务定义注册 |
 | **ModuleInitializerProcessor** | KSP 选项 `neton.moduleId` | ModuleInitializer 实现、stats 统计 |

@@ -169,19 +169,19 @@ UserTable.query { where { ColumnRef("status") eq id } }.list()
 UserTable.destroy(id)
 ```
 
-**🔹 Store（聚合语义）**
+**🔹 Logic（业务聚合层）**
 
 ```kotlin
-class UserStore {
+class UserLogic(private val db: DbContext = dbContext()) : DbContext by db {
     suspend fun getWithRoles(id: Long): UserWithRoles? { ... }
 }
 ```
 
 原则：
 
-- Table = 单表 CRUD
-- Store = 聚合逻辑（多表联查/领域）
-- 严禁混用 Table/Store 语义
+- Controller → Logic → Table → Model（冻结分层）
+- Table = 单表 CRUD（KSP 生成）
+- Logic = 业务聚合（多表联查/事务/领域）
 
 ---
 

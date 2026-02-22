@@ -9,7 +9,7 @@
 - **自动 CRUD** 操作，开箱即用
 - **智能 Table** 自动适配，类型安全
 
-### 🔄 数据库支持（v2）
+### 🔄 数据库支持（v1）
 - **sqlx4k SQLite** - 主路径，内存或文件
 - **PostgreSQL/MySQL** - 依赖已内置，在 `database.conf` 中配置 `driver` 和 `uri` 即可
 
@@ -170,27 +170,27 @@ connectionTimeout = 30000
 
 ## 🚀 发展路线图
 
-### ✅ 已完成（v2 API Freeze）
-- [x] Table v2 API 冻结
+### ✅ 已完成（v1 API Freeze）
+- [x] Table v1 API 冻结
 - [x] KSP 生成 UserTable（SqlxTableAdapter）
 - [x] sqlx4k SQLite 适配
 - [x] Query DSL（where/orderBy/limit/page）
 - [x] DatabaseComponent、ensureTable
 - [x] examples/mvc
 
-### 📋 计划中（v2.1+）
+### 📋 计划中（v1.1+）
 - [ ] 数据库迁移（Migration）
 - [x] PostgreSQL/MySQL 支持（sqlx4k-postgres、sqlx4k-mysql），按 database.conf 的 driver 自动选择
 - [ ] 查询缓存
 
-## 📦 Table 与 Store
+## 📦 Table 与 Logic
 
 - **Table**：表级 CRUD（≈ MyBatis-Plus Mapper），KSP 生成，单表 `get/where/list`。
-- **Store**：多表联查/聚合，手写，持 `SqlRunner` 做 JOIN。
+- **Logic**：业务聚合层，手写，持 `DbContext` 做 JOIN / 事务。
 
 ```kotlin
 // 多对多：User + Role via user_roles
-class UserStore(private val db: SqlRunner) : SqlRunner by db {
+class UserLogic(private val db: DbContext = dbContext()) : DbContext by db {
     suspend fun getWithRoles(userId: Long): UserWithRoles? {
         val rows = fetchAll("""
             SELECT u.id, u.name, u.email, r.id AS role_id, r.name AS role_name
@@ -210,10 +210,8 @@ class UserStore(private val db: SqlRunner) : SqlRunner by db {
 }
 
 // 调用
-val user = UserStore(sqlRunner()).getWithRoles(1)
+val user = UserLogic().getWithRoles(1)
 ```
-
-详见 `neton-docs/Neton-Database-API-Freeze-v2.md` 第六节。
 
 ## 💡 使用示例
 
@@ -227,7 +225,7 @@ val user = UserStore(sqlRunner()).getWithRoles(1)
 - **neton-core** - 核心框架模块
 - **neton-http** - HTTP 服务器模块
 - **neton-routing** - 路由组件模块
-- **neton-ksp** - KSP 注解处理器（EntityStoreProcessor 等）
+- **neton-ksp** - KSP 注解处理器（EntityTableProcessor 等）
 
 ---
 

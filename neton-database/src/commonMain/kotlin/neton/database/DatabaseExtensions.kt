@@ -11,10 +11,10 @@ import neton.database.query.DefaultQueryExecutor
 import neton.database.query.EntityPersistence
 import neton.database.query.QueryRuntime
 import neton.database.query.TableRegistry
-import neton.database.api.SqlRunner
+import neton.database.api.DbContext
 import neton.database.api.Table
 import neton.database.adapter.sqlx.SqlxDatabase
-import neton.database.adapter.sqlx.SqlxSqlRunner
+import neton.database.adapter.sqlx.SqlxDbContext
 import kotlin.reflect.KClass
 
 /** 模块内 Logger 注入点，由 DatabaseComponent.init 设置 */
@@ -24,11 +24,8 @@ internal object DatabaseLog {
 
 /** Database install DSL 的配置对象 */
 class DatabaseInstallConfig {
-    /** 可选：在 onInit 时安装生成的 Repository 到 ctx（由 KSP 生成 installGeneratedRepositories） */
-    var onRepositoriesInstall: ((neton.core.component.NetonContext) -> Unit)? = null
-
     /**
-     * 可选：v2 Query API 的 Table 查找函数。
+     * 可选：Table 查找函数。
      * 设置后会自动注入 QueryRuntime.executor 和 EntityPersistence.saver，
      * 业务层即可使用 UserTable.query { } / get / save()（需 KSP 生成 Table）。
      */
@@ -52,10 +49,6 @@ object DatabaseComponent : NetonComponent<DatabaseInstallConfig> {
             throw IllegalArgumentException("数据库配置无效: ${validationErrors.joinToString(", ")}")
         }
         SqlxDatabase.initialize(dbConfig)
-        config.onRepositoriesInstall?.let { block ->
-            block(ctx)
-            log?.info("database.repositories.installed")
-        }
         config.tableRegistry?.let { registry ->
             QueryRuntime.executor = DefaultQueryExecutor(registry)
             EntityPersistence.saver = { entity ->
@@ -96,5 +89,5 @@ object DatabaseComponent : NetonComponent<DatabaseInstallConfig> {
 
 fun Neton.LaunchBuilder.database(block: DatabaseInstallConfig.() -> Unit = {}) = install(DatabaseComponent, block)
 
-/** 获取 SqlRunner（供 Repository 做联查/聚合）。需先调用 database { } 初始化。 */
-fun sqlRunner(): SqlRunner = SqlxSqlRunner
+/** 获取 DbContext（Logic 层的 SQL 执行入口）。需先调用 database { } 初始化。 */
+fun dbContext(): DbContext = SqlxDbContext
