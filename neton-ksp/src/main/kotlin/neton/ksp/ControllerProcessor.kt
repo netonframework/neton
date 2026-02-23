@@ -97,10 +97,10 @@ class ControllerProcessor(
                 c.getAllFunctions().flatMap { f ->
                     val isBodyMethod = f.annotations.any { bodyMethods.contains(it.shortName.asString()) }
                     f.parameters.filter { p ->
-                        val typeName = p.type.resolve().declaration.qualifiedName!!.asString()
+                        val typeName = p.type.resolve().declaration.qualifiedName?.asString() ?: return@filter false
                         p.annotations.any { it.shortName.asString() == "Body" } ||
                                 (isBodyMethod && !simpleTypes.contains(typeName) && !contextTypes.contains(typeName))
-                    }.map { it.type.resolve().declaration.qualifiedName!!.asString() }
+                    }.mapNotNull { it.type.resolve().declaration.qualifiedName?.asString() }
                 }
             }.toSet()
             writer.write("import neton.core.http.ValidationException\n")
@@ -442,7 +442,7 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
 
         return function.parameters.joinToString(", ") { param ->
             val paramName = param.name!!.asString()
-            val paramType = param.type.resolve().declaration.qualifiedName!!.asString()
+            val paramType = param.type.resolve().declaration.qualifiedName?.asString() ?: "kotlin.Any"
             val isNullable = param.type.resolve().isMarkedNullable
 
             when {
@@ -551,7 +551,7 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
         val implicitBodyCandidates = mutableListOf<KSValueParameter>()
 
         for (param in function.parameters) {
-            val typeName = param.type.resolve().declaration.qualifiedName!!.asString()
+            val typeName = param.type.resolve().declaration.qualifiedName?.asString() ?: "kotlin.Any"
             val hasBody = param.annotations.any { it.shortName.asString() == "Body" }
             val hasExplicit = param.annotations.any {
                 it.shortName.asString() in listOf(
