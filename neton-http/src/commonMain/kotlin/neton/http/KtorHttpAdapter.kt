@@ -123,7 +123,7 @@ class KtorHttpAdapter(
                             val ordered = routesByGroup.entries.sortedBy { (g, _) -> if (g == null) 0 else 1 }
                             ordered.forEach { (group, groupRoutes) ->
                                 val mount =
-                                    if (group != null) groupMounts[group]?.takeIf { it.isNotEmpty() } ?: "" else ""
+                                    if (group != null) groupMounts[group]?.takeIf { it.isNotEmpty() } ?: "/$group" else ""
                                 // 更具体的路径优先注册（否则根路径 get("/") 可能贪婪匹配）
                                 val sorted =
                                     groupRoutes.sortedBy { if (it.pattern == "/" || it.pattern == "") 1 else 0 }
@@ -297,8 +297,9 @@ class KtorHttpAdapter(
             }
         } catch (e: neton.core.http.ValidationException) {
             status = 400
-            val body = neton.core.http.ErrorResponse(message = e.message ?: "Bad Request", errors = e.errors)
-            call.respond(io.ktor.http.HttpStatusCode.BadRequest, body)
+            val msg = (e.message ?: "Bad Request").replace("\"", "\\\"")
+            val json = """{"code":400,"msg":"$msg","data":null}"""
+            call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.BadRequest)
         } catch (e: neton.core.http.HttpException) {
             status = e.status.code
             log?.warn(
@@ -306,8 +307,9 @@ class KtorHttpAdapter(
                 fields = mapOf("method" to method, "path" to path, "status" to status, "traceId" to traceId),
                 cause = e
             )
-            val body = neton.core.http.ErrorResponse(message = e.message, errors = e.errors)
-            call.respond(mapToKtorStatus(e.status), body)
+            val msg = e.message.replace("\"", "\\\"")
+            val json = """{"code":${e.status.code},"msg":"$msg","data":null}"""
+            call.respondText(json, ContentType.Application.Json, mapToKtorStatus(e.status))
         } catch (e: Exception) {
             status = 500
             log?.error(
@@ -321,8 +323,8 @@ class KtorHttpAdapter(
                 ),
                 cause = e
             )
-            val body = neton.core.http.ErrorResponse(message = "Internal Server Error")
-            call.respond(io.ktor.http.HttpStatusCode.InternalServerError, body)
+            val json = """{"code":500,"msg":"Internal Server Error","data":null}"""
+            call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.InternalServerError)
         } finally {
             val latencyMs = kotlin.time.Clock.System.now().toEpochMilliseconds() - startMs
             val bytesOut = if (httpContext.response.isCommitted && httpContext.response is SimpleKtorHttpResponse) {
@@ -389,16 +391,19 @@ class KtorHttpAdapter(
     }
 
     /**
-     * 从控制器全限定名推断 routeGroup（包名最后一段）。
-     * 仅当 candidate 在 configuredGroups 中时才返回，否则 null。
-     * v1.1 将由 KSP/路由层写入 RouteDefinition.routeGroup，此函数仅作 P0 fallback。
+     * 从控制器全限定名推断 routeGroup。
+     * 扫描包路径中所有段，返回第一个匹配 configuredGroups 的段。
+     * 例如 controller.admin.auth.AuthController → "admin"
      */
     private fun inferRouteGroup(controllerClass: String?, configuredGroups: Set<String>): String? {
         if (controllerClass == null || configuredGroups.isEmpty()) return null
         val segments = controllerClass.split(".")
         if (segments.size < 2) return null
-        val lastPackageSegment = segments[segments.lastIndex - 1]
-        return if (lastPackageSegment in configuredGroups) lastPackageSegment else null
+        // 扫描所有包段（排除最后一段即类名），返回第一个匹配的 group
+        for (i in 0 until segments.lastIndex) {
+            if (segments[i] in configuredGroups) return segments[i]
+        }
+        return null
     }
 
     private fun generateRequestTraceId(): String {
@@ -493,33 +498,39 @@ class KtorHttpAdapter(
         return try {
             when (result) {
                 null, is Unit -> {
-                    call.respond(HttpStatusCode.NoContent)
-                    204
+                    call.respondText("""{"code":0,"msg":"success","data":null}""", ContentType.Application.Json)
+                    200
                 }
 
                 is neton.core.http.JsonContent -> {
-                    call.respondText(result.json, ContentType.Application.Json)
+                    val json = """{"code":0,"msg":"success","data":${result.json}}"""
+                    call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is String -> {
-                    call.respondText(result, ContentType.Text.Plain)
+                    val escaped = result.replace("\\", "\\\\").replace("\"", "\\\"")
+                    val json = """{"code":0,"msg":"success","data":"$escaped"}"""
+                    call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is Map<*, *> -> {
-                    val json = mapToJsonString(result)
+                    val dataJson = mapToJsonString(result)
+                    val json = """{"code":0,"msg":"success","data":$dataJson}"""
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is Number -> {
-                    call.respondText(result.toString(), ContentType.Text.Plain)
+                    val json = """{"code":0,"msg":"success","data":$result}"""
+                    call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is Boolean -> {
-                    call.respondText(result.toString(), ContentType.Text.Plain)
+                    val json = """{"code":0,"msg":"success","data":$result}"""
+                    call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
@@ -530,7 +541,8 @@ class KtorHttpAdapter(
             }
         } catch (e: Exception) {
             log?.warn("response failed", fields = mapOf("route" to routeInfo), cause = e)
-            call.respond(HttpStatusCode.InternalServerError, "响应处理错误")
+            val errorJson = """{"code":500,"msg":"Internal Server Error","data":null}"""
+            call.respondText(errorJson, ContentType.Application.Json, HttpStatusCode.InternalServerError)
             500
         }
     }

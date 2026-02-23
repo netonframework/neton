@@ -77,10 +77,7 @@ class ControllerProcessor(
                 """.trimIndent()
             )
 
-            // 导入控制器类
-            controllers.forEach { controller ->
-                writer.write("import ${controller.qualifiedName!!.asString()}\n")
-            }
+            // 控制器使用全限定名实例化，不生成 import（避免不同包同名类冲突）
             // 收集 Body 参数类型（@Body 或约定推断的 POST/PUT/PATCH 复杂类型）
             val bodyMethods = setOf("Post", "Put", "Patch")
             val simpleTypes =
