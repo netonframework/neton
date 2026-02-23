@@ -12,6 +12,7 @@ import neton.core.component.NetonContext
 import neton.core.module.ModuleInitializer
 import neton.logging.Logger
 import neton.logging.LoggerFactory
+import kotlin.reflect.KClass
 
 /**
  * Neton Web 框架核心类
@@ -166,11 +167,20 @@ class Neton private constructor() {
         private var userBlock: (suspend KotlinApplication.() -> Unit)? = null
         private var configRegistry: NetonConfigRegistry? = null
         private val moduleInitializers = mutableListOf<ModuleInitializer>()
+        private val deferredBindings = mutableListOf<(NetonContext) -> Unit>()
 
         @Suppress("UNCHECKED_CAST")
         private val installs = mutableListOf<Pair<NetonComponent<*>, (Any).() -> Unit>>()
 
         internal fun getApp(): Neton = app
+
+        /**
+         * 预绑定实例到 NetonContext（DSL 阶段收集，启动时执行）。
+         * 用于在模块初始化之前绑定共享的构建器或服务。
+         */
+        fun <T : Any> bind(type: KClass<T>, impl: T) {
+            deferredBindings.add { ctx -> ctx.bind(type, impl) }
+        }
 
         /**
          * 传入 KSP 生成的配置注册表，供 @NetonConfig 自动应用
@@ -238,6 +248,10 @@ class Neton private constructor() {
             val ctx = NetonContext(args)
             ctx.bind(NetonContext::class, ctx)
             ctx.bind(NetonConfigRegistry::class, configRegistry ?: EmptyNetonConfigRegistry)
+            // 执行 DSL 阶段收集的延迟绑定
+            for (binding in deferredBindings) {
+                binding(ctx)
+            }
             val env = ConfigLoader.resolveEnvironment(args)
             val appConfig = ConfigLoader.loadApplicationConfig("config", env, args)
 

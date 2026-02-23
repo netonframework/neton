@@ -103,8 +103,10 @@ class ControllerProcessor(
                     }.mapNotNull { it.type.resolve().declaration.qualifiedName?.asString() }
                 }
             }.toSet()
-            writer.write("import neton.core.http.ValidationException\n")
-            writer.write("import neton.core.http.ValidationError\n")
+            // 收集所有 import 到 Set 中去重
+            val extraImports = linkedSetOf<String>()
+            extraImports.add("neton.core.http.ValidationException")
+            extraImports.add("neton.core.http.ValidationError")
             val anyLock = controllers.any { c ->
                 c.getAllFunctions().any { f -> f.annotations.any { it.shortName.asString() == "Lock" } }
             }
@@ -126,17 +128,17 @@ class ControllerProcessor(
                 }
             }
             if (anyLock) {
-                writer.write("import neton.redis.lock.LockManager\n")
-                writer.write("import kotlin.time.Duration.Companion.milliseconds\n")
+                extraImports.add("neton.redis.lock.LockManager")
+                extraImports.add("kotlin.time.Duration.Companion.milliseconds")
             }
             if (anyCache) {
-                writer.write("import neton.cache.CacheManager\n")
-                writer.write("import neton.cache.getCache\n")
-                writer.write("import neton.cache.CacheKeyHash\n")
-                writer.write("import neton.core.http.HttpException\n")
-                writer.write("import neton.core.http.HttpStatus\n")
-                writer.write("import kotlin.time.Duration.Companion.milliseconds\n")
-                cacheReturnTypes.forEach { writer.write("import $it\n") }
+                extraImports.add("neton.cache.CacheManager")
+                extraImports.add("neton.cache.getCache")
+                extraImports.add("neton.cache.CacheKeyHash")
+                extraImports.add("neton.core.http.HttpException")
+                extraImports.add("neton.core.http.HttpStatus")
+                extraImports.add("kotlin.time.Duration.Companion.milliseconds")
+                cacheReturnTypes.forEach { extraImports.add(it) }
             }
             val anyLog = controllers.any { c ->
                 c.primaryConstructor?.parameters?.any { p ->
@@ -146,10 +148,11 @@ class ControllerProcessor(
                 } == true
             }
             if (anyLog) {
-                writer.write("import neton.logging.LoggerFactory\n")
+                extraImports.add("neton.logging.LoggerFactory")
             }
             // 收集 @Serializable 返回类型（用于 JSON 序列化）
             val serializableReturnImports = mutableSetOf<String>()
+            var hasNullableSerializableReturn = false
             controllers.forEach { c ->
                 c.getAllFunctions()
                     .filter { f -> f.annotations.any { httpAnnotations.containsKey(it.shortName.asString()) } }
@@ -158,22 +161,30 @@ class ControllerProcessor(
                         val expr = buildSerializerExpression(rt)
                         if (expr != null) {
                             collectSerializableImports(rt, serializableReturnImports)
+                            if (rt.isMarkedNullable) hasNullableSerializableReturn = true
                         }
                     }
             }
             val hasSerializableReturn = serializableReturnImports.isNotEmpty()
             val needsJson = bodyParamTypes.isNotEmpty() || hasSerializableReturn
             if (needsJson) {
-                writer.write("import kotlinx.serialization.json.Json\n")
+                extraImports.add("kotlinx.serialization.json.Json")
+                // 基本类型 serializer 扩展函数（String.serializer() 等）
+                extraImports.add("kotlinx.serialization.builtins.serializer")
             }
             if (bodyParamTypes.isNotEmpty()) {
-                writer.write("import neton.validation.ValidatorRegistry\n")
-                bodyParamTypes.forEach { writer.write("import $it\n") }
+                extraImports.add("neton.validation.ValidatorRegistry")
+                bodyParamTypes.forEach { extraImports.add(it) }
             }
             if (hasSerializableReturn) {
-                writer.write("import neton.core.http.JsonContent\n")
-                serializableReturnImports.forEach { writer.write("import $it\n") }
+                extraImports.add("neton.core.http.JsonContent")
+                serializableReturnImports.forEach { extraImports.add(it) }
+                if (hasNullableSerializableReturn) {
+                    extraImports.add("kotlinx.serialization.builtins.nullable")
+                }
             }
+            // 统一写入去重后的 import
+            extraImports.forEach { writer.write("import $it\n") }
 
             writer.write(
                 """
@@ -364,15 +375,18 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
         // 检查返回类型是否为 @Serializable，如果是则在编译期生成 JSON 序列化代码
         val returnType = function.returnType?.resolve()
         val serializerExpr = returnType?.let { buildSerializerExpression(it) }
+        val isReturnNullable = returnType?.isMarkedNullable == true
 
         /**
          * 将控制器方法调用包装为 JsonContent（如果返回 @Serializable 类型）。
          * 生成: val _r = ctrl.method(...); return JsonContent(Json.encodeToString(Serializer, _r))
          * 这样 Ktor 不需要在运行时通过 guessSerializer() 解析泛型类型。
+         * 当返回类型可空时，使用 .nullable serializer 处理 null 值。
          */
         fun wrapWithJsonContent(invokeExpr: String): String {
             return if (serializerExpr != null) {
-                "val _r = $invokeExpr\n                        return JsonContent(Json.encodeToString($serializerExpr, _r))"
+                val actualSerializer = if (isReturnNullable) "$serializerExpr.nullable" else serializerExpr
+                "val _r = $invokeExpr\n                        return JsonContent(Json.encodeToString($actualSerializer, _r))"
             } else {
                 "return $invokeExpr"
             }
@@ -383,7 +397,8 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
             val innerBlock = when {
                 cacheBody != null -> cacheBody.replaceFirst("return ", "")
                 else -> if (serializerExpr != null) {
-                    "val _r = $innerInvoke\n                            JsonContent(Json.encodeToString($serializerExpr, _r))"
+                    val actualSerializer = if (isReturnNullable) "$serializerExpr.nullable" else serializerExpr
+                    "val _r = $innerInvoke\n                            JsonContent(Json.encodeToString($actualSerializer, _r))"
                 } else {
                     innerInvoke
                 }
@@ -504,13 +519,15 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                     when {
                         isBody -> {
                             val typeName = paramType.substringAfterLast('.')
+                            val resolvedType = param.type.resolve()
+                            val bodySerializerExpr = buildSerializerExpression(resolvedType) ?: "$typeName.serializer()"
                             // path="\$" in generated source → literal "$" in JSON (Kotlin string escape)
                             """run {
                                 val ct = context.request.contentType?.lowercase() ?: ""
                                 if (!ct.contains("application/json")) throw UnsupportedMediaTypeException("Body requires application/json")
                                 val raw = context.request.text()
                                 val body = try {
-                                    Json.decodeFromString($typeName.serializer(), raw)
+                                    Json.decodeFromString($bodySerializerExpr, raw)
                                 } catch (e: Exception) {
                                     throw ValidationException(listOf(ValidationError(path = "\$", message = "Invalid JSON body", code = "InvalidJson")))
                                 }
@@ -834,11 +851,32 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
         val qn = (decl as? KSClassDeclaration)?.qualifiedName?.asString() ?: return null
         val simpleName = qn.substringAfterLast('.')
 
+        // 基本类型 serializer（通过 kotlinx.serialization.builtins 中的 Companion 扩展函数）
+        val builtinSerializer = when (qn) {
+            "kotlin.String" -> "String.serializer()"
+            "kotlin.Int" -> "Int.serializer()"
+            "kotlin.Long" -> "Long.serializer()"
+            "kotlin.Double" -> "Double.serializer()"
+            "kotlin.Float" -> "Float.serializer()"
+            "kotlin.Boolean" -> "Boolean.serializer()"
+            else -> null
+        }
+        if (builtinSerializer != null) return builtinSerializer
+
         // List/Set 等集合
         if (qn == "kotlin.collections.List" || qn == "kotlin.collections.MutableList") {
             val elemType = type.arguments.firstOrNull()?.type?.resolve() ?: return null
             val elemSerializer = buildSerializerExpression(elemType) ?: return null
             return "kotlinx.serialization.builtins.ListSerializer($elemSerializer)"
+        }
+
+        // Map 类型
+        if (qn == "kotlin.collections.Map" || qn == "kotlin.collections.MutableMap") {
+            val keyType = type.arguments.getOrNull(0)?.type?.resolve() ?: return null
+            val valType = type.arguments.getOrNull(1)?.type?.resolve() ?: return null
+            val keySerializer = buildSerializerExpression(keyType) ?: return null
+            val valSerializer = buildSerializerExpression(valType) ?: return null
+            return "kotlinx.serialization.builtins.MapSerializer($keySerializer, $valSerializer)"
         }
 
         if (!isSerializableType(type)) return null
