@@ -2,7 +2,7 @@ package neton.database.sql
 
 /**
  * SQL 方言：占位符、标识符引用、LIMIT/OFFSET、LIKE 表达式。
- * PG: $1, $2；MySQL: ?；MySQL LIMIT 为 LIMIT offset, limit。
+ * PG: $1, $2；MySQL: ?；MySQL LIMIT 使用标准 LIMIT n OFFSET m 语法（避免参数绑定顺序问题）。
  */
 interface Dialect {
     val name: String
@@ -32,7 +32,7 @@ object MySqlDialect : Dialect {
     override fun quoteIdent(name: String) = "`$name`"
     override fun limitOffset(limitPlaceholder: String?, offsetPlaceholder: String?) = when {
         limitPlaceholder != null && offsetPlaceholder != null ->
-            "LIMIT $offsetPlaceholder, $limitPlaceholder"
+            "LIMIT $limitPlaceholder OFFSET $offsetPlaceholder"
         limitPlaceholder != null -> "LIMIT $limitPlaceholder"
         else -> ""
     }

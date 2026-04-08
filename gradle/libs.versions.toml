@@ -1,14 +1,14 @@
 [versions]
 kotlin = "2.3.10"
 cryptography-kotlin = "0.5.0"
-kotlinx-io = "0.8.2"  # kotlinx-io-bytestring，与 cryptography-kotlin 的 kotlinx-io-core 对齐
+kotlinx-io = "0.9.0"  # kotlinx-io-bytestring，与 cryptography-kotlin 的 kotlinx-io-core 对齐
 ksp = "2.3.5"
 ktor = "3.4.0"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
 kotlinx-datetime = "0.7.1"
 kotlinx-coroutines-test = "1.10.2"
-sqlx4k = "1.5.20"
+sqlx4k = "1.6.0"
 konform = "0.11.1"
 
 [libraries]

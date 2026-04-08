@@ -1,6 +1,7 @@
 package neton.redis
 
 import eu.vendeli.rethis.ReThis
+import eu.vendeli.rethis.annotations.ReThisInternal
 import eu.vendeli.rethis.command.generic.del
 import eu.vendeli.rethis.command.generic.exists
 import eu.vendeli.rethis.command.generic.expire
@@ -8,6 +9,7 @@ import eu.vendeli.rethis.command.generic.keys as rethisKeys
 import eu.vendeli.rethis.command.generic.scan
 import eu.vendeli.rethis.shared.request.generic.ScanOption
 import eu.vendeli.rethis.shared.response.common.ScanResult
+import eu.vendeli.rethis.utils.execute
 import eu.vendeli.rethis.command.hash.hGet
 import eu.vendeli.rethis.command.hash.hGetAll
 import eu.vendeli.rethis.command.hash.hSet
@@ -28,6 +30,7 @@ import eu.vendeli.rethis.shared.request.common.FieldValue
 import eu.vendeli.rethis.shared.request.string.SetExpire
 import eu.vendeli.rethis.shared.request.string.UpsertMode
 import eu.vendeli.rethis.types.common.RespVer
+import kotlinx.io.readString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import kotlin.time.Duration
@@ -163,6 +166,52 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
     }
 
     override suspend fun smembers(key: String): Set<String> = rt.sMembers(fullKey(key))
+
+    @OptIn(ReThisInternal::class)
+    override suspend fun info(section: String?): String? {
+        val buf = if (section != null) {
+            rt.execute { add("INFO"); add(section) }
+        } else {
+            rt.execute { add("INFO") }
+        }
+        return parseRespBulkString(buf)
+    }
+
+    @OptIn(ReThisInternal::class)
+    override suspend fun dbSize(): Long {
+        val buf = rt.execute { add("DBSIZE") }
+        return parseRespInteger(buf)
+    }
+
+    /** 解析 RESP Bulk String 响应：$<len>\r\n<data>\r\n */
+    private fun parseRespBulkString(buf: kotlinx.io.Buffer): String? {
+        if (buf.exhausted()) return null
+        val text = buf.readString()
+        // RESP bulk string: $<len>\r\n<data>\r\n
+        if (text.startsWith("$")) {
+            val firstCrlf = text.indexOf("\r\n")
+            if (firstCrlf < 0) return null
+            val len = text.substring(1, firstCrlf).toIntOrNull() ?: return null
+            if (len < 0) return null
+            return text.substring(firstCrlf + 2, firstCrlf + 2 + len)
+        }
+        // 可能是 simple string: +<data>\r\n
+        if (text.startsWith("+")) {
+            return text.substring(1).trimEnd('\r', '\n')
+        }
+        return text.trimEnd('\r', '\n')
+    }
+
+    /** 解析 RESP Integer 响应：:<number>\r\n */
+    private fun parseRespInteger(buf: kotlinx.io.Buffer): Long {
+        if (buf.exhausted()) return 0L
+        val text = buf.readString().trimEnd('\r', '\n')
+        // RESP integer: :<number>
+        if (text.startsWith(":")) {
+            return text.substring(1).trimEnd('\r', '\n').toLongOrNull() ?: 0L
+        }
+        return text.toLongOrNull() ?: 0L
+    }
 
     override suspend fun pipeline(block: RedisPipeline.() -> Unit) {
         val runner = PipelineRunner(this)

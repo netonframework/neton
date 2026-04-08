@@ -323,10 +323,40 @@ class KtorHttpAdapter(
                 ),
                 cause = e
             )
+            // 异步写入 API 错误日志到数据库
+            val errorLogWriter = appContext?.getOrNull(neton.core.interfaces.ErrorLogWriter::class)
+            if (errorLogWriter != null) {
+                val identity = httpContext.attributes["identity"] as? Identity
+                val userIp = call.request.local.remoteAddress
+                val userAgent = call.request.headers["User-Agent"]
+                val queryString = call.request.queryString()
+                val requestParams = if (queryString.isNotEmpty()) queryString else null
+                val errorEntry = neton.core.interfaces.ErrorLogEntry(
+                    userId = identity?.id?.toLongOrNull(),
+                    userType = if (identity != null) 2 else 0,
+                    applicationName = "neton-application",
+                    requestMethod = method,
+                    requestUrl = path,
+                    requestParams = requestParams,
+                    userIp = userIp,
+                    userAgent = userAgent,
+                    exceptionName = e::class.simpleName ?: "Exception",
+                    exceptionMessage = e.message,
+                    exceptionStackTrace = e.stackTraceToString()
+                )
+                CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    try {
+                        errorLogWriter.write(errorEntry)
+                    } catch (writeEx: Exception) {
+                        log?.warn("error-log.write.failed", mapOf("path" to path), cause = writeEx)
+                    }
+                }
+            }
             val json = """{"code":500,"msg":"Internal Server Error","data":null}"""
             call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.InternalServerError)
         } finally {
-            val latencyMs = kotlin.time.Clock.System.now().toEpochMilliseconds() - startMs
+            val endMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
+            val latencyMs = endMs - startMs
             val bytesOut = if (httpContext.response.isCommitted && httpContext.response is SimpleKtorHttpResponse) {
                 (httpContext.response as SimpleKtorHttpResponse).lastBytesOut
             } else {
@@ -345,6 +375,37 @@ class KtorHttpAdapter(
                     "traceId" to traceId
                 )
             )
+            // 异步写入 API 访问日志到数据库
+            val accessLogWriter = appContext?.getOrNull(neton.core.interfaces.AccessLogWriter::class)
+            if (accessLogWriter != null) {
+                val identity = httpContext.attributes["identity"] as? Identity
+                val userIp = call.request.local.remoteAddress
+                val userAgent = call.request.headers["User-Agent"]
+                val queryString = call.request.queryString()
+                val requestParams = if (queryString.isNotEmpty()) queryString else null
+                val entry = neton.core.interfaces.AccessLogEntry(
+                    userId = identity?.id?.toLongOrNull(),
+                    userType = if (identity != null) 2 else 0,
+                    applicationName = "neton-application",
+                    requestMethod = method,
+                    requestUrl = path,
+                    requestParams = requestParams,
+                    userIp = userIp,
+                    userAgent = userAgent,
+                    beginTime = startMs,
+                    endTime = endMs,
+                    duration = latencyMs,
+                    resultCode = status,
+                    resultMsg = null
+                )
+                CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    try {
+                        accessLogWriter.write(entry)
+                    } catch (e: Exception) {
+                        log?.warn("access-log.write.failed", mapOf("path" to path), cause = e)
+                    }
+                }
+            }
             CurrentLogContext.clear()
         }
     }

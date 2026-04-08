@@ -54,6 +54,12 @@ interface RedisClient {
      */
     suspend fun collectScanKeys(matchPattern: String, allowKeysFallback: Boolean = false, block: suspend (String) -> Unit)
 
+    // ---------- Server（监控 / 运维）----------
+    /** Redis INFO 命令；section 可选（如 "server", "memory", "commandstats"），null 则返回全部 */
+    suspend fun info(section: String? = null): String?
+    /** Redis DBSIZE 命令；返回当前库 key 数量 */
+    suspend fun dbSize(): Long
+
     // ---------- 分布式锁（neton-redis lock；SET NX PX + Lua 释放）----------
     /** SET key value NX PX pxMillis；返回 true 表示设置成功（拿到锁） */
     suspend fun setIfAbsent(key: String, value: String, pxMillis: Long): Boolean
