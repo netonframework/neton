@@ -25,6 +25,20 @@ object HmacSha256 {
         return constantTimeEquals(expected, signature)
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
+    fun verifyHex(secret: ByteArray, signingInput: ByteArray, signatureHex: String): Boolean {
+        val expected = sign(secret, signingInput)
+        val actual = try {
+            signatureHex.hexToByteArray()
+        } catch (_: IllegalArgumentException) {
+            return false
+        }
+        return constantTimeEquals(expected, actual)
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    fun signHex(secret: ByteArray, data: ByteArray): String = sign(secret, data).toHexString()
+
     /**
      * 计算 HMAC-SHA256（cryptography-kotlin Blocking API，纯 ByteArray）
      */
@@ -35,4 +49,6 @@ object HmacSha256 {
         val key = decoder.decodeFromByteArrayBlocking(HMAC.Key.Format.RAW, secret)
         return key.signatureGenerator().generateSignatureBlocking(data)
     }
+
+    fun signForPassword(secret: ByteArray, data: ByteArray): ByteArray = sign(secret, data)
 }

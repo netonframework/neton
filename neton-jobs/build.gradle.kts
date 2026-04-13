@@ -18,7 +18,7 @@ kotlin {
             dependencies {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-logging"))
-                compileOnly(project(":neton-redis"))
+                api(project(":neton-redis"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
             }

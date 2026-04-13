@@ -16,6 +16,13 @@ import neton.security.identity.IdentityUser
 import neton.security.identity.UserId
 import neton.security.internal.HmacSha256
 
+data class VerifiedJwtToken(
+    val identity: IdentityUser,
+    val claims: JsonObject
+) {
+    fun claimString(name: String): String? = (claims[name] as? JsonPrimitive)?.content
+}
+
 /**
  * JWT HS256 认证器，严格按 Neton-JWT-Authenticator-Spec-v1 实现
  */
@@ -94,6 +101,10 @@ class JwtAuthenticatorV1(
         if (!authHeader.startsWith(tokenPrefix)) return null
 
         val token = authHeader.removePrefix(tokenPrefix).trim()
+        return verifyToken(token).identity
+    }
+
+    fun verifyToken(token: String): VerifiedJwtToken {
         if (token.isEmpty()) throw Auth("MissingToken", "Missing or invalid Bearer token", "Authorization")
 
         val parts = token.split(".")
@@ -130,7 +141,10 @@ class JwtAuthenticatorV1(
         val roles = parseStringArray(payload["roles"])
         val perms = parseStringArray(payload["perms"])
 
-        return IdentityUser(userId, roles.toSet(), perms.toSet())
+        return VerifiedJwtToken(
+            identity = IdentityUser(userId, roles.toSet(), perms.toSet()),
+            claims = payload
+        )
     }
 
     private fun base64UrlEncode(data: ByteArray): String =

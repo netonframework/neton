@@ -31,15 +31,17 @@ object ValidatorGenerator {
             internal object ${model.simpleName}Validator : neton.validation.Validator<${model.simpleName}> {
         """.trimIndent()
         )
-        val patternRules = model.rules.filter { it.annotationSimpleName == "Pattern" }
+        val patternRules = model.rules
+            .filter { it.annotationSimpleName == "Pattern" }
+            .distinctBy { it.propertyName }
         patternRules.forEach { rule ->
             val raw = rule.valueArgs.firstOrNull() ?: ""
             val regex = escapeKotlinStringLiteral(raw)
-            writer.write("                private val ${rule.propertyName}_Pattern = Regex(\"$regex\")\n")
+            writer.write("                private val ${rule.propertyName}Pattern = Regex(\"$regex\")\n")
         }
         writer.write(
             """
-                override fun validate(v: ${model.simpleName}): List<neton.core.http.ValidationError> {
+                override fun validate(value: ${model.simpleName}): List<neton.core.http.ValidationError> {
                     val errors = mutableListOf<neton.core.http.ValidationError>()
         """.trimIndent()
         )
@@ -59,7 +61,7 @@ object ValidatorGenerator {
         return when (rule.annotationSimpleName) {
             "NotBlank" -> {
                 val cond =
-                    if (rule.isNullable) "v.${rule.propertyName} == null || v.${rule.propertyName}.isBlank()" else "v.${rule.propertyName}.isBlank()"
+                    if (rule.isNullable) "value.${rule.propertyName} == null || value.${rule.propertyName}.isBlank()" else "value.${rule.propertyName}.isBlank()"
                 """
                     if ($cond) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
@@ -68,19 +70,31 @@ object ValidatorGenerator {
             }
 
             "NotNull" -> """
-                    if (v.${rule.propertyName} == null) {
+                    if (value.${rule.propertyName} == null) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
                     }
                 """
 
-            "Min" -> """
-                    if (v.${rule.propertyName} < ${rule.valueArgs.firstOrNull() ?: "0"}L) {
+            "Min" -> if (rule.isNullable) """
+                    value.${rule.propertyName}?.let {
+                        if (it < ${rule.valueArgs.firstOrNull() ?: "0"}L) {
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        }
+                    }
+                """ else """
+                    if (value.${rule.propertyName} < ${rule.valueArgs.firstOrNull() ?: "0"}L) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
                     }
                 """
 
-            "Max" -> """
-                    if (v.${rule.propertyName} > ${rule.valueArgs.firstOrNull() ?: "0"}L) {
+            "Max" -> if (rule.isNullable) """
+                    value.${rule.propertyName}?.let {
+                        if (it > ${rule.valueArgs.firstOrNull() ?: "0"}L) {
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        }
+                    }
+                """ else """
+                    if (value.${rule.propertyName} > ${rule.valueArgs.firstOrNull() ?: "0"}L) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
                     }
                 """
@@ -89,32 +103,55 @@ object ValidatorGenerator {
                 val min = rule.valueArgs.getOrNull(0) ?: "0"
                 val max = rule.valueArgs.getOrNull(1) ?: "Long.MAX_VALUE"
                 val fqn = rule.propertyTypeQualified
+                val sizeVar = "${rule.propertyName}Size"
                 val (sizeExpr, supported) = when {
-                    fqn != null && fqn in SIZE_LENGTH_TYPES -> "v.${rule.propertyName}.length" to true
-                    fqn != null && fqn in SIZE_COLLECTION_TYPES -> "v.${rule.propertyName}.size" to true
+                    fqn != null && fqn in SIZE_LENGTH_TYPES -> "${nullableAccess(rule, "length")}" to true
+                    fqn != null && fqn in SIZE_COLLECTION_TYPES -> "${nullableAccess(rule, "size")}" to true
                     else -> "0" to false
                 }
                 if (supported)
-                    """
-                    val _size = $sizeExpr
-                    if (_size < $min || _size > $max) {
+                    if (rule.isNullable) {
+                        """
+                    $sizeExpr?.let { $sizeVar ->
+                        if ($sizeVar < $min || $sizeVar > $max) {
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        }
+                    }
+                """
+                    } else {
+                        """
+                    val $sizeVar = $sizeExpr
+                    if ($sizeVar < $min || $sizeVar > $max) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
                     }
                 """
+                    }
                 else
                     """
                     // @Size on ${rule.propertyName} (type $fqn) not supported; use String/List/Set/Map/Array
                 """
             }
 
-            "Pattern" -> """
-                    if (!${rule.propertyName}_Pattern.matches(v.${rule.propertyName})) {
+            "Pattern" -> if (rule.isNullable) """
+                    value.${rule.propertyName}?.let {
+                        if (!${rule.propertyName}Pattern.matches(it)) {
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        }
+                    }
+                """ else """
+                    if (!${rule.propertyName}Pattern.matches(value.${rule.propertyName})) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
                     }
                 """
 
-            "Email" -> """
-                    if (!Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\$").matches(v.${rule.propertyName})) {
+            "Email" -> if (rule.isNullable) """
+                    value.${rule.propertyName}?.let {
+                        if (!Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\$").matches(it)) {
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        }
+                    }
+                """ else """
+                    if (!Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\$").matches(value.${rule.propertyName})) {
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
                     }
                 """
@@ -123,7 +160,7 @@ object ValidatorGenerator {
                 val nestedSimpleName = rule.propertyTypeQualified?.substringAfterLast(".") ?: "Unknown"
                 if (rule.isNullable) {
                     """
-                    v.${rule.propertyName}?.let { nested ->
+                    value.${rule.propertyName}?.let { nested ->
                         ${nestedSimpleName}Validator.validate(nested).forEach { err ->
                             errors += neton.core.http.ValidationError(path = "${rule.propertyName}." + err.path, message = err.message, code = err.code)
                         }
@@ -131,7 +168,7 @@ object ValidatorGenerator {
                 """
                 } else {
                     """
-                    ${nestedSimpleName}Validator.validate(v.${rule.propertyName}).forEach { err ->
+                    ${nestedSimpleName}Validator.validate(value.${rule.propertyName}).forEach { err ->
                         errors += neton.core.http.ValidationError(path = "${rule.propertyName}." + err.path, message = err.message, code = err.code)
                     }
                 """
@@ -150,4 +187,7 @@ object ValidatorGenerator {
             "${m.qualifiedName}::class to ${m.simpleName}Validator"
         }
     }
+
+    private fun nullableAccess(rule: ValidationRule, member: String): String =
+        if (rule.isNullable) "value.${rule.propertyName}?.$member" else "value.${rule.propertyName}.$member"
 }

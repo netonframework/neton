@@ -1,6 +1,7 @@
 package neton.database.adapter.sqlx
 
 import io.github.smyrgeorge.sqlx4k.Statement
+import io.github.smyrgeorge.sqlx4k.Transaction
 import neton.database.api.QueryInterceptor
 import neton.database.api.Row
 import neton.database.api.DbContext
@@ -77,12 +78,15 @@ object SqlxDbContext : DbContext {
 
     /**
      * C+ 事务边界（统一事务控制）。
-     * TODO: 实现真正的事务支持（需要 sqlx4k 事务 API）
      */
     override suspend fun <R> transaction(block: suspend DbContext.() -> R): R {
-        // TODO: sqlx4k transaction support
-        // 目前先简单执行，未来需要实现真正的事务边界
-        return block()
+        val db = SqlxDatabase.require()
+        val transactional = db as? io.github.smyrgeorge.sqlx4k.QueryExecutor.Transactional
+            ?: throw IllegalStateException("Driver does not support transactions")
+
+        return transactional.transaction {
+            TransactionalDbContext(this).block()
+        }
     }
 
     // ===== Phase 4：JOIN 查询入口 =====
@@ -92,6 +96,61 @@ object SqlxDbContext : DbContext {
         val ref = builder.from(table)
         return builder to ref
     }
+}
+
+private class TransactionalDbContext(
+    private val tx: Transaction
+) : DbContext {
+    override val interceptors: List<QueryInterceptor> = SqlxDbContext.interceptors
+
+    override suspend fun fetchAll(sql: String, params: Map<String, Any?>): List<Row> {
+        val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
+        val rows = tx.fetchAll(stmt).getOrThrow()
+        return rows.map { SqlxRow(it) }
+    }
+
+    override suspend fun execute(sql: String, params: Map<String, Any?>): Long {
+        val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
+        return tx.execute(stmt).getOrThrow()
+    }
+
+    override fun <T : Any> from(table: Table<T, *>): Pair<SelectBuilder, TableRef<T>> {
+        val builder = SelectBuilder(this)
+        val ref = builder.from(table)
+        return builder to ref
+    }
+
+    override suspend fun query(built: BuiltSql): List<Row> {
+        val (sql, args) = built
+        return try {
+            val (result, duration) = measureTimedValue {
+                val params = args.mapIndexed { i, v -> "p${i + 1}" to v }.toMap()
+                fetchAll(sql, params)
+            }
+            interceptors.forEach { it.onExecute(sql, args, duration.inWholeMilliseconds) }
+            result
+        } catch (e: Throwable) {
+            interceptors.forEach { it.onError(sql, args, e) }
+            throw e
+        }
+    }
+
+    override suspend fun executeBuilt(built: BuiltSql): Long {
+        val (sql, args) = built
+        return try {
+            val (result, duration) = measureTimedValue {
+                val params = args.mapIndexed { i, v -> "p${i + 1}" to v }.toMap()
+                execute(sql, params)
+            }
+            interceptors.forEach { it.onExecute(sql, args, duration.inWholeMilliseconds) }
+            result
+        } catch (e: Throwable) {
+            interceptors.forEach { it.onError(sql, args, e) }
+            throw e
+        }
+    }
+
+    override suspend fun <R> transaction(block: suspend DbContext.() -> R): R = block()
 }
 
 // Phase 4：SelectAst 执行（module-internal，C+ 统一路径）

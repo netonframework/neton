@@ -8,6 +8,7 @@ import neton.database.dsl.eq
 import neton.logging.Logger
 import neton.security.identity.UserId
 import neton.security.jwt.JwtAuthenticatorV1
+import neton.security.password.PasswordHasher
 
 /**
  * 认证业务逻辑（NetonSQL v1 架构）
@@ -43,10 +44,14 @@ class AuthLogic(
             throw IllegalArgumentException("Account is disabled")
         }
 
-        // beta1: 明文密码比较（生产环境应使用 bcrypt/argon2）
-        if (user.passwordHash != req.password) {
+        val passwordVerification = PasswordHasher.verify(req.password, user.passwordHash)
+        if (!passwordVerification.verified) {
             log.warn("auth.login.failed", mapOf("username" to req.username, "reason" to "wrong_password"))
             throw IllegalArgumentException("Invalid username or password")
+        }
+
+        if (passwordVerification.needsRehash) {
+            SystemUserTable.update(user.copy(passwordHash = PasswordHasher.hash(req.password)))
         }
 
         val token = jwt.createToken(

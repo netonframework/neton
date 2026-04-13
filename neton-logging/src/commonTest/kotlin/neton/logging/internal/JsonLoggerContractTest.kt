@@ -58,22 +58,30 @@ class JsonLoggerContractTest {
     }
 
     @Test
-    fun sensitiveRedaction_authorization_token_password() {
+    fun sensitiveRedaction_expandedSensitiveKeys() {
         val (logger, lines) = captureLogger()
         logger.info(
             "redact-test",
             mapOf(
                 "Authorization" to "Bearer secret",
+                "X-Api-Key" to "api-key-value",
                 "token" to "jwt-xxx",
                 "password" to "pwd",
+                "mobile" to "13800138000",
+                "sms_code" to "123456",
+                "secret_key" to "secret-key",
                 "other" to "keep"
             )
         )
         assertEquals(1, lines.size)
         val obj = json.parseToJsonElement(lines.single()).jsonObject
         assertEquals("[REDACTED]", obj["Authorization"]?.jsonPrimitive?.content)
+        assertEquals("[REDACTED]", obj["X-Api-Key"]?.jsonPrimitive?.content)
         assertEquals("[REDACTED]", obj["token"]?.jsonPrimitive?.content)
         assertEquals("[REDACTED]", obj["password"]?.jsonPrimitive?.content)
+        assertEquals("[REDACTED]", obj["mobile"]?.jsonPrimitive?.content)
+        assertEquals("[REDACTED]", obj["sms_code"]?.jsonPrimitive?.content)
+        assertEquals("[REDACTED]", obj["secret_key"]?.jsonPrimitive?.content)
         assertEquals("keep", obj["other"]?.jsonPrimitive?.content)
     }
 

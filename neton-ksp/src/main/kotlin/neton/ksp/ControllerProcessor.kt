@@ -684,37 +684,37 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
             }
 
             "kotlin.String" -> if (isNullable) raw else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; _r }" else rawOrEmpty
-            "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: 0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r ?: \"\") ?: ${
+            "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: 0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r) ?: ${
                 typeThrow(
                     "must be a valid integer"
                 )
             } }"
 
-            "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: 0L" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r ?: \"\") ?: ${
+            "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: 0L" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r) ?: ${
                 typeThrow(
                     "must be a valid integer"
                 )
             } }"
 
-            "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: false" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r ?: \"\") ?: ${
+            "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: false" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r) ?: ${
                 typeThrow(
                     "must be true/false/1/0/on/off"
                 )
             } }"
 
-            "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: 0.0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r ?: \"\") ?: ${
+            "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: 0.0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r) ?: ${
                 typeThrow(
                     "must be a valid number"
                 )
             } }"
 
-            "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: 0f" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r ?: \"\")?.toFloat() ?: ${
+            "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: 0f" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r)?.toFloat() ?: ${
                 typeThrow(
                     "must be a valid number"
                 )
             } }"
 
-            else -> if (isNullable) "($raw as? ${paramType.substringAfterLast('.')})" else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; ($raw as? ${
+            else -> if (isNullable) "($raw as? ${paramType.substringAfterLast('.')})" else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; (_r as? ${
                 paramType.substringAfterLast(
                     '.'
                 )

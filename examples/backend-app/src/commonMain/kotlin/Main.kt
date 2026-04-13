@@ -1,4 +1,4 @@
-import config.JWT_SECRET
+import config.buildExampleJwtAuthenticator
 import model.*
 import table.*
 import neton.core.Neton
@@ -10,7 +10,7 @@ import neton.http.http
 import neton.logging.LoggerFactory
 import neton.routing.routing
 import neton.security.security
-import neton.security.jwt.JwtAuthenticatorV1
+import neton.security.password.PasswordHasher
 import logic.AuthLogic
 import logic.UserLogic
 
@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
             // 直接使用 Table + DbContext，不需要 Store 层
 
             // bind AuthLogic
-            val jwt = JwtAuthenticatorV1(JWT_SECRET)
+            val jwt = buildExampleJwtAuthenticator(ctx)
             val authLogic = AuthLogic(loggerFactory.get("logic.auth"), jwt)
             ctx.bind(AuthLogic::class, authLogic)
 
@@ -85,7 +85,7 @@ private suspend fun seedData(loggerFactory: LoggerFactory) {
             SystemUser(
                 id = null,
                 username = "admin",
-                passwordHash = "admin123",  // 生产环境应使用 bcrypt
+                passwordHash = PasswordHasher.hash("admin123"),
                 nickname = "Administrator",
                 status = 0,
                 deleted = 0,

@@ -4,7 +4,7 @@ import kotlin.reflect.KClass
 import neton.validation.Validator
 import neton.validation.ValidatorRegistry
 
-internal class DefaultValidatorRegistry(
+class DefaultValidatorRegistry(
     private val validators: Map<KClass<*>, Validator<*>>
 ) : ValidatorRegistry {
 

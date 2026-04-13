@@ -8,7 +8,6 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import com.google.devtools.ksp.symbol.KSValueParameter
 import neton.ksp.ModuleFragmentSink
 import neton.ksp.validation.codegen.ValidatorGenerator
 import java.io.OutputStreamWriter
@@ -47,7 +46,6 @@ class ValidationProcessor(
             for (sym in symbols) {
                 when (sym) {
                     is KSPropertyDeclaration -> collectFromProperty(sym, annName, models)
-                    is KSValueParameter -> collectFromParameter(sym, annName, models)
                     else -> {}
                 }
             }
@@ -90,25 +88,6 @@ class ValidationProcessor(
         models[typeName] = newModel
     }
 
-    private fun collectFromParameter(
-        param: KSValueParameter,
-        annName: String,
-        models: MutableMap<String, ValidationModel>
-    ) {
-        val typeDecl = param.type.resolve().declaration
-        if (typeDecl !is KSClassDeclaration) return
-        val typeName = typeDecl.qualifiedName?.asString() ?: return
-        val paramName = param.name?.asString() ?: return
-        val rule = ruleFromParameterAnnotation(param, annName, paramName) ?: return
-        val simpleName = typeDecl.simpleName.asString()
-        val existing = models[typeName]
-        models[typeName] = if (existing != null) {
-            existing.copy(rules = existing.rules + rule)
-        } else {
-            ValidationModel(qualifiedName = typeName, simpleName = simpleName, rules = listOf(rule))
-        }
-    }
-
     private fun ruleFromPropertyAnnotation(
         prop: KSPropertyDeclaration,
         annName: String,
@@ -119,18 +98,6 @@ class ValidationProcessor(
         val typeQualified = prop.type.resolve().declaration.qualifiedName?.asString()
         val isNullable = prop.type.resolve().isMarkedNullable
         return ruleFromAnn(ann, propName, typeQualified, isNullable)
-    }
-
-    private fun ruleFromParameterAnnotation(
-        param: KSValueParameter,
-        annName: String,
-        paramName: String
-    ): ValidationRule? {
-        val short = annName.substringAfterLast(".")
-        val ann = param.annotations.firstOrNull { it.shortName.asString() == short } ?: return null
-        val typeQualified = (param.type.resolve().declaration as? KSClassDeclaration)?.qualifiedName?.asString()
-        val isNullable = param.type.resolve().isMarkedNullable
-        return ruleFromAnn(ann, paramName, typeQualified, isNullable)
     }
 
     private fun ruleFromAnn(
