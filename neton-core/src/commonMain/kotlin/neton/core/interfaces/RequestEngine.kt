@@ -46,8 +46,50 @@ data class RouteDefinition(
     val allowAnonymous: Boolean = false,                      // 是否允许匿名访问（@AllowAnonymous）
     val requireAuth: Boolean = false,                         // 是否需认证（@RequireAuth）
     val routeGroup: String? = null,                           // 路由组（用于 Security 选择 authenticator/guard），由 KSP 或 routing 层写入
-    val permission: String? = null                            // @Permission 值，如 "system:user:edit"
+    val permission: String? = null,                           // @Permission 值，如 "system:user:edit"
+    val rateLimit: RateLimitConfig? = null                    // @RateLimit 配置，由 KSP 编译期生成
 )
+
+/**
+ * 限流配置 — 由 KSP 编译期生成
+ */
+data class RateLimitConfig(
+    val windowSeconds: Int,
+    val maxRequests: Int,
+    val scope: annotations.RateLimitScope,
+    val key: String,
+    val strategy: annotations.RateLimitStrategy,
+    val message: String
+)
+
+/**
+ * 限流决策 — 由限流器返回
+ */
+data class RateLimitDecision(
+    val allowed: Boolean,
+    val limit: Int,
+    val remaining: Int,
+    val resetAtEpochSeconds: Long
+)
+
+/**
+ * 限流计数器 — 存储层返回
+ */
+data class RateLimitCounter(
+    val count: Long,
+    val resetAtEpochSeconds: Long
+)
+
+/**
+ * 限流器接口 — 策略模式入口
+ */
+interface RateLimiter {
+    suspend fun check(
+        routeId: String,
+        config: RateLimitConfig,
+        identity: String
+    ): RateLimitDecision
+}
 
 /**
  * 路由匹配结果

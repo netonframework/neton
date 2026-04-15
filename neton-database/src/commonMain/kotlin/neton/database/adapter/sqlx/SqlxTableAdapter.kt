@@ -97,7 +97,8 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     }
 
     private suspend fun executeSoftDeleteById(id: ID): Boolean {
-        val cfg = softDeleteConfig!!
+        val cfg = softDeleteConfig
+            ?: error("softDeleteConfig is required for soft delete. Configure @SoftDelete on your entity or set softDeleteConfig in Table definition.")
         val now = cfg.deletedAtColumn?.let { currentTimeMillis() } ?: 0L
         val setParts = mutableListOf<String>("${cfg.deletedColumn} = :deleted")
         val stmt0 =
@@ -112,7 +113,8 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     }
 
     private suspend fun executeSoftDeleteMany(ids: Collection<ID>): Int {
-        val cfg = softDeleteConfig!!
+        val cfg = softDeleteConfig
+            ?: error("softDeleteConfig is required for soft delete. Configure @SoftDelete on your entity or set softDeleteConfig in Table definition.")
         val now = cfg.deletedAtColumn?.let { currentTimeMillis() } ?: 0L
         val placeholders = ids.mapIndexed { i, _ -> ":id$i" }.joinToString(", ")
         val setClause = cfg.deletedAtColumn?.let { "${cfg.deletedColumn} = :deleted, $it = :deletedAt" }

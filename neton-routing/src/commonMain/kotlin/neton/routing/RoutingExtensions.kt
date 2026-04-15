@@ -10,6 +10,7 @@ import neton.core.config.ConfigLoader
 import neton.logging.Logger
 import neton.logging.LoggerFactory
 import neton.routing.engine.DefaultRequestEngine
+import neton.routing.ratelimit.*
 
 /** 模块内 Logger 注入点，由 RoutingComponent.init 设置 */
 internal object RoutingLog {
@@ -26,6 +27,18 @@ object RoutingComponent : NetonComponent<RequestEngine> {
     override suspend fun init(ctx: NetonContext, config: RequestEngine) {
         RoutingLog.log = ctx.getOrNull(LoggerFactory::class)?.get("neton.routing")
         val log = RoutingLog.log
+
+        // 初始化限流拦截器并注入到引擎
+        val store = createRateLimitStore(ctx)
+        val rlInterceptor = RateLimitInterceptor(
+            limiter = FixedWindowRateLimiter(store),
+            resolver = DefaultRateLimitKeyResolver()
+        )
+        (config as? RoutingRequestEngineAdapter)?.setRateLimitInterceptor(rlInterceptor)
+        log?.info("rateLimit.initialized", mapOf(
+            "store" to if (store is RedisRateLimitStore) "redis" else "local"
+        ))
+
         val rawConfig = ConfigLoader.loadModuleConfig(
             "routing",
             configPath = "config",
@@ -91,6 +104,22 @@ object RoutingComponent : NetonComponent<RequestEngine> {
             return RoutingConfig(debug = debug, groups = routeGroups)
         } catch (_: Exception) {
             return null
+        }
+    }
+
+    /**
+     * 创建限流存储：优先 Redis，无 Redis 时降级 LocalStore
+     */
+    private fun createRateLimitStore(ctx: NetonContext? = null): RateLimitStore {
+        val redis = try {
+            ctx?.getOrNull(neton.redis.RedisClient::class)
+        } catch (_: Exception) {
+            null
+        }
+        return if (redis != null) {
+            RedisRateLimitStore(redis)
+        } else {
+            LocalRateLimitStore()
         }
     }
 }

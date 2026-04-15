@@ -1,5 +1,7 @@
 package neton.security
 
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import neton.core.interfaces.*
 import neton.core.security.AuthenticationContext
 
@@ -31,13 +33,35 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
     private val guardsByGroup = mutableMapOf<String, neton.core.interfaces.Guard>()
     private var permissionEvaluator: PermissionEvaluator? = null
 
+    // Tracks all registered authenticator names across default and groups to enforce uniqueness.
+    private val registeredAuthenticatorNames = mutableSetOf<String>()
+
     private fun validateGroupName(group: String) {
         if (group.isBlank()) {
             throw IllegalArgumentException("Security group name must not be blank")
         }
     }
 
+    /**
+     * Enforces [Authenticator.name] uniqueness across all registrations.
+     * Removing [old] frees its name slot before checking [new].
+     */
+    private fun trackAuthenticatorName(
+        new: neton.core.interfaces.Authenticator?,
+        old: neton.core.interfaces.Authenticator?
+    ) {
+        if (old != null) registeredAuthenticatorNames.remove(old.name)
+        if (new != null) {
+            require(new.name !in registeredAuthenticatorNames) {
+                "Authenticator name '${new.name}' is already registered by another authenticator. " +
+                "Each authenticator must have a unique name."
+            }
+            registeredAuthenticatorNames.add(new.name)
+        }
+    }
+
     override fun setDefaultAuthenticator(auth: neton.core.interfaces.Authenticator?) {
+        trackAuthenticatorName(auth, defaultAuthenticator)
         defaultAuthenticator = auth
         logger?.info("security.set.default.authenticator", mapOf("name" to (auth?.name ?: "null")))
     }
@@ -49,9 +73,11 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
 
     override fun setGroupAuthenticator(group: String, auth: neton.core.interfaces.Authenticator?) {
         validateGroupName(group)
-        if (authenticatorsByGroup.containsKey(group)) {
+        val existing = authenticatorsByGroup[group]
+        if (existing != null) {
             logger?.warn("security.group.overwrite", mapOf("group" to group, "field" to "authenticator"))
         }
+        trackAuthenticatorName(auth, existing)
         if (auth != null) authenticatorsByGroup[group] = auth
         else authenticatorsByGroup.remove(group)
         logger?.info("security.set.group.authenticator", mapOf("group" to group, "name" to (auth?.name ?: "null")))
@@ -108,9 +134,29 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
     }
 
     override fun registerSessionAuthenticator(sessionKey: String) {
-        val authenticator = SessionAuthenticatorAdapter(sessionKey)
-        setDefaultAuthenticator(authenticator)
-        logger?.info("security.authenticator.session")
+        error("""
+            Session authentication is not built-in in Neton v1.
+
+            Reason:
+            - Session requires a storage backend (Redis / DB), expiration policy,
+              sliding renewal, CSRF binding, and cookie naming — all application-specific.
+            - These cannot be standardized at framework level in v1.
+
+            Solution:
+            - Implement neton.core.interfaces.Authenticator directly.
+            - Register it via security { registerAuthenticator(mySessionAuth) }.
+
+            Example:
+                class MySessionAuthenticator(private val redis: RedisClient) : Authenticator {
+                    override val name = "session"
+                    override suspend fun authenticate(context: RequestContext): Identity? {
+                        val sessionId = context.headers["Cookie"]
+                            ?.split(";")?.firstOrNull { it.trim().startsWith("sid=") }
+                            ?.substringAfter("sid=")?.trim() ?: return null
+                        return redis.getValue("session:\$sessionId")?.let { parseIdentity(it) }
+                    }
+                }
+        """.trimIndent())
     }
 
     override fun registerBasicAuthenticator(userProvider: suspend (username: String, password: String) -> Identity?) {
@@ -189,6 +235,11 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
     }
 
     override fun build(): SecurityConfiguration {
+        // CONTRACT — Security pipeline execution order (must not be reordered):
+        //   1. Authenticator  → resolves Identity from request (JWT / Basic / custom)
+        //   2. Guard          → decides access based on Identity (RequireAuth / Permission)
+        //   3. RateLimit      → may use Identity for USER-scoped limiting (runs after auth)
+        // Authenticator sets Identity; Guard and RateLimit depend on it.
         logger?.info("security.build")
         val auths = allAuthenticators()
         val gs = allGuards()
@@ -250,7 +301,7 @@ class MockAuthenticatorAdapter(
 }
 
 /**
- * 实现 Core 接口的 JWT 认证器
+ * 实现 Core 接口的 JWT 认证器，委托给 [neton.security.jwt.JwtAuthenticator]。
  */
 class JwtAuthenticatorAdapter(
     secretKey: String,
@@ -259,7 +310,7 @@ class JwtAuthenticatorAdapter(
 ) : neton.core.interfaces.Authenticator {
     override val name = "jwt"
 
-    private val delegate = neton.security.jwt.JwtAuthenticatorV1(secretKey, headerName, tokenPrefix)
+    private val delegate = neton.security.jwt.JwtAuthenticator(secretKey, headerName, tokenPrefix)
 
     override suspend fun authenticate(context: neton.core.interfaces.RequestContext): Identity? {
         val securityContext = object : neton.security.RequestContext {
@@ -283,22 +334,10 @@ class JwtAuthenticatorAdapter(
 }
 
 /**
- * 实现 Core 接口的会话认证器
+ * 实现 Core 接口的 Basic 认证器。
+ * 解析 "Authorization: Basic <base64(user:pass)>"，调用 [userProvider] 验证。
  */
-class SessionAuthenticatorAdapter(
-    private val sessionKey: String = "user_id"
-) : neton.core.interfaces.Authenticator {
-    override val name = "session"
-
-    override suspend fun authenticate(context: neton.core.interfaces.RequestContext): Identity? {
-        // TODO: 实现会话认证逻辑
-        return null
-    }
-}
-
-/**
- * 实现 Core 接口的 Basic 认证器
- */
+@OptIn(ExperimentalEncodingApi::class)
 class BasicAuthenticatorAdapter(
     private val userProvider: suspend (username: String, password: String) -> Identity?
 ) : neton.core.interfaces.Authenticator {
@@ -306,14 +345,19 @@ class BasicAuthenticatorAdapter(
 
     override suspend fun authenticate(context: neton.core.interfaces.RequestContext): Identity? {
         val authHeader = context.headers["Authorization"] ?: return null
-        if (!authHeader.startsWith("Basic ")) return null
+        // RFC 7617: auth-scheme comparison is case-insensitive
+        if (!authHeader.startsWith("Basic ", ignoreCase = true)) return null
 
-        try {
-            // TODO: 实现 Base64 解码和认证逻辑
-            return null
-        } catch (e: Exception) {
+        val decoded = try {
+            Base64.decode(authHeader.substring(6).trim()).decodeToString()
+        } catch (_: Exception) {
             return null
         }
+        val colon = decoded.indexOf(':')
+        if (colon < 0) return null
+        val username = decoded.substring(0, colon)
+        val password = decoded.substring(colon + 1)
+        return userProvider(username, password)
     }
 }
 

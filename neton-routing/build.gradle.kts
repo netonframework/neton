@@ -19,6 +19,7 @@ kotlin {
             dependencies {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-logging"))
+                implementation(project(":neton-redis"))
 
                 // 标准库
                 implementation(libs.kotlin.stdlib.common)

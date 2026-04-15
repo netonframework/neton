@@ -21,7 +21,12 @@ suspend inline fun <reified T> RedisClient.get(key: String): T? {
         Double::class -> s.toDoubleOrNull() as T
         Float::class -> s.toFloatOrNull() as T
         Boolean::class -> s.toBooleanStrictOrNull() as T
-        else -> try { Json.decodeFromString(serializer(), s) } catch (_: Exception) { null }
+        else -> try {
+            Json.decodeFromString(serializer(), s)
+        } catch (e: Exception) {
+            println("[neton-redis] WARNING: Failed to deserialize key '$key' as ${T::class.simpleName}: ${e.message}")
+            null
+        }
     }
 }
 
@@ -36,7 +41,12 @@ suspend inline fun <reified T> RedisClient.remember(key: String, ttl: Duration, 
             Double::class -> s.toDoubleOrNull() as T
             Float::class -> s.toFloatOrNull() as T
             Boolean::class -> s.toBooleanStrictOrNull() as T
-            else -> try { Json.decodeFromString(serializer(), s) } catch (_: Exception) { null }
+            else -> try {
+                Json.decodeFromString(serializer(), s)
+            } catch (e: Exception) {
+                println("[neton-redis] WARNING: Failed to deserialize key '$key' as ${T::class.simpleName}: ${e.message}")
+                null
+            }
         }
         if (decoded != null) return decoded
     }

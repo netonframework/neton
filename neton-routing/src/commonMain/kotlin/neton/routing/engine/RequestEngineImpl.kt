@@ -5,6 +5,7 @@ import neton.routing.matcher.PathPatternUtils
 import neton.routing.matcher.RouteMatcher
 import neton.routing.binder.DefaultParameterBinder
 import neton.routing.binder.ParameterBinder
+import neton.routing.ratelimit.RateLimitInterceptor
 import neton.core.http.HttpContext
 import neton.core.http.HttpStatus
 import neton.logging.Logger
@@ -16,17 +17,23 @@ import neton.logging.Logger
  */
 class DefaultRequestEngine(
     private val routeMatcher: RouteMatcher = DefaultRouteMatcher(),
-    private val parameterBinder: ParameterBinder = DefaultParameterBinder()
+    private val parameterBinder: ParameterBinder = DefaultParameterBinder(),
+    rateLimitInterceptor: RateLimitInterceptor? = null
 ) : RequestEngine {
 
     private var logger: Logger? = null
+    private var _rateLimitInterceptor: RateLimitInterceptor? = rateLimitInterceptor
 
     fun setLogger(log: Logger?) {
         logger = log
     }
 
+    fun setRateLimitInterceptor(interceptor: RateLimitInterceptor) {
+        _rateLimitInterceptor = interceptor
+    }
+
     private val routes = mutableListOf<RouteDefinition>()
-    
+
     override suspend fun processRequest(context: HttpContext): Any? {
         try {
             // 1. 路由匹配
@@ -38,16 +45,30 @@ class DefaultRequestEngine(
                 context.request.path,
                 context.request.method
             )
-            
+
+            // 2. 限流检查（在参数绑定之前）
+            val rlConfig = routeMatch.route.rateLimit
+            val rlInterceptor = _rateLimitInterceptor
+            if (rlConfig != null && rlInterceptor != null) {
+                val identity = context.getAttribute("identity") as? neton.core.interfaces.Identity
+                val routeId = routeMatch.route.controllerClass?.let { "$it.${routeMatch.route.methodName}" }
+                    ?: "${routeMatch.route.method}:${routeMatch.route.pattern}"
+                val allowed = rlInterceptor.intercept(context, routeId, rlConfig, identity)
+                if (!allowed) {
+                    return null  // 已返回 429 响应
+                }
+            }
+
+            // 3. 参数绑定
             val argsMap = bindParameters(routeMatch, context)
             val args = neton.core.http.MapBackedHandlerArgs(argsMap)
             val result = routeMatch.route.handler.invoke(context, args)
-            
+
             // 4. 响应处理
             handleResponse(result, context)
-            
+
             return result
-            
+
         } catch (e: RequestProcessingException) {
             handleError(e, context)
             return null // 发生错误时返回 null
@@ -59,21 +80,30 @@ class DefaultRequestEngine(
             return null // 发生错误时返回 null
         }
     }
-    
+
     override fun registerRoute(route: RouteDefinition) {
         // 验证路由模式
         if (!PathPatternUtils.isValidPattern(route.pattern)) {
             throw IllegalArgumentException("Invalid route pattern: ${route.pattern}")
         }
-        
+
         // 已存在相同 method+pattern 时跳过（避免 KSP 与 configure 重复调用导致冲突）
-        val existingRoute = routes.find { 
-            it.pattern == route.pattern && it.method == route.method 
+        val existingRoute = routes.find {
+            it.pattern == route.pattern && it.method == route.method
         }
         if (existingRoute != null) {
-            return // 已注册，静默跳过
+            logger?.warn(
+                "routing.route.duplicate",
+                mapOf(
+                    "method" to route.method.name,
+                    "pattern" to route.pattern,
+                    "existingController" to (existingRoute.controllerClass ?: ""),
+                    "newController" to (route.controllerClass ?: "")
+                )
+            )
+            return
         }
-        
+
         routes.add(route)
         logger?.info(
             "routing.route.registered",
@@ -85,14 +115,14 @@ class DefaultRequestEngine(
             )
         )
     }
-    
+
     override fun getRoutes(): List<RouteDefinition> = routes.toList()
-    
+
     /**
      * 获取参数绑定器（供外部配置使用）
      */
     fun getParameterBinder(): ParameterBinder = parameterBinder
-    
+
     /**
      * 绑定方法参数
      */
@@ -101,7 +131,7 @@ class DefaultRequestEngine(
         context: HttpContext
     ): Map<String, Any?> {
         val args = mutableMapOf<String, Any?>()
-        
+
         for (binding in routeMatch.route.parameterBindings) {
             val value = parameterBinder.bindParameter(
                 binding = binding,
@@ -110,10 +140,10 @@ class DefaultRequestEngine(
             )
             args[binding.parameterName] = value
         }
-        
+
         return args
     }
-    
+
     /**
      * 处理方法返回值
      */
@@ -142,7 +172,7 @@ class DefaultRequestEngine(
             }
         }
     }
-    
+
     /**
      * 处理错误
      */
@@ -165,14 +195,14 @@ class DefaultRequestEngine(
                 context.response.text("Response serialization error: ${error.message}")
             }
         }
-        
+
         logger?.error(
             "routing.request.error",
             mapOf("message" to (error.message ?: "")),
             cause = error
         )
     }
-    
+
     /**
      * 序列化为 JSON
      * RESERVED FOR v1.1: 完整的 JSON 序列化
@@ -185,7 +215,7 @@ class DefaultRequestEngine(
             else -> obj.toString()
         }
     }
-    
+
     /**
      * 简单的 Map 转 JSON
      */
@@ -195,7 +225,7 @@ class DefaultRequestEngine(
         }
         return "{$entries}"
     }
-    
+
     /**
      * 简单的 List 转 JSON
      */
@@ -203,7 +233,7 @@ class DefaultRequestEngine(
         val items = list.joinToString(",") { valueToJson(it) }
         return "[$items]"
     }
-    
+
     /**
      * 值转 JSON
      */
@@ -226,18 +256,18 @@ class DefaultRequestEngine(
 class RequestEngineBuilder {
     private var routeMatcher: RouteMatcher = DefaultRouteMatcher()
     private var parameterBinder: ParameterBinder = DefaultParameterBinder()
-    
+
     fun withRouteMatcher(matcher: RouteMatcher): RequestEngineBuilder {
         this.routeMatcher = matcher
         return this
     }
-    
+
     fun withParameterBinder(binder: ParameterBinder): RequestEngineBuilder {
         this.parameterBinder = binder
         return this
     }
-    
+
     fun build(): DefaultRequestEngine {
         return DefaultRequestEngine(routeMatcher, parameterBinder)
     }
-} 
+}

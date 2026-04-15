@@ -10,6 +10,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.add
 import kotlin.io.encoding.Base64
+import neton.security.Authenticator
 import neton.security.RequestContext
 import neton.security.identity.AuthenticationException
 import neton.security.identity.IdentityUser
@@ -24,14 +25,15 @@ data class VerifiedJwtToken(
 }
 
 /**
- * JWT HS256 认证器，严格按 Neton-JWT-Authenticator-Spec-v1 实现
+ * JWT HS256 认证器，严格按 Neton-JWT-Authenticator-Spec-v1 实现。
+ * 实现 [Authenticator] 接口，是框架唯一的内建 JWT 认证器。
  */
-class JwtAuthenticatorV1(
+class JwtAuthenticator(
     private val secretKey: String,
     private val headerName: String = "Authorization",
     private val tokenPrefix: String = "Bearer "
-) {
-    val name: String = "jwt-v1"
+) : Authenticator {
+    override val name: String = "jwt"
 
     private val secretBytes = secretKey.encodeToByteArray()
     private val json = Json { ignoreUnknownKeys = true }
@@ -94,7 +96,7 @@ class JwtAuthenticatorV1(
      * 按 spec 第七节「解析失败映射规则」顺序执行
      * Authorization header 名 case-insensitive（HTTP 规范），Bearer 前缀 case-sensitive（spec 冻结）
      */
-    suspend fun authenticate(context: RequestContext): IdentityUser? {
+    override suspend fun authenticate(context: RequestContext): IdentityUser? {
         val authHeader = context.headers.entries
             .firstOrNull { it.key.equals(headerName, ignoreCase = true) }
             ?.value ?: return null
@@ -183,3 +185,10 @@ class JwtAuthenticatorV1(
     private fun Auth(code: String, message: String, path: String): Nothing =
         throw AuthenticationException(code, message, path)
 }
+
+/** 向后兼容别名，新代码请使用 [JwtAuthenticator]。 */
+@Deprecated(
+    message = "Use JwtAuthenticator instead.",
+    replaceWith = ReplaceWith("JwtAuthenticator", "neton.security.jwt.JwtAuthenticator")
+)
+typealias JwtAuthenticatorV1 = JwtAuthenticator

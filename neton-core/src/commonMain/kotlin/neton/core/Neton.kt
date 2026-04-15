@@ -466,7 +466,6 @@ class Neton private constructor() {
             return result
         }
 
-        private fun printStartupStatistics(requestEngine: RequestEngine, port: Int, log: Logger?) {}
     }
 }
 
@@ -479,7 +478,7 @@ class KotlinApplication(
 ) {
     fun getPort(): Int = port
 
-    fun <T : Any> get(type: kotlin.reflect.KClass<T>): T = ctx!!.get(type)
+    fun <T : Any> get(type: kotlin.reflect.KClass<T>): T = (ctx ?: error("NetonContext is not initialized. Ensure the application is fully started before accessing components.")).get(type)
 
     /** inline 泛型：get<LoggerFactory>() */
     inline fun <reified T : Any> get(): T = get(T::class)

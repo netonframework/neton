@@ -3,8 +3,10 @@
 package neton.core.config
 
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.get
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.usePinned
+import neton.env.neton_get_environ
 import platform.posix.O_RDONLY
 import platform.posix.close
 import platform.posix.open
@@ -40,9 +42,19 @@ actual fun readConfigFile(path: String): String? {
 }
 
 actual fun getEnvMap(): Map<String, String> {
-    // TODO: 正确遍历 environ 需 CPointer 兼容，当前 cinterop 类型有兼容性差异，先返回空
-    // 不影响 CLI/文件配置加载，仅 ENV 覆盖暂不可用
-    return emptyMap()
+    val result = mutableMapOf<String, String>()
+    val environ = neton_get_environ() ?: return result
+    var i = 0
+    while (true) {
+        val entry = environ[i] ?: break
+        val str = entry.toKString()
+        val eq = str.indexOf('=')
+        if (eq > 0) {
+            result[str.substring(0, eq)] = str.substring(eq + 1)
+        }
+        i++
+    }
+    return result
 }
 
 actual fun getProcessId(): Int = platform.posix.getpid()

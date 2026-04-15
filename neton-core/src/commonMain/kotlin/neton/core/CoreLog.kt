@@ -10,10 +10,11 @@ internal object CoreLog {
 
     /** 早于 NetonContext 的路径（如 run() 入口）使用；保证不依赖 ctx 也能打日志 */
     fun ensureBootstrap(): Logger {
-        if (log == null) {
-            log = neton.logging.defaultLoggerFactory().get("neton.core")
-        }
-        return log!!
+        val current = log
+        if (current != null) return current
+        val bootstrap = neton.logging.defaultLoggerFactory().get("neton.core")
+        log = bootstrap
+        return bootstrap
     }
 
     /** 返回非空 Logger（无 ctx 时使用进程级 bootstrap） */

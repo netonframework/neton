@@ -358,6 +358,39 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
             ?: classPermissions.firstOrNull()
         val permission = permissionAnn?.arguments?.firstOrNull()?.value as? String
 
+        // @RateLimit: parse at method level only
+        val rateLimitAnn = function.annotations.firstOrNull { ann ->
+            (ann.annotationType.resolve().declaration as? KSClassDeclaration)?.qualifiedName?.asString() == "neton.core.annotations.RateLimit"
+        }
+        var rateLimitCode = "null"
+        if (rateLimitAnn != null) {
+            val windowSeconds = (rateLimitAnn.arguments.firstOrNull { it.name?.asString() == "windowSeconds" }?.value as? Int) ?: 60
+            val maxRequests = (rateLimitAnn.arguments.firstOrNull { it.name?.asString() == "maxRequests" }?.value as? Int) ?: 60
+            val scopeExpr = rateLimitAnn.arguments
+                .firstOrNull { it.name?.asString() == "scope" }
+                ?.enumName() ?: "USER"
+            val key = (rateLimitAnn.arguments.firstOrNull { it.name?.asString() == "key" }?.value as? String) ?: ""
+            val strategyExpr = rateLimitAnn.arguments
+                .firstOrNull { it.name?.asString() == "strategy" }
+                ?.enumName() ?: "FIXED_WINDOW"
+            val message = (rateLimitAnn.arguments.firstOrNull { it.name?.asString() == "message" }?.value as? String) ?: "Too many requests"
+            // Validate strategy at compile time
+            if (strategyExpr != "FIXED_WINDOW") {
+                logger.error(
+                    "Neton @RateLimit: strategy=$strategyExpr is not supported in v1. Only FIXED_WINDOW is allowed.",
+                    function
+                )
+            }
+            rateLimitCode = """neton.core.interfaces.RateLimitConfig(
+                    windowSeconds = $windowSeconds,
+                    maxRequests = $maxRequests,
+                    scope = neton.core.annotations.RateLimitScope.$scopeExpr,
+                    key = "$key",
+                    strategy = neton.core.annotations.RateLimitStrategy.FIXED_WINDOW,
+                    message = "$message"
+                )"""
+        }
+
         val cacheableAnn = function.annotations.firstOrNull { ann ->
             (ann.annotationType.resolve().declaration as? KSClassDeclaration)?.qualifiedName?.asString() == "neton.cache.Cacheable"
         }
@@ -436,7 +469,8 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                 methodName = "$methodName",
                 allowAnonymous = $allowAnonymous,
                 requireAuth = $requireAuth,
-                permission = ${if (permission != null) "\"$permission\"" else "null"}
+                permission = ${if (permission != null) "\"$permission\"" else "null"},
+                rateLimit = $rateLimitCode
             )
         )
 """
@@ -543,7 +577,7 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
 
                         cookie != null -> {
                             val c = cookie.arguments.firstOrNull()?.value as? String ?: paramName
-                            if (isNullable) "context.request.cookie(\"$c\")?.value" else "context.request.cookie(\"$c\")!!.value"
+                            if (isNullable) "context.request.cookie(\"$c\")?.value" else "(context.request.cookie(\"$c\")?.value ?: throw neton.core.interfaces.RequestProcessingException.ParameterBindingException(\"$c\", \"Required cookie '$c' is missing\"))"
                         }
 
                         else -> generateArgConversion(param, actualParamName, paramType, isNullable)
@@ -928,4 +962,10 @@ private fun String.toPascalCase(): String {
     return split('-', '_', '.').joinToString("") { part ->
         part.replaceFirstChar { it.uppercaseChar() }
     }
+}
+
+/** KSP 枚举注解参数提取：value 是 KSType，取 declaration.simpleName */
+private fun KSValueArgument.enumName(): String? {
+    val ksType = value as? KSType ?: return null
+    return ksType.declaration.simpleName.asString()
 }
