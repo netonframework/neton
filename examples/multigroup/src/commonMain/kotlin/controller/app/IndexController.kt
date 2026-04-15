@@ -9,7 +9,7 @@ import neton.core.annotations.Post
  * 最终路径: /app/index, /app/index/user
  */
 @Controller("/index")
-class AppIndexController {
+class IndexController {
 
     @Get("")
     suspend fun index(): String = "app ok"
