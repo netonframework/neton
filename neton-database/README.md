@@ -85,7 +85,7 @@ fun main(args: Array<String>) {
         http { port = 8080 }
         routing { }
         database { }  // 配置从 config/database.conf 加载
-        onStart { /* UserTable.ensureTable() 等 */ }
+        onStart { /* UserTable.ensureTable() 等 — 仅 dev/demo 使用，见下方 Schema 演进章节 */ }
     }
 }
 ```
@@ -258,6 +258,21 @@ val user = UserLogic().getWithRoles(1)
 - **基础示例**: `example/User.kt` - 实体模型定义
 - **CRUD 演示**: `example/DatabaseExample.kt` - 完整的操作演示
 - **组件集成**: 参考 `examples/mvc` 项目
+
+## 🛡️ Schema 演进 / Migration 边界
+
+> **`neton-database` 不做运行时 schema 变更。**
+
+| 维度 | 规则 |
+|------|------|
+| 运行时 ALTER | ❌ 禁止 |
+| 启动时自动 migration | ❌ 禁止 |
+| `ensureTable()` 用途 | dev / demo / ephemeral test only |
+| 生产 schema 演进 | ✅ 手动执行 `sql/{dialect}/V*.sql`（唯一权威路径） |
+| 未来迁移工具 | 计划中的独立 `neton-migrate` CLI（不嵌入运行时） |
+
+完整边界规范、命令集设计、版本表、明确禁止清单见：
+**[Migration Boundary Spec](https://netonframework.github.io/spec/migration)** — 必读。
 
 ## 🔗 相关模块
 

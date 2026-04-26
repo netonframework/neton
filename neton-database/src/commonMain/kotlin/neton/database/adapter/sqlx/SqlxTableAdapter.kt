@@ -203,6 +203,11 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     override suspend fun <R> transaction(block: suspend Table<T, ID>.() -> R): R =
         transactionBlock { this@SqlxTableAdapter.block() }
 
+    /**
+     * dev / demo / ephemeral test only — NOT for production migration.
+     * 仅生成 `CREATE TABLE IF NOT EXISTS`，表已存在时不做任何 ALTER。
+     * 详见 `neton-docs/docs/spec/migration.md`。
+     */
     override suspend fun ensureTable() {
         val ddl = buildDdl(meta.table, meta.columns, meta.idColumn)
         db.execute(Statement.create(ddl)).getOrThrow()

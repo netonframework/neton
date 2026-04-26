@@ -45,6 +45,18 @@ interface Table<T : Any, ID : Any> {
     /** Phase 1：query { } 块，返回 EntityQuery（list/count/page 与 SqlBuilder 同源） */
     fun query(block: neton.database.dsl.QueryScope<T>.() -> Unit): EntityQuery<T>
     suspend fun <R> transaction(block: suspend Table<T, ID>.() -> R): R
+
+    /**
+     * 仅创建当前表的最简结构（`CREATE TABLE IF NOT EXISTS`）。
+     *
+     * **dev / demo / ephemeral test only — NOT for production migration.**
+     *
+     * 该方法不能表达 ALTER、索引、外键、唯一约束、数据迁移、版本记录、回滚或多方言差异。
+     * 生产/测试环境的 schema 演进必须通过手动 SQL 脚本（`sql/{dialect}/V*.sql`）。
+     * 禁止在 `Main.kt` 或任何 `ModuleInitializer` 中调用此方法。
+     *
+     * 详见架构边界文档：`neton-docs/docs/spec/migration.md`
+     */
     suspend fun ensureTable() {}
 }
 
