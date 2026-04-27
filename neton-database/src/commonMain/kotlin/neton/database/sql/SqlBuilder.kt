@@ -58,6 +58,28 @@ class SqlBuilder(private val dialect: Dialect) {
         return BuiltSql(sql, args.toList())
     }
 
+    fun <T : Any> buildDelete(ast: QueryAst<T>): BuiltSql {
+        reset()
+        val tableSql = dialect.quoteIdent(ast.table.tableName)
+        val whereClause = buildWhereClause(ast.where)
+        val sql = listOf("DELETE FROM $tableSql", whereClause)
+            .filter { it.isNotBlank() }.joinToString(" ")
+        return BuiltSql(sql, args.toList())
+    }
+
+    fun <T : Any> buildUpdate(ast: QueryAst<T>, sets: Map<String, Any?>): BuiltSql {
+        require(sets.isNotEmpty()) { "buildUpdate requires at least one column to set" }
+        reset()
+        val tableSql = dialect.quoteIdent(ast.table.tableName)
+        val setClause = "SET " + sets.entries.joinToString(", ") { (col, value) ->
+            "${dialect.quoteIdent(col)} = ${addArg(value)}"
+        }
+        val whereClause = buildWhereClause(ast.where)
+        val sql = listOf("UPDATE $tableSql", setClause, whereClause)
+            .filter { it.isNotBlank() }.joinToString(" ")
+        return BuiltSql(sql, args.toList())
+    }
+
     private fun buildWhereClause(predicate: Predicate?): String {
         if (predicate == null) return ""
         if (predicate is Predicate.True) return ""
