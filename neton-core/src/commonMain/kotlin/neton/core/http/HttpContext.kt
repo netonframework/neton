@@ -91,6 +91,7 @@ enum class HttpStatus(val code: Int, val message: String) {
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
     CONFLICT(409, "Conflict"),
     UNPROCESSABLE_ENTITY(422, "Unprocessable Entity"),
+    TOO_MANY_REQUESTS(429, "Too Many Requests"),
     
     // 5xx Server Error
     INTERNAL_SERVER_ERROR(500, "Internal Server Error"),
