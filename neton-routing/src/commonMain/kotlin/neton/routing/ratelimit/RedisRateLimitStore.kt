@@ -14,7 +14,7 @@ class RedisRateLimitStore(
 ) : RateLimitStore {
 
     override suspend fun incrementAndGet(key: String, windowSeconds: Int): RateLimitCounter {
-        val now = Clock.System.now().toEpochSeconds()
+        val now = Clock.System.now().epochSeconds
         val windowBucket = now / windowSeconds.toLong()
         val redisKey = "ratelimit:$key:$windowBucket"
         val resetAt = (windowBucket + 1) * windowSeconds.toLong()

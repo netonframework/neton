@@ -153,7 +153,7 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
                         val sessionId = context.headers["Cookie"]
                             ?.split(";")?.firstOrNull { it.trim().startsWith("sid=") }
                             ?.substringAfter("sid=")?.trim() ?: return null
-                        return redis.getValue("session:\$sessionId")?.let { parseIdentity(it) }
+                        return redis.getValue("session:${'$'}sessionId")?.let { parseIdentity(it) }
                     }
                 }
         """.trimIndent())

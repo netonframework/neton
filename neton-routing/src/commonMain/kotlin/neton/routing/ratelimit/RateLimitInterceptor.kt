@@ -5,6 +5,7 @@ import neton.core.http.HttpStatus
 import neton.core.interfaces.Identity
 import neton.core.interfaces.RateLimitConfig
 import neton.core.interfaces.RateLimitDecision
+import neton.core.interfaces.RateLimiter
 
 /**
  * 限流拦截器 — 挂在路由匹配之后、handler 调用之前
@@ -45,7 +46,7 @@ class RateLimitInterceptor(
 
         if (!decision.allowed) {
             context.response.header("Retry-After", config.windowSeconds.toString())
-            context.response.status(HttpStatus.TOO_MANY_REQUESTS)
+            context.response.status = HttpStatus.TOO_MANY_REQUESTS
             context.response.json(
                 mapOf(
                     "code" to 429,
@@ -70,7 +71,7 @@ class RateLimitInterceptor(
             ?: context.request.header("X-Real-IP")
             ?: "127.0.0.1"
 
-        override fun queryParam(name: String): String? = context.request.queryParameter(name)
+        override fun queryParam(name: String): String? = context.request.queryParam(name)
         override fun header(name: String): String? = context.request.header(name)
         override fun pathParam(name: String): String? = context.getAttribute("pathParam:$name") as? String
     }

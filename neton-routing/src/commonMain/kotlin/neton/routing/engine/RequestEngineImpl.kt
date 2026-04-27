@@ -8,6 +8,7 @@ import neton.routing.binder.ParameterBinder
 import neton.routing.ratelimit.RateLimitInterceptor
 import neton.core.http.HttpContext
 import neton.core.http.HttpStatus
+import neton.core.interfaces.RequestProcessingException
 import neton.logging.Logger
 
 /**
