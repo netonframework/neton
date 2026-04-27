@@ -46,6 +46,21 @@ internal class SqlxEntityQuery<T : Any>(
         return Page.of(items, total, page, size)
     }
 
+    override suspend fun delete(): Long {
+        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val built = adapter.phase1SqlBuilder().buildDelete(normalized)
+        return adapter.executePhase1Mutate(built)
+    }
+
+    override suspend fun update(block: neton.database.api.UpdateScope<T>.() -> Unit): Long {
+        val scope = SqlxUpdateScope<T>(adapter::propToColumn)
+        scope.block()
+        if (scope.assignments.isEmpty()) return 0L
+        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val built = adapter.phase1SqlBuilder().buildUpdate(normalized, scope.assignments)
+        return adapter.executePhase1Mutate(built)
+    }
+
     override fun select(vararg columnNames: String): ProjectionQuery {
         val projection = columnNames.map { ColumnRef(it) }
         val newAst = ast.copy(projection = projection)
@@ -152,6 +167,12 @@ internal suspend fun SqlxTableAdapter<*, *>.executePhase1SelectRows(built: Built
     return rows.map { Phase1Row(it) }
 }
 
+internal suspend fun SqlxTableAdapter<*, *>.executePhase1Mutate(built: BuiltSql): Long {
+    val (sql, params) = built.toNamedParams(phase1Dialect())
+    val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
+    return phase1Db.execute(stmt).getOrThrow()
+}
+
 /** Phase1 投影查询用 Row 适配，不与其他文件中的 SqlxRow 重名 */
 private class Phase1Row(private val row: io.github.smyrgeorge.sqlx4k.ResultSet.Row) : Row {
     private fun str(name: String): String? = row.get(name).asStringOrNull()
@@ -180,4 +201,14 @@ private class Phase1Row(private val row: io.github.smyrgeorge.sqlx4k.ResultSet.R
     }
 
     override fun bytesOrNull(name: String): ByteArray? = str(name)?.encodeToByteArray()
+}
+
+/** 收集 EntityQuery.update { set(...) } 的列赋值，列名通过 propToColumn 转换。 */
+private class SqlxUpdateScope<T : Any>(
+    private val propToColumn: (String) -> String
+) : neton.database.api.UpdateScope<T> {
+    val assignments = linkedMapOf<String, Any?>()
+    override fun <V> set(prop: kotlin.reflect.KProperty1<T, V>, value: V) {
+        assignments[propToColumn(prop.name)] = value
+    }
 }

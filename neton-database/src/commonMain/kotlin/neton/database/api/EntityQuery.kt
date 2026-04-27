@@ -11,6 +11,25 @@ interface EntityQuery<T : Any> {
     suspend fun list(): List<T>
     suspend fun count(): Long
     suspend fun page(page: Int, size: Int): Page<T>
+
+    /** 按 where 条件批量删除，返回受影响行数。 */
+    suspend fun delete(): Long
+
+    /**
+     * 按 where 条件批量更新，返回受影响行数。
+     * 用于乐观锁等"WHERE 条件 + 部分列 SET"的场景。
+     *
+     * 示例：
+     * ```
+     * UserTable.query {
+     *     where { and(User::id eq id, User::status eq oldStatus) }
+     * }.update {
+     *     set(User::status, newStatus)
+     * }
+     * ```
+     */
+    suspend fun update(block: UpdateScope<T>.() -> Unit): Long
+
     /** 指定列后变为投影查询，返回 Row */
     fun select(vararg columnNames: String): ProjectionQuery
 
