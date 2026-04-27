@@ -1,5 +1,7 @@
 package neton.core.interfaces
 
+import neton.core.annotations.RateLimitScope
+import neton.core.annotations.RateLimitStrategy
 import neton.core.http.HttpContext
 import neton.core.http.HttpMethod
 import neton.core.security.AuthenticationContext
@@ -56,9 +58,9 @@ data class RouteDefinition(
 data class RateLimitConfig(
     val windowSeconds: Int,
     val maxRequests: Int,
-    val scope: annotations.RateLimitScope,
+    val scope: RateLimitScope,
     val key: String,
-    val strategy: annotations.RateLimitStrategy,
+    val strategy: RateLimitStrategy,
     val message: String
 )
 
