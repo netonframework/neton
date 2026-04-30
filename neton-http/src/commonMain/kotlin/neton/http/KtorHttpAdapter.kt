@@ -298,7 +298,8 @@ class KtorHttpAdapter(
         } catch (e: neton.core.http.ValidationException) {
             status = 400
             val msg = (e.message ?: "Bad Request").replace("\"", "\\\"")
-            val json = """{"code":400,"message":"$msg","data":null}"""
+            // envelope.code 取自 protocol::ErrorCode（spec ERROR_CODE_SPEC §3）—— validation 走 InvalidParams=10100
+            val json = """{"code":10100,"message":"$msg","data":null}"""
             call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.BadRequest)
         } catch (e: neton.core.http.HttpException) {
             status = e.status.code
@@ -308,7 +309,8 @@ class KtorHttpAdapter(
                 cause = e
             )
             val msg = e.message.replace("\"", "\\\"")
-            val json = """{"code":${e.status.code},"message":"$msg","data":null}"""
+            // envelope.code 取自异常自带的 protocolCode（默认从 status 推导，业务可显式覆盖）
+            val json = """{"code":${e.protocolCode},"message":"$msg","data":null}"""
             call.respondText(json, ContentType.Application.Json, mapToKtorStatus(e.status))
         } catch (e: Exception) {
             status = 500
@@ -352,7 +354,8 @@ class KtorHttpAdapter(
                     }
                 }
             }
-            val json = """{"code":500,"message":"Internal Server Error","data":null}"""
+            // 兜底未捕获异常 → InternalError=4（spec ERROR_CODE_SPEC system 段），HTTP 仍 500
+            val json = """{"code":4,"message":"Internal Server Error","data":null}"""
             call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.InternalServerError)
         } finally {
             val endMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
@@ -602,7 +605,8 @@ class KtorHttpAdapter(
             }
         } catch (e: Exception) {
             log?.warn("response failed", fields = mapOf("route" to routeInfo), cause = e)
-            val errorJson = """{"code":500,"message":"Internal Server Error","data":null}"""
+            // 同 §catch(Exception) 兜底：InternalError=4
+            val errorJson = """{"code":4,"message":"Internal Server Error","data":null}"""
             call.respondText(errorJson, ContentType.Application.Json, HttpStatusCode.InternalServerError)
             500
         }
