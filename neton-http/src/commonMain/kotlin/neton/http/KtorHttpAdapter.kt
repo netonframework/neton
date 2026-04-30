@@ -297,21 +297,29 @@ class KtorHttpAdapter(
             }
         } catch (e: neton.core.http.ValidationException) {
             status = 400
-            val msg = (e.message ?: "Bad Request").replace("\"", "\\\"")
-            // envelope.code 取自 protocol::ErrorCode（spec ERROR_CODE_SPEC §3）—— validation 走 InvalidParams=10100
-            val json = """{"code":10100,"message":"$msg","data":null}"""
-            call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.BadRequest)
+            // ValidationException 默认走 InvalidParams（spec ERROR_CODE_SPEC §3）；业务侧需要更细错误码请直接 throw HttpException(code, ...)
+            respondEnvelope(
+                call,
+                io.ktor.http.HttpStatusCode.BadRequest,
+                neton.core.http.ApiEnvelope.error(
+                    neton.core.http.NetonErrorCode.INVALID_PARAMS,
+                    e.message ?: "Bad Request",
+                ),
+            )
         } catch (e: neton.core.http.HttpException) {
-            status = e.status.code
+            // body.code 是权威，HTTP status 由 framework 内部 [httpStatusForErrorCode] 推导
+            val httpStatus = neton.core.http.httpStatusForErrorCode(e.code)
+            status = httpStatus.code
             log?.warn(
                 "http.error",
                 fields = mapOf("method" to method, "path" to path, "status" to status, "traceId" to traceId),
                 cause = e
             )
-            val msg = e.message.replace("\"", "\\\"")
-            // envelope.code 取自异常自带的 protocolCode（默认从 status 推导，业务可显式覆盖）
-            val json = """{"code":${e.protocolCode},"message":"$msg","data":null}"""
-            call.respondText(json, ContentType.Application.Json, mapToKtorStatus(e.status))
+            respondEnvelope(
+                call,
+                mapToKtorStatus(httpStatus),
+                neton.core.http.ApiEnvelope.error(e.code, e.message),
+            )
         } catch (e: Exception) {
             status = 500
             log?.error(
@@ -354,9 +362,15 @@ class KtorHttpAdapter(
                     }
                 }
             }
-            // 兜底未捕获异常 → InternalError=4（spec ERROR_CODE_SPEC system 段），HTTP 仍 500
-            val json = """{"code":4,"message":"Internal Server Error","data":null}"""
-            call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.InternalServerError)
+            // 兜底未捕获异常 → InternalError（spec ERROR_CODE_SPEC system 段），HTTP 仍 500
+            respondEnvelope(
+                call,
+                io.ktor.http.HttpStatusCode.InternalServerError,
+                neton.core.http.ApiEnvelope.error(
+                    neton.core.http.NetonErrorCode.INTERNAL_ERROR,
+                    "Internal Server Error",
+                ),
+            )
         } finally {
             val endMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
             val latencyMs = endMs - startMs
@@ -535,23 +549,44 @@ class KtorHttpAdapter(
     }
 
 
-    /** Map/List 转 JSON 字符串，避免 Ktor ContentNegotiation 对 Map<String,Any> 序列化失败 */
-    private fun mapToJsonString(obj: Any): String = when (obj) {
-        is Map<*, *> -> obj.entries.joinToString(",", "{", "}") { (k, v) ->
-            "\"${
-                k.toString().replace("\\", "\\\\").replace("\"", "\\\"")
-            }\":${if (v != null) mapToJsonString(v) else "null"}"
-        }
+    /**
+     * Envelope 序列化用的 Json 实例。
+     * - `encodeDefaults=true` + `explicitNulls=true`：错误响应必须显式 `data: null`（spec §2.3）。
+     */
+    private val envelopeJson = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        explicitNulls = true
+    }
 
-        is List<*> -> obj.joinToString(",", "[", "]") { if (it != null) mapToJsonString(it) else "null" }
-        is String -> "\"${obj.replace("\\", "\\\\").replace("\"", "\\\"")}\""
-        is Number -> obj.toString()
-        is Boolean -> obj.toString()
-        else -> "\"${obj}\""
+    /** 把 Map / List / 原始类型转为 JsonElement（业务 @Serializable 对象由 KSP 预序列化为 JsonContent）。 */
+    private fun valueToJsonElement(v: Any?): kotlinx.serialization.json.JsonElement = when (v) {
+        null -> kotlinx.serialization.json.JsonNull
+        is kotlinx.serialization.json.JsonElement -> v
+        is String -> kotlinx.serialization.json.JsonPrimitive(v)
+        is Number -> kotlinx.serialization.json.JsonPrimitive(v)
+        is Boolean -> kotlinx.serialization.json.JsonPrimitive(v)
+        is Map<*, *> -> kotlinx.serialization.json.buildJsonObject {
+            for ((k, value) in v) put(k.toString(), valueToJsonElement(value))
+        }
+        is List<*> -> kotlinx.serialization.json.buildJsonArray {
+            for (item in v) add(valueToJsonElement(item))
+        }
+        else -> kotlinx.serialization.json.JsonPrimitive(v.toString())
+    }
+
+    /** 写入统一信封响应（spec SERVICE_RESPONSE_ENVELOPE_SPEC §2）。 */
+    private suspend fun respondEnvelope(
+        call: io.ktor.server.application.ApplicationCall,
+        httpStatus: io.ktor.http.HttpStatusCode,
+        envelope: neton.core.http.ApiEnvelope,
+    ) {
+        val text = envelopeJson.encodeToString(neton.core.http.ApiEnvelope.serializer(), envelope)
+        call.respondText(text, ContentType.Application.Json, httpStatus)
     }
 
     /**
-     * 处理控制器方法返回值，返回 HTTP 状态码（用于 access log）。
+     * 处理控制器方法返回值，把业务 data 包装为统一信封后写出。
      */
     private suspend fun handleResponse(
         call: io.ktor.server.application.ApplicationCall,
@@ -560,54 +595,24 @@ class KtorHttpAdapter(
         log: neton.logging.Logger?
     ): Int {
         return try {
-            when (result) {
-                null, is Unit -> {
-                    call.respondText("""{"code":0,"message":"success","data":null}""", ContentType.Application.Json)
-                    200
-                }
-
-                is neton.core.http.JsonContent -> {
-                    val json = """{"code":0,"message":"success","data":${result.json}}"""
-                    call.respondText(json, ContentType.Application.Json)
-                    200
-                }
-
-                is String -> {
-                    val escaped = result.replace("\\", "\\\\").replace("\"", "\\\"")
-                    val json = """{"code":0,"message":"success","data":"$escaped"}"""
-                    call.respondText(json, ContentType.Application.Json)
-                    200
-                }
-
-                is Map<*, *> -> {
-                    val dataJson = mapToJsonString(result)
-                    val json = """{"code":0,"message":"success","data":$dataJson}"""
-                    call.respondText(json, ContentType.Application.Json)
-                    200
-                }
-
-                is Number -> {
-                    val json = """{"code":0,"message":"success","data":$result}"""
-                    call.respondText(json, ContentType.Application.Json)
-                    200
-                }
-
-                is Boolean -> {
-                    val json = """{"code":0,"message":"success","data":$result}"""
-                    call.respondText(json, ContentType.Application.Json)
-                    200
-                }
-
-                else -> {
-                    call.respond(result)
-                    200
-                }
+            // KSP 已把 @Serializable result 序列化为 JsonContent；framework 这里只把 data 包入信封。
+            val data: kotlinx.serialization.json.JsonElement = when (result) {
+                null, is Unit -> kotlinx.serialization.json.JsonNull
+                is neton.core.http.JsonContent -> envelopeJson.parseToJsonElement(result.json)
+                else -> valueToJsonElement(result)
             }
+            respondEnvelope(call, io.ktor.http.HttpStatusCode.OK, neton.core.http.ApiEnvelope.ok(data))
+            200
         } catch (e: Exception) {
             log?.warn("response failed", fields = mapOf("route" to routeInfo), cause = e)
-            // 同 §catch(Exception) 兜底：InternalError=4
-            val errorJson = """{"code":4,"message":"Internal Server Error","data":null}"""
-            call.respondText(errorJson, ContentType.Application.Json, HttpStatusCode.InternalServerError)
+            respondEnvelope(
+                call,
+                io.ktor.http.HttpStatusCode.InternalServerError,
+                neton.core.http.ApiEnvelope.error(
+                    neton.core.http.NetonErrorCode.INTERNAL_ERROR,
+                    "Internal Server Error",
+                ),
+            )
             500
         }
     }
