@@ -497,7 +497,13 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                 paramType == "neton.core.http.HttpResponse" -> "context.response"
                 paramType == "neton.core.http.HttpSession" -> "context.session"
                 paramType == "neton.core.interfaces.Identity" -> {
-                    if (isNullable) "context.getAttribute(SecurityAttributes.IDENTITY) as? Identity" else "context.getAttribute(SecurityAttributes.IDENTITY) as Identity"
+                    if (isNullable) {
+                        "context.getAttribute(SecurityAttributes.IDENTITY) as? Identity"
+                    } else {
+                        // 非 nullable Identity 参数：未鉴权时抛 UnauthorizedException 而非 NPE。
+                        // framework 的全局异常处理器把它映射到 HTTP 401 + envelope.code=10000 (AUTH_REQUIRED)。
+                        "(context.getAttribute(SecurityAttributes.IDENTITY) as? Identity ?: throw neton.core.http.UnauthorizedException())"
+                    }
                 }
 
                 paramType == "neton.core.http.UploadFile" -> {
