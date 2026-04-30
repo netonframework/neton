@@ -298,7 +298,7 @@ class KtorHttpAdapter(
         } catch (e: neton.core.http.ValidationException) {
             status = 400
             val msg = (e.message ?: "Bad Request").replace("\"", "\\\"")
-            val json = """{"code":400,"msg":"$msg","data":null}"""
+            val json = """{"code":400,"message":"$msg","data":null}"""
             call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.BadRequest)
         } catch (e: neton.core.http.HttpException) {
             status = e.status.code
@@ -308,7 +308,7 @@ class KtorHttpAdapter(
                 cause = e
             )
             val msg = e.message.replace("\"", "\\\"")
-            val json = """{"code":${e.status.code},"msg":"$msg","data":null}"""
+            val json = """{"code":${e.status.code},"message":"$msg","data":null}"""
             call.respondText(json, ContentType.Application.Json, mapToKtorStatus(e.status))
         } catch (e: Exception) {
             status = 500
@@ -352,7 +352,7 @@ class KtorHttpAdapter(
                     }
                 }
             }
-            val json = """{"code":500,"msg":"Internal Server Error","data":null}"""
+            val json = """{"code":500,"message":"Internal Server Error","data":null}"""
             call.respondText(json, ContentType.Application.Json, io.ktor.http.HttpStatusCode.InternalServerError)
         } finally {
             val endMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
@@ -559,38 +559,38 @@ class KtorHttpAdapter(
         return try {
             when (result) {
                 null, is Unit -> {
-                    call.respondText("""{"code":0,"msg":"success","data":null}""", ContentType.Application.Json)
+                    call.respondText("""{"code":0,"message":"success","data":null}""", ContentType.Application.Json)
                     200
                 }
 
                 is neton.core.http.JsonContent -> {
-                    val json = """{"code":0,"msg":"success","data":${result.json}}"""
+                    val json = """{"code":0,"message":"success","data":${result.json}}"""
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is String -> {
                     val escaped = result.replace("\\", "\\\\").replace("\"", "\\\"")
-                    val json = """{"code":0,"msg":"success","data":"$escaped"}"""
+                    val json = """{"code":0,"message":"success","data":"$escaped"}"""
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is Map<*, *> -> {
                     val dataJson = mapToJsonString(result)
-                    val json = """{"code":0,"msg":"success","data":$dataJson}"""
+                    val json = """{"code":0,"message":"success","data":$dataJson}"""
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is Number -> {
-                    val json = """{"code":0,"msg":"success","data":$result}"""
+                    val json = """{"code":0,"message":"success","data":$result}"""
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
 
                 is Boolean -> {
-                    val json = """{"code":0,"msg":"success","data":$result}"""
+                    val json = """{"code":0,"message":"success","data":$result}"""
                     call.respondText(json, ContentType.Application.Json)
                     200
                 }
@@ -602,7 +602,7 @@ class KtorHttpAdapter(
             }
         } catch (e: Exception) {
             log?.warn("response failed", fields = mapOf("route" to routeInfo), cause = e)
-            val errorJson = """{"code":500,"msg":"Internal Server Error","data":null}"""
+            val errorJson = """{"code":500,"message":"Internal Server Error","data":null}"""
             call.respondText(errorJson, ContentType.Application.Json, HttpStatusCode.InternalServerError)
             500
         }
