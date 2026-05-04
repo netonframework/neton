@@ -20,6 +20,8 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.http.*
+import io.ktor.http.cio.MultipartEvent
+import io.ktor.http.cio.parseMultipart
 import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
@@ -636,9 +638,21 @@ private class KtorHttpContext(
 }
 
 /**
- * 简化的 Ktor HttpRequest 适配器
+ * 简化的 Ktor HttpRequest 适配器。
+ *
+ * Multipart / form 解析必须**绕过 ContentNegotiation**：Ktor 3.x 的
+ * `install(ContentNegotiation) { json {} }` 接管整个 receive transform 链，
+ * `call.receiveMultipart()` 内部走 `receiveNullable<MultiPartData>` 也会被
+ * 拦截抛 `CannotTransformContentToTypeException`。这里用 `ktor-http-cio` 的
+ * 低阶 [parseMultipart] 直接读 [io.ktor.utils.io.ByteReadChannel]，跳过整个
+ * ContentNegotiation 链；同时缓存解析结果，让同一请求里 `uploadFiles()` 与
+ * `form()` 都能拿到对应的部分（multipart 流是一次性消费的，必须缓存）。
  */
 private class SimpleKtorHttpRequest(private val call: io.ktor.server.application.ApplicationCall) : HttpRequest {
+
+    /** multipart 解析结果缓存：同一请求内 uploadFiles() / form() 复用同一份字节解析。 */
+    private var parsedMultipartFiles: neton.core.http.UploadFiles? = null
+    private var parsedMultipartForm: neton.core.http.Parameters? = null
 
     override suspend fun body(): ByteArray = call.receiveChannel().readRemaining().readByteArray()
 
@@ -646,31 +660,83 @@ private class SimpleKtorHttpRequest(private val call: io.ktor.server.application
 
     override suspend fun json(): Any = mapOf<String, Any>() // @Body 使用 context.request.text() + Json.decodeFromString
 
-    override suspend fun form(): neton.core.http.Parameters = SimpleParameters()
+    override suspend fun form(): neton.core.http.Parameters {
+        val ct = call.request.contentType()
+        return when {
+            ct.match(ContentType.MultiPart.FormData) -> {
+                ensureMultipartParsed()
+                parsedMultipartForm ?: SimpleParameters()
+            }
+            ct.match(ContentType.Application.FormUrlEncoded) -> {
+                // urlencoded 路径也不走 ContentNegotiation：直接读字节解析。
+                val raw = call.receiveChannel().readRemaining().readByteArray().decodeToString()
+                MapParameters(parseQueryString(raw))
+            }
+            else -> SimpleParameters()
+        }
+    }
 
     override suspend fun uploadFiles(): neton.core.http.UploadFiles {
-        val multipartData = call.receiveMultipart()
+        ensureMultipartParsed()
+        return parsedMultipartFiles ?: neton.core.http.UploadFiles(emptyList())
+    }
+
+    /**
+     * 一次性消费 multipart body，分别填充 [parsedMultipartFiles] 与
+     * [parsedMultipartForm]。非 multipart 请求短路返回空。
+     */
+    private suspend fun ensureMultipartParsed() {
+        if (parsedMultipartFiles != null) return
+        val ct = call.request.contentType()
+        if (!ct.match(ContentType.MultiPart.FormData)) {
+            parsedMultipartFiles = neton.core.http.UploadFiles(emptyList())
+            parsedMultipartForm = SimpleParameters()
+            return
+        }
+
         val files = mutableListOf<neton.core.http.UploadFile>()
-        multipartData.forEachPart { part ->
-            when (part) {
-                is PartData.FileItem -> {
-                    val bytes = part.provider().readRemaining().readByteArray()
+        val formFields = mutableMapOf<String, MutableList<String>>()
+
+        // CoroutineScope.parseMultipart 把生产者协程拍到当前 scope 里；用 coroutineScope { }
+        // 在 ensureMultipartParsed 自身的 suspend 上下文里建一份父子结构清晰的 scope。
+        coroutineScope {
+            val channel = call.receiveChannel()
+            val contentLength = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+            val events = parseMultipart(channel, ct.toString(), contentLength)
+            for (event in events) {
+                if (event !is MultipartEvent.MultipartPart) continue
+                val rawHeaders = event.headers.await()
+                val disposition = rawHeaders["Content-Disposition"]?.toString().orEmpty()
+                val partContentType = rawHeaders["Content-Type"]?.toString()
+                val name = NAME_REGEX.find(disposition)?.groupValues?.get(1).orEmpty()
+                val filename = FILENAME_REGEX.find(disposition)?.groupValues?.get(1)
+                val bytes = event.body.readRemaining().readByteArray()
+                if (filename != null) {
                     files.add(
                         KtorUploadFile(
-                            fieldName = part.name ?: "",
-                            filename = part.originalFileName ?: "",
-                            contentType = part.contentType?.toString(),
+                            fieldName = name,
+                            filename = filename,
+                            contentType = partContentType,
                             size = bytes.size.toLong(),
-                            data = bytes
-                        )
+                            data = bytes,
+                        ),
                     )
+                } else if (name.isNotEmpty()) {
+                    formFields.getOrPut(name) { mutableListOf() }.add(bytes.decodeToString())
                 }
-
-                else -> {}
+                // bytes 已读完，body 通道自然耗尽；headers Deferred await 后无需手动释放。
             }
-            part.dispose()
         }
-        return neton.core.http.UploadFiles(files)
+
+        parsedMultipartFiles = neton.core.http.UploadFiles(files)
+        parsedMultipartForm = MapParameters(formFields)
+    }
+
+    private companion object {
+        // Content-Disposition: form-data; name="businessType"
+        // Content-Disposition: form-data; name="file"; filename="avatar.png"
+        private val NAME_REGEX = Regex("""name="([^"]*)"""")
+        private val FILENAME_REGEX = Regex("""filename="([^"]*)"""")
     }
 
     override val method: neton.core.http.HttpMethod = when (call.request.httpMethod.value) {
@@ -782,7 +848,7 @@ private class KtorUploadFile(
 }
 
 /**
- * 简化的 Parameters 实现
+ * 简化的 Parameters 实现 —— 永远空集，用作 fallback。
  */
 private class SimpleParameters : neton.core.http.Parameters {
     override fun get(name: String): String? = null
@@ -790,6 +856,25 @@ private class SimpleParameters : neton.core.http.Parameters {
     override fun contains(name: String): Boolean = false
     override fun names(): Set<String> = emptySet()
     override fun toMap(): Map<String, List<String>> = emptyMap()
+}
+
+/**
+ * 通用 [Map]-backed [neton.core.http.Parameters]。multipart text 字段、
+ * `application/x-www-form-urlencoded` 解析后用本类装入。
+ */
+private class MapParameters(
+    private val data: Map<String, List<String>>,
+) : neton.core.http.Parameters {
+    /** 从 Ktor 的 [io.ktor.http.Parameters] 直接构造，省一次手工转 Map。 */
+    constructor(ktorParams: io.ktor.http.Parameters) : this(
+        ktorParams.entries().associate { (k, v) -> k to v },
+    )
+
+    override fun get(name: String): String? = data[name]?.firstOrNull()
+    override fun getAll(name: String): List<String> = data[name].orEmpty()
+    override fun contains(name: String): Boolean = data.containsKey(name)
+    override fun names(): Set<String> = data.keys
+    override fun toMap(): Map<String, List<String>> = data
 }
 
 /**
