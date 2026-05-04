@@ -32,6 +32,7 @@ kotlin {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-logging"))
                 implementation(libs.ktor.io)
+                implementation(libs.ktor.http.cio)
                 implementation(libs.ktor.server.core)
                 implementation(libs.ktor.server.cio)
                 implementation(libs.ktor.server.content.negotiation)
