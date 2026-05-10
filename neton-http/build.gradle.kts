@@ -21,11 +21,28 @@ kotlin {
         val posixMain by creating {
             dependsOn(nativeMain)
         }
-        val macosArm64Main by getting { dependsOn(posixMain) }
-        val macosX64Main by getting { dependsOn(posixMain) }
-        val linuxX64Main by getting { dependsOn(posixMain) }
-        val linuxArm64Main by getting { dependsOn(posixMain) }
-        val mingwX64Main by getting { dependsOn(nativeMain) }
+        // Per-target source sets —— ktor client engines 不能共用 posixMain
+        // （macOS 走 Darwin, Linux 走 CIO, mingw 走 WinHttp）。
+        val macosArm64Main by getting {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.darwin) }
+        }
+        val macosX64Main by getting {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.darwin) }
+        }
+        val linuxX64Main by getting {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.cio) }
+        }
+        val linuxArm64Main by getting {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.cio) }
+        }
+        val mingwX64Main by getting {
+            dependsOn(nativeMain)
+            dependencies { implementation(libs.ktor.client.winhttp) }
+        }
 
         commonMain {
             dependencies {
@@ -40,6 +57,11 @@ kotlin {
                 implementation(libs.ktor.server.sessions)
                 implementation(libs.ktor.server.cors)
                 implementation(libs.kotlinx.coroutines.core)
+                // ktor client (出站) —— framework-level HTTP client factory
+                // 在 commonMain 暴露 newNetonHttpClient(); 各 native target 在
+                // 自己的 source set 里挂 platform engine（Darwin / CIO / WinHttp）。
+                api(libs.ktor.client.core)
+                api(libs.ktor.client.content.negotiation)
             }
         }
 
