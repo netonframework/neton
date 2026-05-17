@@ -40,6 +40,7 @@ internal object AiClientFactory {
                         id = eff.id, httpClient = httpClient,
                         baseUrl = eff.baseUrl, apiKey = eff.apiKey,
                         organization = eff.organization, defaultHeaders = eff.defaultHeaders,
+                        logSink = config.logSink, debug = config.debug,
                     )
                 }
                 is AnthropicSpec -> {
@@ -49,6 +50,7 @@ internal object AiClientFactory {
                         baseUrl = eff.baseUrl, apiKey = eff.apiKey,
                         version = eff.version, beta = eff.beta,
                         defaultHeaders = eff.defaultHeaders,
+                        logSink = config.logSink, debug = config.debug,
                     )
                 }
             }

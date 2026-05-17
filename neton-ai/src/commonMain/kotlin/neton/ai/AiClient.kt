@@ -3,6 +3,15 @@ package neton.ai
 import neton.ai.builder.GenerateTextRequestBuilder
 
 /**
+ * Lightweight log sink — a function that accepts a sanitized log line. Decoupled from
+ * neton-logging so standalone usage (Mode 1) doesn't pull in the logging runtime.
+ *
+ * In Mode 2 (AiComponent), AiComponent wires this to neton-logging's Logger. In Mode 1,
+ * callers can pass `::println` or any other sink, or omit entirely (no logs).
+ */
+typealias AiLogSink = (line: String) -> Unit
+
+/**
  * Provider-neutral AI client. v0.1 ships only generateText (non-streaming).
  *
  * **Dual usage**:

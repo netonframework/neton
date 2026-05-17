@@ -42,6 +42,14 @@ object AiComponent : NetonComponent<AiConfig> {
         )
         if (fileMap != null) config.applyFileMap(fileMap)
 
+        // Wire logSink from LoggerFactory if caller didn't provide one (Mode 2)
+        if (config.logSink == null) {
+            val log = ctx.getOrNull(LoggerFactory::class)?.get("neton.ai")
+            if (log != null) {
+                config.logSink = { line -> log.info(line, emptyMap()) }
+            }
+        }
+
         // Build via single source of truth (same path standalone uses)
         val client = AiClientFactory.createFromConfig(config)
         ctx.bind(AiClient::class, client)

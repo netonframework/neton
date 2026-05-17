@@ -20,6 +20,7 @@ class AiConfig {
     internal var routing: RoutingConfig = RoutingConfig()
     internal var usage: UsageConfig = UsageConfig(recorder = null)
     var debug: Boolean = false
+    var logSink: AiLogSink? = null
 
     fun providers(block: ProvidersBuilder.() -> Unit) {
         ProvidersBuilder(providers).apply(block)

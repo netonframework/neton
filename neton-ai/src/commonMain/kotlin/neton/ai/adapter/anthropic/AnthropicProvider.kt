@@ -1,6 +1,7 @@
 // neton-ai/src/commonMain/kotlin/neton/ai/adapter/anthropic/AnthropicProvider.kt
 package neton.ai.adapter.anthropic
 
+import neton.ai.AiLogSink
 import neton.ai.provider.AiEmbeddingModel
 import neton.ai.provider.AiProvider
 import neton.ai.provider.AiStreamingTextModel
@@ -15,11 +16,13 @@ class AnthropicProvider(
     private val version: String = "2023-06-01",
     private val beta: List<String> = emptyList(),
     private val defaultHeaders: Map<String, String> = emptyMap(),
+    private val logSink: AiLogSink? = null,
+    private val debug: Boolean = false,
 ) : AiProvider {
     override fun textModel(modelName: String): AiTextModel = AnthropicTextModel(
         providerId = id, modelName = modelName, httpClient = httpClient,
         baseUrl = baseUrl, apiKey = apiKey, version = version, beta = beta,
-        defaultHeaders = defaultHeaders,
+        defaultHeaders = defaultHeaders, logSink = logSink, debug = debug,
     )
     override fun streamingTextModel(modelName: String): AiStreamingTextModel? = null   // PR2
     override fun embeddingModel(modelName: String): AiEmbeddingModel? = null            // Anthropic has no embeddings
