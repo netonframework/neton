@@ -189,8 +189,9 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.serialization.kotlinx.json)
+                // NOTE: ContentNegotiation deliberately NOT included — this module is byte/text
+                // passthrough (NetonHttpResponse.body: String). Consumers add ContentNegotiation
+                // themselves if they want typed JSON. YAGNI per code review on commit d29a2f9.
             }
         }
 
