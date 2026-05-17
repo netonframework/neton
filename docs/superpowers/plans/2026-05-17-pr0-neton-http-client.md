@@ -1238,11 +1238,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.errors.IOException
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.io.IOException
 import neton.http.client.NetonHttpBody
 import neton.http.client.NetonHttpClient
 import neton.http.client.NetonHttpError
@@ -1297,7 +1297,10 @@ internal class DefaultNetonHttpClient(
         )
     }
 
-    override fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk> = flow {
+    override fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk> = channelFlow {
+        // channelFlow (not flow): Ktor's prepareRequest{}.execute{} callback runs on Dispatchers.IO,
+        // and `flow { emit }` requires emit to happen in the collector's context. channelFlow uses a
+        // Channel to bridge cross-thread producer/consumer correctly.
         // prepareRequest yields a statement we can scope; the lambda closes the response on exit.
         client.prepareRequest { applyRequest(request) }.execute { response ->
             val channel: ByteReadChannel = response.bodyAsChannel()
@@ -1306,7 +1309,7 @@ internal class DefaultNetonHttpClient(
                 while (true) {
                     val n = channel.readAvailable(buf)
                     if (n <= 0) break
-                    emit(NetonHttpStreamChunk.Bytes(buf.copyOf(n)))
+                    send(NetonHttpStreamChunk.Bytes(buf.copyOf(n)))
                 }
             } catch (e: CancellationException) {
                 throw e   // CancellationException MUST propagate; structured concurrency closes channel via execute scope
@@ -1315,7 +1318,7 @@ internal class DefaultNetonHttpClient(
             } catch (e: Throwable) {
                 throw NetonHttpException(NetonHttpError.Unknown(e.message ?: "Unknown stream error", e))
             }
-            emit(NetonHttpStreamChunk.End(
+            send(NetonHttpStreamChunk.End(
                 finalHeaders = response.headers.entries().associate { it.key to it.value.firstOrNull().orEmpty() }
             ))
         }
