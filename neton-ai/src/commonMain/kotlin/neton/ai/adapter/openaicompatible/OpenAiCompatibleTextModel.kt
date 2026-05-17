@@ -4,7 +4,9 @@ package neton.ai.adapter.openaicompatible
 import kotlinx.serialization.json.Json
 import neton.ai.AiError
 import neton.ai.AiException
+import neton.ai.AiLogSink
 import neton.ai.adapter.openaicompatible.dto.OpenAiChatRequest
+import neton.ai.internal.withRedactedValues
 import neton.ai.provider.AiTextModel
 import neton.ai.provider.ProviderCallRequest
 import neton.ai.provider.ProviderCallResponse
@@ -22,6 +24,8 @@ internal class OpenAiCompatibleTextModel(
     private val apiKey: String,
     private val organization: String?,
     private val defaultHeaders: Map<String, String>,
+    private val logSink: AiLogSink? = null,
+    private val debug: Boolean = false,
     private val requestMapper: OpenAiCompatibleRequestMapper = OpenAiCompatibleRequestMapper(),
     private val responseMapper: OpenAiCompatibleResponseMapper = OpenAiCompatibleResponseMapper(),
     private val json: Json = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = false },
@@ -29,15 +33,19 @@ internal class OpenAiCompatibleTextModel(
     override suspend fun generate(request: ProviderCallRequest): ProviderCallResponse {
         val wire = requestMapper.toWire(modelName, request)
         val bodyJson = json.encodeToString(OpenAiChatRequest.serializer(), wire)
+        val url = "$baseUrl/chat/completions"
         val headers = buildMap {
             put("Authorization", "Bearer $apiKey")
             organization?.let { put("OpenAI-Organization", it) }
             putAll(defaultHeaders)
         }
+        if (debug && logSink != null) {
+            logSink.invoke("ai.provider.$providerId model=$modelName POST $url headers=${headers.withRedactedValues()}")
+        }
         val resp = try {
             httpClient.request(NetonHttpRequest(
                 method = NetonHttpMethod.Post,
-                url = "$baseUrl/chat/completions",
+                url = url,
                 headers = headers,
                 body = NetonHttpBody.Json(bodyJson),
                 metadata = request.metadata,
