@@ -15,6 +15,24 @@ interface AiClient {
     suspend fun close()
 
     companion object {
-        // Standalone Companion.create factory added in Task 17 once AiConfig DSL exists.
+        /**
+         * Standalone factory (Mode 1). Constructs an AiClient from a DSL block WITHOUT requiring
+         * any Neton runtime (Neton.run / NetonContext). Caller must provide an NetonHttpClient.
+         *
+         * Example:
+         *   val ai = AiClient.create {
+         *       httpClient = NetonHttpClient.create { requestMillis = 30_000 }
+         *       providers {
+         *           openAiCompatible("openai") { baseUrl = "..."; apiKey = "sk-..." }
+         *       }
+         *       routing { defaultModel = "openai:gpt-4o-mini" }
+         *   }
+         *
+         * @throws AiException(InvalidRequest) on invalid config.
+         */
+        fun create(block: AiConfig.() -> Unit): AiClient {
+            val cfg = AiConfig().apply(block)
+            return neton.ai.internal.AiClientFactory.createFromConfig(cfg)
+        }
     }
 }
