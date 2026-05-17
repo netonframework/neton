@@ -1,7 +1,7 @@
 package neton.http.client
 
 import kotlinx.coroutines.flow.Flow
-// import neton.http.client.internal.DefaultNetonHttpClient  // Task 12
+import neton.http.client.internal.DefaultNetonHttpClient
 
 /**
  * Provider-neutral HTTP client. Public API of neton-http-client.
@@ -58,7 +58,7 @@ interface NetonHttpClient {
                     "Invalid HTTP client config: ${errors.joinToString()}", null,
                 ))
             }
-            return TODO("DefaultNetonHttpClient not yet implemented (Task 12)")
+            return DefaultNetonHttpClient(defaultTimeout = cfg.toEffectiveTimeout())
         }
     }
 }
