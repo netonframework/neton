@@ -24,6 +24,6 @@ class AnthropicProvider(
         baseUrl = baseUrl, apiKey = apiKey, version = version, beta = beta,
         defaultHeaders = defaultHeaders, logSink = logSink, debug = debug,
     )
-    override fun streamingTextModel(modelName: String): AiStreamingTextModel? = null   // PR2
+    override fun streamingTextModel(modelName: String): AiStreamingTextModel = textModel(modelName) as AiStreamingTextModel
     override fun embeddingModel(modelName: String): AiEmbeddingModel? = null            // Anthropic has no embeddings
 }
