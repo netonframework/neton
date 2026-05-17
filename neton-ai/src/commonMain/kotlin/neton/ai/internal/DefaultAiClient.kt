@@ -31,7 +31,7 @@ internal class DefaultAiClient(
         streamText(StreamTextRequestBuilder().apply(block).toRequest())
 
     override fun streamText(request: StreamTextRequest): Flow<AiStreamEvent> =
-        throw NotImplementedError("streamText: StreamingToolLoop will be implemented in Stream Task D")
+        runStreamingToolLoop(request, registry, router, recorder)
 
     override suspend fun close() {
         // DefaultAiClient 不拥有 NetonHttpClient；外层（standalone factory / AiComponent）负责管理生命周期
