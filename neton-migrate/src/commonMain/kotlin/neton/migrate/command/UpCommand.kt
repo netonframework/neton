@@ -7,6 +7,7 @@ import neton.migrate.db.DbConnection
 import neton.migrate.db.HistoryTable
 import neton.migrate.io.currentTimeMillis
 import neton.migrate.script.ScriptScanner
+import neton.migrate.script.SqlSplitter
 
 /**
  * up — 顺序执行未执行脚本。
@@ -91,21 +92,21 @@ object UpCommand {
                 val start = currentTimeMillis()
 
                 val result = runCatching {
+                    val statements = SqlSplitter.split(script.content)
                     when (db.driver) {
                         Driver.POSTGRESQL, Driver.SQLITE -> {
-                            // 包事务
-                            db.execute("BEGIN")
-                            try {
-                                executeScript(db, script.content)
-                                db.execute("COMMIT")
-                            } catch (e: Throwable) {
-                                runCatching { db.execute("ROLLBACK") }
-                                throw e
-                            }
+                            // 用 sqlx4k Transactional API (pinned 连接) - BLOCKER-3 fix.
+                            // 原 db.execute("BEGIN") + 后续 db.execute(...) 因连接池
+                            // 不 pin 导致 hang + autocommit drift; transaction { ... }
+                            // 保证块内所有语句在同一连接, 块出错自动 rollback.
+                            db.executeAllInTransaction(statements)
                         }
                         Driver.MYSQL -> {
-                            // 不开事务（DDL 在 MySQL 上自动 commit，开了也没用）
-                            executeScript(db, script.content)
+                            // 不开事务 (DDL 在 MySQL 上自动 commit, 开了也没用);
+                            // 逐条执行, 任一失败抛 -> 外层 runCatching 捕获 -> history
+                            // 标 success=false. 注意 MySQL 上 DDL 部分已 commit 无法
+                            // 回滚, 只能依赖 caller 不在同一 migration 里混 DDL+DML.
+                            db.executeAllSequential(statements)
                         }
                     }
                 }
@@ -152,11 +153,28 @@ object UpCommand {
         }
     }
 
-    /**
-     * 决策 D3：先尝试整文件 execute；如果 driver 不接受多语句脚本，
-     * v0.2 再加 splitter。v0.1 简单直接。
-     */
-    private suspend fun executeScript(db: DbConnection, content: String) {
-        db.execute(content)
-    }
+    // v1 fix (release proving BLOCKER-3 in privchat-application-module-game):
+    //
+    // 之前 v0.1 决策 D3 "整文件 execute" 在 sqlx4k PG driver 下静默吞 multi-statement
+    // 脚本 (只执行第一条语句, 但返回 OK; 后续 ALTER / COMMENT 等被丢弃, 同时 history
+    // 表也记录为成功) — 数据一致性灾难: caller 以为 schema 已演进但实际没有.
+    //
+    // 复现:
+    //   V007__seat_status_remap_user_id_nullable.sql 内含
+    //     ALTER TABLE game_table_seat ALTER COLUMN user_id DROP NOT NULL;
+    //     COMMENT ON COLUMN game_table_seat.status IS '...';
+    //     COMMENT ON COLUMN game_table_seat.user_id IS '...';
+    //   `migrate up` 报 "OK", 但 \d game_table_seat 显示 user_id 仍 NOT NULL;
+    //   neton_schema_history_* 也没写 V007 行 (sqlx4k 静默吞, runCatching success).
+    //
+    // v1 fix (两步):
+    //   1. SqlSplitter 把脚本按 `;` 拆 (识别 string / 注释 / dollar-quoted block)
+    //   2. PG/SQLite 走 db.executeAllInTransaction(...) (sqlx4k Transactional API,
+    //      pinned 连接); MySQL 走 db.executeAllSequential(...) (DDL autocommit).
+    //   3. 任一语句抛 → 外层 runCatching 捕获 → history.success=false + 退出码 2.
+    //      PG/SQLite 整脚本 rollback; MySQL DDL 部分无法 rollback (driver 限制).
+    //
+    // 不变式 (BLOCKER-3 核心要求):
+    //   - schema 实际未演进时, history 不会记 success=true.
+    //   - 多语句 migration 完整执行, 不会只跑第一条.
 }
