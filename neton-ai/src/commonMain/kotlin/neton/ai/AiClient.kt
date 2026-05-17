@@ -1,6 +1,7 @@
 package neton.ai
 
 import kotlinx.coroutines.flow.Flow
+import neton.ai.builder.EmbeddingRequestBuilder
 import neton.ai.builder.GenerateTextRequestBuilder
 import neton.ai.builder.StreamTextRequestBuilder
 
@@ -25,6 +26,8 @@ interface AiClient {
     suspend fun generateText(request: GenerateTextRequest): GenerateTextResult
     fun streamText(block: StreamTextRequestBuilder.() -> Unit): Flow<AiStreamEvent>
     fun streamText(request: StreamTextRequest): Flow<AiStreamEvent>
+    suspend fun embed(block: EmbeddingRequestBuilder.() -> Unit): EmbeddingResult
+    suspend fun embed(request: EmbeddingRequest): EmbeddingResult
     suspend fun close()
 
     companion object {

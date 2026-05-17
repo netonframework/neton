@@ -30,5 +30,9 @@ class OpenAiCompatibleProvider(
         debug = debug,
     )
     override fun streamingTextModel(modelName: String): AiStreamingTextModel = textModel(modelName) as AiStreamingTextModel
-    override fun embeddingModel(modelName: String): AiEmbeddingModel? = null          // PR3
+    override fun embeddingModel(modelName: String): AiEmbeddingModel = OpenAiCompatibleEmbeddingModel(
+        providerId = id, modelName = modelName, httpClient = httpClient,
+        baseUrl = baseUrl, apiKey = apiKey, organization = organization,
+        defaultHeaders = defaultHeaders, logSink = logSink, debug = debug,
+    )
 }
