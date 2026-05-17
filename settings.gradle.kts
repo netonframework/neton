@@ -14,6 +14,7 @@ include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ �
 include(":neton-core")       // 主框架模块
 include(":neton-http")       // HTTP 组件模块
 include(":neton-http-client")// HTTP Client 基础设施模块（KMP Ktor Client wrapper + SSE + retry primitive）
+include(":neton-ai")         // AI 抽象层（generateText/streamText/tool loop/router/usage, OpenAi-compat + Anthropic v0.1）
 include(":neton-routing")    // 路由组件模块
 include(":neton-security")   // 安全组件模块
 include(":neton-redis")      // Redis 客户端模块
