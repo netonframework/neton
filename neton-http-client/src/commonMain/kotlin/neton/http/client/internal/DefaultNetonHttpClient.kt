@@ -22,6 +22,7 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import neton.http.client.NetonHttpBody
 import neton.http.client.NetonHttpClient
@@ -77,7 +78,7 @@ internal class DefaultNetonHttpClient(
         )
     }
 
-    override fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk> = flow {
+    override fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk> = channelFlow {
         client.prepareRequest { applyRequest(request) }.execute { response ->
             val channel: ByteReadChannel = response.bodyAsChannel()
             val buf = ByteArray(DEFAULT_STREAM_CHUNK_BYTES)
@@ -85,7 +86,7 @@ internal class DefaultNetonHttpClient(
                 while (true) {
                     val n = channel.readAvailable(buf)
                     if (n <= 0) break
-                    emit(NetonHttpStreamChunk.Bytes(buf.copyOf(n)))
+                    send(NetonHttpStreamChunk.Bytes(buf.copyOf(n)))
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -94,7 +95,7 @@ internal class DefaultNetonHttpClient(
             } catch (e: Throwable) {
                 throw NetonHttpException(NetonHttpError.Unknown(e.message ?: "Unknown stream error", e))
             }
-            emit(
+            send(
                 NetonHttpStreamChunk.End(
                     finalHeaders = response.headers.entries().associate { it.key to it.value.firstOrNull().orEmpty() }
                 )
