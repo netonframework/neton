@@ -29,6 +29,6 @@ class OpenAiCompatibleProvider(
         logSink = logSink,
         debug = debug,
     )
-    override fun streamingTextModel(modelName: String): AiStreamingTextModel? = null  // PR2
+    override fun streamingTextModel(modelName: String): AiStreamingTextModel = textModel(modelName) as AiStreamingTextModel
     override fun embeddingModel(modelName: String): AiEmbeddingModel? = null          // PR3
 }
