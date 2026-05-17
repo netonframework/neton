@@ -60,5 +60,23 @@ interface NetonHttpClient {
             }
             return DefaultNetonHttpClient(defaultTimeout = cfg.toEffectiveTimeout())
         }
+
+        /**
+         * Construct with a caller-supplied Ktor engine factory. Intended for tests (MockEngine)
+         * and advanced production cases (custom engine config). Use [create] for normal usage.
+         */
+        fun createWithEngine(
+            engineFactory: io.ktor.client.engine.HttpClientEngineFactory<*>,
+            block: HttpClientConfig.() -> Unit = {},
+        ): NetonHttpClient {
+            val cfg = HttpClientConfig().apply(block)
+            val errors = cfg.validate()
+            if (errors.isNotEmpty()) {
+                throw NetonHttpException(NetonHttpError.Unknown(
+                    "Invalid HTTP client config: ${errors.joinToString()}", null,
+                ))
+            }
+            return DefaultNetonHttpClient(engineFactory = engineFactory, defaultTimeout = cfg.toEffectiveTimeout())
+        }
     }
 }
