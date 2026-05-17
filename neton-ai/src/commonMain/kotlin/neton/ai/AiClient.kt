@@ -1,6 +1,8 @@
 package neton.ai
 
+import kotlinx.coroutines.flow.Flow
 import neton.ai.builder.GenerateTextRequestBuilder
+import neton.ai.builder.StreamTextRequestBuilder
 
 /**
  * Lightweight log sink — a function that accepts a sanitized log line. Decoupled from
@@ -21,6 +23,8 @@ typealias AiLogSink = (line: String) -> Unit
 interface AiClient {
     suspend fun generateText(block: GenerateTextRequestBuilder.() -> Unit): GenerateTextResult
     suspend fun generateText(request: GenerateTextRequest): GenerateTextResult
+    fun streamText(block: StreamTextRequestBuilder.() -> Unit): Flow<AiStreamEvent>
+    fun streamText(request: StreamTextRequest): Flow<AiStreamEvent>
     suspend fun close()
 
     companion object {
