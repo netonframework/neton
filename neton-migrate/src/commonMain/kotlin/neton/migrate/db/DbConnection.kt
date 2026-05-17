@@ -25,6 +25,45 @@ class DbConnection private constructor(
         executor.execute(Statement.create(sql)).getOrThrow()
 
     /**
+     * 把多条语句包在同一个 sqlx4k Transaction 内 (pinned connection) 执行.
+     *
+     * 背景 (v1 BLOCKER-3 修复):
+     *   原 [UpCommand.executeScript] 通过 [execute] 分别发 "BEGIN" / 业务 statements
+     *   / "COMMIT". sqlx4k 的 PG driver 使用连接池, 每次 [execute] 可能从池里取
+     *   不同连接 — BEGIN 在 conn-A 开了事务但 ALTER 跑在 conn-B 上是 autocommit;
+     *   随后业务调用 hang 在池耗尽 (conn-A 还在 tx 模式占用). 表象就是 V007/V008
+     *   "OK 但 schema 没变" + history 没写, 或新 multi-statement migration hang.
+     *
+     * 本方法用 sqlx4k 的 `QueryExecutor.Transactional` API: `.transaction { tx -> ... }`
+     * 拿到 pinned 连接, 块内所有 `tx.execute` 都走同一连接; 块正常返回自动 commit,
+     * 抛异常自动 rollback.
+     *
+     * driver 不支持 (e.g. MySQL DDL autocommit) -> 抛 [UnsupportedOperationException].
+     * 调用方按 driver 类型决定是否调本方法.
+     */
+    suspend fun executeAllInTransaction(statements: List<String>) {
+        val tx = executor as? io.github.smyrgeorge.sqlx4k.QueryExecutor.Transactional
+            ?: throw UnsupportedOperationException(
+                "driver $driver does not support transactions via sqlx4k Transactional API"
+            )
+        tx.transaction {
+            for (stmt in statements) {
+                execute(Statement.create(stmt)).getOrThrow()
+            }
+        }
+    }
+
+    /**
+     * MySQL 路径: 不开事务 (DDL 自动 commit), 逐条 [execute] 同 v0.1 行为.
+     * 任一条失败抛, 调用方负责 history 标记 success=false.
+     */
+    suspend fun executeAllSequential(statements: List<String>) {
+        for (stmt in statements) {
+            execute(stmt)
+        }
+    }
+
+    /**
      * 按列名读字符串。sqlx4k 把所有列以字符串形式返回，由调用方转型。
      * 仅供 history 表读取使用 —— 列结构固定。
      */
