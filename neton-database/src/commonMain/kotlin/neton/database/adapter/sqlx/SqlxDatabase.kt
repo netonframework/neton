@@ -1,16 +1,22 @@
 package neton.database.adapter.sqlx
 
 import io.github.smyrgeorge.sqlx4k.QueryExecutor
-import io.github.smyrgeorge.sqlx4k.postgres.PostgreSQL
-import io.github.smyrgeorge.sqlx4k.mysql.MySQL
-import io.github.smyrgeorge.sqlx4k.sqlite.SQLite
 import neton.database.config.DatabaseConfig
 import neton.database.config.DatabaseDriver
-import neton.database.config.MysqlUriInfo
-import neton.database.config.PostgresUriInfo
 
 /**
- * 持有 sqlx4k 数据源（SQLite / PostgreSQL / MySQL），根据 database.conf 配置自动选择驱动
+ * 持有 sqlx4k 数据源（PostgreSQL / MySQL / SQLite），根据 database.conf 配置自动选择驱动.
+ *
+ * **K/N executable 单 driver 约束 (NETON-DB-VARIANT, 2026-05-20)**:
+ *   每个 sqlx4k native driver klib 携带完整 Rust runtime; 若 K/N executable 同时链接
+ *   多个 driver, ld.lld 会报 duplicate symbol (rust_eh_personality 等). 所以
+ *   neton-database 改成 **build-time variant**: gradle property `neton.database.driver`
+ *   选 `postgres` | `mysql` | `sqlite` (默认 postgres), 编译期只链接一个 driver.
+ *
+ *   driver instantiation 通过 `createSqlxDriver(config)` 委托给 variant 源码目录
+ *   ({postgres,mysql,sqlite}Variant/kotlin); 本对象不直接引用 PostgreSQL/MySQL/SQLite 类.
+ *
+ *   切换 variant: `./gradlew -Pneton.database.driver=sqlite <target>`
  */
 object SqlxDatabase {
     private var db: QueryExecutor? = null
@@ -18,31 +24,12 @@ object SqlxDatabase {
 
     fun initialize(config: DatabaseConfig) {
         driver = config.driver
-        db = when (config.driver) {
-            DatabaseDriver.MEMORY -> SQLite(url = "sqlite::memory:")
-            DatabaseDriver.SQLITE -> SQLite(
-                url = config.uri.takeIf { it.startsWith("sqlite") } ?: "sqlite://${config.uri}"
-            )
-            DatabaseDriver.POSTGRESQL -> {
-                val info = config.parseUri() as PostgresUriInfo
-                PostgreSQL(
-                    url = "postgresql://${info.host}:${info.port}/${info.database}",
-                    username = info.username,
-                    password = info.password
-                )
-            }
-            DatabaseDriver.MYSQL -> {
-                val info = config.parseUri() as MysqlUriInfo
-                MySQL(
-                    url = "mysql://${info.host}:${info.port}/${info.database}",
-                    username = info.username,
-                    password = info.password
-                )
-            }
-        }
+        db = createSqlxDriver(config)
     }
 
-    fun require(): QueryExecutor = db ?: throw IllegalStateException("SqlxDatabase 未初始化，请先调用 database { }")
+    fun require(): QueryExecutor = db ?: throw IllegalStateException(
+        "SqlxDatabase 未初始化，请先调用 database { } (or SqlxDatabase.initialize(config))"
+    )
 
     fun currentDriver(): DatabaseDriver = driver
 
@@ -51,3 +38,8 @@ object SqlxDatabase {
         require().execute(ddl).getOrThrow()
     }
 }
+
+// `createSqlxDriver(config)` 是 build variant 注入的工厂函数, 定义在
+// src/{postgres,mysql,sqlite}Variant/kotlin/.../SqlxDriverFactory.kt.
+// build.gradle.kts 按 gradle property `neton.database.driver` 添加对应的 srcDir,
+// commonMain 编译时该函数可见.
