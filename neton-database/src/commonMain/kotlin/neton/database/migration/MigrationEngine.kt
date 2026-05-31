@@ -30,24 +30,31 @@ class MigrationEngine(
      *   - 不写 stdout
      *   - 不调 exit
      */
-    suspend fun run(command: MigrationCommand, sources: List<MigrationSource>): MigrationResult =
-        when (command) {
-            MigrationCommand.STATUS -> runStatus(sources)
-            MigrationCommand.UP -> runUp(sources)
-            MigrationCommand.VERIFY -> runVerify(sources)
-        }
+    suspend fun run(command: MigrationCommand, sources: List<MigrationSource>): MigrationResult {
+        val scan = scanAll(sources)
+        if (scan is Either.Left) return scan.value
+        return runWithScripts(command, scan.right.first, scan.right.second)
+    }
+
+    /**
+     * 测试专用入口: 跳过文件扫描,直接给 engine 预先 scan 好的 [MigrationScript] 列表。
+     * 生产代码走 [run],由 [scanAll] 调真实文件 IO。
+     */
+    internal suspend fun runWithScripts(
+        command: MigrationCommand,
+        scripts: List<MigrationScript>,
+        warnings: List<String> = emptyList(),
+    ): MigrationResult = when (command) {
+        MigrationCommand.STATUS -> runStatus(scripts, warnings)
+        MigrationCommand.UP -> runUp(scripts, warnings)
+        MigrationCommand.VERIFY -> runVerify(scripts, warnings)
+    }
 
     // ============================================================
     // STATUS
     // ============================================================
 
-    private suspend fun runStatus(sources: List<MigrationSource>): MigrationResult {
-        val scan = scanAll(sources)
-        if (scan is Either.Left) return scan.value
-
-        val scripts = scan.right.first
-        val warnings = scan.right.second
-
+    private suspend fun runStatus(scripts: List<MigrationScript>, warnings: List<String>): MigrationResult {
         val historyExists = history.exists()
         if (!historyExists) {
             val views = scripts.map {
@@ -116,13 +123,7 @@ class MigrationEngine(
     // VERIFY (只读)
     // ============================================================
 
-    private suspend fun runVerify(sources: List<MigrationSource>): MigrationResult {
-        val scan = scanAll(sources)
-        if (scan is Either.Left) return scan.value
-
-        val scripts = scan.right.first
-        val warnings = scan.right.second
-
+    private suspend fun runVerify(scripts: List<MigrationScript>, warnings: List<String>): MigrationResult {
         if (!history.exists()) {
             return MigrationResult.Aborted(
                 reason = "history table '${config.historyTable}' does not exist; nothing to verify",
@@ -171,13 +172,7 @@ class MigrationEngine(
     // UP
     // ============================================================
 
-    private suspend fun runUp(sources: List<MigrationSource>): MigrationResult {
-        val scan = scanAll(sources)
-        if (scan is Either.Left) return scan.value
-
-        val scripts = scan.right.first
-        val warnings = scan.right.second
-
+    private suspend fun runUp(scripts: List<MigrationScript>, warnings: List<String>): MigrationResult {
         history.ensureExists()
 
         val executed = history.listAll()
@@ -348,8 +343,16 @@ class MigrationEngine(
             }
         }
 
-        // 排序: 同 module 按 version, 不同 module 按 moduleId(执行顺序由 application
-        // 在 DB-MIG-3 / DB-MIG-4 决定;engine 内部稳定排序即可)
+        // 排序:
+        //   - 同 module 内: 按 version 升序 (零填充避免 "10" < "2" 字典序坑) — frozen
+        //   - 跨 module: 当前按 moduleId 字典序 (稳定 + 可预测)
+        //
+        // DB-MIG-3 接 ModuleInitializer.dependsOn 后, application 入口负责把 sources 按
+        // 依赖拓扑序传进来. engine 在这里仍按 moduleId 字典 + version 排序作为 secondary
+        // 稳定排序; primary 顺序由 List 顺序天然保持 (sortedWith 是稳定排序). 因此:
+        //
+        // **caller 约定 (DB-MIG-3 阶段强制)**: List<MigrationSource> 必须按模块依赖拓扑
+        // 顺序传入 (depends-on 在前). engine 不验证拓扑, 也不重排.
         val maxVer = allScripts.maxOfOrNull { it.version.length } ?: 0
         val sorted = allScripts.sortedWith(
             compareBy({ it.moduleId }, { it.version.padStart(maxVer, '0') })

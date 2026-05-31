@@ -3,19 +3,48 @@ package neton.database.migration
 import neton.database.api.DbContext
 
 /**
- * 全局 history 表的 DDL + CRUD,跨 module 共享。SPEC §0.4 / §六:
- *   - 表名 = [MigrationConfig.historyTable](可配,默认 `neton_schema_history`)
- *   - 列: module_id / version / description / checksum / installed_at /
- *         execution_ms / success / error_message
- *   - UNIQUE(module_id, version)
+ * 全局 history 表的 DDL + CRUD,跨 module 共享 (SPEC §0.4 / §六)。
  *
- * 所有 SQL 走 [DbContext.execute] / [DbContext.fetchAll](raw 逃生口),
- * 不依赖 sqlx4k driver 类型 — engine 与 application serve 共享同一个
- * DbContext / driver(NETON-DB-VARIANT 单 driver 约束)。
+ * # Frozen contract (DB-MIG-2)
  *
- * 注意: 因 history 表名来自 config,无法用普通参数绑定(SQL identifier),
- * 表名拼接走静态校验([validateTableName])。其它字段值仍走 escapeSql,
- * 写入次数极低(每个 migration 一次)。
+ * **Identity key**: `(module_id, version)` 组合键。同 module 内 version 唯一;跨 module
+ * 版本号可以重复 (`payment.V001` 与 `member.V001` 互不冲突)。`module_id` 是业务声明的
+ * **opaque namespace**,framework 不解释其语义,只用它做 history 隔离。
+ *
+ * **列契约** (三方言对齐;`success` 类型按方言原生表示,读出在 [parseSuccess] 兼容):
+ *
+ * | 列 | SQLite | PostgreSQL | MySQL |
+ * |---|---|---|---|
+ * | `module_id` | TEXT NOT NULL | VARCHAR(64) NOT NULL | VARCHAR(64) NOT NULL |
+ * | `version` | TEXT NOT NULL | VARCHAR(32) NOT NULL | VARCHAR(32) NOT NULL |
+ * | `description` | TEXT | VARCHAR(255) | VARCHAR(255) |
+ * | `checksum` | TEXT | VARCHAR(128) | VARCHAR(128) |
+ * | `installed_at` | INTEGER NOT NULL | BIGINT NOT NULL | BIGINT NOT NULL |
+ * | `execution_ms` | INTEGER NOT NULL | BIGINT NOT NULL | BIGINT NOT NULL |
+ * | `success` | INTEGER NOT NULL | BOOLEAN NOT NULL | TINYINT(1) NOT NULL |
+ * | `error_message` | TEXT | TEXT | TEXT |
+ * | UNIQUE | `UNIQUE(module_id, version)` | 同 | 同 (inline, 避免 named index 长度溢出) |
+ *
+ * 写入: SQL 拼接 (因表名是 identifier 无法参数绑定);值走 [esc] 单引号转义。表名经
+ * [validateTableName] 静态校验 (允许字符 `[A-Za-z_][A-Za-z0-9_]{0,62}`)。
+ *
+ * # 操作员恢复路径 (success=false)
+ *
+ * 一旦某行 `success=false`,[MigrationEngine] 的所有后续 UP 都会 fail-fast Aborted
+ * (SPEC §6.3 红线: 不自动重试)。操作员必须:
+ *   1. 排查失败原因 (查 `error_message` + 数据库实际状态)
+ *   2. 手工修复 schema (回滚已部分 commit 的 DDL,尤其 MySQL)
+ *   3. 手工 `DELETE FROM <history_table> WHERE module_id=? AND version=?`
+ *   4. 重新 `./application.kexe migrate up`
+ *
+ * 框架**不**提供 `migrate reset` / `migrate retry` 命令 — 这两个属于危险操作,留在 SQL
+ * 层显式执行,避免误用。
+ *
+ * # 运行时约束
+ *
+ * 所有 SQL 走 [DbContext.execute] / [DbContext.fetchAll] (raw 逃生口),不依赖 sqlx4k
+ * driver 类型 — engine 与 application serve 共享同一个 DbContext / driver
+ * (NETON-DB-VARIANT 单 driver 约束)。
  */
 internal class SchemaHistoryRepository(
     private val db: DbContext,
@@ -105,56 +134,11 @@ internal class SchemaHistoryRepository(
         db.execute(sql)
     }
 
-    private fun boolLit(v: Boolean): String = when (dialect) {
-        MigrationDialect.POSTGRESQL -> if (v) "TRUE" else "FALSE"
-        MigrationDialect.MYSQL, MigrationDialect.SQLITE -> if (v) "1" else "0"
-    }
+    private fun ddl(): String = historyTableDdl(dialect, table)
 
-    private fun esc(s: String): String = s.replace("'", "''")
+    private fun boolLit(v: Boolean): String = historyBoolLiteral(dialect, v)
 
-    private fun ddl(): String = when (dialect) {
-        MigrationDialect.SQLITE -> """
-            CREATE TABLE IF NOT EXISTS $table (
-              module_id     TEXT NOT NULL,
-              version       TEXT NOT NULL,
-              description   TEXT,
-              checksum      TEXT,
-              installed_at  INTEGER NOT NULL,
-              execution_ms  INTEGER NOT NULL,
-              success       INTEGER NOT NULL,
-              error_message TEXT,
-              UNIQUE(module_id, version)
-            )
-        """.trimIndent()
-
-        MigrationDialect.POSTGRESQL -> """
-            CREATE TABLE IF NOT EXISTS $table (
-              module_id     VARCHAR(64)  NOT NULL,
-              version       VARCHAR(32)  NOT NULL,
-              description   VARCHAR(255),
-              checksum      VARCHAR(128),
-              installed_at  BIGINT       NOT NULL,
-              execution_ms  BIGINT       NOT NULL,
-              success       BOOLEAN      NOT NULL,
-              error_message TEXT,
-              UNIQUE(module_id, version)
-            )
-        """.trimIndent()
-
-        MigrationDialect.MYSQL -> """
-            CREATE TABLE IF NOT EXISTS $table (
-              module_id     VARCHAR(64)  NOT NULL,
-              version       VARCHAR(32)  NOT NULL,
-              description   VARCHAR(255),
-              checksum      VARCHAR(128),
-              installed_at  BIGINT       NOT NULL,
-              execution_ms  BIGINT       NOT NULL,
-              success       TINYINT(1)   NOT NULL,
-              error_message TEXT,
-              UNIQUE KEY uq_${table}_module_version (module_id, version)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        """.trimIndent()
-    }
+    private fun esc(s: String): String = escapeSqlString(s)
 
     companion object {
         private val TABLE_NAME_REGEX = Regex("""^[A-Za-z_][A-Za-z0-9_]{0,62}$""")
@@ -171,3 +155,66 @@ internal class SchemaHistoryRepository(
         }
     }
 }
+
+// ============================================================
+// History contract — DDL / boolean literal / single-quote escape.
+//
+// 把这些抽出为 top-level internal 函数,让 tests 能 lock 死 contract (DDL golden tests).
+// 不在 SchemaHistoryRepository 内是因为 instance 方法不便测 — 测试要构造 DbContext.
+// ============================================================
+
+internal fun historyTableDdl(dialect: MigrationDialect, table: String): String = when (dialect) {
+    MigrationDialect.SQLITE -> """
+        CREATE TABLE IF NOT EXISTS $table (
+          module_id     TEXT NOT NULL,
+          version       TEXT NOT NULL,
+          description   TEXT,
+          checksum      TEXT,
+          installed_at  INTEGER NOT NULL,
+          execution_ms  INTEGER NOT NULL,
+          success       INTEGER NOT NULL,
+          error_message TEXT,
+          UNIQUE(module_id, version)
+        )
+    """.trimIndent()
+
+    MigrationDialect.POSTGRESQL -> """
+        CREATE TABLE IF NOT EXISTS $table (
+          module_id     VARCHAR(64)  NOT NULL,
+          version       VARCHAR(32)  NOT NULL,
+          description   VARCHAR(255),
+          checksum      VARCHAR(128),
+          installed_at  BIGINT       NOT NULL,
+          execution_ms  BIGINT       NOT NULL,
+          success       BOOLEAN      NOT NULL,
+          error_message TEXT,
+          UNIQUE(module_id, version)
+        )
+    """.trimIndent()
+
+    // MySQL 用行内 UNIQUE (跟 PG / SQLite 一致), 避免 named index `uq_${table}_...`
+    // 在 table 名接近 validateTableName 上限(63 char)时超过 MySQL 64 char 标识符限制.
+    // utf8mb4_bin: history 表只存 ASCII (module_id / version / checksum), 二进制对比,
+    // 避免不同 collation 下大小写敏感性漂移影响 UNIQUE 行为.
+    MigrationDialect.MYSQL -> """
+        CREATE TABLE IF NOT EXISTS $table (
+          module_id     VARCHAR(64)  NOT NULL,
+          version       VARCHAR(32)  NOT NULL,
+          description   VARCHAR(255),
+          checksum      VARCHAR(128),
+          installed_at  BIGINT       NOT NULL,
+          execution_ms  BIGINT       NOT NULL,
+          success       TINYINT(1)   NOT NULL,
+          error_message TEXT,
+          UNIQUE (module_id, version)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+    """.trimIndent()
+}
+
+/** Boolean → SQL literal,方言原生表示。frozen DB-MIG-2。 */
+internal fun historyBoolLiteral(dialect: MigrationDialect, v: Boolean): String = when (dialect) {
+    MigrationDialect.POSTGRESQL -> if (v) "TRUE" else "FALSE"
+    MigrationDialect.MYSQL, MigrationDialect.SQLITE -> if (v) "1" else "0"
+}
+
+internal fun escapeSqlString(s: String): String = s.replace("'", "''")
