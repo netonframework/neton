@@ -1,5 +1,6 @@
 package neton.database.migration
 
+import neton.core.module.MigrationDialect
 import neton.database.api.DbContext
 
 /**

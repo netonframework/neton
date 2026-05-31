@@ -45,4 +45,18 @@ interface ModuleInitializer {
      * 框架在组件 init/start 之后、用户配置块之前调用。
      */
     fun initialize(ctx: NetonContext)
+
+    /**
+     * 模块的 migration sources。默认空,无 schema 的模块不需要 override。
+     *
+     * 一个模块可以声明多份(三方言并存),`application.kexe migrate` 会按 application 当前
+     * 链接的 sqlx4k driver 过滤匹配的 [MigrationDialect]。
+     *
+     * SPEC §0.3 / §五 / §六。框架不解释 [MigrationSource.moduleId] 的业务语义,只把它当 opaque
+     * namespace 写入 history 表 `(module_id, version)` 复合键。
+     *
+     * 执行时机: **只在** `./application.kexe migrate up` 子命令下,**正常启动绝不**触发(SPEC §0.6
+     * 红线;[initialize] 内禁止调用 migration engine)。
+     */
+    fun migrations(): List<MigrationSource> = emptyList()
 }

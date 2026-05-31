@@ -1,5 +1,6 @@
 package neton.database.migration
 
+import neton.core.module.MigrationDialect
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

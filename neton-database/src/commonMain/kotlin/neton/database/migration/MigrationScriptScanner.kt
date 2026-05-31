@@ -1,5 +1,7 @@
 package neton.database.migration
 
+import neton.core.module.MigrationSource
+
 /**
  * 扫描 [MigrationSource.resourcePath] 下所有 V*.sql 文件,按 version 升序返回。
  * 不符合命名规范的文件被跳过(不报错,但记入 warnings)。

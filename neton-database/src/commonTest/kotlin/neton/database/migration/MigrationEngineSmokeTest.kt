@@ -1,5 +1,7 @@
 package neton.database.migration
 
+import neton.core.module.MigrationDialect
+import neton.core.module.MigrationSource
 import neton.database.config.DatabaseDriver
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,10 +50,10 @@ class MigrationEngineSmokeTest {
 
     @Test
     fun dialect_fromDriver_memoryMapsToSqlite() {
-        assertEquals(MigrationDialect.POSTGRESQL, MigrationDialect.fromDriver(DatabaseDriver.POSTGRESQL))
-        assertEquals(MigrationDialect.MYSQL, MigrationDialect.fromDriver(DatabaseDriver.MYSQL))
-        assertEquals(MigrationDialect.SQLITE, MigrationDialect.fromDriver(DatabaseDriver.SQLITE))
-        assertEquals(MigrationDialect.SQLITE, MigrationDialect.fromDriver(DatabaseDriver.MEMORY))
+        assertEquals(MigrationDialect.POSTGRESQL, MigrationDialect.Companion.fromDriver(DatabaseDriver.POSTGRESQL))
+        assertEquals(MigrationDialect.MYSQL, MigrationDialect.Companion.fromDriver(DatabaseDriver.MYSQL))
+        assertEquals(MigrationDialect.SQLITE, MigrationDialect.Companion.fromDriver(DatabaseDriver.SQLITE))
+        assertEquals(MigrationDialect.SQLITE, MigrationDialect.Companion.fromDriver(DatabaseDriver.MEMORY))
     }
 
     // ============================================================
