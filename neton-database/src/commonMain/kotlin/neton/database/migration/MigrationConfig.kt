@@ -1,5 +1,7 @@
 package neton.database.migration
 
+import neton.core.module.MigrationDialect
+
 /**
  * Migration engine 运行时配置。
  *
