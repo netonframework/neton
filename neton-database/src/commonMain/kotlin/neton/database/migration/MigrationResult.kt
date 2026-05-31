@@ -21,12 +21,28 @@ sealed class MigrationResult {
         val errorMessage: String? = null,
     )
 
+    /**
+     * 状态模型 (frozen — DB-MIG-2):
+     *
+     * | 磁盘 | history | history.success | state |
+     * |---|---|---|---|
+     * | 有 | 无 | — | [PENDING] (SPEC 术语: pending) |
+     * | 有 | 有 | true,checksum 同 | [EXECUTED] (SPEC 术语: applied) |
+     * | 有 | 有 | true,checksum 不同 | [CHECKSUM_MISMATCH] (SPEC 术语: changed) |
+     * | 有 | 有 | false | [FAILED] (SPEC 术语: failed) |
+     * | 无 | 有 | — | [MISSING_ON_DISK] |
+     *
+     * **优先级**: 同一 row 上 `FAILED` 优先于 `CHECKSUM_MISMATCH`。即使 history.success=false
+     * 且 磁盘 checksum 也漂移,[MigrationEngine.runStatus] 报 `FAILED`,不报 `CHECKSUM_MISMATCH`。
+     * 原因: failed migrations 需要操作员先解决 (DELETE history 行 + 修 schema),才有讨论
+     * checksum 漂移的意义。两个信号同时存在时,FAILED 是更紧急的那个。
+     */
     enum class ScriptState {
-        EXECUTED,             // 已应用,checksum 匹配
-        PENDING,              // 磁盘有,history 无
-        CHECKSUM_MISMATCH,    // history 有但磁盘 checksum 变了
-        MISSING_ON_DISK,      // history 有但磁盘文件没了
-        FAILED,               // history 中标记 success=false
+        EXECUTED,
+        PENDING,
+        CHECKSUM_MISMATCH,
+        MISSING_ON_DISK,
+        FAILED,
     }
 
     /** status 结果。 */
