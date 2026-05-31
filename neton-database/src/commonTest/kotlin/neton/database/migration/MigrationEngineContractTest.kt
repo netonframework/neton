@@ -1,6 +1,8 @@
 package neton.database.migration
 
 import neton.core.module.MigrationDialect
+import neton.core.module.MigrationScript
+import neton.core.module.MigrationSource
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,7 +11,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * DB-MIG-2 — Engine state-matrix contract frozen.
+ * DB-MIG-2 — Engine state-matrix contract frozen (DB-MIG embed refactor: scripts 直接走
+ * MigrationSource,无文件 IO)。
  *
  * 覆盖:
  *   - STATUS 5 个状态 (PENDING / EXECUTED / CHECKSUM_MISMATCH / FAILED / MISSING_ON_DISK)
@@ -18,8 +21,8 @@ import kotlin.test.assertTrue
  *   - VERIFY 三种结果 (无表 / 全 ok / mismatch+missing)
  *   - 所有命令路径都按 (module_id, version) 复合键 lookup
  *
- * 用 [FakeMigrationDb] 注入 history 状态;脚本走 [MigrationEngine.runWithScripts]
- * 跳过文件 IO。
+ * 用 [FakeMigrationDb] 注入 history 状态;脚本走 embed 形态: MigrationSource(moduleId,
+ * dialect, scripts=[MigrationScript(version, desc, content, checksum)])。
  */
 class MigrationEngineContractTest {
 
@@ -28,16 +31,26 @@ class MigrationEngineContractTest {
         historyTable = "test_migrations",
     )
 
-    private fun script(module: String, version: String, checksum: String): MigrationScript =
+    /** 单脚本构造帮手。 */
+    private fun script(version: String, checksum: String, module: String = "test"): MigrationScript =
         MigrationScript(
-            moduleId = module,
             version = version,
             description = "test_$version",
-            fileName = "V$version" + "__test_$version.sql",
-            absolutePath = "/fake/V$version" + "__test_$version.sql",
             content = "-- fake content for $module V$version $checksum",
             checksum = checksum,
         )
+
+    /** 把多个 (module, version, checksum) 打包成按 module 分组的 source 列表(保持声明顺序)。 */
+    private fun sourcesOf(vararg entries: Triple<String, String, String>): List<MigrationSource> {
+        // 按 module 分组,保持首次出现顺序
+        val byModule = linkedMapOf<String, MutableList<MigrationScript>>()
+        for ((module, version, checksum) in entries) {
+            byModule.getOrPut(module) { mutableListOf() } += script(version, checksum, module)
+        }
+        return byModule.map { (moduleId, scripts) ->
+            MigrationSource(moduleId, MigrationDialect.POSTGRESQL, scripts)
+        }
+    }
 
     private fun history(
         module: String,
@@ -64,9 +77,12 @@ class MigrationEngineContractTest {
     fun status_noHistoryTable_allScriptsArePending() = runTest {
         val db = FakeMigrationDb(initialRows = null)
         val engine = MigrationEngine(db, config)
-        val scripts = listOf(script("game", "001", "ck1"), script("game", "002", "ck2"))
+        val sources = sourcesOf(
+            Triple("game", "001", "ck1"),
+            Triple("game", "002", "ck2"),
+        )
 
-        val r = engine.runWithScripts(MigrationCommand.STATUS, scripts) as MigrationResult.Status
+        val r = engine.run(MigrationCommand.STATUS, sources) as MigrationResult.Status
         assertEquals(false, r.historyExists)
         assertEquals(2, r.pendingCount)
         assertEquals(0, r.executedCount)
@@ -79,9 +95,9 @@ class MigrationEngineContractTest {
     fun status_executed_matchingChecksum() = runTest {
         val db = FakeMigrationDb(initialRows = listOf(history("game", "001", "ck1")))
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.STATUS,
-            listOf(script("game", "001", "ck1")),
+            sourcesOf(Triple("game", "001", "ck1")),
         ) as MigrationResult.Status
         assertEquals(1, r.executedCount)
         assertEquals(0, r.pendingCount)
@@ -91,9 +107,9 @@ class MigrationEngineContractTest {
     fun status_checksumMismatch_detected() = runTest {
         val db = FakeMigrationDb(initialRows = listOf(history("game", "001", "history_ck")))
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.STATUS,
-            listOf(script("game", "001", "disk_ck")),
+            sourcesOf(Triple("game", "001", "disk_ck")),
         ) as MigrationResult.Status
         assertEquals(1, r.mismatchCount)
         val view = r.scripts.first()
@@ -106,9 +122,9 @@ class MigrationEngineContractTest {
     fun status_missingOnDisk_detected() = runTest {
         val db = FakeMigrationDb(initialRows = listOf(history("game", "001", "ck1")))
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.STATUS,
-            scripts = emptyList(), // 磁盘空
+            sources = emptyList(), // 磁盘空 (无 source 声明)
         ) as MigrationResult.Status
         assertEquals(0, r.pendingCount)
         assertEquals(0, r.executedCount)
@@ -123,9 +139,9 @@ class MigrationEngineContractTest {
             initialRows = listOf(history("game", "001", "ck1", success = false, error = "boom"))
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.STATUS,
-            listOf(script("game", "001", "ck1")),
+            sourcesOf(Triple("game", "001", "ck1")),
         ) as MigrationResult.Status
         assertEquals(1, r.failedCount)
         val view = r.scripts.first()
@@ -135,7 +151,6 @@ class MigrationEngineContractTest {
 
     /**
      * Audit 点 #4 (优先级 contract): FAILED 优先于 CHECKSUM_MISMATCH。
-     * 即使 history.success=false **且** 磁盘 checksum 也漂移,status 报 FAILED。
      */
     @Test
     fun status_failedPriority_overridesChecksumMismatch() = runTest {
@@ -143,9 +158,9 @@ class MigrationEngineContractTest {
             initialRows = listOf(history("game", "001", "old_ck", success = false, error = "boom"))
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.STATUS,
-            listOf(script("game", "001", "new_ck")),
+            sourcesOf(Triple("game", "001", "new_ck")),
         ) as MigrationResult.Status
         assertEquals(1, r.failedCount)
         assertEquals(0, r.mismatchCount, "FAILED must take priority over CHECKSUM_MISMATCH")
@@ -165,12 +180,12 @@ class MigrationEngineContractTest {
             )
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.STATUS,
-            listOf(
-                script("payment", "001", "pay_ck"),
-                script("member", "001", "mem_ck"),
-                script("game", "001", "game_ck"), // new module → pending
+            sourcesOf(
+                Triple("payment", "001", "pay_ck"),
+                Triple("member", "001", "mem_ck"),
+                Triple("game", "001", "game_ck"),
             ),
         ) as MigrationResult.Status
         assertEquals(2, r.executedCount)
@@ -188,9 +203,9 @@ class MigrationEngineContractTest {
             initialRows = listOf(history("game", "001", "ck", success = false, error = "boom"))
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.UP,
-            listOf(script("game", "001", "ck"), script("game", "002", "ck2")),
+            sourcesOf(Triple("game", "001", "ck"), Triple("game", "002", "ck2")),
         )
         assertTrue(r is MigrationResult.Aborted, "got: $r")
         assertTrue(r.reason.contains("manual intervention"), "abort msg: ${r.reason}")
@@ -201,16 +216,15 @@ class MigrationEngineContractTest {
     fun up_checksumMismatch_aborts_beforePending() = runTest {
         val db = FakeMigrationDb(initialRows = listOf(history("game", "001", "history_ck")))
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.UP,
-            listOf(
-                script("game", "001", "disk_ck"),
-                script("game", "002", "newest"), // pending
+            sourcesOf(
+                Triple("game", "001", "disk_ck"),
+                Triple("game", "002", "newest"),
             ),
         )
         assertTrue(r is MigrationResult.Aborted, "got: $r")
         assertTrue(r.reason.contains("checksum mismatch"))
-        // pending V002 should not have been applied because mismatch came first
         assertTrue(db.executedSql.none { it.contains("V002") })
     }
 
@@ -218,9 +232,9 @@ class MigrationEngineContractTest {
     fun up_noPending_returnsUpWithSkipped() = runTest {
         val db = FakeMigrationDb(initialRows = listOf(history("game", "001", "ck1")))
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.UP,
-            listOf(script("game", "001", "ck1")),
+            sourcesOf(Triple("game", "001", "ck1")),
         ) as MigrationResult.Up
         assertTrue(r.ok)
         assertEquals(0, r.applied.size)
@@ -232,18 +246,17 @@ class MigrationEngineContractTest {
     fun up_appliesPending_writesHistory_inOrder() = runTest {
         val db = FakeMigrationDb(initialRows = emptyList())
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.UP,
-            listOf(
-                script("game", "001", "ck1"),
-                script("game", "002", "ck2"),
+            sourcesOf(
+                Triple("game", "001", "ck1"),
+                Triple("game", "002", "ck2"),
             ),
         ) as MigrationResult.Up
         assertTrue(r.ok)
         assertEquals(2, r.applied.size)
         assertEquals("001", r.applied[0].version)
         assertEquals("002", r.applied[1].version)
-        // history table should have been CREATE'd, then 2 INSERTs (post-script)
         val ddl = db.executedSql.firstOrNull { it.contains("CREATE TABLE IF NOT EXISTS") }
         assertNotNull(ddl)
         val inserts = db.executedSql.filter { it.startsWith("INSERT INTO test_migrations") }
@@ -260,16 +273,21 @@ class MigrationEngineContractTest {
             },
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.UP,
             listOf(
-                script("game", "001", "ck1"),
-                MigrationScript(
-                    moduleId = "game", version = "002",
-                    description = "boom", fileName = "V002__boom.sql",
-                    absolutePath = "/fake/V002.sql",
-                    content = "CREATE TABLE ok (id INT); SELECT 'fail-me';",
-                    checksum = "ck2",
+                MigrationSource(
+                    moduleId = "game",
+                    dialect = MigrationDialect.POSTGRESQL,
+                    scripts = listOf(
+                        script("001", "ck1"),
+                        MigrationScript(
+                            version = "002",
+                            description = "boom",
+                            content = "CREATE TABLE ok (id INT); SELECT 'fail-me';",
+                            checksum = "ck2",
+                        ),
+                    ),
                 ),
             ),
         ) as MigrationResult.Up
@@ -290,7 +308,7 @@ class MigrationEngineContractTest {
     fun verify_noHistoryTable_aborts() = runTest {
         val db = FakeMigrationDb(initialRows = null)
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(MigrationCommand.VERIFY, emptyList())
+        val r = engine.run(MigrationCommand.VERIFY, emptyList())
         assertTrue(r is MigrationResult.Aborted)
         assertTrue(r.reason.contains("does not exist"))
     }
@@ -301,9 +319,9 @@ class MigrationEngineContractTest {
             initialRows = listOf(history("game", "001", "ck1"), history("game", "002", "ck2"))
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.VERIFY,
-            listOf(script("game", "001", "ck1"), script("game", "002", "ck2")),
+            sourcesOf(Triple("game", "001", "ck1"), Triple("game", "002", "ck2")),
         ) as MigrationResult.Verify
         assertTrue(r.ok)
         assertEquals(2, r.verifiedCount)
@@ -321,12 +339,11 @@ class MigrationEngineContractTest {
             )
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.VERIFY,
-            listOf(
-                script("game", "001", "disk_ck"), // mismatch
-                script("game", "002", "ck2"),     // ok
-                // payment/001 missing on disk
+            sourcesOf(
+                Triple("game", "001", "disk_ck"), // mismatch
+                Triple("game", "002", "ck2"),
             ),
         ) as MigrationResult.Verify
         assertEquals(false, r.ok)
@@ -339,7 +356,6 @@ class MigrationEngineContractTest {
 
     @Test
     fun verify_failedHistoryRows_areExcludedFromCheck() = runTest {
-        // failed rows 不参与 verify (verify 只校验已 applied 的 checksum)
         val db = FakeMigrationDb(
             initialRows = listOf(
                 history("game", "001", "ck1", success = true),
@@ -347,12 +363,9 @@ class MigrationEngineContractTest {
             )
         )
         val engine = MigrationEngine(db, config)
-        val r = engine.runWithScripts(
+        val r = engine.run(
             MigrationCommand.VERIFY,
-            listOf(
-                script("game", "001", "ck1"),
-                // game/002 也磁盘上消失 — 但因为它 failed=true, verify 不应报 missing
-            ),
+            sourcesOf(Triple("game", "001", "ck1")),
         ) as MigrationResult.Verify
         assertTrue(r.ok, "verify ignores failed rows; mismatches=${r.mismatches} missing=${r.missing}")
         assertEquals(1, r.verifiedCount)
@@ -367,19 +380,16 @@ class MigrationEngineContractTest {
         val db = FakeMigrationDb(
             initialRows = listOf(history("a", "001", "ck"), history("b", "001", "ck"))
         )
-        val scripts = listOf(script("a", "001", "ck"), script("b", "001", "ck"))
+        val sources = sourcesOf(Triple("a", "001", "ck"), Triple("b", "001", "ck"))
 
         val engine = MigrationEngine(db, config)
-        // STATUS: 两条都 EXECUTED, 不会因为 version 相同而冲突
-        val s = engine.runWithScripts(MigrationCommand.STATUS, scripts) as MigrationResult.Status
+        val s = engine.run(MigrationCommand.STATUS, sources) as MigrationResult.Status
         assertEquals(2, s.executedCount)
 
-        // VERIFY: 两条都 ok
-        val v = engine.runWithScripts(MigrationCommand.VERIFY, scripts) as MigrationResult.Verify
+        val v = engine.run(MigrationCommand.VERIFY, sources) as MigrationResult.Verify
         assertTrue(v.ok)
 
-        // UP: 没有 pending
-        val u = engine.runWithScripts(MigrationCommand.UP, scripts) as MigrationResult.Up
+        val u = engine.run(MigrationCommand.UP, sources) as MigrationResult.Up
         assertTrue(u.ok)
         assertEquals(0, u.applied.size)
     }

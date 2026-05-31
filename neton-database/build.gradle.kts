@@ -27,7 +27,9 @@ val nDbDriverLib = when (nDbDriver) {
 }
 
 kotlin {
-    val posixTargets = listOf(macosArm64(), linuxX64(), linuxArm64())
+    macosArm64()
+    linuxX64()
+    linuxArm64()
     mingwX64()
 
     sourceSets {
@@ -38,6 +40,7 @@ kotlin {
                 implementation(project(":neton-logging"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.datetime)
                 // 唯一 sqlx4k driver — 由 -Pneton.database.driver 决定 (默认 postgres).
                 implementation(nDbDriverLib)
             }
@@ -48,13 +51,6 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
             }
-        }
-
-        // posixMain: macosArm64 / linuxX64 / linuxArm64 共享 POSIX FileIO 实现.
-        // 用于 migration 包的文件扫描 / 当前时间. mingwX64 单独 actual.
-        val posixMain by creating { dependsOn(commonMain.get()) }
-        posixTargets.forEach { target ->
-            getByName("${target.name}Main").dependsOn(posixMain)
         }
     }
 }

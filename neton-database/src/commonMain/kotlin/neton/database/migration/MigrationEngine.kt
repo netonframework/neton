@@ -1,19 +1,27 @@
 package neton.database.migration
 
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 import neton.core.module.MigrationDialect
+import neton.core.module.MigrationScript
 import neton.core.module.MigrationSource
 import neton.database.api.DbContext
 
+@OptIn(ExperimentalTime::class)
+private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
+
 /**
- * Internalized migration engine(SPEC §0 / §五)。
+ * Internalized migration engine (SPEC §0 / §五,2026-06-01 embed)。
  *
  * 边界:
- *   - 只吃 [DbContext](运行时 DB 访问门面) + [MigrationConfig] + 模块声明的 [MigrationSource] 列表
+ *   - 吃 [DbContext] + [MigrationConfig] + 模块声明的 [MigrationSource] 列表
+ *   - 不读 filesystem — 所有 SQL 已 embed 到 binary 里(各模块 generate task 在编译期把
+ *     `sql/<dialect>/V*.sql` 转成 Kotlin 字符串常量)
  *   - 不自己选 driver,不依赖 postgres / mysql / sqlite driver 包
  *   - 不做 println / log,所有输出走 [MigrationResult] 数据
  *
  * 调用方:
- *   - 正式入口: `application.kexe migrate` 子命令(DB-MIG-4 阶段接入)
+ *   - 正式入口: `application.kexe migrate` 子命令
  *   - 测试 / e2e: 直接构造 engine + DbContext(可用 SQLite memory)
  *
  * 单进程单 sqlx4k driver 约束(NETON-DB-VARIANT): engine 与 application serve
@@ -27,36 +35,22 @@ class MigrationEngine(
     private val history = SchemaHistoryRepository(db, config)
 
     /**
-     * 执行命令。Engine 是 pure 函数:
-     *   - 不抛(scan 失败 / 连接失败由调用方提前确保;真出意外才抛)
-     *   - 不写 stdout
-     *   - 不调 exit
+     * 执行命令。Engine 是 pure 函数: 不抛、不写 stdout、不调 exit。
      */
     suspend fun run(command: MigrationCommand, sources: List<MigrationSource>): MigrationResult {
-        val scan = scanAll(sources)
-        if (scan is Either.Left) return scan.value
-        return runWithScripts(command, scan.right.first, scan.right.second)
-    }
-
-    /**
-     * 测试专用入口: 跳过文件扫描,直接给 engine 预先 scan 好的 [MigrationScript] 列表。
-     * 生产代码走 [run],由 [scanAll] 调真实文件 IO。
-     */
-    internal suspend fun runWithScripts(
-        command: MigrationCommand,
-        scripts: List<MigrationScript>,
-        warnings: List<String> = emptyList(),
-    ): MigrationResult = when (command) {
-        MigrationCommand.STATUS -> runStatus(scripts, warnings)
-        MigrationCommand.UP -> runUp(scripts, warnings)
-        MigrationCommand.VERIFY -> runVerify(scripts, warnings)
+        val (scripts, warnings) = flatten(sources)
+        return when (command) {
+            MigrationCommand.STATUS -> runStatus(scripts, warnings)
+            MigrationCommand.UP -> runUp(scripts, warnings)
+            MigrationCommand.VERIFY -> runVerify(scripts, warnings)
+        }
     }
 
     // ============================================================
     // STATUS
     // ============================================================
 
-    private suspend fun runStatus(scripts: List<MigrationScript>, warnings: List<String>): MigrationResult {
+    private suspend fun runStatus(scripts: List<OwnedScript>, warnings: List<String>): MigrationResult {
         val historyExists = history.exists()
         if (!historyExists) {
             val views = scripts.map {
@@ -101,7 +95,7 @@ class MigrationEngine(
             )
         }
 
-        // 磁盘有但 history 没有 = pending
+        // embed 有但 history 没有 = pending
         for (s in scripts) {
             if ((s.moduleId to s.version) !in executedKey) {
                 views += MigrationResult.ScriptView(
@@ -125,7 +119,7 @@ class MigrationEngine(
     // VERIFY (只读)
     // ============================================================
 
-    private suspend fun runVerify(scripts: List<MigrationScript>, warnings: List<String>): MigrationResult {
+    private suspend fun runVerify(scripts: List<OwnedScript>, warnings: List<String>): MigrationResult {
         if (!history.exists()) {
             return MigrationResult.Aborted(
                 reason = "history table '${config.historyTable}' does not exist; nothing to verify",
@@ -174,7 +168,7 @@ class MigrationEngine(
     // UP
     // ============================================================
 
-    private suspend fun runUp(scripts: List<MigrationScript>, warnings: List<String>): MigrationResult {
+    private suspend fun runUp(scripts: List<OwnedScript>, warnings: List<String>): MigrationResult {
         history.ensureExists()
 
         val executed = history.listAll()
@@ -194,7 +188,7 @@ class MigrationEngine(
             if (script.checksum != e.checksum) {
                 return MigrationResult.Aborted(
                     reason = "checksum mismatch on [${script.moduleId}]V${script.version}: " +
-                        "disk=${script.checksum.take(8)} history=${e.checksum.take(8)}",
+                        "embed=${script.checksum.take(8)} history=${e.checksum.take(8)}",
                     warnings = warnings,
                 )
             }
@@ -213,13 +207,13 @@ class MigrationEngine(
         val applied = mutableListOf<MigrationResult.AppliedScript>()
 
         for (script in pending) {
-            val start = migrationCurrentTimeMillis()
+            val start = currentTimeMillis()
             val statements = MigrationSqlSplitter.split(script.content)
 
             val outcome = runCatching {
                 applyScript(statements)
             }
-            val duration = migrationCurrentTimeMillis() - start
+            val duration = currentTimeMillis() - start
 
             if (outcome.isSuccess) {
                 history.insert(
@@ -310,62 +304,68 @@ class MigrationEngine(
     }
 
     // ============================================================
-    // 内部: 扫描全部 sources, 过滤 dialect, 合并 warnings
+    // 内部: flatten sources → OwnedScript 列表, 过滤 dialect, 排序
     // ============================================================
 
-    private fun scanAll(sources: List<MigrationSource>): Either<MigrationResult.Aborted, Pair<List<MigrationScript>, List<String>>> {
-        val matched = sources.filter { it.dialect == config.dialect }
+    /**
+     * 把 [MigrationSource] 列表展平成 [OwnedScript] 列表(engine 内部工作类型,带 moduleId)。
+     *
+     * 排序:
+     *   - 同 module 内: 按 version 升序(零填充避免 "10" < "2" 字典序坑) — frozen
+     *   - 跨 module: caller 传入 List 顺序 = 模块拓扑序(application 负责),engine 用稳定
+     *     sort 不重排
+     *
+     * Dialect 过滤: 与 [MigrationConfig.dialect] 不匹配的 source 被跳过,记入 warnings。
+     */
+    private fun flatten(sources: List<MigrationSource>): Pair<List<OwnedScript>, List<String>> {
         val warnings = mutableListOf<String>()
-        sources.filter { it.dialect != config.dialect }.forEach {
-            warnings += "[${it.moduleId}] skipped source: dialect=${it.dialect.canonical} != engine=${config.dialect.canonical}"
-        }
+        val allScripts = mutableListOf<OwnedScript>()
 
-        val allScripts = mutableListOf<MigrationScript>()
-        for (source in matched) {
-            when (val r = MigrationScriptScanner.scan(source)) {
-                is MigrationScriptScanner.ScanResult.Ok -> {
-                    allScripts += r.scripts
-                    warnings += r.warnings
-                }
-                is MigrationScriptScanner.ScanResult.DirNotFound ->
-                    return Either.Left(MigrationResult.Aborted(
-                        reason = "[${source.moduleId}] sql resource path not found: ${r.dir}",
-                        warnings = warnings,
-                    ))
-                is MigrationScriptScanner.ScanResult.NotADirectory ->
-                    return Either.Left(MigrationResult.Aborted(
-                        reason = "[${source.moduleId}] sql resource path not a directory: ${r.dir}",
-                        warnings = warnings,
-                    ))
-                is MigrationScriptScanner.ScanResult.DuplicateVersion ->
-                    return Either.Left(MigrationResult.Aborted(
-                        reason = "[${source.moduleId}] duplicate versions in ${source.resourcePath}: ${r.versions}",
-                        warnings = warnings,
-                    ))
+        // 保留 caller 传入的模块顺序(拓扑序),flatMap 时保持稳定
+        for ((moduleIdx, source) in sources.withIndex()) {
+            if (source.dialect != config.dialect) {
+                warnings += "[${source.moduleId}] skipped source: " +
+                    "dialect=${source.dialect.canonical} != engine=${config.dialect.canonical}"
+                continue
+            }
+            for (script in source.scripts) {
+                allScripts += OwnedScript(
+                    moduleOrder = moduleIdx,
+                    moduleId = source.moduleId,
+                    version = script.version,
+                    description = script.description,
+                    content = script.content,
+                    checksum = script.checksum,
+                )
             }
         }
 
-        // 排序:
-        //   - 同 module 内: 按 version 升序 (零填充避免 "10" < "2" 字典序坑) — frozen
-        //   - 跨 module: 当前按 moduleId 字典序 (稳定 + 可预测)
-        //
-        // DB-MIG-3 接 ModuleInitializer.dependsOn 后, application 入口负责把 sources 按
-        // 依赖拓扑序传进来. engine 在这里仍按 moduleId 字典 + version 排序作为 secondary
-        // 稳定排序; primary 顺序由 List 顺序天然保持 (sortedWith 是稳定排序). 因此:
-        //
-        // **caller 约定 (DB-MIG-3 阶段强制)**: List<MigrationSource> 必须按模块依赖拓扑
-        // 顺序传入 (depends-on 在前). engine 不验证拓扑, 也不重排.
+        // 排序: 先按 caller 给的 module 顺序(moduleOrder), 同 module 内按 version 升序
         val maxVer = allScripts.maxOfOrNull { it.version.length } ?: 0
         val sorted = allScripts.sortedWith(
-            compareBy({ it.moduleId }, { it.version.padStart(maxVer, '0') })
+            compareBy({ it.moduleOrder }, { it.version.padStart(maxVer, '0') })
         )
-        return Either.Right(sorted to warnings)
+        return sorted to warnings
     }
 
-    private sealed class Either<out L, out R> {
-        data class Left<L>(val value: L) : Either<L, Nothing>()
-        data class Right<R>(val value: R) : Either<Nothing, R>()
-
-        val right: R get() = (this as Right<R>).value
-    }
+    /** Engine 内部工作类型: 带 moduleId 的 flattened script。 */
+    private data class OwnedScript(
+        val moduleOrder: Int,
+        val moduleId: String,
+        val version: String,
+        val description: String,
+        val content: String,
+        val checksum: String,
+    )
 }
+
+/**
+ * 便利构造: 从公开的 [MigrationScript] (无 moduleId) 配合 moduleId 构造 [MigrationSource]。
+ * 仅在测试 / 手写场景下用,生产代码模块走 Gradle 生成 sources。
+ */
+@Suppress("unused")
+internal fun migrationSourceOf(
+    moduleId: String,
+    dialect: MigrationDialect,
+    vararg scripts: MigrationScript,
+): MigrationSource = MigrationSource(moduleId, dialect, scripts.toList())

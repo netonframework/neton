@@ -1,6 +1,7 @@
 package neton.database.migration
 
 import neton.core.module.MigrationDialect
+import neton.core.module.MigrationScript
 import neton.core.module.MigrationSource
 import neton.database.config.DatabaseDriver
 import kotlin.test.Test
@@ -215,24 +216,23 @@ class MigrationEngineSmokeTest {
 
     @Test
     fun migrationSource_holdsFields() {
+        val script = MigrationScript("001", "create_tables", "CREATE TABLE t (id INT);", "abc")
         val s = MigrationSource(
             moduleId = "privchat-application",
             dialect = MigrationDialect.POSTGRESQL,
-            resourcePath = "sql/postgresql",
+            scripts = listOf(script),
         )
         assertEquals("privchat-application", s.moduleId)
         assertEquals(MigrationDialect.POSTGRESQL, s.dialect)
-        assertEquals("sql/postgresql", s.resourcePath)
+        assertEquals(1, s.scripts.size)
+        assertEquals("001", s.scripts[0].version)
     }
 
     @Test
     fun migrationScript_holdsFields() {
         val s = MigrationScript(
-            moduleId = "game",
             version = "001",
             description = "create_tables",
-            fileName = "V001__create_tables.sql",
-            absolutePath = "/tmp/sql/postgresql/V001__create_tables.sql",
             content = "CREATE TABLE t (id INT);",
             checksum = "abc",
         )
