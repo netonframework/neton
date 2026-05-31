@@ -80,6 +80,8 @@ class TableUserContractTest {
                 override suspend fun count() = 0L
                 override suspend fun page(page: Int, size: Int) =
                     Page.of(emptyList<ContractTestEntity>(), 0L, page, size)
+                override suspend fun delete(): Long = 0L
+                override suspend fun update(block: UpdateScope<ContractTestEntity>.() -> Unit): Long = 0L
 
                 override fun select(vararg columnNames: String): ProjectionQuery = object : ProjectionQuery {
                     override suspend fun rows() = emptyList<Row>()

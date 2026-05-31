@@ -27,9 +27,7 @@ val nDbDriverLib = when (nDbDriver) {
 }
 
 kotlin {
-    macosArm64()
-    linuxX64()
-    linuxArm64()
+    val posixTargets = listOf(macosArm64(), linuxX64(), linuxArm64())
     mingwX64()
 
     sourceSets {
@@ -50,6 +48,13 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
             }
+        }
+
+        // posixMain: macosArm64 / linuxX64 / linuxArm64 共享 POSIX FileIO 实现.
+        // 用于 migration 包的文件扫描 / 当前时间. mingwX64 单独 actual.
+        val posixMain by creating { dependsOn(commonMain.get()) }
+        posixTargets.forEach { target ->
+            getByName("${target.name}Main").dependsOn(posixMain)
         }
     }
 }
