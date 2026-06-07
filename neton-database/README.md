@@ -269,10 +269,10 @@ val user = UserLogic().getWithRoles(1)
 | 启动时自动 migration | ❌ 禁止 |
 | `ensureTable()` 用途 | dev / demo / ephemeral test only |
 | 生产 schema 演进 | ✅ 手动执行 `sql/{dialect}/V*.sql`（唯一权威路径） |
-| 未来迁移工具 | 计划中的独立 `neton-migrate` CLI（不嵌入运行时） |
+| 正式迁移入口 | `application.kexe migrate (up/status/verify)` — engine 内化在本模块,共享 application 同一 driver |
 
 完整边界规范、命令集设计、版本表、明确禁止清单见：
-**[Migration Boundary Spec](https://netonframework.github.io/spec/migration)** — 必读。
+**[Database Spec § 十二 Schema Migration](https://netonframework.github.io/spec/database#十二schema-migration数据库演进规范)** — 必读。
 
 ## 🔗 相关模块
 
