@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiContent
 import neton.ai.AiError
+import neton.ai.AiException
 import neton.ai.AiFinishReason
 import neton.ai.AiMessage
 import neton.ai.AiRole
@@ -22,6 +23,7 @@ import neton.ai.provider.ProviderCallRequest
 import neton.http.client.NetonHttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -310,5 +312,27 @@ class AnthropicStreamTest {
 
         // Must NOT emit Completed
         assertTrue(events.filterIsInstance<AiStreamEvent.Completed>().isEmpty(), "No Completed after error event")
+    }
+
+    /** Regression: streaming HTTP 429 must surface as RateLimited (was: silent empty Completed). */
+    @Test
+    fun streamHttp429ThrowsRateLimited() = runTest {
+        val engine = MockEngine { _ ->
+            respond(
+                content = """{"type":"error","error":{"type":"rate_limit_error","message":"Number of requests exceeded"}}""",
+                status = HttpStatusCode.TooManyRequests,
+                headers = headersOf("Content-Type", "application/json"),
+            )
+        }
+        val client = httpClient(engine)
+        val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
+        val model = provider.streamingTextModel("claude-sonnet-4-5")
+
+        val ex = assertFailsWith<AiException> { model.stream(makeRequest()).toList() }
+        client.close()
+
+        val err = ex.error
+        assertIs<AiError.RateLimited>(err, "Expected RateLimited, got ${err::class.simpleName}")
+        assertTrue("Number of requests exceeded" in err.message, "Anthropic error message should be parsed from body, was: ${err.message}")
     }
 }

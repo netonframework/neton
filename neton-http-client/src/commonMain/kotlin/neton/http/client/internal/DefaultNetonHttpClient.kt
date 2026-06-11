@@ -79,6 +79,26 @@ internal class DefaultNetonHttpClient(
 
     override fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk> = channelFlow {
         client.prepareRequest { applyRequest(request) }.execute { response ->
+            // Non-2xx: surface as typed Http error BEFORE streaming the body. Without this check,
+            // an error JSON body (e.g. OpenAI 429) would flow through SSE parsing as zero events
+            // and downstream mappers would emit a silent empty Completed.
+            val status = response.status.value
+            if (status !in 200..299) {
+                val errorBody = try {
+                    response.bodyAsText()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Throwable) {
+                    null
+                }
+                throw NetonHttpException(
+                    NetonHttpError.Http(
+                        statusCode = status,
+                        message = "HTTP $status",
+                        body = errorBody,
+                    )
+                )
+            }
             val channel: ByteReadChannel = response.bodyAsChannel()
             val buf = ByteArray(DEFAULT_STREAM_CHUNK_BYTES)
             try {

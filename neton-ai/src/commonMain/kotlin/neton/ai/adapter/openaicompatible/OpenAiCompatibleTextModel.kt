@@ -97,16 +97,36 @@ internal class OpenAiCompatibleTextModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: NetonHttpException) {
-            send(AiStreamEvent.Failed(when (val err = e.error) {
+            throw AiException(when (val err = e.error) {
                 is NetonHttpError.Network -> AiError.Network(err.message, err.cause)
                 is NetonHttpError.Timeout -> AiError.Timeout(err.message, err.cause)
-                is NetonHttpError.Http -> AiError.Unknown("HTTP error in stream: ${err.message}", null)
+                is NetonHttpError.Http -> mapHttpStreamError(err)
                 is NetonHttpError.Unknown -> AiError.Unknown(err.message, err.cause)
-            }))
+            })
         } catch (e: AiException) {
-            send(AiStreamEvent.Failed(e.error))
+            throw e
         } catch (e: Throwable) {
-            send(AiStreamEvent.Failed(AiError.Unknown(e.message ?: "stream error", e)))
+            throw AiException(AiError.Unknown(e.message ?: "stream error", e))
+        }
+    }
+
+    private fun mapHttpStreamError(err: NetonHttpError.Http): AiError {
+        val body = err.body
+        if (body != null) {
+            // Reuse the full non-streaming error mapping (parses error.message / error.code,
+            // including context_length_exceeded and model_not_found).
+            return try {
+                responseMapper.errorFromStatus(err.statusCode, body)
+            } catch (e: AiException) {
+                e.error
+            }
+        }
+        return when (err.statusCode) {
+            401 -> AiError.Unauthorized(err.message)
+            403 -> AiError.Forbidden(err.message)
+            429 -> AiError.RateLimited(retryAfterMillis = null, message = err.message)
+            in 500..599 -> AiError.ServerError(err.statusCode, err.message)
+            else -> AiError.Unknown("HTTP error in stream: ${err.message}", null)
         }
     }
 }
