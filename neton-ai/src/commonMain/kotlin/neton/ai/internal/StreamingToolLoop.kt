@@ -88,7 +88,7 @@ internal fun runStreamingToolLoop(
                 providerFlow.collect { event ->
                     if (!firstEventRead) {
                         firstEventRead = true
-                        if (!startedEmitted) {
+                        if (!startedEmitted && event !is AiStreamEvent.Failed) {
                             send(AiStreamEvent.Started(modelId.providerId, modelId.modelName))
                             startedEmitted = true
                         }
@@ -162,6 +162,27 @@ internal fun runStreamingToolLoop(
             }
 
             if (failedSnap != null) {
+                val durationMs = kotlin.time.Clock.System.now().toEpochMilliseconds() - startMs
+                recorder.record(AiUsageEvent(
+                    requestId = requestId,
+                    providerId = modelId.providerId,
+                    modelName = modelId.modelName,
+                    usage = null,
+                    round = round,
+                    requestMetadata = request.metadata,
+                    timestampEpochMillis = startMs,
+                    durationMillis = durationMs,
+                    finishReason = null,
+                    success = false,
+                    errorKind = failedSnap.error.kind,
+                ))
+                val canFallback = !startedEmitted && failedSnap.error.isFallbackEligible() &&
+                    candidateIdx < candidates.lastIndex && request.modelPolicy != null
+                if (canFallback) {
+                    lastError = failedSnap.error
+                    brokeForFallback = true
+                    break
+                }
                 send(failedSnap)
                 return@channelFlow
             }
@@ -202,6 +223,7 @@ internal fun runStreamingToolLoop(
                     role = AiRole.Tool,
                     content = listOf(AiContent.Text(result.content)),
                     toolCallId = call.id,
+                    toolResultIsError = result.isError,
                 )
             }
             // Continue to next round

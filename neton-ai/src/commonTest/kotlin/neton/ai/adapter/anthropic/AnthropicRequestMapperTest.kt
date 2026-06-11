@@ -111,6 +111,20 @@ class AnthropicRequestMapperTest {
         assertEquals("""{"balance":42}""", block.content)
     }
 
+    @Test fun erroredToolRoleMessageMapsToAnthropicIsError() {
+        val out = mapper.toWire("claude", req(
+            messages = listOf(AiMessage(
+                role = AiRole.Tool,
+                content = listOf(AiContent.Text("boom")),
+                toolCallId = "c1",
+                toolResultIsError = true,
+            )),
+            maxTokens = 1024,
+        ))
+        val block = out.messages.single().content.single() as AnthropicContentBlock.ToolResult
+        assertEquals(true, block.isError)
+    }
+
     @Test fun toolDefinitionsMapToToolsField() {
         val out = mapper.toWire("claude", req(
             tools = listOf(AiToolDefinition(

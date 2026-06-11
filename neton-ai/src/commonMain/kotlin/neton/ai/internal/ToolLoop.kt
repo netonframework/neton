@@ -172,6 +172,7 @@ internal suspend fun runToolLoop(
                     role = AiRole.Tool,
                     content = listOf(AiContent.Text(result.content)),
                     toolCallId = call.id,
+                    toolResultIsError = result.isError,
                 )
             }
         }

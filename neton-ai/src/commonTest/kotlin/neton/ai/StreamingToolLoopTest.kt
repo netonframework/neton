@@ -379,6 +379,75 @@ class StreamingToolLoopTest {
         assertEquals(AiFinishReason.Stop, completed[0].finishReason)
     }
 
+    @Test
+    fun fallbackWhenFirstProviderEventIsFailed() = runTest {
+        val model1 = ScriptedStreamingModel("p1", "m1", listOf(
+            scriptedFlow(AiStreamEvent.Failed(AiError.RateLimited(null, "429")))
+        ))
+        val model2 = ScriptedStreamingModel("p2", "m2", listOf(
+            scriptedFlow(
+                AiStreamEvent.TextDelta("ok"),
+                completedEvent("ok"),
+            )
+        ))
+        val provider1 = ScriptedStreamingProvider("p1", model1)
+        val provider2 = ScriptedStreamingProvider("p2", model2)
+        val registry = DefaultProviderRegistry(mapOf("p1" to provider1, "p2" to provider2))
+        val router = DefaultModelRouter(RoutingConfig(
+            policies = mapOf("any" to ModelPolicy(
+                prefer = listOf(AiModelId("p1", "m1")),
+                fallback = listOf(AiModelId("p2", "m2")),
+            ))
+        ))
+        val recorder = CapturingRecorder()
+
+        val result = collectLoop(
+            request = StreamTextRequest(
+                modelPolicy = "any",
+                messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("x")))),
+            ),
+            registry = registry,
+            router = router,
+            recorder = recorder,
+        )
+
+        val started = result.filterIsInstance<AiStreamEvent.Started>()
+        assertEquals(1, started.size)
+        assertEquals("p2", started[0].providerId)
+        assertTrue(result.filterIsInstance<AiStreamEvent.Failed>().isEmpty())
+        assertEquals(2, recorder.events.size)
+        assertEquals(false, recorder.events[0].success)
+        assertEquals("RateLimited", recorder.events[0].errorKind)
+        assertEquals(true, recorder.events[1].success)
+    }
+
+    @Test
+    fun providerFailedEventIsRecordedWhenNotFallbackEligible() = runTest {
+        val model = ScriptedStreamingModel("p1", "m1", listOf(
+            scriptedFlow(AiStreamEvent.Failed(AiError.InvalidRequest("bad request")))
+        ))
+        val provider = ScriptedStreamingProvider("p1", model)
+        val registry = DefaultProviderRegistry(mapOf("p1" to provider))
+        val router = DefaultModelRouter(RoutingConfig(defaultModel = AiModelId("p1", "m1")))
+        val recorder = CapturingRecorder()
+
+        val result = collectLoop(
+            request = StreamTextRequest(
+                model = AiModelId("p1", "m1"),
+                messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("x")))),
+            ),
+            registry = registry,
+            router = router,
+            recorder = recorder,
+        )
+
+        assertEquals(1, result.filterIsInstance<AiStreamEvent.Failed>().size)
+        assertTrue(result.filterIsInstance<AiStreamEvent.Started>().isEmpty())
+        assertEquals(1, recorder.events.size)
+        assertEquals(false, recorder.events[0].success)
+        assertEquals("InvalidRequest", recorder.events[0].errorKind)
+    }
+
     /**
      * Test 7: no fallback after first event — provider emits TextDelta then throws.
      * AiClient must emit Started + TextDelta + Failed (no switch to provider2).
