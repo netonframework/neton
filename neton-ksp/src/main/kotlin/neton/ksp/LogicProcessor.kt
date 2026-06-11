@@ -191,7 +191,18 @@ class LogicProcessor(
         }
         return when (fqn) {
             "neton.logging.Logger" -> {
+                // P0.1 契约: Logger 参数必须显式 @Logic(logger = "...") — 不允许静默
+                // fallback 到类 FQN, 否则 prod 日志语义名会被悄悄改掉 (grep 习惯全断).
                 val name = loggerNameOf(owner)
+                if (name == null) {
+                    logger.error(
+                        "@Logic ${owner.qualifiedName!!.asString()}: constructor has a Logger " +
+                                "parameter but @Logic(logger = \"...\") is not set. Logger names are " +
+                                "prod-grep contracts; declare it explicitly.",
+                        owner
+                    )
+                    return null
+                }
                 "ctx.get(neton.logging.LoggerFactory::class).get(\"$name\")"
             }
             "neton.logging.LoggerFactory" -> "ctx.get(neton.logging.LoggerFactory::class)"
@@ -200,13 +211,13 @@ class LogicProcessor(
         }
     }
 
-    /** @Logic(logger = "...") 的 logger 名；空串退化为类 FQN。 */
-    private fun loggerNameOf(c: KSClassDeclaration): String {
+    /** @Logic(logger = "...") 的 logger 名；未声明 / 空串返回 null（caller 报编译错）。 */
+    private fun loggerNameOf(c: KSClassDeclaration): String? {
         val ann = c.annotations.firstOrNull {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == logicAnnotationName
         }
         val v = ann?.arguments?.firstOrNull { it.name?.asString() == "logger" }?.value as? String
-        return if (!v.isNullOrBlank()) v else c.qualifiedName!!.asString()
+        return if (!v.isNullOrBlank()) v else null
     }
 
     private fun String.toPascal(): String =
