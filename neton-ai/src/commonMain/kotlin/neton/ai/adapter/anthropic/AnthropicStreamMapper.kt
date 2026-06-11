@@ -37,6 +37,7 @@ internal class AnthropicStreamMapper(
         var lastUsage: AiUsage? = null  // input from message_start; updated cumulatively from message_delta
         var finishReason: AiFinishReason = AiFinishReason.Other
         var failed = false
+        var sawMessageStart = false
 
         chunks.parseSseEvents().collect { sseEvent ->
             if (failed) return@collect
@@ -46,6 +47,7 @@ internal class AnthropicStreamMapper(
                 when (eventType) {
                     "message_start" -> {
                         val parsed = json.decodeFromString(AnthropicMessageStartData.serializer(), data)
+                        sawMessageStart = true
                         parsed.message.usage?.let {
                             lastUsage = AiUsage(inputTokens = it.inputTokens, outputTokens = it.outputTokens, totalTokens = null)
                         }
@@ -140,6 +142,15 @@ internal class AnthropicStreamMapper(
         }
 
         if (failed) return@flow
+
+        // Safety net: an Anthropic stream that never delivered message_start is not a success.
+        // (Normal path can't get here since the HTTP layer rejects non-2xx before streaming.)
+        if (!sawMessageStart) {
+            emit(AiStreamEvent.Failed(AiError.Unknown(
+                "Stream ended without message_start (no provider events received)", null,
+            )))
+            return@flow
+        }
 
         // Assemble final message: text from all TextAcc + toolCalls from all ToolUseAcc, in insertion order
         val textParts = mutableListOf<String>()

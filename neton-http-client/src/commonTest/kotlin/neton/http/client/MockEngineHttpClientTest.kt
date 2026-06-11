@@ -100,6 +100,46 @@ class MockEngineHttpClientTest {
         assertTrue(ex.error is NetonHttpError.Network, "Expected Network error, got ${ex.error::class.simpleName}")
         client.close()
     }
+
+    @Test
+    fun streamNon2xxThrowsHttpErrorWithBodyBeforeAnyChunk() = runTest {
+        // Regression: a 429 error body must NOT be streamed as chunks (it would parse as
+        // zero SSE events and downstream mappers would emit a silent empty Completed).
+        val errorBody = """{"error":{"message":"Rate limit exceeded","type":"rate_limit_error"}}"""
+        val engine = MockEngine { _ ->
+            respond(
+                content = errorBody,
+                status = HttpStatusCode.TooManyRequests,
+                headers = headersOf("Content-Type", "application/json"),
+            )
+        }
+        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+        val ex = assertFailsWith<NetonHttpException> {
+            client.stream(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://api.example.com/stream"))
+                .collect { }
+        }
+        val err = ex.error
+        assertTrue(err is NetonHttpError.Http, "Expected Http error, got ${err::class.simpleName}")
+        assertEquals(429, err.statusCode)
+        assertEquals(errorBody, err.body, "Error body must be captured for downstream classification")
+        client.close()
+    }
+
+    @Test
+    fun streamServerErrorThrowsHttpError() = runTest {
+        val engine = MockEngine { _ ->
+            respond(content = "upstream exploded", status = HttpStatusCode.InternalServerError)
+        }
+        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+        val ex = assertFailsWith<NetonHttpException> {
+            client.stream(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://api.example.com/stream"))
+                .collect { }
+        }
+        val err = ex.error
+        assertTrue(err is NetonHttpError.Http, "Expected Http error, got ${err::class.simpleName}")
+        assertEquals(500, err.statusCode)
+        client.close()
+    }
 }
 
 /**

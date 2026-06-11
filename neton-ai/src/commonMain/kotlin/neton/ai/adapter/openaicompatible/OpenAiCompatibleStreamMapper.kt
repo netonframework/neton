@@ -36,12 +36,16 @@ internal class OpenAiCompatibleStreamMapper(
         var finishReason: AiFinishReason = AiFinishReason.Other
         var usage: AiUsage? = null
         var failed = false
+        var sawProviderData = false
 
         chunks.parseSseEvents().collect { event ->
             if (failed) return@collect
             val data = event.data
             // OpenAI ends stream with "data: [DONE]"
-            if (data == "[DONE]") return@collect
+            if (data == "[DONE]") {
+                sawProviderData = true
+                return@collect
+            }
 
             val chunk = try {
                 json.decodeFromString(OpenAiStreamChunk.serializer(), data)
@@ -51,6 +55,8 @@ internal class OpenAiCompatibleStreamMapper(
                 failed = true
                 return@collect
             }
+
+            sawProviderData = true
 
             // Process choices[0] (single-choice assumption matches non-streaming behavior)
             val choice = chunk.choices.firstOrNull() ?: return@collect
@@ -96,6 +102,16 @@ internal class OpenAiCompatibleStreamMapper(
         // If stream failed, do not emit Completed
         if (failed) return@flow
 
+        // Safety net: a stream that produced zero provider events is not a success.
+        // (Normal path can't get here since the HTTP layer rejects non-2xx before streaming,
+        // but a misbehaving compatible endpoint could close the stream without any data.)
+        if (!sawProviderData) {
+            emit(AiStreamEvent.Failed(AiError.Unknown(
+                "Stream ended without any provider events (no SSE data received)", null,
+            )))
+            return@flow
+        }
+
         // After SSE stream end: emit ToolCallReady for each fully-assembled tool call (in index order)
         val sortedIndices = acc.keys.sorted()
         val toolCalls = mutableListOf<AiToolCall>()
@@ -104,7 +120,14 @@ internal class OpenAiCompatibleStreamMapper(
             val aId = a.id
             val aName = a.name
             if (aId != null && aName != null) {
-                val call = AiToolCall(id = aId, name = aName, argumentsJson = a.arguments.toString().ifEmpty { "{}" })
+                val argumentsJson = a.arguments.toString().ifEmpty { "{}" }
+                try {
+                    json.parseToJsonElement(argumentsJson)
+                } catch (e: SerializationException) {
+                    emit(AiStreamEvent.Failed(AiError.Unknown("Invalid OpenAI tool arguments JSON: ${e.message}", e)))
+                    return@flow
+                }
+                val call = AiToolCall(id = aId, name = aName, argumentsJson = argumentsJson)
                 emit(AiStreamEvent.ToolCallReady(call))
                 toolCalls.add(call)
             }

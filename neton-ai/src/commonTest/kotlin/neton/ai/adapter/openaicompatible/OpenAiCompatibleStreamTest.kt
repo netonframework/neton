@@ -11,16 +11,20 @@ import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiContent
+import neton.ai.AiError
+import neton.ai.AiException
 import neton.ai.AiFinishReason
 import neton.ai.AiMessage
 import neton.ai.AiRole
 import neton.ai.AiStreamEvent
 import neton.ai.AiUsage
 import neton.ai.ToolChoice
+import neton.ai.isFallbackEligible
 import neton.ai.provider.ProviderCallRequest
 import neton.http.client.NetonHttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -191,5 +195,76 @@ class OpenAiCompatibleStreamTest {
         assertIs<AiStreamEvent.Failed>(events[0], "Expected Failed event")
         // No Completed event should be emitted
         assertTrue(events.filterIsInstance<AiStreamEvent.Completed>().isEmpty(), "No Completed event should be emitted after failure")
+    }
+
+    @Test
+    fun invalidToolArgumentsEmitFailedAndNoCompleted() = runTest {
+        val payload = buildString {
+            append("data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_bad\",\"type\":\"function\",\"function\":{\"name\":\"bad\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\n")
+            append("data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{bad-json\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\n")
+            append("data: [DONE]\n\n")
+        }
+        val engine = MockEngine { _ ->
+            respond(
+                content = ByteReadChannel(payload),
+                status = HttpStatusCode.OK,
+                headers = headersOf("Content-Type", "text/event-stream"),
+            )
+        }
+        val client = httpClient(engine)
+        val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
+        val model = provider.streamingTextModel("gpt-4o-mini")
+
+        val events = model.stream(makeRequest()).toList()
+        client.close()
+
+        assertEquals(1, events.filterIsInstance<AiStreamEvent.Failed>().size)
+        assertTrue(events.filterIsInstance<AiStreamEvent.ToolCallReady>().isEmpty())
+        assertTrue(events.filterIsInstance<AiStreamEvent.Completed>().isEmpty())
+    }
+
+    /** Regression: streaming 429 must surface as RateLimited (was: silent empty Completed). */
+    @Test
+    fun stream429ThrowsRateLimitedWithProviderMessage() = runTest {
+        val engine = MockEngine { _ ->
+            respond(
+                content = """{"error":{"message":"Rate limit exceeded, retry later","type":"rate_limit_error"}}""",
+                status = HttpStatusCode.TooManyRequests,
+                headers = headersOf("Content-Type", "application/json"),
+            )
+        }
+        val client = httpClient(engine)
+        val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
+        val model = provider.streamingTextModel("gpt-4o-mini")
+
+        val ex = assertFailsWith<AiException> { model.stream(makeRequest()).toList() }
+        client.close()
+
+        val err = ex.error
+        assertIs<AiError.RateLimited>(err, "Expected RateLimited, got ${err::class.simpleName}")
+        assertTrue("Rate limit exceeded" in err.message, "Provider error message should be parsed from body, was: ${err.message}")
+    }
+
+    /** Regression: streaming 500 must surface as ServerError and be fallback-eligible. */
+    @Test
+    fun stream500ThrowsServerErrorFallbackEligible() = runTest {
+        val engine = MockEngine { _ ->
+            respond(
+                content = """{"error":{"message":"internal error","type":"server_error"}}""",
+                status = HttpStatusCode.InternalServerError,
+                headers = headersOf("Content-Type", "application/json"),
+            )
+        }
+        val client = httpClient(engine)
+        val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
+        val model = provider.streamingTextModel("gpt-4o-mini")
+
+        val ex = assertFailsWith<AiException> { model.stream(makeRequest()).toList() }
+        client.close()
+
+        val err = ex.error
+        assertIs<AiError.ServerError>(err, "Expected ServerError, got ${err::class.simpleName}")
+        assertEquals(500, err.statusCode)
+        assertTrue(err.isFallbackEligible(), "5xx in stream must be fallback-eligible so the router can try the next candidate")
     }
 }
