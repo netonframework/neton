@@ -68,7 +68,7 @@ internal class AnthropicRequestMapper(
             content = listOf(AnthropicContentBlock.ToolResult(
                 toolUseId = m.toolCallId ?: error("Tool message must have toolCallId"),
                 content = m.content.filterIsInstance<AiContent.Text>().joinToString("\n") { it.text },
-                isError = null,
+                isError = m.toolResultIsError,
             )),
         )
         AiRole.System -> error("System messages must be merged into top-level 'system' field, not mapped per-message")
