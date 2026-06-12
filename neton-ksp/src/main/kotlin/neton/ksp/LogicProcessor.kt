@@ -191,18 +191,9 @@ class LogicProcessor(
         }
         return when (fqn) {
             "neton.logging.Logger" -> {
-                // P0.1 契约: Logger 参数必须显式 @Logic(logger = "...") — 不允许静默
-                // fallback 到类 FQN, 否则 prod 日志语义名会被悄悄改掉 (grep 习惯全断).
-                val name = loggerNameOf(owner)
-                if (name == null) {
-                    logger.error(
-                        "@Logic ${owner.qualifiedName!!.asString()}: constructor has a Logger " +
-                                "parameter but @Logic(logger = \"...\") is not set. Logger names are " +
-                                "prod-grep contracts; declare it explicitly.",
-                        owner
-                    )
-                    return null
-                }
+                // P1.1: logger 名解析 — 显式 @Logic(logger=) 优先 (兼容 prod 既有日志名);
+                // 省略时自动生成标准名 <moduleId>.<snake> (去 module Pascal 前缀).
+                val name = loggerNameOf(owner) ?: defaultLoggerName(owner)
                 "ctx.get(neton.logging.LoggerFactory::class).get(\"$name\")"
             }
             "neton.logging.LoggerFactory" -> "ctx.get(neton.logging.LoggerFactory::class)"
@@ -211,13 +202,31 @@ class LogicProcessor(
         }
     }
 
-    /** @Logic(logger = "...") 的 logger 名；未声明 / 空串返回 null（caller 报编译错）。 */
+    /** @Logic(logger = "...") 的显式 logger 名；未声明 / 空串返回 null（caller 走自动名）。 */
     private fun loggerNameOf(c: KSClassDeclaration): String? {
         val ann = c.annotations.firstOrNull {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == logicAnnotationName
         }
         val v = ann?.arguments?.firstOrNull { it.name?.asString() == "logger" }?.value as? String
         return if (!v.isNullOrBlank()) v else null
+    }
+
+    /**
+     * P1.1 自动 logger 名: `<moduleId>.<snake>`。
+     * snake = simpleName 去掉 module Pascal 前缀（GameRoomLogic → RoomLogic）后转 snake_case。
+     * 例: moduleId=game, GameKindRepository → "game.kind_repository"。
+     */
+    private fun defaultLoggerName(c: KSClassDeclaration): String {
+        val pascalModule = moduleId!!.split('-', '_').joinToString("") { part ->
+            part.replaceFirstChar { it.uppercaseChar() }
+        }
+        val simple = c.simpleName.asString()
+        val trimmed = simple.removePrefix(pascalModule).ifBlank { simple }
+        val snake = trimmed
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+            .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
+            .lowercase()
+        return "$moduleId.$snake"
     }
 
     private fun String.toPascal(): String =

@@ -82,16 +82,25 @@ class ModuleInitializerProcessor(
         val dependsOn: List<String>,
     )
 
-    /** 扫 @NetonModule；校验唯一性 + id 与 ksp arg 互证。校验失败返回 null 且已报 error。 */
+    /**
+     * 扫 @Module；校验唯一性 + id 解析（P1.1）。
+     *
+     * id 解析顺序：
+     * 1. 注解显式 id → 必须与 ksp arg `neton.moduleId` 一致（编译错误，双源互证）。
+     * 2. 省略 → 用 ksp arg；同时尝试 package 推导（末段，跳过 init/module/bootstrap），
+     *    推导成功且与 ksp arg 不一致 → 编译警告（不阻断，浅包结构推导本就无意义）。
+     *
+     * 校验失败返回 null 且已报 error。
+     */
     private fun findModuleAnchor(resolver: Resolver, moduleId: String): ModuleAnchor? {
         val symbols = resolver
-            .getSymbolsWithAnnotation("neton.core.annotations.NetonModule")
+            .getSymbolsWithAnnotation("neton.core.annotations.Module")
             .filterIsInstance<KSClassDeclaration>()
             .toList()
         if (symbols.isEmpty()) return null
         if (symbols.size > 1) {
             logger.error(
-                "@NetonModule declared ${symbols.size} times in module '$moduleId' " +
+                "@Module declared ${symbols.size} times in module '$moduleId' " +
                         "(${symbols.joinToString { it.qualifiedName?.asString() ?: "?" }}). " +
                         "Exactly one anchor object per module."
             )
@@ -100,26 +109,44 @@ class ModuleInitializerProcessor(
         val decl = symbols.first()
         val ann = decl.annotations.first {
             it.annotationType.resolve().declaration.qualifiedName?.asString() ==
-                    "neton.core.annotations.NetonModule"
+                    "neton.core.annotations.Module"
         }
-        val declaredId = ann.arguments.firstOrNull { it.name?.asString() == "id" }?.value as? String
-        if (declaredId.isNullOrBlank()) {
-            logger.error("@NetonModule on ${decl.qualifiedName?.asString()}: id is required.", decl)
-            return null
-        }
-        if (declaredId != moduleId) {
+        val declaredId = (ann.arguments.firstOrNull { it.name?.asString() == "id" }?.value as? String)
+            ?.takeIf { it.isNotBlank() }
+        if (declaredId != null && declaredId != moduleId) {
             logger.error(
-                "@NetonModule(id = \"$declaredId\") on ${decl.qualifiedName?.asString()} does not " +
+                "@Module(id = \"$declaredId\") on ${decl.qualifiedName?.asString()} does not " +
                         "match KSP option neton.moduleId='$moduleId'. The annotation is the declared " +
                         "surface, the KSP arg is the shared processor carrier — they must agree.",
                 decl
             )
             return null
         }
+        if (declaredId == null) {
+            // id 省略: ksp arg 即 source of truth; package 推导仅做 sanity 警告.
+            val derived = deriveModuleIdFromPackage(decl.packageName.asString())
+            if (derived != null && derived != moduleId) {
+                logger.warn(
+                    "@Module on ${decl.qualifiedName?.asString()}: package-derived id '$derived' " +
+                            "differs from neton.moduleId='$moduleId' (using the ksp arg). " +
+                            "Declare @Module(id = ...) explicitly if this is intentional.",
+                    decl
+                )
+            }
+        }
         @Suppress("UNCHECKED_CAST")
         val deps = (ann.arguments.firstOrNull { it.name?.asString() == "dependsOn" }?.value as? List<String>)
             ?: emptyList()
-        return ModuleAnchor(declaredId, deps)
+        return ModuleAnchor(moduleId, deps)
+    }
+
+    /** package 末段推导 module id；末段是 init/module/bootstrap 时取倒数第二段；推导不出返回 null。 */
+    private fun deriveModuleIdFromPackage(pkg: String): String? {
+        if (pkg.isBlank()) return null
+        val segments = pkg.split('.').filter { it.isNotBlank() }
+        val skip = setOf("init", "module", "bootstrap")
+        val candidate = segments.lastOrNull { it !in skip } ?: return null
+        return candidate.takeIf { MODULE_ID_PATTERN.matches(it) }
     }
 
     /** fragment domain 冻结顺序: configs → logics → (bootstrap) → routes → jobs → validators */
