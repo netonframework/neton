@@ -14,12 +14,14 @@ package neton.core.annotations
  * - 兼容期: 现存 Repository / Service 命名的类同样可标注（装配语义与类名无关），
  *   命名收敛是独立重构。
  *
- * 装配契约（P0.1 冻结，全部编译期）：
+ * 装配契约（P0.1 冻结 + P1.1 logger 简化，全部编译期）：
  * 1. 只支持 primary constructor 注入（secondary constructor 不参与装配）。
  * 2. 参数按类型解析:
- *    - `neton.logging.Logger` → `loggerFactory.get(logger名)`。**logger 名必须通过本注解
- *      [logger] 参数显式声明** — 缺省 / 空串是编译错误。Logger 语义名是 prod 日志 grep
- *      契约，不允许被静默改名。
+ *    - `neton.logging.Logger` → `loggerFactory.get(logger名)`。logger 名解析:
+ *      显式 [logger] 参数优先（兼容 prod 既有日志 grep 习惯）；省略时自动生成
+ *      标准名 `<moduleId>.<snake>`（simpleName 去 module Pascal 前缀转 snake_case,
+ *      如 moduleId=game 时 GameRoomLogic → "game.room_logic"）。
+ *      既有显式 logger 名不要去掉 — 自动名与旧名不同会断日志 grep。
  *    - 其它 class 类型 → `ctx.get(类型::class)`（含其它 @Logic 类、框架组件如
  *      LoggerFactory / DbContext / RedisClient）。
  *    - 非 class 类型（泛型参数 / 函数类型）→ 编译错误。
@@ -38,8 +40,8 @@ package neton.core.annotations
  * 由手写 ModuleInitializer 显式调用，或经 ModuleFragmentSink 聚合进生成的模块初始化器。
  * 需要 KSP 选项 `neton.moduleId`。
  *
- * @param logger 构造函数有 `Logger` 参数时**必须**声明的 logger 语义名
- *   （如 "game.kind_repo"）。构造函数没有 Logger 参数时可省略。
+ * @param logger 可选的 logger 语义名（如 "game.kind_repo"）。省略时按
+ *   `<moduleId>.<snake>` 自动生成；既有 prod 日志名必须显式保留。
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
