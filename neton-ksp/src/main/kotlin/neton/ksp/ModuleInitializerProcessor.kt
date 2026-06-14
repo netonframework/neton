@@ -57,13 +57,17 @@ class ModuleInitializerProcessor(
             return emptyList()
         }
 
-        if (!ModuleFragmentSink.hasFragments(moduleId)) {
-            logger.info("ModuleInitializer[$moduleId]: no fragments collected, skip generation")
+        // MANIFEST-P1: @Module 锚点探测。存在 → Manifest 模式；否则兼容模式。
+        val anchor = findModuleAnchor(resolver, moduleId)
+
+        // 零 fragment 且无 @Module 锚点 → 旧兼容行为 (跳过)。但 @Module 锚点存在时,
+        // 即便没有 routes/logics/validators (纯 runtime 模块, 如 assistant: 全副作用
+        // 启动序列 + RuntimeBootstrap), 也必须生成 manifest —— 否则 application registry
+        // 的 manifest 探测 fall back 不到, 整个模块丢失。
+        if (anchor == null && !ModuleFragmentSink.hasFragments(moduleId)) {
+            logger.info("ModuleInitializer[$moduleId]: no fragments + no @Module anchor, skip generation")
             return emptyList()
         }
-
-        // MANIFEST-P1: @NetonModule 锚点探测。存在 → Manifest 模式；否则兼容模式。
-        val anchor = findModuleAnchor(resolver, moduleId)
 
         if (anchor != null) {
             generateModuleManifest(resolver, moduleId, anchor)
