@@ -85,6 +85,7 @@ class LogicProcessor(
             }
             visiting.add(fqn)
             c.primaryConstructor?.parameters?.forEach { p ->
+                if (p.hasDefault) return@forEach   // 默认值参数不注入 → 不构成依赖边
                 val depFqn = p.type.resolve().declaration.qualifiedName?.asString()
                 val dep = depFqn?.let { byFqn[it] }
                 if (dep != null) visit(dep, path + fqn)
@@ -119,8 +120,13 @@ class LogicProcessor(
             }
             val args = mutableListOf<String>()
             for (p in ctor.parameters) {
+                // P3-MIGRATE: 跳过带默认值的 ctor 参数 —— 它们自 provision (如
+                //   `db: DbContext = dbContext()`), 注入 ctx.get 反而改语义/可能 NPE。
+                //   用命名参数生成, 跳过后位置无关。
+                if (p.hasDefault) continue
+                val pname = p.name?.asString() ?: return
                 val expr = paramExpression(c, p) ?: return
-                args.add(expr)
+                args.add("$pname = $expr")
             }
             blocks.add(BindBlock(c.simpleName.asString(), fqn, args))
         }
@@ -191,7 +197,9 @@ class LogicProcessor(
         }
         return when (fqn) {
             "neton.logging.Logger" -> {
-                val name = loggerNameOf(owner)
+                // P1.1: logger 名解析 — 显式 @Logic(logger=) 优先 (兼容 prod 既有日志名);
+                // 省略时自动生成标准名 <moduleId>.<snake> (去 module Pascal 前缀).
+                val name = loggerNameOf(owner) ?: defaultLoggerName(owner)
                 "ctx.get(neton.logging.LoggerFactory::class).get(\"$name\")"
             }
             "neton.logging.LoggerFactory" -> "ctx.get(neton.logging.LoggerFactory::class)"
@@ -200,13 +208,31 @@ class LogicProcessor(
         }
     }
 
-    /** @Logic(logger = "...") 的 logger 名；空串退化为类 FQN。 */
-    private fun loggerNameOf(c: KSClassDeclaration): String {
+    /** @Logic(logger = "...") 的显式 logger 名；未声明 / 空串返回 null（caller 走自动名）。 */
+    private fun loggerNameOf(c: KSClassDeclaration): String? {
         val ann = c.annotations.firstOrNull {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == logicAnnotationName
         }
         val v = ann?.arguments?.firstOrNull { it.name?.asString() == "logger" }?.value as? String
-        return if (!v.isNullOrBlank()) v else c.qualifiedName!!.asString()
+        return if (!v.isNullOrBlank()) v else null
+    }
+
+    /**
+     * P1.1 自动 logger 名: `<moduleId>.<snake>`。
+     * snake = simpleName 去掉 module Pascal 前缀（GameRoomLogic → RoomLogic）后转 snake_case。
+     * 例: moduleId=game, GameKindRepository → "game.kind_repository"。
+     */
+    private fun defaultLoggerName(c: KSClassDeclaration): String {
+        val pascalModule = moduleId!!.split('-', '_').joinToString("") { part ->
+            part.replaceFirstChar { it.uppercaseChar() }
+        }
+        val simple = c.simpleName.asString()
+        val trimmed = simple.removePrefix(pascalModule).ifBlank { simple }
+        val snake = trimmed
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+            .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
+            .lowercase()
+        return "$moduleId.$snake"
     }
 
     private fun String.toPascal(): String =

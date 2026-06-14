@@ -10,10 +10,17 @@ private val MODULE_ID_PATTERN = Regex("^[a-z][a-z0-9-]*$")
  * 模块初始化器聚合处理器
  *
  * 读取 KSP 选项 `neton.moduleId`，从 ModuleFragmentSink 收集各 Processor 写入的片段，
- * 聚合生成唯一的 `{Id}ModuleInitializer` 实现 `ModuleInitializer` 接口。
+ * 聚合生成模块级初始化器。两种模式：
  *
- * 各 Processor 在检测到 moduleId 存在时，不生成独立的 Registry/Initializer 文件，
- * 而是将注册代码片段写入 ModuleFragmentSink。本 Processor 统一输出。
+ * 1. **Manifest 模式（MANIFEST-P1）** — 模块声明了 `@NetonModule` 锚点 object：
+ *    生成 `{Id}ModuleManifest : ModuleInitializer`，聚合 fragments + 约定 FQN 探测：
+ *    - `init.generated.{Id}MigrationResources` 存在 → override migrations()
+ *    - `init.{Id}RuntimeBootstrap` 存在 → 在 logics 之后、routes 之前调用
+ *    fragment 按 domain 冻结顺序输出: configs → logics → (bootstrap) → routes → jobs → validators。
+ *    注解 id 必须与 ksp arg `neton.moduleId` 一致（编译错误）；dependsOn 以注解为准。
+ *
+ * 2. **兼容模式** — 无 @NetonModule：维持原行为，生成 `{Id}ModuleInitializer`，
+ *    dependsOn 来自 ksp arg `neton.moduleDependsOn`。
  *
  * moduleId 约束：只允许 [a-z][a-z0-9-]*（小写字母开头，后续小写/数字/短横线）。
  *
@@ -50,18 +57,219 @@ class ModuleInitializerProcessor(
             return emptyList()
         }
 
-        if (!ModuleFragmentSink.hasFragments(moduleId)) {
-            logger.info("ModuleInitializer[$moduleId]: no fragments collected, skip generation")
+        // MANIFEST-P1: @Module 锚点探测。存在 → Manifest 模式；否则兼容模式。
+        val anchor = findModuleAnchor(resolver, moduleId)
+
+        // 零 fragment 且无 @Module 锚点 → 旧兼容行为 (跳过)。但 @Module 锚点存在时,
+        // 即便没有 routes/logics/validators (纯 runtime 模块, 如 assistant: 全副作用
+        // 启动序列 + RuntimeBootstrap), 也必须生成 manifest —— 否则 application registry
+        // 的 manifest 探测 fall back 不到, 整个模块丢失。
+        if (anchor == null && !ModuleFragmentSink.hasFragments(moduleId)) {
+            logger.info("ModuleInitializer[$moduleId]: no fragments + no @Module anchor, skip generation")
             return emptyList()
         }
 
-        generateModuleInitializer(moduleId)
+        if (anchor != null) {
+            generateModuleManifest(resolver, moduleId, anchor)
+        } else {
+            generateModuleInitializer(moduleId)
+        }
 
         // 清空该 moduleId 的 sink，避免多轮累积
         ModuleFragmentSink.clear(moduleId)
 
         return emptyList()
     }
+
+    private data class ModuleAnchor(
+        val declaredId: String,
+        val dependsOn: List<String>,
+    )
+
+    /**
+     * 扫 @Module；校验唯一性 + id 解析（P1.1）。
+     *
+     * id 解析顺序：
+     * 1. 注解显式 id → 必须与 ksp arg `neton.moduleId` 一致（编译错误，双源互证）。
+     * 2. 省略 → 用 ksp arg；同时尝试 package 推导（末段，跳过 init/module/bootstrap），
+     *    推导成功且与 ksp arg 不一致 → 编译警告（不阻断，浅包结构推导本就无意义）。
+     *
+     * 校验失败返回 null 且已报 error。
+     */
+    private fun findModuleAnchor(resolver: Resolver, moduleId: String): ModuleAnchor? {
+        val symbols = resolver
+            .getSymbolsWithAnnotation("neton.core.annotations.Module")
+            .filterIsInstance<KSClassDeclaration>()
+            .toList()
+        if (symbols.isEmpty()) return null
+        if (symbols.size > 1) {
+            logger.error(
+                "@Module declared ${symbols.size} times in module '$moduleId' " +
+                        "(${symbols.joinToString { it.qualifiedName?.asString() ?: "?" }}). " +
+                        "Exactly one anchor object per module."
+            )
+            return null
+        }
+        val decl = symbols.first()
+        val ann = decl.annotations.first {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() ==
+                    "neton.core.annotations.Module"
+        }
+        val declaredId = (ann.arguments.firstOrNull { it.name?.asString() == "id" }?.value as? String)
+            ?.takeIf { it.isNotBlank() }
+        if (declaredId != null && declaredId != moduleId) {
+            logger.error(
+                "@Module(id = \"$declaredId\") on ${decl.qualifiedName?.asString()} does not " +
+                        "match KSP option neton.moduleId='$moduleId'. The annotation is the declared " +
+                        "surface, the KSP arg is the shared processor carrier — they must agree.",
+                decl
+            )
+            return null
+        }
+        if (declaredId == null) {
+            // id 省略: ksp arg 即 source of truth; package 推导仅做 sanity 警告.
+            val derived = deriveModuleIdFromPackage(decl.packageName.asString())
+            if (derived != null && derived != moduleId) {
+                logger.warn(
+                    "@Module on ${decl.qualifiedName?.asString()}: package-derived id '$derived' " +
+                            "differs from neton.moduleId='$moduleId' (using the ksp arg). " +
+                            "Declare @Module(id = ...) explicitly if this is intentional.",
+                    decl
+                )
+            }
+        }
+        @Suppress("UNCHECKED_CAST")
+        val deps = (ann.arguments.firstOrNull { it.name?.asString() == "dependsOn" }?.value as? List<String>)
+            ?: emptyList()
+        return ModuleAnchor(moduleId, deps)
+    }
+
+    /** package 末段推导 module id；末段是 init/module/bootstrap 时取倒数第二段；推导不出返回 null。 */
+    private fun deriveModuleIdFromPackage(pkg: String): String? {
+        if (pkg.isBlank()) return null
+        val segments = pkg.split('.').filter { it.isNotBlank() }
+        val skip = setOf("init", "module", "bootstrap")
+        val candidate = segments.lastOrNull { it !in skip } ?: return null
+        return candidate.takeIf { MODULE_ID_PATTERN.matches(it) }
+    }
+
+    /** fragment domain 冻结顺序: configs → logics → (bootstrap) → routes → jobs → validators */
+    private val domainOrder = mapOf(
+        "configs" to 0,
+        "logics" to 1,
+        // bootstrap 调用插在 1 与 3 之间
+        "routes" to 3,
+        "jobs" to 4,
+        "validators" to 5,
+    )
+
+    // ---------- Manifest 模式 (MANIFEST-P1) ----------
+
+    private fun generateModuleManifest(resolver: Resolver, moduleId: String, anchor: ModuleAnchor) {
+        val pascalId = moduleId.toPascalCase()
+        val className = "${pascalId}ModuleManifest"
+        val pkg = "neton.module.$moduleId.generated"
+
+        // 约定 FQN 探测（编译期；存在才生成调用）
+        val migrationsFqn = "init.generated.${pascalId}MigrationResources"
+        val hasMigrations = resolver.getClassDeclarationByName(
+            resolver.getKSNameFromString(migrationsFqn)
+        ) != null
+        val bootstrapFqn = "init.${pascalId}RuntimeBootstrap"
+        val hasBootstrap = resolver.getClassDeclarationByName(
+            resolver.getKSNameFromString(bootstrapFqn)
+        ) != null
+        if (!hasMigrations) {
+            logger.warn(
+                "@NetonModule[$moduleId]: $migrationsFqn not found — manifest will not override " +
+                        "migrations(). If this module has schema, check generateMigrationResources task order."
+            )
+        }
+
+        val fragments = ModuleFragmentSink.getFragments(moduleId)
+            .sortedBy { domainOrder[it.domain] ?: 2 }
+        val imports = ModuleFragmentSink.getImports(moduleId)
+        val topLevelDecls = ModuleFragmentSink.getTopLevelDeclarations(moduleId)
+        val stats = ModuleFragmentSink.getStats(moduleId)
+
+        val file = codeGenerator.createNewFile(
+            dependencies = Dependencies(true),
+            packageName = pkg,
+            fileName = className
+        )
+
+        OutputStreamWriter(file).use { w ->
+            w.write("// AUTO-GENERATED by Neton KSP ModuleInitializerProcessor (manifest mode) - DO NOT EDIT\n")
+            w.write("package $pkg\n\n")
+
+            w.write("import neton.core.component.NetonContext\n")
+            w.write("import neton.core.module.ModuleInitializer\n")
+            if (hasMigrations) {
+                w.write("import neton.core.module.MigrationSource\n")
+            }
+            imports.sorted().forEach { w.write("$it\n") }
+            w.write("\n")
+
+            topLevelDecls.forEach { decl ->
+                w.write(decl)
+                w.write("\n")
+            }
+
+            w.write("/**\n")
+            w.write(" * 模块 [$moduleId] 的自动生成 Manifest（@NetonModule, MANIFEST-P1）。\n")
+            w.write(" *\n")
+            w.write(" * 聚合本模块全部 KSP 产物 + migrations 探测 + 手写 runtime bootstrap。\n")
+            w.write(" * 顺序: configs → logics(@Logic) → RuntimeBootstrap → routes → jobs → validators。\n")
+            w.write(" * 模块侧薄壳: `object {X}ModuleInitializer : ModuleInitializer by $className`。\n")
+            w.write(" */\n")
+            w.write("object $className : ModuleInitializer {\n\n")
+            w.write("    override val moduleId: String = \"$moduleId\"\n\n")
+
+            if (anchor.dependsOn.isNotEmpty()) {
+                val depsList = anchor.dependsOn.joinToString(", ") { "\"$it\"" }
+                w.write("    override val dependsOn: List<String> = listOf($depsList)\n\n")
+            }
+
+            if (stats.isNotEmpty()) {
+                val entries = stats.entries.joinToString(", ") { "\"${it.key}\" to ${it.value}" }
+                w.write("    override val stats: Map<String, Int> = mapOf($entries)\n\n")
+            }
+
+            if (hasMigrations) {
+                w.write("    /** SQL embed 进 binary（gradle generateMigrationResources task 生成）。 */\n")
+                w.write("    override fun migrations(): List<MigrationSource> = $migrationsFqn.sources\n\n")
+            }
+
+            w.write("    override fun initialize(ctx: NetonContext) {\n")
+
+            var bootstrapWritten = !hasBootstrap
+            fragments.forEach { fragment ->
+                // bootstrap 调用插在 logics(order<=1) 之后、第一个 order>=3 fragment 之前
+                if (!bootstrapWritten && (domainOrder[fragment.domain] ?: 2) >= 3) {
+                    w.write("        // 手写 runtime bootstrap（engine/scheduler/watchdog 等复杂装配）\n")
+                    w.write("        $bootstrapFqn.initialize(ctx)\n\n")
+                    bootstrapWritten = true
+                }
+                w.write("        // ${fragment.comment}\n")
+                w.write(fragment.code)
+                w.write("\n\n")
+            }
+            if (!bootstrapWritten) {
+                w.write("        // 手写 runtime bootstrap（engine/scheduler/watchdog 等复杂装配）\n")
+                w.write("        $bootstrapFqn.initialize(ctx)\n\n")
+            }
+
+            w.write("    }\n")
+            w.write("}\n")
+        }
+
+        logger.info(
+            "Generated $pkg.$className (manifest mode) with ${fragments.size} fragment(s), " +
+                    "migrations=$hasMigrations bootstrap=$hasBootstrap"
+        )
+    }
+
+    // ---------- 兼容模式（无 @NetonModule，维持原行为） ----------
 
     private fun generateModuleInitializer(moduleId: String) {
         val pascalId = moduleId.toPascalCase()
