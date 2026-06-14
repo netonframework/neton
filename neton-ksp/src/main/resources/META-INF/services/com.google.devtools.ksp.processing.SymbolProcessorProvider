@@ -5,3 +5,4 @@ neton.ksp.validation.ValidationProcessorProvider
 neton.ksp.JobProcessorProvider
 neton.ksp.LogicProcessorProvider
 neton.ksp.ModuleInitializerProcessorProvider
+neton.ksp.ApplicationRegistryProcessorProvider
