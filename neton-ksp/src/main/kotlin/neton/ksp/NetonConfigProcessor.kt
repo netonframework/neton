@@ -7,10 +7,24 @@ import java.io.OutputStreamWriter
 private data class ConfigEntry(val component: String, val order: Int, val clazz: KSClassDeclaration)
 
 /**
- * 扫描 @NetonConfig(component, order) 并按 component 分组，生成 GeneratedNetonConfigRegistry。
+ * 扫描 @NetonConfig(component, order) 并生成 security configurer 装配代码。
  *
- * 模块模式（moduleId 存在）：不生成独立文件，将配置器注册代码写入 ModuleFragmentSink。
- * 兼容模式（moduleId 不存在）：生成 GeneratedNetonConfigRegistry 到 neton.core.generated。
+ * # 两种模式
+ *
+ * **模块模式（neton.moduleId 存在）**：每个模块把自己的 @NetonConfig("security") 收集成一个
+ * **编译期可探测的贡献对象** `neton.module.{id}.generated.{Id}SecurityConfigContribution`，
+ * 暴露 `securityConfigurers: List<NetonConfigurer<SecurityBuilder>>`。
+ *
+ * **应用模式（neton.moduleId 不存在）**：生成 `neton.core.generated.GeneratedNetonConfigRegistry`，
+ * 把本编译单元的 @NetonConfig + （若设了 `neton.modules`）各模块的 SecurityConfigContribution
+ * **聚合**成单个 registry。Main.kt 用 `configRegistry(GeneratedNetonConfigRegistry)` 在组件 start
+ * 前绑定，SecurityComponent.start 再 `sortedBy{order}` 应用。
+ *
+ * # 为什么是编译期聚合而不是 runtime bind
+ *
+ * `SecurityComponent.start` 跑在 module init **之前**，所以模块在 init 阶段 bind configurer 来不及
+ * 生效。configurer 必须在 app 编译期就聚合进 registry、随 DSL 早绑定。这与 MANIFEST-P2 的
+ * [ApplicationRegistryProcessor] 探测 per-module manifest 完全同构（跨 klib 编译期 resolve）。
  */
 class NetonConfigProcessor(
     private val codeGenerator: CodeGenerator,
@@ -19,9 +33,14 @@ class NetonConfigProcessor(
 ) : SymbolProcessor {
 
     private val moduleId: String? = options["neton.moduleId"]?.takeIf { it.isNotBlank() }
+    private val modulesArg: String? = options["neton.modules"]?.takeIf { it.isNotBlank() }
     private val netonConfigAnnotationName = "neton.core.config.NetonConfig"
 
+    private var invoked = false
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
+        if (invoked) return emptyList()
+
         val symbols = resolver.getSymbolsWithAnnotation(netonConfigAnnotationName)
         val configClasses = symbols.filterIsInstance<KSClassDeclaration>().toList()
 
@@ -35,98 +54,130 @@ class NetonConfigProcessor(
         }.groupBy({ it.component }, { it })
 
         val securityEntries = grouped["security"]?.toList() ?: emptyList()
-        if (securityEntries.isNotEmpty()) {
-            logger.info("NetonConfig: found ${securityEntries.size} security configurer(s)")
-            if (moduleId != null) {
-                writeToSink(securityEntries)
-            } else {
-                generateConfigRegistry(securityEntries)
+
+        if (moduleId != null) {
+            // 模块模式：本模块有 security configurer 才生成贡献对象（无则零产物）。
+            if (securityEntries.isNotEmpty()) {
+                invoked = true
+                logger.info("NetonConfig[$moduleId]: ${securityEntries.size} security configurer(s) → contribution")
+                generateModuleContribution(moduleId, securityEntries)
+            }
+        } else {
+            // 应用模式：本地 configurer 或 neton.modules 任一存在就生成聚合 registry。
+            if (securityEntries.isNotEmpty() || modulesArg != null) {
+                invoked = true
+                val contributions = resolveModuleContributions(resolver)
+                logger.info(
+                    "NetonConfig[app]: ${securityEntries.size} local + ${contributions.size} module " +
+                            "security contribution(s) → GeneratedNetonConfigRegistry"
+                )
+                generateConfigRegistry(securityEntries, contributions)
             }
         }
 
         return emptyList()
     }
 
-    /** 模块模式：写片段到 sink */
-    private fun writeToSink(securityEntries: List<ConfigEntry>) {
-        ModuleFragmentSink.addStat(moduleId!!, "configs", securityEntries.size)
-        ModuleFragmentSink.addImports(
-            moduleId!!,
-            "import neton.core.config.NetonConfigurer",
-            "import neton.core.config.NetonConfigRegistry",
-            "import neton.core.config.NetonConfigurers",
-            "import neton.core.interfaces.SecurityBuilder"
-        )
-        securityEntries.forEach {
-            ModuleFragmentSink.addImport(moduleId, "import ${it.clazz.qualifiedName!!.asString()}")
-        }
+    // ---------- 模块模式：编译期贡献对象 ----------
 
-        val configurersList = securityEntries.joinToString(",\n            ") {
-            "NetonConfigurers.ordered(${it.order}, ${it.clazz.simpleName.asString()}())"
-        }
+    /** 生成 `neton.module.{id}.generated.{Id}SecurityConfigContribution`（app 编译期探测）。 */
+    private fun generateModuleContribution(moduleId: String, securityEntries: List<ConfigEntry>) {
+        val pkg = "neton.module.$moduleId.generated"
+        val className = "${moduleId.toPascal()}SecurityConfigContribution"
 
-        // 在 initializer 内定义 configRegistry 并 bind
-        val code = buildString {
-            appendLine("        val configRegistry = object : NetonConfigRegistry {")
-            appendLine("            override val securityConfigurers: List<NetonConfigurer<SecurityBuilder>> = listOf(")
-            appendLine("                $configurersList")
-            appendLine("            )")
-            appendLine("        }")
-            append("        ctx.bindIfAbsent(NetonConfigRegistry::class, configRegistry)")
-        }
-
-        ModuleFragmentSink.addFragment(moduleId, "configs", "注册安全配置器", code)
-    }
-
-    /** 兼容模式：生成独立文件 */
-    private fun generateConfigRegistry(securityEntries: List<ConfigEntry>) {
         val file = codeGenerator.createNewFile(
             dependencies = Dependencies(true, *securityEntries.mapNotNull { it.clazz.containingFile }.toTypedArray()),
+            packageName = pkg,
+            fileName = className
+        )
+
+        OutputStreamWriter(file).use { w ->
+            w.write("// AUTO-GENERATED by Neton KSP NetonConfigProcessor - DO NOT EDIT\n")
+            w.write("package $pkg\n\n")
+            w.write("import neton.core.config.NetonConfigurer\n")
+            w.write("import neton.core.config.NetonConfigurers\n")
+            w.write("import neton.core.interfaces.SecurityBuilder\n")
+            securityEntries.forEach { w.write("import ${it.clazz.qualifiedName!!.asString()}\n") }
+            w.write("\n")
+            w.write("/**\n")
+            w.write(" * 模块 [$moduleId] 的 security configurer 贡献（${securityEntries.size} 个）。\n")
+            w.write(" * 由 app 编译期 NetonConfigProcessor 探测并聚合进 GeneratedNetonConfigRegistry。\n")
+            w.write(" */\n")
+            w.write("object $className {\n")
+            w.write("    val securityConfigurers: List<NetonConfigurer<SecurityBuilder>> = listOf(\n")
+            securityEntries.forEach {
+                w.write("        NetonConfigurers.ordered(${it.order}, ${it.clazz.simpleName.asString()}()),\n")
+            }
+            w.write("    )\n")
+            w.write("}\n")
+        }
+    }
+
+    // ---------- 应用模式：跨模块探测 + 聚合 registry ----------
+
+    /**
+     * 按 `neton.modules` 列表探测各模块的 SecurityConfigContribution（编译期 resolve，跨 klib）。
+     * 大多数模块没有 security configurer → 探测不到属正常，静默跳过（与 ApplicationRegistryProcessor
+     * 的「每个模块必须有 manifest」不同 —— 那里缺失是 error）。返回探测到的 contribution FQN 列表。
+     */
+    private fun resolveModuleContributions(resolver: Resolver): List<String> {
+        val arg = modulesArg ?: return emptyList()
+        val ids = arg.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        val found = mutableListOf<String>()
+        for (id in ids) {
+            val pascal = id.toPascal()
+            val fqn = "neton.module.$id.generated.${pascal}SecurityConfigContribution"
+            if (resolver.getClassDeclarationByName(resolver.getKSNameFromString(fqn)) != null) {
+                found.add(fqn)
+            }
+        }
+        return found
+    }
+
+    /** 生成聚合 registry：本地 @NetonConfig + 各模块 contribution。 */
+    private fun generateConfigRegistry(localEntries: List<ConfigEntry>, contributionFqns: List<String>) {
+        val file = codeGenerator.createNewFile(
+            dependencies = Dependencies(true, *localEntries.mapNotNull { it.clazz.containingFile }.toTypedArray()),
             packageName = "neton.core.generated",
             fileName = "GeneratedNetonConfigRegistry"
         )
 
-        OutputStreamWriter(file).use { writer ->
-            writer.write(
-                """
-                // AUTO-GENERATED - DO NOT EDIT
-                // Generated by Neton KSP NetonConfigProcessor
-                package neton.core.generated
+        OutputStreamWriter(file).use { w ->
+            w.write("// AUTO-GENERATED by Neton KSP NetonConfigProcessor - DO NOT EDIT\n")
+            w.write("package neton.core.generated\n\n")
+            w.write("import neton.core.config.NetonConfigurer\n")
+            w.write("import neton.core.config.NetonConfigRegistry\n")
+            w.write("import neton.core.config.NetonConfigurers\n")
+            w.write("import neton.core.interfaces.SecurityBuilder\n")
+            localEntries.forEach { w.write("import ${it.clazz.qualifiedName!!.asString()}\n") }
+            w.write("\n")
+            w.write("/**\n")
+            w.write(" * 聚合 security config registry：本地 ${localEntries.size} + 模块 ${contributionFqns.size} 个贡献。\n")
+            w.write(" * order 在 SecurityComponent.start 消费时统一 sortedBy 应用。\n")
+            w.write(" */\n")
+            w.write("object GeneratedNetonConfigRegistry : NetonConfigRegistry {\n\n")
+            w.write("    override val securityConfigurers: List<NetonConfigurer<SecurityBuilder>> =\n")
 
-                import neton.core.config.NetonConfigurer
-                import neton.core.config.NetonConfigRegistry
-                import neton.core.config.NetonConfigurers
-                import neton.core.interfaces.SecurityBuilder
-
-                """.trimIndent()
-            )
-
-            securityEntries.forEach { writer.write("import ${it.clazz.qualifiedName!!.asString()}\n") }
-
-            writer.write(
-                """
-
-                object GeneratedNetonConfigRegistry : NetonConfigRegistry {
-
-                    override val securityConfigurers: List<NetonConfigurer<SecurityBuilder>> = listOf(
-                """.trimIndent()
-            )
-
-            if (securityEntries.isNotEmpty()) {
-                writer.write(securityEntries.joinToString(",\n") {
-                    "NetonConfigurers.ordered(${it.order}, ${it.clazz.simpleName.asString()}())"
-                })
-            }
-
-            writer.write(
-                """
-
-                    )
+            // 本地 configurer（直接构造 + ordered 包装）
+            if (localEntries.isEmpty()) {
+                w.write("        emptyList<NetonConfigurer<SecurityBuilder>>()")
+            } else {
+                w.write("        listOf(\n")
+                localEntries.forEach {
+                    w.write("            NetonConfigurers.ordered(${it.order}, ${it.clazz.simpleName.asString()}()),\n")
                 }
-                """.trimIndent()
-            )
+                w.write("        )")
+            }
+            // 拼接各模块贡献
+            contributionFqns.forEach { fqn ->
+                w.write(" +\n        $fqn.securityConfigurers")
+            }
+            w.write("\n}\n")
         }
     }
+
+    private fun String.toPascal(): String =
+        split('-', '_').joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
 }
 
 class NetonConfigProcessorProvider : SymbolProcessorProvider {
