@@ -85,6 +85,7 @@ class LogicProcessor(
             }
             visiting.add(fqn)
             c.primaryConstructor?.parameters?.forEach { p ->
+                if (p.hasDefault) return@forEach   // 默认值参数不注入 → 不构成依赖边
                 val depFqn = p.type.resolve().declaration.qualifiedName?.asString()
                 val dep = depFqn?.let { byFqn[it] }
                 if (dep != null) visit(dep, path + fqn)
@@ -119,8 +120,13 @@ class LogicProcessor(
             }
             val args = mutableListOf<String>()
             for (p in ctor.parameters) {
+                // P3-MIGRATE: 跳过带默认值的 ctor 参数 —— 它们自 provision (如
+                //   `db: DbContext = dbContext()`), 注入 ctx.get 反而改语义/可能 NPE。
+                //   用命名参数生成, 跳过后位置无关。
+                if (p.hasDefault) continue
+                val pname = p.name?.asString() ?: return
                 val expr = paramExpression(c, p) ?: return
-                args.add(expr)
+                args.add("$pname = $expr")
             }
             blocks.add(BindBlock(c.simpleName.asString(), fqn, args))
         }
