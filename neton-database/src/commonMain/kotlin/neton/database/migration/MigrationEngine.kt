@@ -182,17 +182,11 @@ class MigrationEngine(
             )
         }
 
-        // checksum 一致性预检 — 任何不一致立即中断,不进入 UP
-        for (script in scripts) {
-            val e = executedSuccessKey[script.moduleId to script.version] ?: continue
-            if (script.checksum != e.checksum) {
-                return MigrationResult.Aborted(
-                    reason = "checksum mismatch on [${script.moduleId}]V${script.version}: " +
-                        "embed=${script.checksum.take(8)} history=${e.checksum.take(8)}",
-                    warnings = warnings,
-                )
-            }
-        }
+        // 简化:不做 checksum 一致性校验。"已应用" 仅按 (moduleId, version) 判断
+        // (见下方 pending 过滤)。pre-release baseline 把碎片迁移收敛成 V001/V002 后
+        // checksum 必然变,但 schema 净结果一致;老库 V001/V002 视为已应用直接 skip,
+        // history 中被收敛掉的多余版本(如 game V003-V038)无害忽略。
+        // 失败迁移的 abort(上方 executedFailed)仍保留。
 
         val pending = scripts.filter { (it.moduleId to it.version) !in executedSuccessKey }
         if (pending.isEmpty()) {
