@@ -28,7 +28,13 @@ class SqlxTableAdapter<T : Any, ID : Any>(
     private val toParams: (T) -> Map<String, Any?>,
     private val getId: (T) -> ID?,
     private val softDeleteConfig: SoftDeleteConfig? = null,
-    private val autoFillConfig: AutoFillConfig? = null
+    private val autoFillConfig: AutoFillConfig? = null,
+    /**
+     * 主键是否数据库自增。默认 true 兼容历史用法（SERIAL/AUTO_INCREMENT）。
+     * `@Id(autoGenerate = false)` 的 entity 由 KSP 处理器显式传 false，让 INSERT
+     * 包含 id 字段，由调用方决定主键值（例如 PrivchatBotProfile.id = bot 的 user_id）。
+     */
+    private val autoGenerateId: Boolean = true,
 ) : Table<T, ID> {
 
     private val db: QueryExecutor get() = dbProvider()
@@ -173,7 +179,10 @@ class SqlxTableAdapter<T : Any, ID : Any>(
 
     override suspend fun exists(id: ID): Boolean = get(id) != null
     override suspend fun insert(entity: T): T {
-        val params = toParams(entity).filterKeys { it != "id" }
+        // 自增主键时过滤掉 id 字段，让 DB 生成；非自增（@Id(autoGenerate=false)）
+        // 时保留 id 字段，由 entity 自己提供主键值。
+        val raw = toParams(entity)
+        val params = if (autoGenerateId) raw.filterKeys { it != meta.idColumn } else raw
         val withAutoFill = mergeAutoFillForInsert(params)
         db.execute(insertStatement(withAutoFill)).getOrThrow()
         return entity
@@ -181,7 +190,8 @@ class SqlxTableAdapter<T : Any, ID : Any>(
 
     override suspend fun insertBatch(entities: List<T>): Int = transactionBlock {
         entities.count { e ->
-            val params = toParams(e).filterKeys { it != "id" }
+            val raw = toParams(e)
+            val params = if (autoGenerateId) raw.filterKeys { it != meta.idColumn } else raw
             db.execute(insertStatement(mergeAutoFillForInsert(params))).getOrThrow() > 0
         }
     }
