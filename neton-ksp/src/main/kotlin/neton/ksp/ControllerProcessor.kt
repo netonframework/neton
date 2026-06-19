@@ -339,6 +339,9 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                 controller.annotations.any { it.shortName.asString() == "AllowAnonymous" }
         val requireAuth = function.annotations.any { it.shortName.asString() == "RequireAuth" } ||
                 controller.annotations.any { it.shortName.asString() == "RequireAuth" }
+        // @FreshAuth: 类级或方法级（任一即生效）。Phase A dormant：只生成元数据，不影响运行时。
+        val freshAuth = function.annotations.any { it.shortName.asString() == "FreshAuth" } ||
+                controller.annotations.any { it.shortName.asString() == "FreshAuth" }
         // @Permission: 方法级覆盖类级，不允许多个（fail-fast）
         val methodPermissions = function.annotations.filter { it.shortName.asString() == "Permission" }.toList()
         if (methodPermissions.size > 1) {
@@ -470,7 +473,8 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                 allowAnonymous = $allowAnonymous,
                 requireAuth = $requireAuth,
                 permission = ${if (permission != null) "\"$permission\"" else "null"},
-                rateLimit = $rateLimitCode
+                rateLimit = $rateLimitCode,
+                freshAuth = $freshAuth
             )
         )
 """

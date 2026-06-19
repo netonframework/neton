@@ -91,11 +91,30 @@ class KtorHttpAdapter(
                     // /aaa 与 /aaa/ 视为同一地址
                     install(IgnoreTrailingSlash)
 
-                    // CORS
+                    // CORS — 注意 ktor-server-cors 3.4.2 的几个坑（都已经
+                    // 踩过一遍）：
+                    //   1) allowHost 要求 host 跟 scheme 分开传，
+                    //      传完整 URL 会抛 IllegalArgumentException。
+                    //   2) 必须显式打开 allowNonSimpleContentTypes，否则
+                    //      JSON API（content-type: application/json 是
+                    //      non-simple）的 actual request 即使预检通过
+                    //      也会被拒 403。
+                    //   3) 必须显式 allowMethod 列出 POST / PUT / PATCH 等，
+                    //      anyMethod() 的覆盖范围在某些 actual-request
+                    //      路径上不可靠。
                     serverConfig.corsConfig?.let { cors ->
                         install(CORS) {
                             cors.allowedOrigins.forEach { origin ->
-                                if (origin == "*") anyHost() else allowHost(origin)
+                                when {
+                                    origin == "*" -> anyHost()
+                                    origin.contains("://") -> {
+                                        val sep = origin.indexOf("://")
+                                        val scheme = origin.substring(0, sep)
+                                        val hostPort = origin.substring(sep + 3)
+                                        allowHost(hostPort, schemes = listOf(scheme))
+                                    }
+                                    else -> allowHost(origin)
+                                }
                             }
                             cors.allowedMethods.forEach { m ->
                                 allowMethod(io.ktor.http.HttpMethod.parse(m))
@@ -103,6 +122,8 @@ class KtorHttpAdapter(
                             cors.allowedHeaders.forEach { h ->
                                 if (h == "*") allowHeaders { true } else allowHeader(h)
                             }
+                            allowNonSimpleContentTypes = true
+                            allowSameOrigin = true
                             if (cors.allowCredentials) allowCredentials = true
                             maxAgeInSeconds = cors.maxAgeSeconds
                         }
