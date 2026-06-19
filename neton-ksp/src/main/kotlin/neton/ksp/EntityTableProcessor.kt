@@ -11,7 +11,9 @@ private data class EntityColumnInfo(
     val propType: String,
     val isSoftDelete: Boolean = false,
     val isCreatedAt: Boolean = false,
-    val isUpdatedAt: Boolean = false
+    val isUpdatedAt: Boolean = false,
+    /** 仅对 isId=true 字段有意义；与 @Id(autoGenerate=...) 一致；默认 true。 */
+    val idAutoGenerate: Boolean = true,
 )
 
 /**
@@ -120,6 +122,7 @@ class EntityTableProcessor(
             var isSoftDelete = false
             var isCreatedAt = false
             var isUpdatedAt = false
+            var idAutoGenerate = true
             val allAnnotations = param.annotations.toList() + (propertyAnnotations[propName] ?: emptyList())
             for (ann in allAnnotations) {
                 val annDecl = ann.annotationType.resolve().declaration
@@ -131,7 +134,11 @@ class EntityTableProcessor(
                         if (!v.isNullOrBlank()) colName = v
                     }
 
-                    "neton.database.annotations.Id" -> isId = true
+                    "neton.database.annotations.Id" -> {
+                        isId = true
+                        val arg = ann.arguments.find { it.name?.asString() == "autoGenerate" }?.value as? Boolean
+                        if (arg != null) idAutoGenerate = arg
+                    }
                     "neton.database.annotations.SoftDelete" -> isSoftDelete = true
                     "neton.database.annotations.CreatedAt" -> isCreatedAt = true
                     "neton.database.annotations.UpdatedAt" -> isUpdatedAt = true
@@ -140,7 +147,7 @@ class EntityTableProcessor(
             val resolved = param.type.resolve()
             val qn = resolved.declaration.qualifiedName?.asString() ?: "Any"
             val propType = qn.substringAfterLast('.') + if (resolved.isMarkedNullable) "?" else ""
-            list.add(EntityColumnInfo(propName, colName, isId, propType, isSoftDelete, isCreatedAt, isUpdatedAt))
+            list.add(EntityColumnInfo(propName, colName, isId, propType, isSoftDelete, isCreatedAt, isUpdatedAt, idAutoGenerate))
         }
         return list
     }
@@ -277,6 +284,13 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
             ",\n    autoFillConfig = neton.database.api.AutoFillConfig(${args.joinToString(", ")})"
         } else ""
 
+        // @Id(autoGenerate=false) 的 entity 需要让 adapter 知道：INSERT 时不要过滤掉 id
+        // 字段（默认 true 是自增主键时由 DB 生成，这里默认值兼容历史）。
+        val idColInfo = columns.find { it.isId }
+        val autoGenerateParam = if (idColInfo != null && !idColInfo.idAutoGenerate) {
+            ",\n    autoGenerateId = false"
+        } else ""
+
         if (hasFacade) {
             // 用户已手写 XxxTable Facade → 生成 XxxTableImpl（internal）
             val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}TableImpl")
@@ -298,7 +312,7 @@ internal object ${entityName}TableImpl : Table<$entityRef, $idType> by SqlxTable
     toParams = { it -> mapOf(
             $toParamsEntries
     )},
-    getId = { it.id }$softDeleteParam$autoFillParam
+    getId = { it.id }$softDeleteParam$autoFillParam$autoGenerateParam
 )
 """.trimIndent()
                 )
@@ -324,7 +338,7 @@ object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$enti
     toParams = { it -> mapOf(
             $toParamsEntries
     )},
-    getId = { it.id }$softDeleteParam$autoFillParam
+    getId = { it.id }$softDeleteParam$autoFillParam$autoGenerateParam
 )
 """.trimIndent()
                 )
