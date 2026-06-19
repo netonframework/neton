@@ -49,7 +49,8 @@ data class RouteDefinition(
     val requireAuth: Boolean = false,                         // 是否需认证（@RequireAuth）
     val routeGroup: String? = null,                           // 路由组（用于 Security 选择 authenticator/guard），由 KSP 或 routing 层写入
     val permission: String? = null,                           // @Permission 值，如 "system:user:edit"
-    val rateLimit: RateLimitConfig? = null                    // @RateLimit 配置，由 KSP 编译期生成
+    val rateLimit: RateLimitConfig? = null,                   // @RateLimit 配置，由 KSP 编译期生成
+    val freshAuth: Boolean = false                            // 是否要求新鲜认证（@FreshAuth）：Phase B bypass session cache + force introspect；Phase A dormant 不消费
 )
 
 /**

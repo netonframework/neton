@@ -106,7 +106,8 @@ class SecurityPipelineContractTest {
         allowAnonymous: Boolean = false,
         requireAuth: Boolean = false,
         permission: String? = null,
-        pattern: String = "/test"
+        pattern: String = "/test",
+        freshAuth: Boolean = false
     ) = RouteDefinition(
         pattern = pattern,
         method = HttpMethod.GET,
@@ -117,7 +118,8 @@ class SecurityPipelineContractTest {
         methodName = "test",
         allowAnonymous = allowAnonymous,
         requireAuth = requireAuth,
-        permission = permission
+        permission = permission,
+        freshAuth = freshAuth
     )
 
     private fun secConfig(
@@ -403,5 +405,42 @@ class SecurityPipelineContractTest {
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException for permission-implies-auth fail-fast")
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
+    }
+
+    // --- Test 16: @FreshAuth 字段默认 false ---
+    // RouteDefinition 默认值锁定（spec TOKEN_UNIFICATION_SPEC v1.3 Phase A）：
+    // 没标 @FreshAuth 的 route 必须 freshAuth=false，否则会在 Phase B 启用 unified 后
+    // 全量绕过 session cache → introspect 雪崩。
+    @Test
+    fun freshAuth_defaultsToFalse() {
+        assertEquals(false, route().freshAuth)
+    }
+
+    // --- Test 17: @FreshAuth 字段可写入 true（KSP 通路 contract） ---
+    // KSP 见到 @FreshAuth 时会写 freshAuth=true 进 RouteDefinition；这里只锁定
+    // RouteDefinition 数据结构能承载该字段，行为消费在 Phase B unified path 落地。
+    @Test
+    fun freshAuth_canBeSetTrue() {
+        assertEquals(true, route(freshAuth = true).freshAuth)
+    }
+
+    // --- Test 18: @FreshAuth Phase A dormant guarantee ---
+    // 同样的 route(requireAuth=true) + Mock authenticator，无论 freshAuth=true/false，
+    // pipeline 行为必须**完全一致**：identity 写入、放行同样的请求。
+    // 锁定 spec §10：Phase A 默认 enabled=false 时，freshAuth 字段是 inert 元数据。
+    @Test
+    fun freshAuth_phaseA_doesNotChangePreHandleBehavior() = runBlocking {
+        val mockId = MockIdentity("user-fresh", setOf("user"))
+        val baseAttrs = mutableMapOf<String, Any>()
+        val freshAttrs = mutableMapOf<String, Any>()
+        val baseCtx = testCtx(baseAttrs)
+        val freshCtx = testCtx(freshAttrs)
+        val config = secConfig(mockId)
+        runSecurityPreHandle(route(requireAuth = true, freshAuth = false), baseCtx, reqCtx(), config)
+        runSecurityPreHandle(route(requireAuth = true, freshAuth = true), freshCtx, reqCtx(), config)
+        val baseId = baseCtx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
+        val freshId = freshCtx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
+        assertEquals(baseId?.id, freshId?.id)
+        assertEquals("user-fresh", freshId?.id)
     }
 }
