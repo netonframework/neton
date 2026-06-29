@@ -114,23 +114,17 @@ levels = "ALL"
 
 ### HTTP Engines
 
-`neton-http` uses Ktor by default and does not link Hyper. Applications that need Hyper add the
-optional `neton-http-hyper4k` adapter, register it once, and select it in configuration:
+`neton-http` uses Ktor by default and does not know about Hyper. Applications that need Hyper add
+the external `neton-http-hyper4k` adapter and pass its constructor to the HTTP component:
 
 ```kotlin
 Neton.run(args) {
-    enableHyper4kAdapter()
-    http { port = 8080 }
+    http(::Hyper4kHttpAdapter) { port = 8080 }
 }
 ```
 
-```toml
-[http]
-engine = "hyper4k"
-```
-
-The optional adapter brings a compatible `hyper4k` engine transitively. Configuration selects an
-adapter that the application has linked; it does not dynamically download native code.
+The default `http { }` overload selects Ktor. Adapter selection is compile-time application code,
+not an `application.conf` setting or a runtime registry.
 
 ---
 
@@ -285,7 +279,6 @@ Hello Neton!
 |--------|---------------|--------|
 | neton-core | Bootstrap / components / config | Stable |
 | neton-http | Default Ktor server adapter + outbound HTTP client | Stable |
-| neton-http-hyper4k | Optional Hyper HTTP adapter | Experimental |
 | neton-logging | Structured logging + sinks/async | Stable |
 | neton-routing | Routing DSL + KSP Controller | Stable |
 | neton-security | Guard + JWT | Stable |
