@@ -112,6 +112,28 @@ levels = "ALL"
 
 ---
 
+### HTTP Engines
+
+`neton-http` uses Ktor by default and does not link Hyper. Applications that need Hyper add the
+optional `neton-http-hyper4k` adapter, register it once, and select it in configuration:
+
+```kotlin
+Neton.run(args) {
+    enableHyper4kAdapter()
+    http { port = 8080 }
+}
+```
+
+```toml
+[http]
+engine = "hyper4k"
+```
+
+The optional adapter brings a compatible `hyper4k` engine transitively. Configuration selects an
+adapter that the application has linked; it does not dynamically download native code.
+
+---
+
 ### Logging
 
 Built-in structured logging:
@@ -262,7 +284,8 @@ Hello Neton!
 | Module | Responsibility | Status |
 |--------|---------------|--------|
 | neton-core | Bootstrap / components / config | Stable |
-| neton-http | HTTP server adapter | Stable |
+| neton-http | Default Ktor HTTP adapter | Stable |
+| neton-http-hyper4k | Optional Hyper HTTP adapter | Experimental |
 | neton-logging | Structured logging + sinks/async | Stable |
 | neton-routing | Routing DSL + KSP Controller | Stable |
 | neton-security | Guard + JWT | Stable |
@@ -295,6 +318,7 @@ Neton is built on top of these excellent open-source projects:
 | Project | Usage | Link |
 |---------|-------|------|
 | **Ktor** | HTTP server engine (CIO) | [github.com/ktorio/ktor](https://github.com/ktorio/ktor) |
+| **hyper4k** | Optional Tokio + Hyper engine | [github.com/netonframework/hyper4k](https://github.com/netonframework/hyper4k) |
 | **kotlinx.coroutines** | Kotlin coroutines | [github.com/Kotlin/kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) |
 | **kotlinx.serialization** | JSON / Protobuf serialization | [github.com/Kotlin/kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) |
 | **sqlx4k** | Kotlin/Native database driver (SQLite / PostgreSQL / MySQL) | [github.com/smyrgeorge/sqlx4k](https://github.com/smyrgeorge/sqlx4k) |

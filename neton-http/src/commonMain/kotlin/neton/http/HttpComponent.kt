@@ -44,7 +44,8 @@ object HttpComponent : NetonComponent<HttpConfig> {
             corsConfig = corsConfig
         )
         ctx.bind(serverConfig)
-        ctx.bind(HttpAdapter::class, createHttpAdapter(engine, serverConfig, registry))
+        val adapter = selectHttpAdapter(engine, serverConfig, registry, ctx.getOrNull(HttpAdapterProvider::class))
+        ctx.bind(HttpAdapter::class, adapter)
     }
 
     private fun resolveInt(config: Map<String, Any?>?, path: String): Int? {
@@ -91,6 +92,25 @@ object HttpComponent : NetonComponent<HttpConfig> {
             (corsSection["allowCredentials"] as? Boolean)?.let { allowCredentials = it }
             (corsSection["maxAgeSeconds"] as? Number)?.toLong()?.let { maxAgeSeconds = it }
         }
+    }
+}
+
+internal fun selectHttpAdapter(
+    engine: HttpEngine,
+    serverConfig: HttpServerConfig,
+    converterRegistry: neton.core.http.ParamConverterRegistry,
+    provider: HttpAdapterProvider?,
+): HttpAdapter = when (engine) {
+    HttpEngine.KTOR -> KtorHttpAdapter(serverConfig, converterRegistry)
+    else -> {
+        checkNotNull(provider) {
+            "HTTP engine '${engine.configName}' is not installed. " +
+                "Add its adapter dependency and register an HttpAdapterProvider."
+        }
+        require(provider.engine == engine) {
+            "HTTP adapter provider '${provider.engine.configName}' cannot serve '${engine.configName}'"
+        }
+        provider.create(serverConfig, converterRegistry)
     }
 }
 

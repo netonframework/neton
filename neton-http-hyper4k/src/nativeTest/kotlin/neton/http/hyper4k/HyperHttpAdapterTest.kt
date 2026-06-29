@@ -1,4 +1,4 @@
-package neton.http
+package neton.http.hyper4k
 
 import hyper4k.Hyper4kRequest
 import kotlinx.coroutines.runBlocking
@@ -7,7 +7,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import neton.core.component.NetonContext
 import neton.core.component.CorsConfig
-import neton.core.component.HttpEngine
 import neton.core.http.HttpContext
 import neton.core.http.HttpMethod
 import neton.core.interfaces.ConfiguredRouteGroups
@@ -16,6 +15,7 @@ import neton.core.interfaces.RouteDefinition
 import neton.core.interfaces.RouteGroupMounts
 import neton.core.interfaces.RouteHandler
 import neton.core.security.AuthenticationContext
+import neton.http.HttpServerConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -23,8 +23,7 @@ import kotlin.test.assertIs
 class HyperHttpAdapterTest {
     @Test
     fun createsConfiguredAdapter() {
-        val adapter = createHttpAdapter(
-            HttpEngine.HYPER4K,
+        val adapter = Hyper4kAdapterProvider.create(
             HttpServerConfig(port = 0),
             neton.core.http.DefaultParamConverterRegistry(),
         )

@@ -39,6 +39,8 @@ kotlin {
                     package = neton.env
                     headers = env.h
                     includeDirs = $includePath
+                    staticLibraries = libenv.a
+                    libraryPaths = $interopDir
                 """.trimIndent())
             }
         }
@@ -48,10 +50,6 @@ kotlin {
                 defFile(defFile)
                 compilerOpts.add("-I$includePath")
             }
-        }
-        binaries.forEach { binary ->
-            binary.linkerOpts.add("-L$interopDir")
-            binary.linkerOpts.add("-lenv")
         }
     }
 

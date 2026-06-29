@@ -111,6 +111,28 @@ levels = "ALL"
 
 ---
 
+### HTTP 引擎
+
+`neton-http` 默认使用 Ktor，不链接 Hyper。需要 Hyper 的应用显式添加可选的
+`neton-http-hyper4k` Adapter，注册一次后再通过配置选择：
+
+```kotlin
+Neton.run(args) {
+    enableHyper4kAdapter()
+    http { port = 8080 }
+}
+```
+
+```toml
+[http]
+engine = "hyper4k"
+```
+
+可选 Adapter 会传递兼容的 `hyper4k` 引擎。配置只选择应用已经链接的 Adapter，
+不会在运行时动态下载 Native 代码。
+
+---
+
 ### 📊 日志
 
 内建结构化日志：
@@ -268,7 +290,8 @@ Hello Neton!
 | 模块 | 职责 | 状态 |
 |------|------|------|
 | neton-core | 启动/组件/配置 | ✅ 稳定 |
-| neton-http | HTTP 服务器适配 | ✅ 稳定 |
+| neton-http | 默认 Ktor HTTP Adapter | ✅ 稳定 |
+| neton-http-hyper4k | 可选 Hyper HTTP Adapter | 实验性 |
 | neton-logging | 结构化日志 + sinks/async | ✅ 稳定 |
 | neton-routing | 路由 DSL + KSP Controller | ✅ 稳定 |
 | neton-security | Guard + JWT 主路径 | ✅ 稳定 |
@@ -303,6 +326,7 @@ Neton 的诞生离不开以下优秀的开源项目：
 | 项目 | 用途 | 链接 |
 |------|------|------|
 | **Ktor** | HTTP 服务器引擎（CIO） | [github.com/ktorio/ktor](https://github.com/ktorio/ktor) |
+| **hyper4k** | 可选 Tokio + Hyper 引擎 | [github.com/netonframework/hyper4k](https://github.com/netonframework/hyper4k) |
 | **kotlinx.coroutines** | Kotlin 协程支持 | [github.com/Kotlin/kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) |
 | **kotlinx.serialization** | JSON / Protobuf 序列化 | [github.com/Kotlin/kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) |
 | **sqlx4k** | Kotlin/Native 数据库驱动（SQLite / PostgreSQL / MySQL） | [github.com/smyrgeorge/sqlx4k](https://github.com/smyrgeorge/sqlx4k) |
