@@ -39,7 +39,7 @@ hyper4k；Client 位于 `neton.http.client` 包，不再使用独立的 `neton-h
 ### HttpComponent
 - 负责模块初始化和注册
 - 默认创建 `KtorHttpAdapter`
-- 非默认引擎通过应用显式注册的 `HttpAdapterProvider` 创建
+- 接收任意满足 `HttpAdapterFactory` 签名的 Adapter 构造器
 
 ### NetonHttpClient
 
@@ -70,41 +70,34 @@ Neton.run(args) {
 }
 ```
 
-`http.engine` 只选择入站 Server Adapter，不改变出站 Client Engine。
+入站 Server Adapter 的选择不改变出站 Client Engine。
 
-### HyperHttpAdapter
+### 外部 Server Adapter
 
-Hyper 支持位于可选模块 `neton-http-hyper4k`，不属于 `neton-http` 的默认依赖。
-Kotlin/Native 在编译期完成链接，因此应用需要先引入并注册 Hyper Adapter，再通过配置选择：
+Neton 主仓不引入第三方 Server Adapter。Kotlin/Native 应用添加对应依赖后，直接传入
+Adapter 的构造器引用：
 
 ```kotlin
 import neton.http.http
-import neton.http.hyper4k.enableHyper4kAdapter
+import neton.http.hyper4k.Hyper4kHttpAdapter
 
 Neton.run(args) {
-    enableHyper4kAdapter()
-    http { port = 8080 }
+    http(::Hyper4kHttpAdapter) {
+        port = 8080
+    }
 }
 ```
 
-```toml
-[http]
-engine = "hyper4k"
+`http { }` 是 `http(::KtorHttpAdapter) { }` 的默认语法糖。第三方 Adapter 使用统一构造函数：
+
+```kotlin
+class XxxHttpAdapter(
+    serverConfig: HttpServerConfig,
+    converterRegistry: ParamConverterRegistry,
+) : HttpAdapter
 ```
 
-如果不配置 `http.engine`，默认值始终是 `ktor`。如果配置了 `hyper4k` 却没有注册对应
-Provider，应用会在启动时直接报告适配器未安装，而不会静默回退到 Ktor。
-
-框架仓库中测试可选模块时使用：
-
-```bash
-./gradlew -Pneton.http.hyper4k=true :neton-http-hyper4k:macosArm64Test
-```
-
-该开发参数只负责包含本地适配器模块和相邻的 `../hyper4k` composite build，不影响应用的
-运行时引擎选择。
-- Supports JSON, URL-encoded forms, security, CORS, mounted routes, and response envelopes
-- Multipart upload support remains on the Ktor adapter
+这里使用 constructor reference 而不是 `KClass`，因为 Kotlin/Native 不依赖运行时反射。
 
 ### SecurityPreHandle
 - 安全管道前置处理（认证 + 授权 + 权限检查）
@@ -132,7 +125,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("com.netonframework:neton-http-hyper4k:<neton-version>")
+    implementation("com.netonframework:neton-http-hyper4k:<adapter-version>")
 }
 ```
 
@@ -180,14 +173,14 @@ fun main(args: Array<String>) {
 
 ## 🔄 切换 HTTP 后端
 
-HTTP 后端采用“应用引入 Adapter + 配置选择 Engine”的方式切换：
+HTTP 后端由应用在编译期显式注入：
 
 1. 引入可选 Adapter 模块。
-2. 在启动 DSL 中注册其 `HttpAdapterProvider`。
-3. 在 `application.conf` 中设置 `http.engine`。
+2. 将 Adapter 构造器传给 `http(...)`。
+3. `application.conf` 只配置端口、超时、CORS 等运行参数。
 
 ```kotlin
-// 默认 Ktor，无需注册其他 Provider
+// 默认 Ktor
 Neton.run(args) {
     http { port = 8080 }
     routing { }

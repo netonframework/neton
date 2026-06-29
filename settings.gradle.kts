@@ -9,16 +9,6 @@ pluginManagement {
 
 rootProject.name = "neton"
 
-val hyper4kAdapterEnabled = providers.gradleProperty("neton.http.hyper4k").orNull?.toBoolean() == true
-if (hyper4kAdapterEnabled) {
-    val hyper4kDir = file("../hyper4k")
-    require(hyper4kDir.isDirectory) {
-        "Hyper adapter development requires the hyper4k repository at ../hyper4k"
-    }
-    includeBuild(hyper4kDir)
-    include(":neton-http-hyper4k")
-}
-
 // 🚀 Neton Framework - 现代化平铺模块结构
 include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ 实现（neton.logging.internal，单模块内分层）
 include(":neton-core")       // 主框架模块

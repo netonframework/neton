@@ -48,7 +48,7 @@ kotlin {
 
         commonMain {
             dependencies {
-                implementation(project(":neton-core"))
+                api(project(":neton-core"))
                 implementation(project(":neton-logging"))
                 implementation(libs.ktor.io)
                 implementation(libs.ktor.http.cio)

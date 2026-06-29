@@ -2,23 +2,24 @@ package neton.http
 
 import neton.core.component.CorsConfig
 import neton.core.component.HttpConfig
-import neton.core.component.HttpEngine
 import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
+import neton.core.http.ParamConverterRegistry
 import neton.core.http.adapter.HttpAdapter
 import neton.core.config.ConfigLoader
-import neton.logging.LoggerFactory
-import neton.logging.emptyFields
+
+typealias HttpAdapterFactory = (HttpServerConfig, ParamConverterRegistry) -> HttpAdapter
 
 /**
  * HTTP 组件 - 无内部状态，port/config 在 Component，Adapter 内部持有
  */
-object HttpComponent : NetonComponent<HttpConfig> {
+class HttpComponent(
+    private val adapterFactory: HttpAdapterFactory = ::KtorHttpAdapter,
+) : NetonComponent<HttpConfig> {
 
     override fun defaultConfig(): HttpConfig = HttpConfig()
 
     override suspend fun init(ctx: NetonContext, config: HttpConfig) {
-        val log = ctx.getOrNull(LoggerFactory::class)?.get("neton.http")
         val registry = ctx.getOrNull(neton.core.http.ParamConverterRegistry::class)
             ?: config.converterRegistry
             ?: neton.core.http.DefaultParamConverterRegistry()
@@ -33,7 +34,6 @@ object HttpComponent : NetonComponent<HttpConfig> {
         val timeout = resolveLong(appConfig, "http.timeout") ?: 30000L
         val maxConnections = resolveInt(appConfig, "http.maxConnections") ?: 1000
         val enableCompression = resolveBoolean(appConfig, "http.enableCompression") ?: true
-        val engine = resolveString(appConfig, "http.engine")?.let(HttpEngine::parse) ?: config.engine
         // CORS: application.conf [cors] 优先，fallback 到 DSL
         val corsConfig = resolveCorsConfig(appConfig) ?: config.corsConfig
         val serverConfig = HttpServerConfig(
@@ -44,8 +44,7 @@ object HttpComponent : NetonComponent<HttpConfig> {
             corsConfig = corsConfig
         )
         ctx.bind(serverConfig)
-        val adapter = selectHttpAdapter(engine, serverConfig, registry, ctx.getOrNull(HttpAdapterProvider::class))
-        ctx.bind(HttpAdapter::class, adapter)
+        ctx.bind(HttpAdapter::class, adapterFactory(serverConfig, registry))
     }
 
     private fun resolveInt(config: Map<String, Any?>?, path: String): Int? {
@@ -78,9 +77,6 @@ object HttpComponent : NetonComponent<HttpConfig> {
         }
     }
 
-    private fun resolveString(config: Map<String, Any?>?, path: String): String? =
-        ConfigLoader.getConfigValue(config, path) as? String
-
     @Suppress("UNCHECKED_CAST")
     private fun resolveCorsConfig(appConfig: Map<String, Any?>?): CorsConfig? {
         val corsSection = appConfig?.let { ConfigLoader.getConfigValue(it, "cors") as? Map<String, Any?> }
@@ -92,25 +88,6 @@ object HttpComponent : NetonComponent<HttpConfig> {
             (corsSection["allowCredentials"] as? Boolean)?.let { allowCredentials = it }
             (corsSection["maxAgeSeconds"] as? Number)?.toLong()?.let { maxAgeSeconds = it }
         }
-    }
-}
-
-internal fun selectHttpAdapter(
-    engine: HttpEngine,
-    serverConfig: HttpServerConfig,
-    converterRegistry: neton.core.http.ParamConverterRegistry,
-    provider: HttpAdapterProvider?,
-): HttpAdapter = when (engine) {
-    HttpEngine.KTOR -> KtorHttpAdapter(serverConfig, converterRegistry)
-    else -> {
-        checkNotNull(provider) {
-            "HTTP engine '${engine.configName}' is not installed. " +
-                "Add its adapter dependency and register an HttpAdapterProvider."
-        }
-        require(provider.engine == engine) {
-            "HTTP adapter provider '${provider.engine.configName}' cannot serve '${engine.configName}'"
-        }
-        provider.create(serverConfig, converterRegistry)
     }
 }
 
@@ -127,6 +104,14 @@ data class HttpServerConfig(
 }
 
 /** 语法糖：http { port = 8080 } */
-fun neton.core.Neton.LaunchBuilder.http(block: HttpConfig.() -> Unit) {
-    install(HttpComponent, block)
+fun neton.core.Neton.LaunchBuilder.http(block: HttpConfig.() -> Unit = {}) {
+    http(::KtorHttpAdapter, block)
+}
+
+/** Installs an application-selected server adapter using a Native-safe constructor reference. */
+fun neton.core.Neton.LaunchBuilder.http(
+    adapterFactory: HttpAdapterFactory,
+    block: HttpConfig.() -> Unit = {},
+) {
+    install(HttpComponent(adapterFactory), block)
 }

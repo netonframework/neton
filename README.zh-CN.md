@@ -113,23 +113,17 @@ levels = "ALL"
 
 ### HTTP 引擎
 
-`neton-http` 默认使用 Ktor，不链接 Hyper。需要 Hyper 的应用显式添加可选的
-`neton-http-hyper4k` Adapter，注册一次后再通过配置选择：
+`neton-http` 默认使用 Ktor，且完全不知道 Hyper。需要 Hyper 的应用引入外部
+`neton-http-hyper4k` Adapter，并把构造器传给 HTTP Component：
 
 ```kotlin
 Neton.run(args) {
-    enableHyper4kAdapter()
-    http { port = 8080 }
+    http(::Hyper4kHttpAdapter) { port = 8080 }
 }
 ```
 
-```toml
-[http]
-engine = "hyper4k"
-```
-
-可选 Adapter 会传递兼容的 `hyper4k` 引擎。配置只选择应用已经链接的 Adapter，
-不会在运行时动态下载 Native 代码。
+默认 `http { }` 使用 Ktor。Adapter 由应用代码在编译期选择，不属于 `application.conf`
+配置，也不通过运行时注册表发现。
 
 ---
 
@@ -291,7 +285,6 @@ Hello Neton!
 |------|------|------|
 | neton-core | 启动/组件/配置 | ✅ 稳定 |
 | neton-http | 默认 Ktor Server Adapter + 出站 HTTP Client | ✅ 稳定 |
-| neton-http-hyper4k | 可选 Hyper HTTP Adapter | 实验性 |
 | neton-logging | 结构化日志 + sinks/async | ✅ 稳定 |
 | neton-routing | 路由 DSL + KSP Controller | ✅ 稳定 |
 | neton-security | Guard + JWT 主路径 | ✅ 稳定 |
