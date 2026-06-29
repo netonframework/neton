@@ -1,6 +1,7 @@
 # Neton HTTP 模块
 
-HTTP 模块为 Neton 框架提供真正的 HTTP 服务器实现，基于 Ktor 服务器。
+HTTP 模块为 Neton 框架提供默认的 Ktor HTTP 服务器实现。默认构建和应用只加载 Ktor，
+不会依赖或链接 hyper4k。
 
 ## 🎯 设计原则
 
@@ -14,9 +15,8 @@ HTTP 模块为 Neton 框架提供真正的 HTTP 服务器实现，基于 Ktor �
 
 ```
 ┌─────────────────┐    依赖    ┌─────────────────┐
-│   HTTP 模块     │ ---------> │   Core 模块     │
+│ neton-http      │ ---------> │   Core 模块     │
 │ KtorHttpAdapter │            │ HttpAdapter接口 │
-│                 │            │ MockHttpAdapter │
 └─────────────────┘            └─────────────────┘
         │                             │
         │ init 时 ctx.bind            │ 提供接口
@@ -38,16 +38,21 @@ HTTP 模块为 Neton 框架提供真正的 HTTP 服务器实现，基于 Ktor �
 
 ### HttpComponent
 - 负责模块初始化和注册
-- 根据 `HttpEngine` 选择 adapter 并注册到 NetonContext
+- 默认创建 `KtorHttpAdapter`
+- 非默认引擎通过应用显式注册的 `HttpAdapterProvider` 创建
 
 ### HyperHttpAdapter
 
-`HyperHttpAdapter` uses the standalone `hyper4k` Tokio + Hyper engine on Kotlin/Native.
-Select it from the DSL or `application.conf`:
+Hyper 支持位于可选模块 `neton-http-hyper4k`，不属于 `neton-http` 的默认依赖。
+Kotlin/Native 在编译期完成链接，因此应用需要先引入并注册 Hyper Adapter，再通过配置选择：
 
 ```kotlin
-http {
-    engine = HttpEngine.HYPER4K
+import neton.http.http
+import neton.http.hyper4k.enableHyper4kAdapter
+
+Neton.run(args) {
+    enableHyper4kAdapter()
+    http { port = 8080 }
 }
 ```
 
@@ -56,11 +61,19 @@ http {
 engine = "hyper4k"
 ```
 
-The default remains `ktor`. A local sibling `../hyper4k` repository is included through the
-composite build during framework development.
+如果不配置 `http.engine`，默认值始终是 `ktor`。如果配置了 `hyper4k` 却没有注册对应
+Provider，应用会在启动时直接报告适配器未安装，而不会静默回退到 Ktor。
+
+框架仓库中测试可选模块时使用：
+
+```bash
+./gradlew -Pneton.http.hyper4k=true :neton-http-hyper4k:macosArm64Test
+```
+
+该开发参数只负责包含本地适配器模块和相邻的 `../hyper4k` composite build，不影响应用的
+运行时引擎选择。
 - Supports JSON, URL-encoded forms, security, CORS, mounted routes, and response envelopes
 - Multipart upload support remains on the Ktor adapter
-- 通过 `http { }` install DSL 暴露，组件对业务层隐藏
 
 ### SecurityPreHandle
 - 安全管道前置处理（认证 + 授权 + 权限检查）
@@ -83,6 +96,16 @@ dependencies {
     implementation(project(":neton-http"))
 }
 ```
+
+只有选择 Hyper 的应用才添加：
+
+```kotlin
+dependencies {
+    implementation("com.netonframework:neton-http-hyper4k:<neton-version>")
+}
+```
+
+Adapter 模块会传递并锁定兼容的 `hyper4k` 引擎版本，应用不需要重复声明。
 
 ### 2. 使用 install DSL（推荐）
 
@@ -126,16 +149,16 @@ fun main(args: Array<String>) {
 
 ## 🔄 切换 HTTP 后端
 
-由于采用了依赖倒置设计，未来可以轻松切换到其他 HTTP 库：
+HTTP 后端采用“应用引入 Adapter + 配置选择 Engine”的方式切换：
 
-1. 创建新的 HTTP 模块（如 `neton-http-netty`）
-2. 实现 `HttpAdapter` 接口
-3. 在应用中替换模块依赖
+1. 引入可选 Adapter 模块。
+2. 在启动 DSL 中注册其 `HttpAdapterProvider`。
+3. 在 `application.conf` 中设置 `http.engine`。
 
 ```kotlin
-// 从 Ktor 切换到 Netty（示例）
+// 默认 Ktor，无需注册其他 Provider
 Neton.run(args) {
-    http { port = 8080 }  // 或 netty { } 若实现 NettyPlugin
+    http { port = 8080 }
     routing { }
 }
 ```

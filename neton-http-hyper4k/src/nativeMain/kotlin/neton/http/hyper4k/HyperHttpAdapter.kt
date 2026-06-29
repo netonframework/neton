@@ -1,4 +1,4 @@
-package neton.http
+package neton.http.hyper4k
 
 import hyper4k.Hyper4kRequest
 import hyper4k.Hyper4kResponse
@@ -42,6 +42,8 @@ import neton.core.interfaces.SecurityConfiguration
 import neton.logging.CurrentLogContext
 import neton.logging.LogContext
 import neton.logging.LoggerFactory
+import neton.http.HttpServerConfig
+import neton.http.runSecurityPreHandle
 
 /** Tokio + Hyper transport adapter for Neton on Kotlin/Native. */
 class HyperHttpAdapter(

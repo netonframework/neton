@@ -17,7 +17,8 @@ import neton.core.security.RequireIdentityGuard
  *
  * 优先级：@AllowAnonymous > whitelist > group.requireAuth
  */
-internal suspend fun runSecurityPreHandle(
+/** Adapter SPI used by alternative HTTP transports before route dispatch. */
+suspend fun runSecurityPreHandle(
     route: RouteDefinition,
     httpContext: HttpContext,
     requestContext: RequestContext,

@@ -29,6 +29,9 @@ enum class HttpEngine {
     KTOR,
     HYPER4K;
 
+    val configName: String
+        get() = name.lowercase()
+
     companion object {
         fun parse(value: String): HttpEngine = when (value.trim().lowercase()) {
             "ktor", "cio" -> KTOR
