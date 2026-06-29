@@ -20,8 +20,22 @@ class CorsConfig {
  */
 class HttpConfig {
     var port: Int = 8080
+    var engine: HttpEngine = HttpEngine.KTOR
     var converterRegistry: ParamConverterRegistry? = null
     var corsConfig: CorsConfig? = null
+}
+
+enum class HttpEngine {
+    KTOR,
+    HYPER4K;
+
+    companion object {
+        fun parse(value: String): HttpEngine = when (value.trim().lowercase()) {
+            "ktor", "cio" -> KTOR
+            "hyper4k", "hyper" -> HYPER4K
+            else -> throw IllegalArgumentException("Unsupported HTTP engine: $value")
+        }
+    }
 }
 
 /**

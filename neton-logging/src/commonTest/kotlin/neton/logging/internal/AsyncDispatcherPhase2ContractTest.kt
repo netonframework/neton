@@ -43,6 +43,7 @@ class AsyncDispatcherPhase2ContractTest {
                 RouteRule("all", LogLevel.entries.toSet(), msgEquals = null, sinks = listOf(SinkSpec.File("test")))
             ),
             minLevel = LogLevel.DEBUG,
+            format = LogFormat.JSON,
             async = LoggingAsyncConfig(enabled = true, queueSize = 1)
         )
         val sinks = mapOf("file:test" to collect)
@@ -54,6 +55,6 @@ class AsyncDispatcherPhase2ContractTest {
         delay(500) // 等待 writer drain
 
         val errorLines = collect.lines.count { it.contains("\"level\":\"ERROR\"") }
-        assertTrue(errorLines >= 49, "ERROR 不应丢，至少应有 49 条（queueSize=1 时 fallback）")
+        assertTrue(errorLines >= 49, "ERROR 不应丢，至少应有 49 条，实际 $errorLines 条")
     }
 }

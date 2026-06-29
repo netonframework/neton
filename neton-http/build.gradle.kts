@@ -17,6 +17,9 @@ kotlin {
     sourceSets {
         val nativeMain by creating {
             dependsOn(commonMain.get())
+            dependencies {
+                implementation("com.netonframework:hyper4k:0.1.0")
+            }
         }
         val posixMain by creating {
             dependsOn(nativeMain)

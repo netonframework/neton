@@ -9,6 +9,8 @@ pluginManagement {
 
 rootProject.name = "neton"
 
+includeBuild("../hyper4k")
+
 // 🚀 Neton Framework - 现代化平铺模块结构
 include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ 实现（neton.logging.internal，单模块内分层）
 include(":neton-core")       // 主框架模块

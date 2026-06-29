@@ -38,7 +38,28 @@ HTTP 模块为 Neton 框架提供真正的 HTTP 服务器实现，基于 Ktor �
 
 ### HttpComponent
 - 负责模块初始化和注册
-- 通过 `ctx.bind(HttpAdapter::class, KtorHttpAdapter(...))` 注册到 NetonContext
+- 根据 `HttpEngine` 选择 adapter 并注册到 NetonContext
+
+### HyperHttpAdapter
+
+`HyperHttpAdapter` uses the standalone `hyper4k` Tokio + Hyper engine on Kotlin/Native.
+Select it from the DSL or `application.conf`:
+
+```kotlin
+http {
+    engine = HttpEngine.HYPER4K
+}
+```
+
+```toml
+[http]
+engine = "hyper4k"
+```
+
+The default remains `ktor`. A local sibling `../hyper4k` repository is included through the
+composite build during framework development.
+- Supports JSON, URL-encoded forms, security, CORS, mounted routes, and response envelopes
+- Multipart upload support remains on the Ktor adapter
 - 通过 `http { }` install DSL 暴露，组件对业务层隐藏
 
 ### SecurityPreHandle
