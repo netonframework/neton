@@ -15,16 +15,6 @@ kotlin {
         }
     }
 
-    // Link against neton-core's posixenv library for POSIX targets only
-    listOf(macosArm64(), macosX64(), linuxX64(), linuxArm64()).forEach { target ->
-        val targetName = target.name
-        val coreInterop = project(":neton-core").file("build/nativeInterop/$targetName").absolutePath
-        target.binaries.forEach { binary ->
-            binary.linkerOpts.add("-L$coreInterop")
-            binary.linkerOpts.add("-lenv")
-        }
-    }
-
     sourceSets {
         val nativeMain by creating { dependsOn(commonMain.get()) }
         val posixMain by creating { dependsOn(nativeMain) }
@@ -38,22 +28,10 @@ kotlin {
 
         commonMain {
             dependencies {
-                implementation(project(":neton-http-client"))
+                implementation(project(":neton-http"))
                 implementation(project(":neton-ai"))
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
     }
-}
-
-tasks.matching { it.name.startsWith("linkDebugExecutable") }.configureEach {
-    val targetName = when {
-        name.contains("MacosArm64") -> "MacosArm64"
-        name.contains("MacosX64") -> "MacosX64"
-        name.contains("LinuxX64") -> "LinuxX64"
-        name.contains("LinuxArm64") -> "LinuxArm64"
-        name.contains("MingwX64") -> return@configureEach // mingwX64 doesn't need posixenv
-        else -> return@configureEach
-    }
-    dependsOn(":neton-core:archivePosixEnv$targetName")
 }

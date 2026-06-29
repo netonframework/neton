@@ -28,8 +28,8 @@ class AiComponentBootTest {
             })
         }
         assertTrue(ex.error is AiError.InvalidRequest)
-        assertTrue("neton-http-client" in ex.error.message,
-            "error must direct user to install neton-http-client first; was: ${ex.error.message}")
+        assertTrue("HTTP client" in ex.error.message,
+            "error must direct user to install the HTTP client first; was: ${ex.error.message}")
     }
 
     @Test fun initBindsAiClientWhenConfigValid() = runTest {

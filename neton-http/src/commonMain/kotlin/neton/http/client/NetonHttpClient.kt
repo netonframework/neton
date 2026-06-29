@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import neton.http.client.internal.DefaultNetonHttpClient
 
 /**
- * Provider-neutral HTTP client. Public API of neton-http-client.
+ * Provider-neutral outbound HTTP client. Public API of neton-http.
  *
  * **Dual usage**:
  *   1. Standalone (any KMP project): `val client = NetonHttpClient.create { requestMillis = 30_000 }`

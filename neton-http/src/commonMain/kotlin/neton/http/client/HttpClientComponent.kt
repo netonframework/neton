@@ -38,6 +38,10 @@ object HttpClientComponent : NetonComponent<HttpClientConfig> {
             ))
         }
     }
+
+    override suspend fun stop(ctx: NetonContext) {
+        ctx.getOrNull(NetonHttpClient::class)?.close()
+    }
 }
 
 /** DSL entry: `httpClient { ... }` */

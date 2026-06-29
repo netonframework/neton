@@ -21,23 +21,25 @@ kotlin {
         val posixMain by creating {
             dependsOn(nativeMain)
         }
-        // Per-target source sets —— ktor client engines 不能共用 posixMain
-        // （macOS 走 Darwin, Linux 走 CIO, mingw 走 WinHttp）。
-        val macosArm64Main by getting {
+        val macosMain by creating {
             dependsOn(posixMain)
             dependencies { implementation(libs.ktor.client.darwin) }
+        }
+        val linuxMain by creating {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.cio) }
+        }
+        val macosArm64Main by getting {
+            dependsOn(macosMain)
         }
         val macosX64Main by getting {
-            dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.darwin) }
+            dependsOn(macosMain)
         }
         val linuxX64Main by getting {
-            dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.cio) }
+            dependsOn(linuxMain)
         }
         val linuxArm64Main by getting {
-            dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.cio) }
+            dependsOn(linuxMain)
         }
         val mingwX64Main by getting {
             dependsOn(nativeMain)
@@ -57,11 +59,8 @@ kotlin {
                 implementation(libs.ktor.server.sessions)
                 implementation(libs.ktor.server.cors)
                 implementation(libs.kotlinx.coroutines.core)
-                // ktor client (出站) —— framework-level HTTP client factory
-                // 在 commonMain 暴露 newNetonHttpClient(); 各 native target 在
-                // 自己的 source set 里挂 platform engine（Darwin / CIO / WinHttp）。
+                // Public outbound client SPI exposes Ktor's engine factory for test injection.
                 api(libs.ktor.client.core)
-                api(libs.ktor.client.content.negotiation)
             }
         }
 
@@ -70,7 +69,9 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation(project(":neton-core"))
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.ktor.client.mock)
             }
         }
     }

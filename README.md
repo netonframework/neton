@@ -284,7 +284,7 @@ Hello Neton!
 | Module | Responsibility | Status |
 |--------|---------------|--------|
 | neton-core | Bootstrap / components / config | Stable |
-| neton-http | Default Ktor HTTP adapter | Stable |
+| neton-http | Default Ktor server adapter + outbound HTTP client | Stable |
 | neton-http-hyper4k | Optional Hyper HTTP adapter | Experimental |
 | neton-logging | Structured logging + sinks/async | Stable |
 | neton-routing | Routing DSL + KSP Controller | Stable |

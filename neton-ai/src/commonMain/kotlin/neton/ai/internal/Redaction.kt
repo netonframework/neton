@@ -3,7 +3,7 @@ package neton.ai.internal
 
 /**
  * Header keys whose VALUES MUST NEVER appear in logs (case-insensitive). Mirrors and includes
- * neton-http-client's DEFAULT_REDACTED_HEADERS for AI-specific keys.
+ * neton-http's DEFAULT_REDACTED_HEADERS for AI-specific keys.
  */
 internal val REDACTED_HEADER_KEYS: Set<String> = setOf(
     "authorization", "x-api-key", "api-key", "anthropic-api-key",

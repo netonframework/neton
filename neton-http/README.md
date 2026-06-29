@@ -1,7 +1,7 @@
 # Neton HTTP 模块
 
-HTTP 模块为 Neton 框架提供默认的 Ktor HTTP 服务器实现。默认构建和应用只加载 Ktor，
-不会依赖或链接 hyper4k。
+HTTP 模块统一提供入站 Server 与出站 Client。Server 默认使用 Ktor，不会依赖或链接
+hyper4k；Client 位于 `neton.http.client` 包，不再使用独立的 `neton-http-client` 模块。
 
 ## 🎯 设计原则
 
@@ -40,6 +40,37 @@ HTTP 模块为 Neton 框架提供默认的 Ktor HTTP 服务器实现。默认构
 - 负责模块初始化和注册
 - 默认创建 `KtorHttpAdapter`
 - 非默认引擎通过应用显式注册的 `HttpAdapterProvider` 创建
+
+### NetonHttpClient
+
+出站 Client 的完整能力已经合并到本模块：
+
+- `NetonHttpClient.request()`：缓冲式请求/响应
+- `NetonHttpClient.stream()`：支持取消传播的流式响应
+- `NetonHttpError` / `NetonHttpException`：统一错误模型
+- SSE parser 与 Flow 操作
+- Header 脱敏和 retry primitive
+- macOS Darwin、Linux CIO、Windows WinHttp 平台 Engine
+
+可独立创建：
+
+```kotlin
+val client = NetonHttpClient.create {
+    requestMillis = 30_000
+}
+```
+
+也可以安装进 NetonContext，供 `neton-ai` 等组件使用：
+
+```kotlin
+Neton.run(args) {
+    httpClient { requestMillis = 30_000 }
+    ai { /* ... */ }
+    http { port = 8080 }
+}
+```
+
+`http.engine` 只选择入站 Server Adapter，不改变出站 Client Engine。
 
 ### HyperHttpAdapter
 
