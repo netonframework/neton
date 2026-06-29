@@ -2,6 +2,7 @@ package neton.http
 
 import neton.core.component.CorsConfig
 import neton.core.component.HttpConfig
+import neton.core.component.HttpEngine
 import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
 import neton.core.http.adapter.HttpAdapter
@@ -32,6 +33,7 @@ object HttpComponent : NetonComponent<HttpConfig> {
         val timeout = resolveLong(appConfig, "http.timeout") ?: 30000L
         val maxConnections = resolveInt(appConfig, "http.maxConnections") ?: 1000
         val enableCompression = resolveBoolean(appConfig, "http.enableCompression") ?: true
+        val engine = resolveString(appConfig, "http.engine")?.let(HttpEngine::parse) ?: config.engine
         // CORS: application.conf [cors] 优先，fallback 到 DSL
         val corsConfig = resolveCorsConfig(appConfig) ?: config.corsConfig
         val serverConfig = HttpServerConfig(
@@ -42,7 +44,7 @@ object HttpComponent : NetonComponent<HttpConfig> {
             corsConfig = corsConfig
         )
         ctx.bind(serverConfig)
-        ctx.bind(HttpAdapter::class, KtorHttpAdapter(serverConfig, registry))
+        ctx.bind(HttpAdapter::class, createHttpAdapter(engine, serverConfig, registry))
     }
 
     private fun resolveInt(config: Map<String, Any?>?, path: String): Int? {
@@ -74,6 +76,9 @@ object HttpComponent : NetonComponent<HttpConfig> {
             else -> null
         }
     }
+
+    private fun resolveString(config: Map<String, Any?>?, path: String): String? =
+        ConfigLoader.getConfigValue(config, path) as? String
 
     @Suppress("UNCHECKED_CAST")
     private fun resolveCorsConfig(appConfig: Map<String, Any?>?): CorsConfig? {

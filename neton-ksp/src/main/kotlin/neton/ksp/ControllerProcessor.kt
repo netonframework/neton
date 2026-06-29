@@ -149,6 +149,7 @@ class ControllerProcessor(
             }
             // 收集 @Serializable 返回类型（用于 JSON 序列化）
             val serializableReturnImports = mutableSetOf<String>()
+            var hasSerializableReturn = false
             var hasNullableSerializableReturn = false
             controllers.forEach { c ->
                 c.getAllFunctions()
@@ -157,12 +158,12 @@ class ControllerProcessor(
                         val rt = f.returnType?.resolve() ?: return@forEach
                         val expr = buildSerializerExpression(rt)
                         if (expr != null) {
+                            hasSerializableReturn = true
                             collectSerializableImports(rt, serializableReturnImports)
                             if (rt.isMarkedNullable) hasNullableSerializableReturn = true
                         }
                     }
             }
-            val hasSerializableReturn = serializableReturnImports.isNotEmpty()
             val needsJson = bodyParamTypes.isNotEmpty() || hasSerializableReturn
             if (needsJson) {
                 extraImports.add("kotlinx.serialization.json.Json")
@@ -587,7 +588,7 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
 
                         cookie != null -> {
                             val c = cookie.arguments.firstOrNull()?.value as? String ?: paramName
-                            if (isNullable) "context.request.cookie(\"$c\")?.value" else "(context.request.cookie(\"$c\")?.value ?: throw neton.core.interfaces.RequestProcessingException.ParameterBindingException(\"$c\", \"Required cookie '$c' is missing\"))"
+                            if (isNullable) "context.request.cookie(\"$c\")?.value" else "(context.request.cookie(\"$c\")?.value ?: throw ValidationException(listOf(ValidationError(path = \"$c\", message = \"is required\", code = \"Missing\"))))"
                         }
 
                         else -> generateArgConversion(param, actualParamName, paramType, isNullable)

@@ -16,14 +16,13 @@ private data class AsyncItem(val sinkKeys: Set<String>, val line: String, val le
 private fun runWriterLoop(
     sinkMap: Map<String, Sink>,
     q: AtomicReference<List<AsyncItem>>,
-    qs: AtomicInt,
     run: AtomicInt,
     flushIntervalMs: Long,
     maxBatch: Int
 ) {
     val intervalUs = (flushIntervalMs * 1000).toInt().toUInt()
-    while (run.load() != 0) {
-        val batch = drainBatch(q, qs, maxBatch)
+    while (run.load() != 0 || q.load().isNotEmpty()) {
+        val batch = drainBatch(q, maxBatch)
         if (batch.isNotEmpty()) {
             val sinkToLines = mutableMapOf<String, MutableList<String>>()
             for (item in batch) {
@@ -41,14 +40,14 @@ private fun runWriterLoop(
     sinkMap.values.forEach { it.close() }
 }
 
-private fun drainBatch(q: AtomicReference<List<AsyncItem>>, qs: AtomicInt, maxBatch: Int): List<AsyncItem> {
-    val current = q.exchange(emptyList())
-    qs.addAndFetch(-current.size)
-    if (current.size <= maxBatch) return current
-    val rest = current.drop(maxBatch)
-    q.store(rest)
-    qs.addAndFetch(rest.size)
-    return current.take(maxBatch)
+private fun drainBatch(q: AtomicReference<List<AsyncItem>>, maxBatch: Int): List<AsyncItem> {
+    while (true) {
+        val current = q.load()
+        if (current.isEmpty()) return emptyList()
+        val count = minOf(current.size, maxBatch)
+        val batch = current.take(count)
+        if (q.compareAndSet(current, current.drop(count))) return batch
+    }
 }
 
 /**
@@ -65,7 +64,6 @@ internal class AsyncLogDispatcherNative(
 ) : LogDispatcher {
 
     private val queue = AtomicReference(emptyList<AsyncItem>())
-    private val queueSize = AtomicInt(0)
     private val droppedCount = AtomicInt(0)
     private val fallbackWritesCount = AtomicInt(0)
     private val lastDroppedWarnTime = AtomicLong(0L)
@@ -74,36 +72,33 @@ internal class AsyncLogDispatcherNative(
 
     init {
         @Suppress("UNCHECKED_CAST")
-        worker.execute(TransferMode.SAFE, { listOf(sinks, queue, queueSize, running, flushIntervalMs, maxBatch) }) { args ->
+        worker.execute(TransferMode.SAFE, { listOf(sinks, queue, running, flushIntervalMs, maxBatch) }) { args ->
             val sinkMap = args[0] as Map<String, Sink>
             val q = args[1] as AtomicReference<List<AsyncItem>>
-            val qs = args[2] as AtomicInt
-            val run = args[3] as AtomicInt
-            val intervalMs = args[4] as Long
-            val batch = args[5] as Int
-            runWriterLoop(sinkMap, q, qs, run, intervalMs, batch)
+            val run = args[2] as AtomicInt
+            val intervalMs = args[3] as Long
+            val batch = args[4] as Int
+            runWriterLoop(sinkMap, q, run, intervalMs, batch)
         }
     }
 
     override fun dispatch(sinkKeys: Set<String>, line: String, level: LogLevel) {
         val neverDrop = level == LogLevel.ERROR || level == LogLevel.WARN
-        if (queueSize.load() >= queueCapacity) {
+        if (queue.load().size >= queueCapacity) {
             if (neverDrop) {
                 fallbackWritesCount.addAndFetch(1)
-                for (key in sinkKeys) sinks[key]?.writeLine(line)
-                sinks.values.forEach { it.flush() }
+                while (queue.load().size >= queueCapacity && running.load() != 0) usleep(100u)
+            } else {
+                droppedCount.addAndFetch(1)
+                maybeWarnDropped()
                 return
             }
-            droppedCount.addAndFetch(1)
-            maybeWarnDropped()
-            return
         }
         val item = AsyncItem(sinkKeys, line, level)
         while (true) {
             val current = queue.load()
             val next = current + item
             if (queue.compareAndSet(current, next)) {
-                queueSize.addAndFetch(1)
                 return
             }
         }
@@ -136,11 +131,11 @@ internal class AsyncLogDispatcherNative(
         running.store(0)
         var elapsed = 0L
         val intervalMs = 50L
-        while (queueSize.load() > 0 && elapsed < shutdownFlushTimeoutMs) {
+        while (queue.load().isNotEmpty() && elapsed < shutdownFlushTimeoutMs) {
             usleep((intervalMs * 1000).toInt().toUInt())
             elapsed += intervalMs
         }
-        val remaining = queueSize.load()
+        val remaining = queue.load().size
         if (remaining > 0) {
             val ts = kotlin.time.Clock.System.now().toString()
             val errLine = """{"ts":"$ts","level":"ERROR","msg":"log.flush_timeout","remaining":$remaining,"timeoutMs":$shutdownFlushTimeoutMs}""" + "\n"
