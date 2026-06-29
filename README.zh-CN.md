@@ -290,7 +290,7 @@ Hello Neton!
 | 模块 | 职责 | 状态 |
 |------|------|------|
 | neton-core | 启动/组件/配置 | ✅ 稳定 |
-| neton-http | 默认 Ktor HTTP Adapter | ✅ 稳定 |
+| neton-http | 默认 Ktor Server Adapter + 出站 HTTP Client | ✅ 稳定 |
 | neton-http-hyper4k | 可选 Hyper HTTP Adapter | 实验性 |
 | neton-logging | 结构化日志 + sinks/async | ✅ 稳定 |
 | neton-routing | 路由 DSL + KSP Controller | ✅ 稳定 |

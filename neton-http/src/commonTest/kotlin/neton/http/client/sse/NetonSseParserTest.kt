@@ -1,4 +1,4 @@
-// neton-http-client/src/commonTest/kotlin/neton/http/client/sse/NetonSseParserTest.kt
+// SSE parser contract.
 package neton.http.client.sse
 
 import kotlin.test.Test

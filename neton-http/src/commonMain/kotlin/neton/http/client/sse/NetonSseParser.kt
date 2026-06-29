@@ -1,4 +1,4 @@
-// neton-http-client/src/commonMain/kotlin/neton/http/client/sse/NetonSseParser.kt
+// SSE parser used by the outbound HTTP client.
 package neton.http.client.sse
 
 /**

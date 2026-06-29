@@ -28,7 +28,7 @@ object AiComponent : NetonComponent<AiConfig> {
     override suspend fun init(ctx: NetonContext, config: AiConfig) {
         val httpClient = ctx.getOrNull(NetonHttpClient::class)
             ?: throw AiException(AiError.InvalidRequest(
-                "neton-http-client must be installed before neton-ai. " +
+                "HTTP client must be installed before neton-ai. " +
                 "Add `httpClient { ... }` before `ai { ... }` in your Neton.run { ... } block."
             ))
         // Wire httpClient from context (Mode 2 caller doesn't set it manually in DSL)

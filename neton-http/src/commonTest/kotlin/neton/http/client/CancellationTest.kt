@@ -1,4 +1,4 @@
-// neton-http-client/src/commonTest/kotlin/neton/http/client/CancellationTest.kt
+// Outbound HTTP client cancellation contract.
 package neton.http.client
 
 import io.ktor.client.engine.mock.MockEngine

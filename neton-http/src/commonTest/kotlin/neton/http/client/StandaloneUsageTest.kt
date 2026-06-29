@@ -1,4 +1,4 @@
-// neton-http-client/src/commonTest/kotlin/neton/http/client/StandaloneUsageTest.kt
+// Standalone outbound HTTP client usage contract.
 //
 // CONTRACT GUARDRAIL: This test verifies "Mode 1" of the dual-usage design constraint.
 // MUST NOT import:

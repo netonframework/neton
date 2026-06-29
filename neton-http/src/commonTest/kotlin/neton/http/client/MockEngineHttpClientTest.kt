@@ -1,4 +1,4 @@
-// neton-http-client/src/commonTest/kotlin/neton/http/client/MockEngineHttpClientTest.kt
+// Outbound HTTP client MockEngine contract.
 package neton.http.client
 
 import io.ktor.client.engine.mock.MockEngine
