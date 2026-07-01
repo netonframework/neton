@@ -1,5 +1,8 @@
 package neton.core
 
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import neton.core.http.adapter.HttpAdapter
 import neton.core.interfaces.*
 import neton.core.config.ConfigLoader
@@ -93,8 +96,9 @@ class Neton private constructor() {
         private fun launchInCoroutineScope(builder: LaunchBuilder, args: Array<String>) {
             try {
                 builder.startSync(args)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 CoreLog.logOrBootstrap().error("neton.launch.failed", mapOf("message" to (e.message ?: "")), cause = e)
+                throw e
             }
         }
 
@@ -165,6 +169,7 @@ class Neton private constructor() {
     class LaunchBuilder {
         private val app = Neton()
         private var userBlock: (suspend KotlinApplication.() -> Unit)? = null
+        private var readyBlock: (suspend KotlinApplication.() -> Unit)? = null
         private var configRegistry: NetonConfigRegistry? = null
         private val moduleInitializers = mutableListOf<ModuleInitializer>()
         private val deferredBindings = mutableListOf<(NetonContext) -> Unit>()
@@ -197,9 +202,9 @@ class Neton private constructor() {
          * 框架按声明顺序依次调用 initialize(ctx)，完成路由、仓库、校验器等注册。
          *
          * 执行时机（已冻结）：
-         * 1. 所有 component init/start 完成后
-         * 2. 用户 configure 块执行前
-         * 3. httpAdapter.start 之前
+         * 1. 所有 component init/configure 完成后
+         * 2. component prepare/start 之前
+         * 3. Context freeze 和 httpAdapter.start 之前
          *
          * modules() 的调用位置不影响执行时机，DSL 仅收集，不立即执行。
          *
@@ -218,15 +223,19 @@ class Neton private constructor() {
         /**
          * 安装组件：install(HttpComponent) { port = 8080 } 或 http { port = 8080 }
          */
+        @Suppress("UNCHECKED_CAST")
         fun <C : Any> install(component: NetonComponent<C>, block: C.() -> Unit) {
             installs.add(component to (block as (Any).() -> Unit))
         }
 
-        /**
-         * 应用启动后的回调
-         */
+        /** Context freeze 与组件启动前的最后一个应用配置回调。 */
         fun onStart(block: suspend KotlinApplication.() -> Unit) {
             userBlock = block
+        }
+
+        /** HTTP adapter 确认监听成功后的回调；此时 Context 已冻结。 */
+        fun onReady(block: suspend KotlinApplication.() -> Unit) {
+            readyBlock = block
         }
 
         /**
@@ -238,7 +247,7 @@ class Neton private constructor() {
                     error("No components installed. Add at least: http { port = 8080 }")
                 }
                 kotlinx.coroutines.runBlocking { startSyncWithInstalls(args) }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 throw e
             }
         }
@@ -246,50 +255,119 @@ class Neton private constructor() {
         /** install 路径：defaultConfig → block → init → [start] */
         private suspend fun startSyncWithInstalls(args: Array<String>) {
             val ctx = NetonContext(args)
-            ctx.bind(NetonContext::class, ctx)
-            ctx.bind(NetonConfigRegistry::class, configRegistry ?: EmptyNetonConfigRegistry)
-            // 执行 DSL 阶段收集的延迟绑定
-            for (binding in deferredBindings) {
-                binding(ctx)
-            }
-            val env = ConfigLoader.resolveEnvironment(args)
-            val appConfig = ConfigLoader.loadApplicationConfig("config", env, args)
+            val initialized = mutableListOf<NetonComponent<Any>>()
+            var log: Logger? = null
+            var httpAdapter: HttpAdapter? = null
+            var shutdownMonitor: kotlinx.coroutines.Job? = null
 
-            @Suppress("UNCHECKED_CAST")
-            val loggingSection = appConfig?.let { ConfigLoader.getConfigValue(it, "logging") as? Map<String, Any?> }
-            ctx.bindIfAbsent(LoggerFactory::class, neton.logging.defaultLoggerFactory(loggingSection))
-            val log = ctx.getOrNull(LoggerFactory::class)?.get("neton.core")
-            CoreLog.log = log
-            for ((component, block) in installs) {
-                val config = component.defaultConfig()
-                block(config)
-                @Suppress("UNCHECKED_CAST")
-                (component as NetonComponent<Any>).init(ctx, config)
-            }
-            for ((component, _) in installs) {
-                @Suppress("UNCHECKED_CAST")
-                (component as NetonComponent<Any>).start(ctx)
-            }
-            NetonContext.setCurrent(ctx)
+            ctx.markRegistering()
             try {
+                ctx.bind(NetonContext::class, ctx)
+                ctx.bind(NetonConfigRegistry::class, configRegistry ?: EmptyNetonConfigRegistry)
+                for (binding in deferredBindings) binding(ctx)
+
+                val env = ConfigLoader.resolveEnvironment(args)
+                val appConfig = ConfigLoader.loadApplicationConfig("config", env, args)
+                @Suppress("UNCHECKED_CAST")
+                val loggingSection = appConfig?.let {
+                    ConfigLoader.getConfigValue(it, "logging") as? Map<String, Any?>
+                }
+                ctx.bindIfAbsent(LoggerFactory::class, neton.logging.defaultLoggerFactory(loggingSection))
+                log = ctx.getOrNull(LoggerFactory::class)?.get("neton.core")
+                CoreLog.log = log
+
+                for ((rawComponent, block) in installs) {
+                    val config = rawComponent.defaultConfig()
+                    block(config)
+                    @Suppress("UNCHECKED_CAST")
+                    val component = rawComponent as NetonComponent<Any>
+                    component.init(ctx, config)
+                    initialized += component
+                }
+                for (component in initialized) component.configure(ctx)
+
                 initializeInfrastructure(ctx, log)
+                for (component in initialized) component.prepare(ctx)
                 executeComponentConfiguration(ctx, log)
                 val securityConfig = buildSecurityConfigurationFromCtx(ctx, log)
                 configureRequestEngineFromCtx(ctx, securityConfig)
-                executeUserConfiguration(log)
-                startHttpServerSync(ctx, args, log)
-            } finally {
-                NetonContext.setCurrent(null)
-                // v1.1: 逆序 stop 所有组件，单组件异常仅打 warn 不中断
-                for (i in installs.indices.reversed()) {
-                    val (component, _) = installs[i]
-                    try {
-                        @Suppress("UNCHECKED_CAST")
-                        (component as NetonComponent<Any>).stop(ctx)
-                    } catch (_: Exception) {
+                val adapter = ctx.get<HttpAdapter>()
+                httpAdapter = adapter
+                val application = KotlinApplication(adapter.port(), ctx)
+                userBlock?.invoke(application)
+
+                ctx.markValidating()
+                validateRuntimeGraph(ctx)
+                ctx.freeze()
+                ctx.markStarting()
+
+                for (component in initialized) component.start(ctx)
+                ctx.lifecycle.startAll()
+
+                ProcessShutdownSignals.install()
+                shutdownMonitor = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.currentCoroutineContext()).launch {
+                    while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                        if (ProcessShutdownSignals.isRequested()) {
+                            log?.info("neton.shutdown.signal")
+                            adapter.stop()
+                            break
+                        }
+                        kotlinx.coroutines.delay(100)
                     }
                 }
+
+                var ready = false
+                adapter.start(ctx) { coldStartMs ->
+                    ready = true
+                    ctx.markReady()
+                    printStartupBanner(adapter, coldStartMs, ConfigLoader.resolveEnvironment(ctx.args))
+                    readyBlock?.invoke(application)
+                }
+                check(ready || ProcessShutdownSignals.isRequested()) {
+                    "HTTP adapter stopped before reporting READY"
+                }
+            } finally {
+                ctx.markStopping()
+                shutdownMonitor?.cancelAndJoin()
+                ProcessShutdownSignals.reset()
+                httpAdapter?.let { adapter ->
+                    try {
+                        adapter.stop()
+                    } catch (error: Throwable) {
+                        logLifecycleStopFailure(log, "http:${adapter.adapterName()}", error)
+                    }
+                }
+                ctx.lifecycle.stopStarted { name, error ->
+                    logLifecycleStopFailure(log, "lifecycle:$name", error)
+                }
+                for (component in initialized.asReversed()) {
+                    try {
+                        component.stop(ctx)
+                    } catch (error: Throwable) {
+                        logLifecycleStopFailure(log, "component:${component::class.simpleName}", error)
+                    }
+                }
+                try {
+                    ctx.getOrNull(LoggerFactory::class)?.close()
+                } catch (error: Throwable) {
+                    kotlin.io.println("Logger shutdown failed: ${error.message ?: error}")
+                }
+                CoreLog.log = null
+                ctx.markStopped()
             }
+        }
+
+        private fun validateRuntimeGraph(ctx: NetonContext) {
+            ctx.get<RequestEngine>()
+            ctx.get<HttpAdapter>()
+        }
+
+        private fun logLifecycleStopFailure(log: Logger?, owner: String, error: Throwable) {
+            (log ?: CoreLog.logOrBootstrap()).error(
+                "lifecycle.stop.failed",
+                mapOf("owner" to owner, "error" to (error.message ?: error.toString())),
+                cause = error,
+            )
         }
 
         private fun initializeInfrastructure(ctx: NetonContext, log: Logger?) {
@@ -335,13 +413,11 @@ class Neton private constructor() {
                 )
                 totalStats.forEach { (k, v) -> summary["total" + k.replaceFirstChar { c -> c.uppercaseChar() }] = v }
                 log?.info("modules.summary", summary)
-            } else {
-                // 兼容模式：使用全局 GeneratedInitializer（单模块项目或未迁移项目）
-                try {
-                    neton.core.generated.GeneratedInitializer.initialize(ctx)
-                } catch (_: Exception) {
-                }
             }
+
+            // 应用入口自身的 controllers/validators 不属于任何模块 manifest，必须在模块
+            // 初始化后单独注册。无模块应用也复用同一路径。
+            neton.core.generated.GeneratedInitializer.initialize(ctx)
         }
 
         private fun executeComponentConfiguration(ctx: NetonContext, log: Logger?) {
@@ -376,25 +452,6 @@ class Neton private constructor() {
             requestEngine.setAuthenticationContext(securityConfig.authenticationContext)
             ctx.bind(SecurityConfiguration::class, securityConfig)
             return requestEngine
-        }
-
-        private fun executeUserConfiguration(log: Logger?) {
-            // userBlock 在 startHttpServerSync 中通过 block(KotlinApplication(actualPort, ctx)) 调用
-        }
-
-        private suspend fun startHttpServerSync(ctx: NetonContext, args: Array<String>, log: Logger?) {
-            val httpAdapter = ctx.get<HttpAdapter>()
-            val actualPort = httpAdapter.port()
-            userBlock?.let { block ->
-                block(KotlinApplication(actualPort, ctx))
-            }
-            httpAdapter.start(ctx) { coldStartMs ->
-                printStartupBanner(
-                    httpAdapter,
-                    coldStartMs,
-                    ConfigLoader.resolveEnvironment(ctx.args)
-                )
-            }
         }
 
         /**

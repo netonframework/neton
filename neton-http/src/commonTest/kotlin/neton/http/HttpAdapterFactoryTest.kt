@@ -27,7 +27,7 @@ class HttpAdapterFactoryTest {
 }
 
 private class StubAdapter(private val configuredPort: Int) : HttpAdapter {
-    override suspend fun start(ctx: NetonContext, onStarted: ((coldStartMs: Long) -> Unit)?) = Unit
+    override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) = Unit
     override suspend fun stop() = Unit
     override fun port(): Int = configuredPort
     override fun adapterName(): String = "stub"

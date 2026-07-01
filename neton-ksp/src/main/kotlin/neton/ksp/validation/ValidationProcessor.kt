@@ -59,7 +59,11 @@ class ValidationProcessor(
         if (moduleId != null) {
             writeToSink(modelList)
         } else {
-            generateValidatorsAndRegistry(modelList)
+            val dependencies = com.google.devtools.ksp.processing.Dependencies(
+                aggregating = true,
+                *resolver.getAllFiles().toList().toTypedArray()
+            )
+            generateValidatorsAndRegistry(modelList, dependencies)
         }
         return emptyList()
     }
@@ -147,20 +151,21 @@ class ValidationProcessor(
     // region --- 模块模式：写片段到 sink ---
 
     private fun writeToSink(models: List<ValidationModel>) {
-        ModuleFragmentSink.addStat(moduleId!!, "validators", models.size)
+        val id = requireNotNull(moduleId)
+        ModuleFragmentSink.addStat(id, "validators", models.size)
         ModuleFragmentSink.addImports(
-            moduleId!!,
+            id,
             "import neton.validation.ValidatorRegistry",
             "import neton.validation.internal.DefaultValidatorRegistry",
             "import neton.core.http.ValidationError"
         )
-        models.forEach { ModuleFragmentSink.addImport(moduleId, "import ${it.qualifiedName}") }
+        models.forEach { ModuleFragmentSink.addImport(id, "import ${it.qualifiedName}") }
 
         // 将 Validator 类写为顶层声明
         models.forEach { model ->
             val sw = StringWriter()
             ValidatorGenerator.generateValidator(sw, model)
-            ModuleFragmentSink.addTopLevelDeclaration(moduleId, sw.toString())
+            ModuleFragmentSink.addTopLevelDeclaration(id, sw.toString())
         }
 
         // 将 registry 注册写为 fragment
@@ -171,15 +176,17 @@ class ValidationProcessor(
             appendLine("        ))")
             append("        ctx.bindIfAbsent(ValidatorRegistry::class, validatorRegistry)")
         }
-        ModuleFragmentSink.addFragment(moduleId, "validators", "注册校验器", code)
+        ModuleFragmentSink.addFragment(id, "validators", "注册校验器", code)
     }
 
     // endregion
 
     // region --- 兼容模式：生成独立文件 ---
 
-    private fun generateValidatorsAndRegistry(models: List<ValidationModel>) {
-        val dependencies = com.google.devtools.ksp.processing.Dependencies(true)
+    private fun generateValidatorsAndRegistry(
+        models: List<ValidationModel>,
+        dependencies: com.google.devtools.ksp.processing.Dependencies
+    ) {
         val file = codeGenerator.createNewFile(
             dependencies = dependencies,
             packageName = "neton.validation.generated",

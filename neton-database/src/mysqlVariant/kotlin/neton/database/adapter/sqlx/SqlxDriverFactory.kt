@@ -7,14 +7,15 @@ import neton.database.config.DatabaseDriver
 import neton.database.config.MysqlUriInfo
 
 // NETON-DB-VARIANT mysql: 只编译进 -Pneton.database.driver=mysql 的 build.
-internal fun createSqlxDriver(config: DatabaseConfig): QueryExecutor = when (config.driver) {
+internal fun createSqlxDriver(config: DatabaseConfig): SqlxDriverHandle = when (config.driver) {
     DatabaseDriver.MYSQL -> {
         val info = config.parseUri() as MysqlUriInfo
-        MySQL(
+        val driver = MySQL(
             url = "mysql://${info.host}:${info.port}/${info.database}",
             username = info.username,
             password = info.password,
         )
+        SqlxDriverHandle(driver) { driver.close() }
     }
     else -> error(
         "NETON-DB-VARIANT mismatch: 当前 build variant = mysql, " +

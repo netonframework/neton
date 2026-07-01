@@ -53,7 +53,7 @@ class SqlBuilder(private val dialect: Dialect) {
         reset()
         val tableSql = dialect.quoteIdent(ast.table.tableName)
         val whereClause = buildWhereClause(ast.where)
-        val sql = listOf("SELECT COUNT(*)", "FROM $tableSql", whereClause)
+        val sql = listOf("SELECT COUNT(*) AS count", "FROM $tableSql", whereClause)
             .filter { it.isNotBlank() }.joinToString(" ")
         return BuiltSql(sql, args.toList())
     }
@@ -201,13 +201,13 @@ class SqlBuilder(private val dialect: Dialect) {
             val fromSql = "${dialect.quoteIdent(ast.fromTable)} AS ${ast.fromAlias}"
             val joinsSql = buildJoins(ast)
             val whereClause = ast.where?.let { "WHERE ${buildColumnPredicate(it)}" } ?: ""
-            val sql = listOf("SELECT COUNT(*)", "FROM $fromSql", joinsSql, whereClause)
+            val sql = listOf("SELECT COUNT(*) AS count", "FROM $fromSql", joinsSql, whereClause)
                 .filter { it.isNotBlank() }.joinToString(" ")
             return BuiltSql(sql, args.toList())
         } else {
             // 有 GROUP BY → 子查询包裹（原则 14）
             val innerSql = buildSelect(ast.copy(limit = null, offset = null)).sql
-            return BuiltSql("SELECT COUNT(*) FROM ($innerSql) AS _count_tmp", args.toList())
+            return BuiltSql("SELECT COUNT(*) AS count FROM ($innerSql) AS _count_tmp", args.toList())
         }
     }
 

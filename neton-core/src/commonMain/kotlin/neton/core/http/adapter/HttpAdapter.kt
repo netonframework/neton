@@ -13,7 +13,7 @@ interface HttpAdapter {
      * 启动服务器（从 ctx 获取 RequestEngine，port 在 Adapter 内部）。
      * @param onStarted 启动成功后由 Adapter 调用，传入 coldStartMs（毫秒），框架层用于打印 banner
      */
-    suspend fun start(ctx: NetonContext, onStarted: ((coldStartMs: Long) -> Unit)? = null)
+    suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)? = null)
 
     suspend fun stop()
 
@@ -31,7 +31,7 @@ class MockHttpAdapter(private val mockPort: Int = 8080) : HttpAdapter {
 
     private var isRunning = false
 
-    override suspend fun start(ctx: NetonContext, onStarted: ((coldStartMs: Long) -> Unit)?) {
+    override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) {
         CoreLog.logOrBootstrap().warn("neton.mock.http_adapter", mapOf("hint" to "no HTTP module found"))
         isRunning = true
         onStarted?.invoke(0L)
@@ -46,4 +46,4 @@ class MockHttpAdapter(private val mockPort: Int = 8080) : HttpAdapter {
 
     override fun port(): Int = mockPort
     override fun adapterName(): String = "Mock"
-} 
+}

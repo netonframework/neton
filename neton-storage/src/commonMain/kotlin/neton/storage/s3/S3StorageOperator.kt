@@ -7,6 +7,7 @@ import io.ktor.http.*
 import neton.logging.Logger
 import neton.storage.*
 import neton.storage.internal.guessMimeType
+import neton.storage.internal.ManagedStorageOperator
 import kotlin.time.Duration
 
 internal class S3StorageOperator(
@@ -19,9 +20,13 @@ internal class S3StorageOperator(
     private val pathStyle: Boolean,
     private val httpClient: HttpClient,
     private val logger: Logger?
-) : StorageOperator {
+) : StorageOperator, ManagedStorageOperator {
 
     override val scheme: String = "s3"
+
+    override fun close() {
+        httpClient.close()
+    }
 
     override suspend fun write(path: String, data: ByteArray, options: WriteOptions) {
         val url = S3Utils.buildS3Url(endpoint, bucket, path, pathStyle)

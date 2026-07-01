@@ -22,17 +22,7 @@ fun main(args: Array<String>) {
             port = 8080
         }
 
-        database {
-            tableRegistry = { clazz ->
-                @Suppress("UNCHECKED_CAST")
-                when (clazz) {
-                    SystemUser::class -> SystemUserTable
-                    Role::class -> RoleTable
-                    UserRole::class -> UserRoleTable
-                    else -> null
-                }
-            }
-        }
+        database { }
 
         security { }
 

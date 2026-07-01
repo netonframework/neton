@@ -13,7 +13,7 @@ class RoleLogic {
         RoleTable.get(id)
 
     suspend fun create(role: Role): Role =
-        RoleTable.save(role)
+        RoleTable.insert(role)
 
     suspend fun update(id: Long, role: Role): Role {
         val current = RoleTable.get(id) ?: throw NotFoundException("Role $id not found")

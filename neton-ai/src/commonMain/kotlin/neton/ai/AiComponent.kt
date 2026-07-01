@@ -63,6 +63,10 @@ object AiComponent : NetonComponent<AiConfig> {
             ))
         }
     }
+
+    override suspend fun stop(ctx: NetonContext) {
+        ctx.getOrNull(AiClient::class)?.close()
+    }
 }
 
 /** DSL entry: `ai { providers { ... }; routing { ... } }` */

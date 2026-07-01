@@ -11,44 +11,50 @@ import neton.redis.lock.LockManager
 
 object JobsComponent : NetonComponent<JobsConfig> {
 
+    private data class RuntimePlan(
+        val globalEnabled: Boolean,
+        val items: List<Map<String, Any?>>,
+        val shutdownTimeout: kotlin.time.Duration,
+    )
+
     override fun defaultConfig(): JobsConfig = JobsConfig()
 
     override suspend fun init(ctx: NetonContext, config: JobsConfig) {
         val logger = ctx.getOrNull(LoggerFactory::class)?.get("neton.jobs")
 
-        // 1. 加载 registry（优先 DSL 注入，fallback 到 KSP 生成的 stub）
-        val registry = config.registry ?: GeneratedJobRegistry
-
-        // 2. 加载 jobs.conf
         val env = ConfigLoader.resolveEnvironment(ctx.args)
         val jobsConf = ConfigLoader.loadModuleConfig("jobs", configPath = "config", environment = env, args = ctx.args)
-
-        // 3. 全局开关
         val globalEnabled = getGlobalEnabled(jobsConf) ?: config.enabled
-
-        // 4. 解析 [[jobs.items]]，按 id 合并覆盖
         val items = getItems(jobsConf)
-        val definitions = registry.jobs.map { def ->
-            mergeConfig(def, findOverride(items, def.id))
+
+        val initial = config.registry?.jobs ?: GeneratedJobRegistry.jobs
+        val registry = MutableJobRegistry(initial)
+        ctx.bind(MutableJobRegistry::class, registry)
+        ctx.bind(JobRegistry::class, registry)
+        ctx.bind(RuntimePlan::class, RuntimePlan(globalEnabled, items, config.shutdownTimeout))
+        config.listener?.let { ctx.bind(JobExecutionListener::class, it) }
+
+        logger?.info("job.registry.open", mapOf("initial" to initial.size))
+    }
+
+    override suspend fun prepare(ctx: NetonContext) {
+        val logger = ctx.getOrNull(LoggerFactory::class)?.get("neton.jobs")
+        val plan = ctx.get(RuntimePlan::class)
+        val definitions = ctx.get(JobRegistry::class).jobs.map { def ->
+            mergeConfig(def, findOverride(plan.items, def.id))
         }
 
-        // 5. fail-fast：有 SINGLE_NODE 任务但 LockManager 未绑定
         val hasSingleNode = definitions.any { it.enabled && it.mode == ExecutionMode.SINGLE_NODE }
         if (hasSingleNode && ctx.getOrNull(LockManager::class) == null) {
             error(
                 "neton-jobs: Found SINGLE_NODE jobs but LockManager is not bound. " +
-                        "Install neton-redis (redis { }) or set mode = ExecutionMode.ALL_NODES for all jobs."
+                    "Install neton-redis (redis { }) or set mode = ExecutionMode.ALL_NODES for all jobs."
             )
         }
-
-        // 6. 绑定 listener（如果有）
-        config.listener?.let { ctx.bind(JobExecutionListener::class, it) }
-
-        // 7. 创建调度器并绑定
         val scheduler = CoroutineJobScheduler(
             definitions = definitions,
-            globalEnabled = globalEnabled,
-            shutdownTimeout = config.shutdownTimeout,
+            globalEnabled = plan.globalEnabled,
+            shutdownTimeout = plan.shutdownTimeout,
             ctx = ctx
         )
         ctx.bind(JobScheduler::class, scheduler)

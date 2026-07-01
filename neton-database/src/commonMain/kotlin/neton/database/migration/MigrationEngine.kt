@@ -211,24 +211,10 @@ class MigrationEngine(
             val start = currentTimeMillis()
             val statements = MigrationSqlSplitter.split(script.content)
 
-            val outcome = runCatching {
-                applyScript(statements)
-            }
-            val duration = currentTimeMillis() - start
+            val outcome = runCatching { applyScriptAndRecord(script, statements, start) }
+            val duration = outcome.getOrElse { currentTimeMillis() - start }
 
             if (outcome.isSuccess) {
-                history.insert(
-                    SchemaHistoryRepository.Row(
-                        moduleId = script.moduleId,
-                        version = script.version,
-                        description = script.description,
-                        checksum = script.checksum,
-                        installedAt = start,
-                        executionMs = duration,
-                        success = true,
-                        errorMessage = null,
-                    )
-                )
                 applied += MigrationResult.AppliedScript(
                     moduleId = script.moduleId,
                     version = script.version,
@@ -287,22 +273,44 @@ class MigrationEngine(
      * MySQL: 不开事务(DDL autocommit,即便开了也回滚不了),逐条 execute。任一失败抛,
      * 已执行的 DDL 部分无法回滚,依赖 caller 不混合 DDL+DML。
      */
-    private suspend fun applyScript(statements: List<String>) {
+    private suspend fun applyScriptAndRecord(
+        script: OwnedScript,
+        statements: List<String>,
+        installedAt: Long,
+    ): Long {
         when (config.dialect) {
             MigrationDialect.POSTGRESQL, MigrationDialect.SQLITE -> {
-                db.transaction {
+                return db.transaction {
                     for (stmt in statements) {
                         execute(stmt)
                     }
+                    val duration = currentTimeMillis() - installedAt
+                    history.insert(this, script.successRow(installedAt, duration))
+                    duration
                 }
             }
             MigrationDialect.MYSQL -> {
                 for (stmt in statements) {
                     db.execute(stmt)
                 }
+                val duration = currentTimeMillis() - installedAt
+                history.insert(script.successRow(installedAt, duration))
+                return duration
             }
         }
     }
+
+    private fun OwnedScript.successRow(installedAt: Long, executionMs: Long) =
+        SchemaHistoryRepository.Row(
+            moduleId = moduleId,
+            version = version,
+            description = description,
+            checksum = checksum,
+            installedAt = installedAt,
+            executionMs = executionMs,
+            success = true,
+            errorMessage = null,
+        )
 
     // ============================================================
     // 内部: flatten sources → OwnedScript 列表, 过滤 dialect, 排序

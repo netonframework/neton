@@ -15,7 +15,7 @@ class UserLogic(private val db: DbContext = dbContext()) : DbContext by db {
         UserTable.get(id)
 
     suspend fun create(user: User): User =
-        UserTable.save(user)
+        UserTable.insert(user)
 
     suspend fun update(id: Long, user: User): User {
         val current = UserTable.get(id) ?: throw NotFoundException("User $id not found")

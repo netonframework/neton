@@ -65,6 +65,10 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    override suspend fun close() {
+        rt.close()
+    }
+
     private fun serialize(value: Any): String = when (value) {
         is String -> value
         is Number, is Boolean -> value.toString()

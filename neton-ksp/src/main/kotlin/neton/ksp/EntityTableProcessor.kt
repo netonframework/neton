@@ -67,8 +67,14 @@ class EntityTableProcessor(
         val hasFacade = userDefinedTable != null
         // Facade 的全限定包名（用于 import）
         val facadePkg = userDefinedTable?.packageName?.asString()
+        val dependencies = Dependencies(
+            aggregating = false,
+            *listOfNotNull(entity.containingFile, userDefinedTable?.containingFile)
+                .distinct()
+                .toTypedArray()
+        )
 
-        if (hasFacade && userDefinedTable != null) {
+        if (userDefinedTable != null) {
             // Facade 必须是 object，否则编译期直接报错
             if (userDefinedTable.classKind != ClassKind.OBJECT) {
                 logger.error(
@@ -81,12 +87,11 @@ class EntityTableProcessor(
             logger.info("Facade detected: $facadeName is user-defined (package: $facadePkg), generating ${entityName}TableImpl instead")
         }
 
-        generateMeta(pkg, entityName, entityPkg, tableName, columns, idColumn)
-        generateRowMapper(pkg, entityName, entityPkg, columns)
-        generateTable(pkg, entityName, entityPkg, tableName, columns, idColumn, idType, hasFacade)
-        generateExtensions(pkg, entityName, entityPkg, columns, idType, hasFacade, facadePkg)
-        generateTableDef(pkg, entityName, entityPkg, tableName, columns)  // Phase 2
-        generateEntityMapper(pkg, entityName, entityPkg, columns)  // Phase 3
+        generateMeta(pkg, entityName, entityPkg, tableName, columns, idColumn, dependencies)
+        generateRowMapper(pkg, entityName, entityPkg, columns, dependencies)
+        generateTable(pkg, entityName, entityPkg, tableName, columns, idColumn, idType, hasFacade, dependencies)
+        generateExtensions(pkg, entityName, entityPkg, columns, idType, hasFacade, facadePkg, dependencies)
+        generateTableDef(pkg, entityName, entityPkg, tableName, columns, dependencies)  // Phase 2
     }
 
     private fun resolveTableName(entity: KSClassDeclaration): String? {
@@ -158,7 +163,8 @@ class EntityTableProcessor(
         entityPkg: String,
         tableName: String,
         columns: List<EntityColumnInfo>,
-        idColumn: String
+        idColumn: String,
+        dependencies: Dependencies
     ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val colsList = columns.joinToString(", ") { "\"${it.columnName}\"" }
@@ -174,7 +180,7 @@ class EntityTableProcessor(
             }
             "\"${col.columnName}\" to \"$sqlType\""
         }
-        val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Meta")
+        val file = codeGenerator.createNewFile(dependencies, pkg, "${entityName}Meta")
         OutputStreamWriter(file).use { w ->
             w.write(
                 """
@@ -194,55 +200,54 @@ internal object ${entityName}Meta : EntityMeta<$entityRef> {
         }
     }
 
-    private fun generateRowMapper(pkg: String, entityName: String, entityPkg: String, columns: List<EntityColumnInfo>) {
+    private fun generateRowMapper(
+        pkg: String,
+        entityName: String,
+        entityPkg: String,
+        columns: List<EntityColumnInfo>,
+        dependencies: Dependencies
+    ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val mappings = columns.map { col ->
             val nullable = col.propType.endsWith("?")
             val baseType = col.propType.removeSuffix("?")
-            // sqlx4k Column API: .asString() / .asStringOrNull() + Kotlin type conversion
-            val getter = "row.get(\"${col.columnName}\")"
             val rhs = when {
-                col.isId && nullable -> "$getter.asStringOrNull()?.toLong()"
-                col.isId -> "$getter.asString().toLong()"
                 baseType == "kotlin.Long" || baseType == "Long" -> {
-                    if (nullable) "$getter.asStringOrNull()?.toLong()" else "$getter.asString().toLong()"
+                    if (nullable) "row.longOrNull(\"${col.columnName}\")" else "row.long(\"${col.columnName}\")"
                 }
-
                 baseType == "kotlin.Int" || baseType == "Int" -> {
-                    if (nullable) "$getter.asStringOrNull()?.toInt()" else "$getter.asString().toInt()"
+                    if (nullable) "row.intOrNull(\"${col.columnName}\")" else "row.int(\"${col.columnName}\")"
                 }
-
                 baseType == "kotlin.Double" || baseType == "Double" -> {
-                    if (nullable) "$getter.asStringOrNull()?.toDouble()" else "$getter.asString().toDouble()"
+                    if (nullable) "row.doubleOrNull(\"${col.columnName}\")" else "row.double(\"${col.columnName}\")"
                 }
-
                 baseType == "kotlin.Float" || baseType == "Float" -> {
-                    if (nullable) "$getter.asStringOrNull()?.toFloat()" else "$getter.asString().toFloat()"
+                    if (nullable) "row.stringOrNull(\"${col.columnName}\")?.toFloat()" else "row.string(\"${col.columnName}\").toFloat()"
                 }
-
                 baseType == "kotlin.Boolean" || baseType == "Boolean" -> {
-                    if (nullable) "$getter.asStringOrNull()?.toBoolean()" else "$getter.asString().toBoolean()"
+                    if (nullable) "row.booleanOrNull(\"${col.columnName}\")" else "row.boolean(\"${col.columnName}\")"
                 }
-
+                baseType == "kotlin.ByteArray" || baseType == "ByteArray" -> {
+                    if (nullable) "row.bytesOrNull(\"${col.columnName}\")" else "row.bytes(\"${col.columnName}\")"
+                }
                 else -> {
-                    if (nullable) "$getter.asStringOrNull()" else "$getter.asString()"
+                    if (nullable) "row.stringOrNull(\"${col.columnName}\")" else "row.string(\"${col.columnName}\")"
                 }
             }
             "${col.propName} = $rhs"
         }.joinToString(",\n        ")
-        val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}RowMapper")
+        val file = codeGenerator.createNewFile(dependencies, pkg, "${entityName}RowMapper")
         OutputStreamWriter(file).use { w ->
             w.write(
                 """
 // AUTO-GENERATED - DO NOT EDIT
 package $pkg
 
-import io.github.smyrgeorge.sqlx4k.ResultSet
-import io.github.smyrgeorge.sqlx4k.RowMapper
-import io.github.smyrgeorge.sqlx4k.ValueEncoderRegistry
+import neton.database.api.EntityMapper
+import neton.database.api.Row
 
-internal object ${entityName}RowMapper : RowMapper<$entityRef> {
-    override fun map(row: ResultSet.Row, converters: ValueEncoderRegistry): $entityRef = $entityRef(
+internal object ${entityName}RowMapper : EntityMapper<$entityRef> {
+    override fun map(row: Row): $entityRef = $entityRef(
         $mappings
     )
 }
@@ -259,7 +264,8 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
         columns: List<EntityColumnInfo>,
         idColumn: String,
         idType: String,
-        hasFacade: Boolean = false
+        hasFacade: Boolean = false,
+        dependencies: Dependencies
     ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val toParamsEntries =
@@ -272,7 +278,7 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
                 "Int", "kotlin.Int", "Long", "kotlin.Long" -> "0"
                 else -> "false"
             }
-            ",\n    softDeleteConfig = neton.database.api.SoftDeleteConfig(deletedColumn = \"${softDeleteCol.columnName}\", notDeletedValue = $notDeletedValue)"
+            "softDeleteConfig = neton.database.api.SoftDeleteConfig(deletedColumn = \"${softDeleteCol.columnName}\", notDeletedValue = $notDeletedValue),\n    "
         } else ""
 
         val createdAtCol = columns.find { it.isCreatedAt }
@@ -281,19 +287,19 @@ internal object ${entityName}RowMapper : RowMapper<$entityRef> {
             val args = mutableListOf<String>()
             createdAtCol?.let { args.add("createdAtColumn = \"${it.columnName}\"") }
             updatedAtCol?.let { args.add("updatedAtColumn = \"${it.columnName}\"") }
-            ",\n    autoFillConfig = neton.database.api.AutoFillConfig(${args.joinToString(", ")})"
+            "autoFillConfig = neton.database.api.AutoFillConfig(${args.joinToString(", ")}),\n    "
         } else ""
 
         // @Id(autoGenerate=false) 的 entity 需要让 adapter 知道：INSERT 时不要过滤掉 id
         // 字段（默认 true 是自增主键时由 DB 生成，这里默认值兼容历史）。
         val idColInfo = columns.find { it.isId }
         val autoGenerateParam = if (idColInfo != null && !idColInfo.idAutoGenerate) {
-            ",\n    autoGenerateId = false"
+            "autoGenerateId = false,"
         } else ""
 
         if (hasFacade) {
             // 用户已手写 XxxTable Facade → 生成 XxxTableImpl（internal）
-            val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}TableImpl")
+            val file = codeGenerator.createNewFile(dependencies, pkg, "${entityName}TableImpl")
             OutputStreamWriter(file).use { w ->
                 w.write(
                     """
@@ -303,23 +309,21 @@ package $pkg
 
 import neton.database.api.Table
 import neton.database.adapter.sqlx.SqlxTableAdapter
-import neton.database.adapter.sqlx.SqlxDatabase
 
 internal object ${entityName}TableImpl : Table<$entityRef, $idType> by SqlxTableAdapter<$entityRef, $idType>(
     meta = ${entityName}Meta,
-    dbProvider = { SqlxDatabase.require() },
     mapper = ${entityName}RowMapper,
     toParams = { it -> mapOf(
             $toParamsEntries
     )},
-    getId = { it.id }$softDeleteParam$autoFillParam$autoGenerateParam
+    $softDeleteParam$autoFillParam$autoGenerateParam
 )
 """.trimIndent()
                 )
             }
         } else {
             // 默认模式：直接生成 XxxTable（向后兼容）
-            val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Table")
+            val file = codeGenerator.createNewFile(dependencies, pkg, "${entityName}Table")
             OutputStreamWriter(file).use { w ->
                 w.write(
                     """
@@ -329,16 +333,14 @@ package $pkg
 
 import neton.database.api.Table
 import neton.database.adapter.sqlx.SqlxTableAdapter
-import neton.database.adapter.sqlx.SqlxDatabase
 
 object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$entityRef, $idType>(
     meta = ${entityName}Meta,
-    dbProvider = { SqlxDatabase.require() },
     mapper = ${entityName}RowMapper,
     toParams = { it -> mapOf(
             $toParamsEntries
     )},
-    getId = { it.id }$softDeleteParam$autoFillParam$autoGenerateParam
+    $softDeleteParam$autoFillParam$autoGenerateParam
 )
 """.trimIndent()
                 )
@@ -353,7 +355,8 @@ object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$enti
         columns: List<EntityColumnInfo>,
         idType: String,
         hasFacade: Boolean = false,
-        facadePkg: String? = null
+        facadePkg: String? = null,
+        dependencies: Dependencies
     ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
         val nonId = columns.filter { !it.isId && it.propName != "id" }
@@ -364,12 +367,12 @@ object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$enti
         val facadeImport = if (hasFacade && facadePkg != null && facadePkg != pkg) {
             "\nimport $facadePkg.${entityName}Table"
         } else ""
-        val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}Extensions")
+        val file = codeGenerator.createNewFile(dependencies, pkg, "${entityName}Extensions")
         OutputStreamWriter(file).use { w ->
             w.write(
                 """
 // AUTO-GENERATED - DO NOT EDIT
-// 定型 API：UserTable.get(id) / UserTable.destroy(id) / UserTable.update(id){ } / UserTable.query{ } / user.save() / user.delete()
+// 定型 API：UserTable.get(id) / UserTable.destroy(id) / UserTable.update(id){ } / UserTable.query{ }
 // update(id){ } 为 mutate 风格：lambda 内直接赋值，copy 由框架内部生成
 package $pkg
 
@@ -395,9 +398,6 @@ suspend fun ${entityName}Table.update(id: $idType, block: ${entityName}UpdateSco
     return updated
 }
 
-// ---------- 实例级（user.xxx）----------
-suspend fun $entityRef.save(): $entityRef = ${entityName}Table.save(this)
-suspend fun $entityRef.delete(): Boolean = ${entityName}Table.delete(this)
 """.trimIndent()
             )
         }
@@ -408,7 +408,8 @@ suspend fun $entityRef.delete(): Boolean = ${entityName}Table.delete(this)
         entityName: String,
         entityPkg: String,
         tableName: String,
-        columns: List<EntityColumnInfo>
+        columns: List<EntityColumnInfo>,
+        dependencies: Dependencies
     ) {
         val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
 
@@ -441,7 +442,7 @@ suspend fun $entityRef.delete(): Boolean = ${entityName}Table.delete(this)
             "val neton.database.dsl.TableRef<$entityRef>.${col.propName}: neton.database.dsl.ColRef<$entityRef, ${col.propType}>\n    get() = this[$entityRef::${col.propName}]"
         }
 
-        val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}TableDef")
+        val file = codeGenerator.createNewFile(dependencies, pkg, "${entityName}TableDef")
         OutputStreamWriter(file).use { w ->
             w.write(
                 """
@@ -478,60 +479,6 @@ $tableRefExtensions
         }
     }
 
-    private fun generateEntityMapper(
-        pkg: String,
-        entityName: String,
-        entityPkg: String,
-        columns: List<EntityColumnInfo>
-    ) {
-        val entityRef = if (pkg == entityPkg) entityName else "$entityPkg.$entityName"
-
-        // 生成映射代码：row.long("column") / row.stringOrNull("column")
-        val mappings = columns.map { col ->
-            val nullable = col.propType.endsWith("?")
-            val baseType = col.propType.removeSuffix("?")
-            val getter = when {
-                baseType == "Long" || baseType == "kotlin.Long" -> {
-                    if (nullable) "row.longOrNull(\"${col.columnName}\")" else "row.long(\"${col.columnName}\")"
-                }
-                baseType == "Int" || baseType == "kotlin.Int" -> {
-                    if (nullable) "row.intOrNull(\"${col.columnName}\")" else "row.int(\"${col.columnName}\")"
-                }
-                baseType == "Double" || baseType == "kotlin.Double" -> {
-                    if (nullable) "row.doubleOrNull(\"${col.columnName}\")" else "row.double(\"${col.columnName}\")"
-                }
-                baseType == "Boolean" || baseType == "kotlin.Boolean" -> {
-                    if (nullable) "row.booleanOrNull(\"${col.columnName}\")" else "row.boolean(\"${col.columnName}\")"
-                }
-                baseType == "ByteArray" || baseType == "kotlin.ByteArray" -> {
-                    if (nullable) "row.bytesOrNull(\"${col.columnName}\")" else "row.bytes(\"${col.columnName}\")"
-                }
-                else -> {
-                    if (nullable) "row.stringOrNull(\"${col.columnName}\")" else "row.string(\"${col.columnName}\")"
-                }
-            }
-            "${col.propName} = $getter"
-        }.joinToString(",\n        ")
-
-        val file = codeGenerator.createNewFile(Dependencies(true), pkg, "${entityName}EntityMapper")
-        OutputStreamWriter(file).use { w ->
-            w.write(
-                """
-// AUTO-GENERATED - DO NOT EDIT
-package $pkg
-
-import neton.database.api.EntityMapper
-import neton.database.api.Row
-
-internal object ${entityName}EntityMapper : EntityMapper<$entityRef> {
-    override fun map(row: Row): $entityRef = $entityRef(
-        $mappings
-    )
-}
-""".trimIndent()
-            )
-        }
-    }
 }
 
 class EntityTableProcessorProvider : SymbolProcessorProvider {

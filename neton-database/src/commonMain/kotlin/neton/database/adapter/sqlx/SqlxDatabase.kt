@@ -1,8 +1,14 @@
 package neton.database.adapter.sqlx
 
 import io.github.smyrgeorge.sqlx4k.QueryExecutor
+import neton.database.api.DbContext
+import neton.database.api.DbSessionProvider
 import neton.database.config.DatabaseConfig
 import neton.database.config.DatabaseDriver
+import neton.database.sql.Dialect
+import neton.database.sql.MySqlDialect
+import neton.database.sql.PostgresDialect
+import neton.database.sql.SqliteDialect
 
 /**
  * 持有 sqlx4k 数据源（PostgreSQL / MySQL / SQLite），根据 database.conf 配置自动选择驱动.
@@ -20,11 +26,23 @@ import neton.database.config.DatabaseDriver
  */
 object SqlxDatabase {
     private var db: QueryExecutor? = null
+    private var closeDriver: (suspend () -> Unit)? = null
     private var driver: DatabaseDriver = DatabaseDriver.MEMORY
+    private var sessions: SqlxSessionProvider? = null
+    private var context: SqlxDbContext? = null
 
-    fun initialize(config: DatabaseConfig) {
+    fun initialize(config: DatabaseConfig): DbContext {
+        check(db == null) {
+            "Database is already initialized. Close it before initializing another driver."
+        }
         driver = config.driver
-        db = createSqlxDriver(config)
+        val handle = createSqlxDriver(config)
+        val executor = handle.executor
+        closeDriver = handle.close
+        db = executor
+        val provider = SqlxSessionProvider(executor, config.driver.toDialect())
+        sessions = provider
+        return SqlxDbContext(provider).also { context = it }
     }
 
     fun require(): QueryExecutor = db ?: throw IllegalStateException(
@@ -33,10 +51,36 @@ object SqlxDatabase {
 
     fun currentDriver(): DatabaseDriver = driver
 
+    internal fun requireContext(): DbContext = context
+        ?: error("Database context is not initialized. Install database { } before using a Table.")
+
+    internal fun requireSessionProvider(): DbSessionProvider = sessions
+        ?: error("Database session provider is not initialized. Install database { } first.")
+
     /** 执行 DDL，由业务按需调用 */
     suspend fun executeDdl(ddl: String) {
         require().execute(ddl).getOrThrow()
     }
+
+    suspend fun close() {
+        closeDriver?.invoke()
+        closeDriver = null
+        db = null
+        sessions = null
+        context = null
+        driver = DatabaseDriver.MEMORY
+    }
+}
+
+internal data class SqlxDriverHandle(
+    val executor: QueryExecutor,
+    val close: suspend () -> Unit,
+)
+
+internal fun DatabaseDriver.toDialect(): Dialect = when (this) {
+    DatabaseDriver.POSTGRESQL -> PostgresDialect
+    DatabaseDriver.MYSQL -> MySqlDialect
+    DatabaseDriver.SQLITE, DatabaseDriver.MEMORY -> SqliteDialect
 }
 
 // `createSqlxDriver(config)` 是 build variant 注入的工厂函数, 定义在

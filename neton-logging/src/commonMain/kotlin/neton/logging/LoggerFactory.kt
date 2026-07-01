@@ -15,4 +15,6 @@ import kotlin.reflect.KClass
 interface LoggerFactory {
     fun get(name: String): Logger
     fun get(clazz: KClass<*>): Logger = get(clazz.qualifiedName ?: "unknown")
+    fun flush() {}
+    fun close() {}
 }

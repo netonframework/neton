@@ -63,8 +63,6 @@ val redis = ctx.getRedis()
 // 或
 val redis = ctx.get<RedisClient>()
 
-// 在 Neton.run { } 作用域内
-val redis = NetonContext.current().get<RedisClient>()
 ```
 
 ### 4. 使用示例
