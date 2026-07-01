@@ -26,6 +26,10 @@ import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
@@ -41,15 +45,20 @@ class KtorHttpAdapter(
     private var requestEngine: RequestEngine? = null
     private var embeddedServer: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private var appContext: NetonContext? = null
+    private var backgroundJob: Job? = null
+    private var backgroundScope: CoroutineScope? = null
 
     override fun port(): Int = serverConfig.port
     override fun adapterName(): String = "Ktor CIO"
 
     private fun log(): neton.logging.Logger? = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
 
-    override suspend fun start(ctx: NetonContext, onStarted: ((coldStartMs: Long) -> Unit)?) {
+    override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) {
         appContext = ctx
         requestEngine = ctx.getOrNull(RequestEngine::class)
+        val job = SupervisorJob()
+        backgroundJob = job
+        backgroundScope = CoroutineScope(job + Dispatchers.Default)
         run(serverConfig.port, ctx.args, onStarted)
     }
 
@@ -64,7 +73,7 @@ class KtorHttpAdapter(
         return false
     }
 
-    private suspend fun run(port: Int, args: Array<String>, onStarted: ((coldStartMs: Long) -> Unit)? = null) {
+    private suspend fun run(port: Int, args: Array<String>, onStarted: (suspend (coldStartMs: Long) -> Unit)? = null) {
         val startMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
         // KTOR_LOG_LEVEL 与框架 logging.level 同步
         val appConfig = ConfigLoader.loadApplicationConfig("config", ConfigLoader.resolveEnvironment(args), args)
@@ -221,7 +230,6 @@ class KtorHttpAdapter(
 
 
                 try {
-                    addShutdownHandler()
                     // 启动成功后回调框架层（端口占用会 exit，不会执行到 delay 后）
                     coroutineScope {
                         launch {
@@ -234,32 +242,29 @@ class KtorHttpAdapter(
                 } catch (e: Throwable) {
                     if (isPortInUse(e)) {
                         kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
-                        kotlin.system.exitProcess(1)
                     }
-                    gracefulShutdown()
+                    gracefulShutdown(propagateFailure = false)
                     throw e
                 }
 
             } catch (e: Throwable) {
                 if (isPortInUse(e)) {
                     kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
-                    kotlin.system.exitProcess(1)
                 }
                 throw e
             }
         } catch (e: Throwable) {
             if (isPortInUse(e)) {
                 kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
-                kotlin.system.exitProcess(1)
             }
             log()?.error("Failed to start Ktor server", mapOf("port" to port), cause = e)
-            gracefulShutdown()
+            gracefulShutdown(propagateFailure = false)
             throw e
         } finally {
             // 确保在任何情况下都执行清理
             // 如果是正常退出（比如 Ctrl+C），也执行优雅关闭
             if (embeddedServer != null) {
-                gracefulShutdown()
+                gracefulShutdown(propagateFailure = false)
             }
         }
     }
@@ -270,16 +275,18 @@ class KtorHttpAdapter(
     private fun showRegisteredRoutes() {}
 
     override suspend fun stop() {
-        gracefulShutdown()
-    }
-
-    private fun addShutdownHandler() {
         try {
-        } catch (e: Exception) {
+            gracefulShutdown(propagateFailure = true)
+        } finally {
+            backgroundScope = null
+            backgroundJob?.cancelAndJoin()
+            backgroundJob = null
+            appContext = null
+            requestEngine = null
         }
     }
 
-    private fun gracefulShutdown() {
+    private fun gracefulShutdown(propagateFailure: Boolean) {
         try {
             if (embeddedServer != null) {
                 embeddedServer?.stop(gracePeriodMillis = 2000, timeoutMillis = 5000)
@@ -287,7 +294,7 @@ class KtorHttpAdapter(
             }
         } catch (e: Exception) {
             log()?.error("Error during graceful shutdown", emptyFields(), cause = e)
-            embeddedServer = null
+            if (propagateFailure) throw e
         } finally {
             embeddedServer = null
         }
@@ -377,7 +384,7 @@ class KtorHttpAdapter(
                     exceptionMessage = e.message,
                     exceptionStackTrace = e.stackTraceToString()
                 )
-                CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                backgroundScope?.launch {
                     try {
                         errorLogWriter.write(errorEntry)
                     } catch (writeEx: Exception) {
@@ -438,7 +445,7 @@ class KtorHttpAdapter(
                     resultCode = status,
                     resultMsg = null
                 )
-                CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                backgroundScope?.launch {
                     try {
                         accessLogWriter.write(entry)
                     } catch (e: Exception) {
@@ -480,7 +487,7 @@ class KtorHttpAdapter(
         try {
             runSecurityPreHandle(route, httpContext, requestContext, securityConfig, routeGroupSecurityConfigs)
         } catch (e: HttpException) {
-            when (e.status) {
+            when (neton.core.http.httpStatusForErrorCode(e.code)) {
                 HttpStatus.INTERNAL_SERVER_ERROR -> log?.warn("security.config.error", mapOf("message" to e.message))
                 HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN -> { /* 401/403 正常业务拒绝 */
                 }
@@ -800,7 +807,7 @@ private class SimpleKtorHttpResponse(private val call: io.ktor.server.applicatio
 
     private fun ensureNotCommitted() {
         if (_committed) throw neton.core.http.HttpException(
-            neton.core.http.HttpStatus.INTERNAL_SERVER_ERROR,
+            neton.core.http.NetonErrorCode.INTERNAL_ERROR,
             "Response already committed (ResponseAlreadyCommitted)"
         )
     }

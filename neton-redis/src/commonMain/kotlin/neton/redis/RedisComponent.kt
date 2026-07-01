@@ -29,6 +29,10 @@ object RedisComponent : NetonComponent<RedisConfig> {
         }
     }
 
+    override suspend fun stop(ctx: NetonContext) {
+        ctx.getOrNull(RedisClient::class)?.close()
+    }
+
     /**
      * 文件名 = 命名空间：redis.conf → config.redis.*
      * 冻结：redis.conf 根级平铺（host/port 等），禁止 [redis]。

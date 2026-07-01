@@ -53,6 +53,7 @@ internal class SchemaHistoryRepository(
 ) {
     private val table: String = validateTableName(config.historyTable)
     private val dialect: MigrationDialect = config.dialect
+    private var qualifiedTable: String = table
 
     data class Row(
         val moduleId: String,
@@ -71,17 +72,47 @@ internal class SchemaHistoryRepository(
             MigrationDialect.SQLITE ->
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='$table' LIMIT 1"
             MigrationDialect.POSTGRESQL ->
-                "SELECT tablename FROM pg_tables WHERE tablename='$table' LIMIT 1"
+                "SELECT table_schema FROM information_schema.tables " +
+                    "WHERE table_schema = current_schema() AND table_name='$table' LIMIT 1"
             MigrationDialect.MYSQL ->
                 "SELECT table_name FROM information_schema.tables " +
                     "WHERE table_schema = DATABASE() AND table_name = '$table' LIMIT 1"
         }
-        return db.fetchAll(sql).isNotEmpty()
+        val rows = db.fetchAll(sql)
+        if (dialect == MigrationDialect.POSTGRESQL && rows.isNotEmpty()) {
+            qualifiedTable = qualifyPostgresTable(rows.first().string("table_schema"), table)
+        }
+        return rows.isNotEmpty()
     }
 
-    /** 确保 history 表存在(CREATE TABLE IF NOT EXISTS)。 */
+    /**
+     * 确保 history 表存在并在返回前验证可访问。
+     *
+     * PostgreSQL / SQLite 的 DDL 与验证固定在同一 transaction session，提交后其它连接
+     * 才允许继续读取，避免连接池切换造成冷启首建表暂不可见。MySQL DDL 会隐式提交，
+     * 因此不包事务，但仍通过查询验证 execute 已真正完成。
+     */
     suspend fun ensureExists() {
-        db.execute(ddl())
+        when (dialect) {
+            MigrationDialect.POSTGRESQL, MigrationDialect.SQLITE -> db.transaction {
+                if (this@SchemaHistoryRepository.dialect == MigrationDialect.POSTGRESQL) {
+                    val schema = fetchAll("SELECT current_schema() AS table_schema")
+                        .first()
+                        .string("table_schema")
+                    qualifiedTable = qualifyPostgresTable(schema, table)
+                }
+                execute(ddl())
+                verifyAccessible(this)
+            }
+            MigrationDialect.MYSQL -> {
+                db.execute(ddl())
+                verifyAccessible(db)
+            }
+        }
+    }
+
+    private suspend fun verifyAccessible(context: DbContext) {
+        context.fetchAll("SELECT module_id FROM $qualifiedTable WHERE 1 = 0")
     }
 
     /** 列出全部 history 行,按 (module_id, version) 升序。 */
@@ -89,7 +120,7 @@ internal class SchemaHistoryRepository(
         val sql = """
             SELECT module_id, version, description, checksum,
                    installed_at, execution_ms, success, error_message
-            FROM $table
+            FROM $qualifiedTable
             ORDER BY module_id ASC, version ASC
         """.trimIndent()
         return db.fetchAll(sql).map { row ->
@@ -123,8 +154,12 @@ internal class SchemaHistoryRepository(
 
     /** 插入一条 history 记录。 */
     suspend fun insert(row: Row) {
+        insert(db, row)
+    }
+
+    suspend fun insert(context: DbContext, row: Row) {
         val sql = """
-            INSERT INTO $table
+            INSERT INTO $qualifiedTable
               (module_id, version, description, checksum, installed_at, execution_ms, success, error_message)
             VALUES
               ('${esc(row.moduleId)}', '${esc(row.version)}', '${esc(row.description)}', '${esc(row.checksum)}',
@@ -132,10 +167,10 @@ internal class SchemaHistoryRepository(
                ${boolLit(row.success)},
                ${row.errorMessage?.let { "'${esc(it)}'" } ?: "NULL"})
         """.trimIndent()
-        db.execute(sql)
+        context.execute(sql)
     }
 
-    private fun ddl(): String = historyTableDdl(dialect, table)
+    private fun ddl(): String = historyTableDdl(dialect, qualifiedTable)
 
     private fun boolLit(v: Boolean): String = historyBoolLiteral(dialect, v)
 
@@ -219,3 +254,9 @@ internal fun historyBoolLiteral(dialect: MigrationDialect, v: Boolean): String =
 }
 
 internal fun escapeSqlString(s: String): String = s.replace("'", "''")
+
+private fun qualifyPostgresTable(schema: String, table: String): String =
+    "${quotePostgresIdentifier(schema)}.${quotePostgresIdentifier(table)}"
+
+private fun quotePostgresIdentifier(value: String): String =
+    "\"" + value.replace("\"", "\"\"") + "\""

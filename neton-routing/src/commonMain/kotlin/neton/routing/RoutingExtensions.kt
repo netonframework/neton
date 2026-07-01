@@ -71,14 +71,6 @@ object RoutingComponent : NetonComponent<RequestEngine> {
         (config as? RoutingRequestEngineAdapter)?.setLogger(log)
     }
 
-    override suspend fun start(ctx: NetonContext) {
-        try {
-            neton.core.generated.GeneratedInitializer.initialize(ctx)
-        } catch (_: Exception) {
-            ControllerScanner.registerAllControllers()
-        }
-    }
-
     /**
      * 文件名 = 命名空间：routing.conf → config.routing.*
      * 冻结：routing.conf 根级平铺（debug/groups），禁止 [routing]。

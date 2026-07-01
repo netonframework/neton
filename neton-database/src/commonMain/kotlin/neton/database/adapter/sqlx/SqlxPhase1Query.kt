@@ -1,8 +1,8 @@
 package neton.database.adapter.sqlx
 
-import io.github.smyrgeorge.sqlx4k.RowMapper
-import io.github.smyrgeorge.sqlx4k.Statement
+import neton.database.api.EntityMapper
 import neton.database.api.EntityQuery
+import neton.database.api.DbContext
 import neton.database.api.Page
 import neton.database.api.ProjectionQuery
 import neton.database.api.Row
@@ -14,7 +14,6 @@ import neton.database.dsl.TableMeta
 import neton.database.dsl.normalizeForSoftDelete
 import neton.database.sql.BuiltSql
 import neton.database.sql.SqlBuilder
-import neton.database.sql.toNamedParams
 
 /**
  * Phase 1 EntityQuery：持有 QueryAst，用 SqlBuilder 生成 SQL，sqlx 执行。
@@ -26,20 +25,20 @@ internal class SqlxEntityQuery<T : Any>(
 ) : EntityQuery<T> {
 
     override suspend fun list(): List<T> {
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = adapter.rewriteAny(ast.normalizeForSoftDelete(softDeleteConfig))
         val built = adapter.phase1SqlBuilder().buildSelect(normalized)
         return adapter.executePhase1Select(built, adapter.phase1Mapper())
     }
 
     override suspend fun count(): Long {
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = adapter.rewriteAny(ast.normalizeForSoftDelete(softDeleteConfig))
         val built = adapter.phase1SqlBuilder().buildCount(normalized)
         return adapter.executePhase1Count(built)
     }
 
     override suspend fun page(page: Int, size: Int): Page<T> {
         val total = count()
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = adapter.rewriteAny(ast.normalizeForSoftDelete(softDeleteConfig))
             .copy(limit = size, offset = (page - 1).coerceAtLeast(0) * size)
         val built = adapter.phase1SqlBuilder().buildSelect(normalized)
         val items = adapter.executePhase1Select(built, adapter.phase1Mapper())
@@ -47,7 +46,7 @@ internal class SqlxEntityQuery<T : Any>(
     }
 
     override suspend fun delete(): Long {
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = adapter.rewrite(ast.normalizeForSoftDelete(softDeleteConfig))
         val built = adapter.phase1SqlBuilder().buildDelete(normalized)
         return adapter.executePhase1Mutate(built)
     }
@@ -56,7 +55,7 @@ internal class SqlxEntityQuery<T : Any>(
         val scope = SqlxUpdateScope<T>(adapter::propToColumn)
         scope.block()
         if (scope.assignments.isEmpty()) return 0L
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = adapter.rewrite(ast.normalizeForSoftDelete(softDeleteConfig))
         val built = adapter.phase1SqlBuilder().buildUpdate(normalized, scope.assignments)
         return adapter.executePhase1Mutate(built)
     }
@@ -111,20 +110,20 @@ internal class SqlxProjectionQuery(
 ) : ProjectionQuery {
 
     override suspend fun rows(): List<Row> {
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = rewriteQuery(adapter.db, ast.normalizeForSoftDelete(softDeleteConfig))
         val built = adapter.phase1SqlBuilder().buildSelect(normalized)
         return adapter.executePhase1SelectRows(built)
     }
 
     override suspend fun count(): Long {
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = rewriteQuery(adapter.db, ast.normalizeForSoftDelete(softDeleteConfig))
         val built = adapter.phase1SqlBuilder().buildCount(normalized)
         return adapter.executePhase1Count(built)
     }
 
     override suspend fun page(page: Int, size: Int): Page<Row> {
         val total = count()
-        val normalized = ast.normalizeForSoftDelete(softDeleteConfig)
+        val normalized = rewriteQuery(adapter.db, ast.normalizeForSoftDelete(softDeleteConfig))
             .copy(limit = size, offset = (page - 1).coerceAtLeast(0) * size)
         val built = adapter.phase1SqlBuilder().buildSelect(normalized)
         val items = adapter.executePhase1SelectRows(built)
@@ -133,75 +132,34 @@ internal class SqlxProjectionQuery(
 }
 
 internal fun SqlxTableAdapter<*, *>.phase1Dialect(): neton.database.sql.Dialect =
-    when (neton.database.adapter.sqlx.SqlxDatabase.currentDriver()) {
-        neton.database.config.DatabaseDriver.POSTGRESQL -> neton.database.sql.PostgresDialect
-        neton.database.config.DatabaseDriver.MYSQL -> neton.database.sql.MySqlDialect
-        else -> neton.database.sql.SqliteDialect
-    }
+    db.dialect
 
 internal fun <T : Any, ID : Any> SqlxTableAdapter<T, ID>.phase1SqlBuilder(): SqlBuilder =
     SqlBuilder(phase1Dialect())
 
-internal fun <T : Any, ID : Any> SqlxTableAdapter<T, ID>.phase1Mapper(): RowMapper<T> = phase1MapperUnsafe
+@Suppress("UNCHECKED_CAST")
+internal fun <T : Any> SqlxTableAdapter<T, *>.rewrite(ast: QueryAst<T>): QueryAst<T> =
+    rewriteQuery(db, ast) as QueryAst<T>
+
+internal fun SqlxTableAdapter<*, *>.rewriteAny(ast: QueryAst<*>): QueryAst<*> =
+    rewriteQuery(db, ast)
+
+private fun rewriteQuery(db: DbContext, ast: QueryAst<*>): QueryAst<*> =
+    db.interceptors.fold(ast) { current, interceptor -> interceptor.beforeQuery(current) }
+
+internal fun <T : Any, ID : Any> SqlxTableAdapter<T, ID>.phase1Mapper(): EntityMapper<T> = entityMapper
 
 internal suspend fun <T : Any, ID : Any> SqlxTableAdapter<T, ID>.executePhase1Select(
     built: BuiltSql,
-    rowMapper: RowMapper<T>
-): List<T> {
-    val (sql, params) = built.toNamedParams(phase1Dialect())
-    val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
-    return phase1Db.fetchAll(stmt, rowMapper).getOrThrow()
-}
+    rowMapper: EntityMapper<T>
+): List<T> = db.query(built).map(rowMapper::map)
 
-internal suspend fun SqlxTableAdapter<*, *>.executePhase1Count(built: BuiltSql): Long {
-    val (sql, params) = built.toNamedParams(phase1Dialect())
-    val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
-    val rows = phase1Db.fetchAll(stmt).getOrThrow()
-    return rows.firstOrNull()?.get(0)?.asString()?.toLongOrNull() ?: 0L
-}
+internal suspend fun SqlxTableAdapter<*, *>.executePhase1Count(built: BuiltSql): Long =
+    db.query(built).firstOrNull()?.long("count") ?: 0L
 
-internal suspend fun SqlxTableAdapter<*, *>.executePhase1SelectRows(built: BuiltSql): List<Row> {
-    val (sql, params) = built.toNamedParams(phase1Dialect())
-    val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
-    val rows = phase1Db.fetchAll(stmt).getOrThrow()
-    return rows.map { Phase1Row(it) }
-}
+internal suspend fun SqlxTableAdapter<*, *>.executePhase1SelectRows(built: BuiltSql): List<Row> = db.query(built)
 
-internal suspend fun SqlxTableAdapter<*, *>.executePhase1Mutate(built: BuiltSql): Long {
-    val (sql, params) = built.toNamedParams(phase1Dialect())
-    val stmt = params.entries.fold(Statement.create(sql)) { s, (k, v) -> s.bind(k, v) }
-    return phase1Db.execute(stmt).getOrThrow()
-}
-
-/** Phase1 投影查询用 Row 适配，不与其他文件中的 SqlxRow 重名 */
-private class Phase1Row(private val row: io.github.smyrgeorge.sqlx4k.ResultSet.Row) : Row {
-    private fun str(name: String): String? = row.get(name).asStringOrNull()
-    override fun long(name: String): Long =
-        str(name)?.toLongOrNull() ?: throw IllegalArgumentException("null or invalid long: $name")
-
-    override fun longOrNull(name: String): Long? = str(name)?.toLongOrNull()
-    override fun string(name: String): String = str(name) ?: throw IllegalArgumentException("null string: $name")
-    override fun stringOrNull(name: String): String? = str(name)
-    override fun int(name: String): Int =
-        str(name)?.toIntOrNull() ?: throw IllegalArgumentException("null or invalid int: $name")
-
-    override fun intOrNull(name: String): Int? = str(name)?.toIntOrNull()
-    override fun double(name: String): Double =
-        str(name)?.toDoubleOrNull() ?: throw IllegalArgumentException("null or invalid double: $name")
-
-    override fun doubleOrNull(name: String): Double? = str(name)?.toDoubleOrNull()
-    override fun boolean(name: String): Boolean =
-        str(name)?.toBooleanStrictOrNull() ?: throw IllegalArgumentException("null or invalid boolean: $name")
-
-    override fun booleanOrNull(name: String): Boolean? = str(name)?.toBooleanStrictOrNull()
-
-    override fun bytes(name: String): ByteArray {
-        val s = str(name) ?: throw IllegalArgumentException("null bytes: $name")
-        return s.encodeToByteArray()
-    }
-
-    override fun bytesOrNull(name: String): ByteArray? = str(name)?.encodeToByteArray()
-}
+internal suspend fun SqlxTableAdapter<*, *>.executePhase1Mutate(built: BuiltSql): Long = db.executeBuilt(built)
 
 /** 收集 EntityQuery.update { set(...) } 的列赋值，列名通过 propToColumn 转换。 */
 private class SqlxUpdateScope<T : Any>(

@@ -12,7 +12,7 @@ class UserRoleLogic {
         UserRoleTable.get(id)
 
     suspend fun create(userRole: UserRole): UserRole =
-        UserRoleTable.save(userRole)
+        UserRoleTable.insert(userRole)
 
     suspend fun delete(id: Long) {
         UserRoleTable.destroy(id)

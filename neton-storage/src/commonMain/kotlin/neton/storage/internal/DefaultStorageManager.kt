@@ -13,4 +13,12 @@ internal class DefaultStorageManager(
     override fun default(): StorageOperator = get("default")
 
     override fun names(): Set<String> = operators.keys
+
+    fun close() {
+        operators.values.forEach { (it as? ManagedStorageOperator)?.close() }
+    }
+}
+
+internal interface ManagedStorageOperator {
+    fun close()
 }

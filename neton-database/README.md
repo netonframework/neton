@@ -31,7 +31,7 @@ neton-database/
 ├── annotations/            # 实体注解
 ├── config/                 # TOML 配置
 ├── adapter/sqlx/           # sqlx4k 适配器（主路径）
-├── query/                  # Query DSL、QueryRuntime
+├── dsl/                    # Query AST 与类型安全 DSL
 └── 示例见 examples/mvc
 ```
 
@@ -118,7 +118,7 @@ import table.UserTable  // 语义清晰：table 层
 
 ### 5. 使用 Entity 为中心的 API
 
-实体用 `@Table` + `@Id`，KSP 生成 `object UserTable : Table<User, Long>` 及 `user.save` / `user.delete`：
+实体用 `@Table` + `@Id`，KSP 生成 `object UserTable : Table<User, Long>`：
 
 ```kotlin
 // 主键查询
@@ -143,9 +143,9 @@ UserTable.update(id) {
     email = "tom@example.com"
 }
 
-// ActiveRecord
-user.save()
-user.delete()
+// 创建与更新必须显式区分
+UserTable.insert(user)
+UserTable.update(user)
 ```
 
 ## 📋 注解与约定
@@ -283,4 +283,4 @@ val user = UserLogic().getWithRoles(1)
 
 ---
 
-**Neton Database - 为现代 Kotlin 应用而生的数据库模块** 🚀 
+**Neton Database - 为现代 Kotlin 应用而生的数据库模块** 🚀

@@ -59,6 +59,10 @@ class ModuleInitializerProcessor(
 
         // MANIFEST-P1: @Module 锚点探测。存在 → Manifest 模式；否则兼容模式。
         val anchor = findModuleAnchor(resolver, moduleId)
+        val dependencies = Dependencies(
+            aggregating = true,
+            *resolver.getAllFiles().toList().toTypedArray()
+        )
 
         // 零 fragment 且无 @Module 锚点 → 旧兼容行为 (跳过)。但 @Module 锚点存在时,
         // 即便没有 routes/logics/validators (纯 runtime 模块, 如 assistant: 全副作用
@@ -70,9 +74,9 @@ class ModuleInitializerProcessor(
         }
 
         if (anchor != null) {
-            generateModuleManifest(resolver, moduleId, anchor)
+            generateModuleManifest(resolver, moduleId, anchor, dependencies)
         } else {
-            generateModuleInitializer(moduleId)
+            generateModuleInitializer(moduleId, dependencies)
         }
 
         // 清空该 moduleId 的 sink，避免多轮累积
@@ -84,6 +88,7 @@ class ModuleInitializerProcessor(
     private data class ModuleAnchor(
         val declaredId: String,
         val dependsOn: List<String>,
+        val migrations: Boolean,
     )
 
     /**
@@ -141,7 +146,9 @@ class ModuleInitializerProcessor(
         @Suppress("UNCHECKED_CAST")
         val deps = (ann.arguments.firstOrNull { it.name?.asString() == "dependsOn" }?.value as? List<String>)
             ?: emptyList()
-        return ModuleAnchor(moduleId, deps)
+        val migrations = ann.arguments.firstOrNull { it.name?.asString() == "migrations" }?.value as? Boolean
+            ?: false
+        return ModuleAnchor(moduleId, deps, migrations)
     }
 
     /** package 末段推导 module id；末段是 init/module/bootstrap 时取倒数第二段；推导不出返回 null。 */
@@ -165,7 +172,12 @@ class ModuleInitializerProcessor(
 
     // ---------- Manifest 模式 (MANIFEST-P1) ----------
 
-    private fun generateModuleManifest(resolver: Resolver, moduleId: String, anchor: ModuleAnchor) {
+    private fun generateModuleManifest(
+        resolver: Resolver,
+        moduleId: String,
+        anchor: ModuleAnchor,
+        dependencies: Dependencies
+    ) {
         val pascalId = moduleId.toPascalCase()
         val className = "${pascalId}ModuleManifest"
         val pkg = "neton.module.$moduleId.generated"
@@ -175,17 +187,19 @@ class ModuleInitializerProcessor(
         val hasMigrations = resolver.getClassDeclarationByName(
             resolver.getKSNameFromString(migrationsFqn)
         ) != null
+        if (anchor.migrations != hasMigrations) {
+            logger.error(
+                if (anchor.migrations) {
+                    "@Module[$moduleId] declares migrations=true, but $migrationsFqn was not generated"
+                } else {
+                    "@Module[$moduleId] declares migrations=false, but $migrationsFqn exists"
+                }
+            )
+        }
         val bootstrapFqn = "init.${pascalId}RuntimeBootstrap"
         val hasBootstrap = resolver.getClassDeclarationByName(
             resolver.getKSNameFromString(bootstrapFqn)
         ) != null
-        if (!hasMigrations) {
-            logger.warn(
-                "@NetonModule[$moduleId]: $migrationsFqn not found — manifest will not override " +
-                        "migrations(). If this module has schema, check generateMigrationResources task order."
-            )
-        }
-
         val fragments = ModuleFragmentSink.getFragments(moduleId)
             .sortedBy { domainOrder[it.domain] ?: 2 }
         val imports = ModuleFragmentSink.getImports(moduleId)
@@ -193,7 +207,7 @@ class ModuleInitializerProcessor(
         val stats = ModuleFragmentSink.getStats(moduleId)
 
         val file = codeGenerator.createNewFile(
-            dependencies = Dependencies(true),
+            dependencies = dependencies,
             packageName = pkg,
             fileName = className
         )
@@ -271,7 +285,7 @@ class ModuleInitializerProcessor(
 
     // ---------- 兼容模式（无 @NetonModule，维持原行为） ----------
 
-    private fun generateModuleInitializer(moduleId: String) {
+    private fun generateModuleInitializer(moduleId: String, dependencies: Dependencies) {
         val pascalId = moduleId.toPascalCase()
         val className = "${pascalId}ModuleInitializer"
         val pkg = "neton.module.$moduleId.generated"
@@ -282,7 +296,7 @@ class ModuleInitializerProcessor(
         val stats = ModuleFragmentSink.getStats(moduleId)
 
         val file = codeGenerator.createNewFile(
-            dependencies = Dependencies(true),
+            dependencies = dependencies,
             packageName = pkg,
             fileName = className
         )

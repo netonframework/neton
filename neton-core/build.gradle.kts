@@ -19,7 +19,23 @@ val nativeTargets = listOf(
     NativeTarget("MingwX64", "x86_64-w64-mingw32"),
 )
 
+val hostOs = System.getProperty("os.name").lowercase()
+val isMacOs = hostOs.contains("mac")
+val isLinux = hostOs.contains("linux")
+val isWindows = hostOs.contains("windows")
+
+fun canBuildTarget(targetName: String): Boolean = when (targetName) {
+    "MacosArm64", "MacosX64" -> isMacOs
+    "LinuxX64", "LinuxArm64" -> isLinux
+    "MingwX64" -> isWindows
+    else -> false
+}
+
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     val includePath = project.file("src/nativeInterop/c").absolutePath
 
     // 辅助函数：为每个 Native 目标配置 cinterop 和 linker
@@ -33,6 +49,9 @@ kotlin {
             dependsOn("archivePosixEnv$targetCapital")
             outputs.file(defFile)
             doLast {
+                check(canBuildTarget(targetCapital)) {
+                    "$targetCapital must be built on its native host because the C bridge requires platform system headers"
+                }
                 defFile.parentFile.mkdirs()
                 defFile.writeText("""
                     language = C
@@ -106,20 +125,6 @@ kotlin.sourceSets.commonMain {
     kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
 }
 
-// 检测宿主操作系统
-val hostOs = System.getProperty("os.name").lowercase()
-val isMacOs = hostOs.contains("mac")
-val isLinux = hostOs.contains("linux")
-val isWindows = hostOs.contains("windows")
-
-// 判断目标是否可在当前宿主上交叉编译 libenv.a
-fun canBuildTarget(targetName: String): Boolean = when (targetName) {
-    "MacosArm64", "MacosX64" -> isMacOs
-    "LinuxX64", "LinuxArm64" -> isMacOs || isLinux  // clang 可交叉编译
-    "MingwX64" -> isWindows  // MinGW 需要 Windows sysroot
-    else -> false
-}
-
 // 为每个目标注册 clang 编译 + ar 归档任务
 for (target in nativeTargets) {
     val targetLower = target.name.replaceFirstChar { it.lowercase() }
@@ -127,6 +132,7 @@ for (target in nativeTargets) {
 
     tasks.register<Exec>("compilePosixEnv${target.name}") {
         val out = file(outDir)
+        inputs.files("src/nativeInterop/c/env.c", "src/nativeInterop/c/env.h")
         outputs.file("$outDir/env.o")
         onlyIf { canBuildTarget(target.name) }
         commandLine(
@@ -149,6 +155,7 @@ for (target in nativeTargets) {
 
 // cinterop 任务依赖对应平台的 writePosixenvDef
 tasks.matching { it.name.contains("cinterop") && it.name.contains("Posixenv") }.configureEach {
+    inputs.files("src/nativeInterop/c/env.h")
     for (target in nativeTargets) {
         if (name.contains(target.name)) {
             dependsOn("writePosixenvDef${target.name}")

@@ -13,6 +13,9 @@ import kotlin.time.Duration
  */
 interface RedisClient {
 
+    /** Close the connection pool and reject future work. Safe to call during component shutdown. */
+    suspend fun close()
+
     // ---------- Key/Value ----------
     /** 原始取值（String）；redis.get<User>(key) 由扩展提供类型反序列化） */
     suspend fun getValue(key: String): String?

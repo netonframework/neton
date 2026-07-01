@@ -1,6 +1,8 @@
 package neton.database.migration
 
 import neton.database.api.DbContext
+import neton.database.sql.Dialect
+import neton.database.sql.PostgresDialect
 import neton.database.api.QueryInterceptor
 import neton.database.api.Row
 import neton.database.api.Table
@@ -26,27 +28,40 @@ internal class FakeMigrationDb(
     initialRows: List<SchemaHistoryRepository.Row>? = null,
     /** 执行 INSERT 时,模拟失败的钩子。返回 null = 成功;返回 Throwable = 抛出。 */
     private val onScriptStatement: ((String) -> Throwable?)? = null,
+    /** Simulates pooled DDL visibility: history CREATE is visible externally only after tx commit. */
+    private val historyCreateRequiresCommit: Boolean = false,
 ) : DbContext {
+    override val dialect: Dialect = PostgresDialect
 
     override val interceptors: List<QueryInterceptor> = emptyList()
 
     private var historyTableExists: Boolean = initialRows != null
+    private var transactionDepth: Int = 0
+    private var pendingHistoryCreate: Boolean = false
     private val historyRows: MutableList<SchemaHistoryRepository.Row> =
         (initialRows ?: emptyList()).toMutableList()
 
     /** 测试可读: 所有 execute() 调用的 SQL,按顺序。 */
     val executedSql: MutableList<String> = mutableListOf()
+    val historyInsertTransactionDepths: MutableList<Int> = mutableListOf()
 
     override suspend fun fetchAll(sql: String, params: Map<String, Any?>): List<Row> {
         val s = sql.trim()
+        if (s.startsWith("SELECT current_schema()")) {
+            return listOf(SingleColRow("table_schema" to "public"))
+        }
         // 三方言 history 表存在性探测
         if (s.contains("sqlite_master") || s.contains("pg_tables") ||
             s.contains("information_schema.tables")
         ) {
-            return if (historyTableExists) listOf(SingleColRow("name" to "x")) else emptyList()
+            return if (historyTableExists) listOf(SingleColRow("table_schema" to "public")) else emptyList()
         }
         // listAll: SELECT module_id, version, ... FROM <table> ORDER BY ...
         if (s.startsWith("SELECT module_id") && s.contains("FROM ")) {
+            check(historyTableExists || (transactionDepth > 0 && pendingHistoryCreate)) {
+                "relation test_migrations does not exist"
+            }
+            if (s.contains("WHERE 1 = 0")) return emptyList()
             return historyRows.map { row ->
                 MapRow(
                     mapOf(
@@ -71,12 +86,17 @@ internal class FakeMigrationDb(
 
         // CREATE TABLE IF NOT EXISTS — 标记 history 表存在
         if (s.startsWith("CREATE TABLE IF NOT EXISTS")) {
-            historyTableExists = true
+            if (historyCreateRequiresCommit) {
+                pendingHistoryCreate = true
+            } else {
+                historyTableExists = true
+            }
             return 0L
         }
 
         // INSERT INTO <history> — 解析 VALUES 然后 append
         if (s.startsWith("INSERT INTO ") && s.contains("VALUES")) {
+            historyInsertTransactionDepths += transactionDepth
             historyRows += parseInsert(s)
             return 1L
         }
@@ -96,7 +116,18 @@ internal class FakeMigrationDb(
     override suspend fun executeBuilt(built: BuiltSql): Long =
         error("FakeMigrationDb does not support DSL queries")
 
-    override suspend fun <R> transaction(block: suspend DbContext.() -> R): R = block()
+    override suspend fun <R> transaction(block: suspend DbContext.() -> R): R {
+        transactionDepth++
+        return try {
+            block()
+        } finally {
+            transactionDepth--
+            if (transactionDepth == 0 && pendingHistoryCreate) {
+                historyTableExists = true
+                pendingHistoryCreate = false
+            }
+        }
+    }
 
     /**
      * 解析 INSERT VALUES('a', 'b', 'c', 'd', 12, 34, TRUE/1, NULL/'err') 反查回 Row.

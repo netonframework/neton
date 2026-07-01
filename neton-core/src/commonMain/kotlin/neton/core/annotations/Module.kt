@@ -9,7 +9,7 @@ package neton.core.annotations
  * 按约定 FQN 探测到的 migrations 与手写 runtime bootstrap。
  *
  * ```kotlin
- * @Module(dependsOn = ["privchat"])
+ * @Module(dependsOn = ["privchat"], migrations = true)
  * object GameModule
  * ```
  *
@@ -39,10 +39,12 @@ package neton.core.annotations
  * @param id 模块唯一标识；省略时按上述规则解析。显式时必须匹配 `[a-z][a-z0-9-]*`
  *   且与 ksp arg `neton.moduleId` 一致。
  * @param dependsOn 依赖的其他模块 id；框架启动时按拓扑序 initialize。
+ * @param migrations 模块是否声明 schema migration；为 true 时生成资源缺失会编译失败。
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class Module(
     val id: String = "",
     val dependsOn: Array<String> = [],
+    val migrations: Boolean = false,
 )

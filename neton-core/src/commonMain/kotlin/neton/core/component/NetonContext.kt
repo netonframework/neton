@@ -8,20 +8,33 @@ import kotlin.reflect.KClass
  */
 class NetonContext(val args: Array<String>) {
     private val registry = mutableMapOf<KClass<*>, Any>()
+    private var state: NetonLifecycleState = NetonLifecycleState.CREATED
+
+    val lifecycle: LifecycleRegistry = LifecycleRegistry(::requireRegistrationOpen)
+
+    init {
+        registry[LifecycleRegistry::class] = lifecycle
+    }
+
+    val lifecycleState: NetonLifecycleState get() = state
+    val isFrozen: Boolean get() = state >= NetonLifecycleState.FROZEN
 
     /** 绑定实例（按实现类型） */
     fun <T : Any> bind(impl: T) {
+        requireRegistrationOpen()
         @Suppress("UNCHECKED_CAST")
         registry[impl::class as KClass<T>] = impl
     }
 
     /** 绑定实例（按接口类型） */
     fun <T : Any> bind(type: KClass<T>, impl: T) {
+        requireRegistrationOpen()
         registry[type] = impl
     }
 
     /** 按需绑定，已存在则不覆盖，返回 true 表示成功绑定 */
     fun <T : Any> bindIfAbsent(type: KClass<T>, impl: T): Boolean {
+        requireRegistrationOpen()
         if (type in registry) return false
         registry[type] = impl
         return true
@@ -41,12 +54,39 @@ class NetonContext(val args: Array<String>) {
 
     inline fun <reified T : Any> getOrNull(): T? = getOrNull(T::class)
 
-    companion object {
-        private var _current: NetonContext? = null
-
-        fun current(): NetonContext = _current
-            ?: throw IllegalStateException("NetonContext not initialized. Call from Neton.run { } scope.")
-
-        internal fun setCurrent(ctx: NetonContext?) { _current = ctx }
+    fun freeze() {
+        if (isFrozen) return
+        state = NetonLifecycleState.FROZEN
     }
+
+    internal fun markRegistering() {
+        state = NetonLifecycleState.REGISTERING
+    }
+
+    internal fun markValidating() {
+        state = NetonLifecycleState.VALIDATING
+    }
+
+    internal fun markStarting() {
+        state = NetonLifecycleState.STARTING
+    }
+
+    internal fun markReady() {
+        state = NetonLifecycleState.READY
+    }
+
+    internal fun markStopping() {
+        state = NetonLifecycleState.STOPPING
+    }
+
+    internal fun markStopped() {
+        state = NetonLifecycleState.STOPPED
+    }
+
+    private fun requireRegistrationOpen() {
+        check(!isFrozen) {
+            "NetonContext is $state; binding and lifecycle registration are only allowed before freeze"
+        }
+    }
+
 }

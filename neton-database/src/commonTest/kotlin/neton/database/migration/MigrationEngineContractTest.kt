@@ -259,8 +259,63 @@ class MigrationEngineContractTest {
         assertEquals("002", r.applied[1].version)
         val ddl = db.executedSql.firstOrNull { it.contains("CREATE TABLE IF NOT EXISTS") }
         assertNotNull(ddl)
-        val inserts = db.executedSql.filter { it.startsWith("INSERT INTO test_migrations") }
+        val inserts = db.executedSql.filter { it.startsWith("INSERT INTO \"public\".\"test_migrations\"") }
         assertEquals(2, inserts.size)
+        assertTrue(
+            db.historyInsertTransactionDepths.all { it > 0 },
+            "PostgreSQL success history must be written in the script transaction",
+        )
+    }
+
+    @Test
+    fun up_scriptCanChangePostgresSearchPath_historyStillUsesQualifiedTable() = runTest {
+        val db = FakeMigrationDb(initialRows = emptyList())
+        val engine = MigrationEngine(db, config)
+
+        val result = engine.run(
+            MigrationCommand.UP,
+            listOf(
+                MigrationSource(
+                    moduleId = "payment",
+                    dialect = MigrationDialect.POSTGRESQL,
+                    scripts = listOf(
+                        MigrationScript(
+                            version = "001",
+                            description = "pg_dump_style",
+                            content = """
+                                SELECT pg_catalog.set_config('search_path', '', false);
+                                CREATE TABLE public.pay_apps (id BIGINT NOT NULL);
+                            """.trimIndent(),
+                            checksum = "ck-payment-001",
+                        ),
+                    ),
+                ),
+            ),
+        ) as MigrationResult.Up
+
+        assertTrue(result.ok)
+        assertTrue(
+            db.executedSql.any { it.startsWith("INSERT INTO \"public\".\"test_migrations\"") },
+            "history writes must be schema-qualified because migration scripts may change search_path",
+        )
+    }
+
+    @Test
+    fun up_coldStart_commitsHistoryCreationBeforeUsingAnotherSession() = runTest {
+        val db = FakeMigrationDb(
+            initialRows = null,
+            historyCreateRequiresCommit = true,
+        )
+        val engine = MigrationEngine(db, config)
+
+        val result = engine.run(
+            MigrationCommand.UP,
+            sourcesOf(Triple("game", "001", "ck1")),
+        ) as MigrationResult.Up
+
+        assertTrue(result.ok)
+        assertEquals(1, result.applied.size)
+        assertTrue(db.executedSql.any { it.startsWith("CREATE TABLE IF NOT EXISTS") })
     }
 
     @Test

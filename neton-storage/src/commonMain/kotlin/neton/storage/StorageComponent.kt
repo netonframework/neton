@@ -44,7 +44,7 @@ object StorageComponent : NetonComponent<StorageConfig> {
     }
 
     override suspend fun stop(ctx: NetonContext) {
-        // HttpClient cleanup could happen here if needed
+        (ctx.getOrNull(StorageManager::class) as? DefaultStorageManager)?.close()
     }
 
     @Suppress("UNCHECKED_CAST")

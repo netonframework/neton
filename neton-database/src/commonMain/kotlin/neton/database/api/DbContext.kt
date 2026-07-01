@@ -4,6 +4,7 @@ import neton.database.dsl.SelectAst
 import neton.database.dsl.SelectBuilder
 import neton.database.dsl.TableRef
 import neton.database.sql.BuiltSql
+import neton.database.sql.Dialect
 
 /**
  * 数据库执行上下文：NetonSQL 的统一执行门面（execution gateway）。
@@ -19,6 +20,9 @@ import neton.database.sql.BuiltSql
  * 但内部必须走 DbContext 执行链。
  */
 interface DbContext {
+    /** Effective SQL dialect for this database session provider. */
+    val dialect: Dialect
+
     /**
      * Phase 1 保留：raw SQL 逃生口（fetchAll）。
      */

@@ -43,7 +43,7 @@ class CountSelectWhereContractTest {
         val countSql = builder.buildCount(ast)
         val selectSql = builder.buildSelect(ast)
 
-        assertEquals("SELECT COUNT(*) FROM \"users\"", countSql.sql)
+        assertEquals("SELECT COUNT(*) AS count FROM \"users\"", countSql.sql)
         assertEquals(0, countSql.args.size)
 
         assertTrue(selectSql.sql.startsWith("SELECT * FROM \"users\""))

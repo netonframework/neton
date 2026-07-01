@@ -23,8 +23,11 @@ internal class RoutingLoggerFactory(
         }
     }
 
-    /** 供测试关闭 dispatcher（drain + flush）。 */
-    internal fun close() {
+    override fun flush() {
+        dispatcher.flush()
+    }
+
+    override fun close() {
         dispatcher.close()
     }
 }

@@ -2,7 +2,7 @@ package neton.http
 
 import neton.core.http.HttpContext
 import neton.core.http.HttpException
-import neton.core.http.HttpStatus
+import neton.core.http.NetonErrorCode
 import neton.core.interfaces.RequestContext
 import neton.core.interfaces.RouteDefinition
 import neton.core.interfaces.RouteGroupSecurityConfigs
@@ -43,7 +43,7 @@ suspend fun runSecurityPreHandle(
     if (securityConfig == null || !securityConfig.isEnabled) {
         if (requireAuth) {
             throw HttpException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
+                NetonErrorCode.INTERNAL_ERROR,
                 "Configuration error: @RequireAuth requires SecurityComponent. Add: install(SecurityComponent()) { }"
             )
         }
@@ -56,7 +56,7 @@ suspend fun runSecurityPreHandle(
         ?: securityConfig.defaultAuthenticator
     if (requireAuth && authenticator == null) {
         throw HttpException(
-            HttpStatus.INTERNAL_SERVER_ERROR,
+            NetonErrorCode.INTERNAL_ERROR,
             "Configuration error: @RequireAuth requires at least one Authenticator. Add: security { registerJwtAuthenticator(...) } or registerBasicAuthenticator(...)"
         )
     }
@@ -68,7 +68,7 @@ suspend fun runSecurityPreHandle(
     }
 
     if (identity == null && requireAuth) {
-        throw HttpException(HttpStatus.UNAUTHORIZED, "Authentication required")
+        throw HttpException(NetonErrorCode.AUTH_REQUIRED, "Authentication required")
     }
 
     // 4. 存储 identity
@@ -88,10 +88,10 @@ suspend fun runSecurityPreHandle(
             identity.hasPermission(permission)
         }
         if (!allowed) {
-            throw HttpException(HttpStatus.FORBIDDEN, "Permission denied: $permission")
+            throw HttpException(NetonErrorCode.PERMISSION_DENIED, "Permission denied: $permission")
         }
     } else if (permission != null && identity == null) {
-        throw HttpException(HttpStatus.UNAUTHORIZED, "Authentication required")
+        throw HttpException(NetonErrorCode.AUTH_REQUIRED, "Authentication required")
     }
 
     // 6. Guard 检查
@@ -105,6 +105,6 @@ suspend fun runSecurityPreHandle(
 
     val allowed = guard.checkPermission(identity, requestContext)
     if (!allowed) {
-        throw HttpException(HttpStatus.FORBIDDEN, "Access denied")
+        throw HttpException(NetonErrorCode.PERMISSION_DENIED, "Access denied")
     }
 }

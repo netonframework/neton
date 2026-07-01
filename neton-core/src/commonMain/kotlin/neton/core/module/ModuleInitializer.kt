@@ -42,7 +42,7 @@ interface ModuleInitializer {
 
     /**
      * 初始化模块：注册路由、仓库、校验器、定时任务、配置器到 ctx。
-     * 框架在组件 init/start 之后、用户配置块之前调用。
+     * 框架在组件 init/configure 之后、prepare/start 与 Context freeze 之前调用。
      */
     fun initialize(ctx: NetonContext)
 

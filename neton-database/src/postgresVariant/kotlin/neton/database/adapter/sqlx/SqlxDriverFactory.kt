@@ -8,14 +8,15 @@ import neton.database.config.PostgresUriInfo
 
 // NETON-DB-VARIANT postgres: 只编译进 -Pneton.database.driver=postgres (默认) 的 build.
 // 其它 driver 类型在本 variant 下无法实例化 → 抛清晰错误.
-internal fun createSqlxDriver(config: DatabaseConfig): QueryExecutor = when (config.driver) {
+internal fun createSqlxDriver(config: DatabaseConfig): SqlxDriverHandle = when (config.driver) {
     DatabaseDriver.POSTGRESQL -> {
         val info = config.parseUri() as PostgresUriInfo
-        PostgreSQL(
+        val driver = PostgreSQL(
             url = "postgresql://${info.host}:${info.port}/${info.database}",
             username = info.username,
             password = info.password,
         )
+        SqlxDriverHandle(driver) { driver.close() }
     }
     else -> error(
         "NETON-DB-VARIANT mismatch: 当前 build variant = postgres, " +

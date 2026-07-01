@@ -6,9 +6,9 @@
 - **UserTable.destroy(id)** — 按 id 删除
 - **UserTable.update(id) { name = x; email = y }** — mutate 风格，KSP 内部生成 copy，业务层直接赋值
 - **UserTable.query { where { } }.list()** / **.page(1, 20)**
-- **user.save()** / **user.delete()**
+- **UserTable.insert/update/destroy** 显式写语义
 
-无 Table/Store/Impl 暴露，KSP 生成扩展。
+无 Store/Impl 暴露，KSP 生成 Table 与类型安全更新扩展。
 
 ## 与常见框架对比（简要）
 

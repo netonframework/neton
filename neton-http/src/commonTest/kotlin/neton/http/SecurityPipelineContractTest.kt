@@ -8,6 +8,7 @@ import neton.core.http.HttpRequest
 import neton.core.http.HttpResponse
 import neton.core.http.HttpSession
 import neton.core.http.HttpStatus
+import neton.core.http.httpStatusForErrorCode
 import neton.core.interfaces.Identity
 import neton.core.interfaces.RequestContext
 import neton.core.interfaces.RouteDefinition
@@ -150,8 +151,8 @@ class SecurityPipelineContractTest {
             runSecurityPreHandle(route(requireAuth = true), ctx, reqCtx(), null)
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
-        assertTrue(ex.message?.contains("SecurityComponent") == true)
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
+        assertTrue(ex.message.contains("SecurityComponent"))
     }
 
     // --- Test 3: Mode B + RequireAuth + MockAuthenticator → 200, identity set ---
@@ -192,8 +193,8 @@ class SecurityPipelineContractTest {
             runSecurityPreHandle(route(requireAuth = true), ctx, reqCtx(), config)
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
-        assertTrue(ex.message?.contains("Authenticator") == true)
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
+        assertTrue(ex.message.contains("Authenticator"))
     }
 
     // --- Test 6: @Permission 有权限 → 放行 ---
@@ -218,8 +219,8 @@ class SecurityPipelineContractTest {
             runSecurityPreHandle(route(requireAuth = true, permission = "system:user:edit"), ctx, reqCtx(), config)
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
-        assertEquals(HttpStatus.FORBIDDEN, ex.status)
-        assertTrue(ex.message?.contains("system:user:edit") == true)
+        assertEquals(HttpStatus.FORBIDDEN, httpStatusForErrorCode(ex.code))
+        assertTrue(ex.message.contains("system:user:edit"))
     }
 
     // --- Test 8: PermissionEvaluator 自定义逻辑（superadmin 绕过） ---
@@ -291,7 +292,7 @@ class SecurityPipelineContractTest {
             )
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
     }
 
     // --- Test 11: @Permission + 无 evaluator + 空 permissions → 403（默认行为冻结） ---
@@ -304,8 +305,8 @@ class SecurityPipelineContractTest {
             runSecurityPreHandle(route(requireAuth = true, permission = "system:user:edit"), ctx, reqCtx(), config)
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
-        assertEquals(HttpStatus.FORBIDDEN, ex.status)
-        assertTrue(ex.message?.contains("system:user:edit") == true)
+        assertEquals(HttpStatus.FORBIDDEN, httpStatusForErrorCode(ex.code))
+        assertTrue(ex.message.contains("system:user:edit"))
     }
 
     // --- Test 12: @Permission + identity == null → 401（未认证） ---
@@ -324,7 +325,7 @@ class SecurityPipelineContractTest {
             runSecurityPreHandle(route(requireAuth = false, permission = "any:perm"), ctx, reqCtx(), config)
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
+        assertEquals(HttpStatus.UNAUTHORIZED, httpStatusForErrorCode(ex.code))
     }
 
     // ── beta1 冻结：permission implies auth ─────────────────────
@@ -357,7 +358,7 @@ class SecurityPipelineContractTest {
             )
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException for permission-implies-auth")
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
+        assertEquals(HttpStatus.UNAUTHORIZED, httpStatusForErrorCode(ex.code))
     }
 
     // --- Test 14: @Permission + 有效 identity → 放行（open 组下也行） ---
@@ -404,7 +405,7 @@ class SecurityPipelineContractTest {
             )
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException for permission-implies-auth fail-fast")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.status)
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
     }
 
     // --- Test 16: @FreshAuth 字段默认 false ---

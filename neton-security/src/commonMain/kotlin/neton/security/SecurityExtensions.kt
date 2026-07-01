@@ -29,7 +29,7 @@ object SecurityComponent : NetonComponent<SecurityBuilder> {
         log?.info("security.initialized")
     }
 
-    override suspend fun start(ctx: NetonContext) {
+    override suspend fun configure(ctx: NetonContext) {
         val config = ctx.get<SecurityBuilder>()
         ctx.getOrNull(NetonConfigRegistry::class)?.securityConfigurers
             ?.sortedBy { it.order }

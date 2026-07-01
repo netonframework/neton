@@ -28,6 +28,5 @@ include(":neton-jobs")       // 定时任务调度（cron + fixedRate，SINGLE_N
 include(":examples:helloworld")
 include(":examples:multigroup")
 include(":examples:mvc")
-include(":examples:redis-sample")
 include(":examples:backend-app")
 include(":examples:neton-ai-sample")

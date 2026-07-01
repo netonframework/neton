@@ -15,9 +15,13 @@ interface Table<T : Any, ID : Any> {
 
     suspend fun get(id: ID): T?
     suspend fun findAll(): List<T>
-    suspend fun save(entity: T): T
-    suspend fun saveAll(entities: List<T>): List<T>
+    /** Inserts one row and returns the authoritative persisted entity, including a generated id. */
     suspend fun insert(entity: T): T
+
+    /**
+     * Inserts all rows and returns only the affected-row count.
+     * This API does not mutate input entities or return their database-generated ids.
+     */
     suspend fun insertBatch(entities: List<T>): Int
     suspend fun updateBatch(entities: List<T>): Int
     suspend fun update(entity: T): Boolean
@@ -34,7 +38,6 @@ interface Table<T : Any, ID : Any> {
 
     /** Phase 1：条件是否存在，等价于 query { where(block) }.count() > 0 */
     suspend fun existsWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): Boolean
-    suspend fun delete(entity: T): Boolean
     suspend fun count(): Long
     suspend fun exists(id: ID): Boolean
 
@@ -44,8 +47,6 @@ interface Table<T : Any, ID : Any> {
 
     /** Phase 1：query { } 块，返回 EntityQuery（list/count/page 与 SqlBuilder 同源） */
     fun query(block: neton.database.dsl.QueryScope<T>.() -> Unit): EntityQuery<T>
-    suspend fun <R> transaction(block: suspend Table<T, ID>.() -> R): R
-
     /**
      * 仅创建当前表的最简结构（`CREATE TABLE IF NOT EXISTS`）。
      *

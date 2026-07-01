@@ -14,17 +14,7 @@ fun main(args: Array<String>) {
         http {
             port = 8081
         }
-        database {
-            tableRegistry = { clazz ->
-                @Suppress("UNCHECKED_CAST")
-                when (clazz) {
-                    User::class -> UserTable
-                    Role::class -> RoleTable
-                    UserRole::class -> UserRoleTable
-                    else -> null
-                }
-            }
-        }
+        database { }
         routing { }
         onStart {
             UserTable.ensureTable()

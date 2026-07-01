@@ -29,6 +29,5 @@
 entity → @Table + @Id
   ↓ KSP
 UserTable (object : Table<User, Long> by SqlxTableAdapter<User, Long>)
-user.save() / user.delete() / UserTable.query { where { } }.list()
+UserTable.insert/update/destroy / UserTable.query { where { } }.list()
 ```
-

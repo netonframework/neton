@@ -78,16 +78,20 @@ class ApplicationRegistryProcessor(
             refs.add(id to fqn)
         }
 
-        generateRegistry(refs)
+        val dependencies = Dependencies(
+            aggregating = true,
+            *resolver.getAllFiles().toList().toTypedArray()
+        )
+        generateRegistry(refs, dependencies)
         return emptyList()
     }
 
-    private fun generateRegistry(refs: List<Pair<String, String>>) {
+    private fun generateRegistry(refs: List<Pair<String, String>>, dependencies: Dependencies) {
         val pkg = "neton.application.generated"
         val className = "GeneratedApplicationModules"
 
         val file = codeGenerator.createNewFile(
-            dependencies = Dependencies(true),
+            dependencies = dependencies,
             packageName = pkg,
             fileName = className
         )

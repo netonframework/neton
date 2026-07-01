@@ -60,8 +60,7 @@ object ConfigLoader {
         val merged = if (environment == null) base else run {
             val baseName = configFileName.removeSuffix(".conf")
             val envPath = "$configPath/$baseName.$environment.conf"
-            val envMap = loadRawConfigFile(envPath) ?: return base
-            ConfigMerge.merge(base, envMap)
+            loadRawConfigFile(envPath)?.let { ConfigMerge.merge(base, it) } ?: base
         }
         return ConfigOverrides.applyOverrides(merged.toMutableMap(), getEnvMap(), args)
     }
@@ -104,8 +103,9 @@ object ConfigLoader {
     ): Map<String, Any?>? {
         val base = loadRawConfigFile("$configPath/application.conf") ?: emptyMap()
         val merged = if (environment == null) base else run {
-            val envMap = loadRawConfigFile("$configPath/application.$environment.conf") ?: return base
-            ConfigMerge.merge(base, envMap)
+            loadRawConfigFile("$configPath/application.$environment.conf")
+                ?.let { ConfigMerge.merge(base, it) }
+                ?: base
         }
         return ConfigOverrides.applyOverrides(merged.toMutableMap(), getEnvMap(), args)
     }
@@ -163,4 +163,4 @@ object ConfigLoader {
     fun hasConfig(config: Map<out String, Any?>?, path: String): Boolean =
         getConfigValue(config, path) != null
     
-} 
+}

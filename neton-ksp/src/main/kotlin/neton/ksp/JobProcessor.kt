@@ -123,7 +123,7 @@ class JobProcessor(
             "import neton.jobs.JobDefinition",
             "import neton.jobs.JobSchedule",
             "import neton.jobs.ExecutionMode",
-            "import neton.jobs.JobRegistry"
+            "import neton.jobs.MutableJobRegistry"
         )
         entries.forEach { ModuleFragmentSink.addImport(moduleId, "import ${it.fqn}") }
 
@@ -145,12 +145,9 @@ class JobProcessor(
         }
 
         val code = buildString {
-            appendLine("        val jobRegistry = object : JobRegistry {")
-            appendLine("            override val jobs: List<JobDefinition> = listOf(")
+            appendLine("        ctx.get(MutableJobRegistry::class).registerAll(listOf(")
             appendLine(jobDefs)
-            appendLine("            )")
-            appendLine("        }")
-            append("        ctx.bindIfAbsent(JobRegistry::class, jobRegistry)")
+            append("        ))")
         }
 
         ModuleFragmentSink.addFragment(moduleId, "jobs", "注册定时任务", code)

@@ -22,7 +22,7 @@ import kotlin.test.assertNotNull
  * @see Neton-Database-API-Freeze-v1.md 第十节
  *
  * - Test 1：Table 接口必须提供 get/destroy/query 等单表 CRUD 契约（编译期验证：此 stub 必须实现全部方法）
- * - Test 2：Store 不实现 Table，由约束 A 固化；tableRegistry 仅接受 Table 类型
+ * - Test 2：写操作显式区分 insert、update 和 destroy
  */
 class TableUserContractTest {
 
@@ -55,8 +55,6 @@ class TableUserContractTest {
     private val tableStub: Table<ContractTestEntity, Long> = object : Table<ContractTestEntity, Long> {
         override suspend fun get(id: Long): ContractTestEntity? = null
         override suspend fun findAll(): List<ContractTestEntity> = emptyList()
-        override suspend fun save(entity: ContractTestEntity): ContractTestEntity = entity
-        override suspend fun saveAll(entities: List<ContractTestEntity>): List<ContractTestEntity> = entities
         override suspend fun insert(entity: ContractTestEntity): ContractTestEntity = entity
         override suspend fun insertBatch(entities: List<ContractTestEntity>): Int = 0
         override suspend fun update(entity: ContractTestEntity): Boolean = false
@@ -70,7 +68,6 @@ class TableUserContractTest {
         override suspend fun existsWhere(block: neton.database.dsl.PredicateScope.() -> neton.database.dsl.Predicate): Boolean =
             false
 
-        override suspend fun delete(entity: ContractTestEntity): Boolean = false
         override suspend fun count(): Long = 0L
         override suspend fun exists(id: Long): Boolean = false
         override fun query(): QueryBuilder<ContractTestEntity> = error("stub")
@@ -99,7 +96,6 @@ class TableUserContractTest {
                 override fun <A, B, C, D, E, F, G, H> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>, c4: kotlin.reflect.KProperty1<ContractTestEntity, D>, c5: kotlin.reflect.KProperty1<ContractTestEntity, E>, c6: kotlin.reflect.KProperty1<ContractTestEntity, F>, c7: kotlin.reflect.KProperty1<ContractTestEntity, G>, c8: kotlin.reflect.KProperty1<ContractTestEntity, H>) = error("stub")
             }
 
-        override suspend fun <R> transaction(block: suspend Table<ContractTestEntity, Long>.() -> R): R = error("stub")
     }
 
     @Test

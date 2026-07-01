@@ -11,6 +11,10 @@ extern "C" {
  */
 char **neton_get_environ(void);
 
+void neton_install_shutdown_signals(void);
+int neton_shutdown_signal_received(void);
+void neton_reset_shutdown_signals(void);
+
 #ifdef __cplusplus
 }
 #endif
