@@ -78,23 +78,37 @@ data class DatabaseConfig(
     
     companion object {
         /**
-         * 从配置文件解析数据库配置
+         * 从配置文件解析数据库配置。
+         *
+         * Fail-fast (STD-1): 非法配置直接抛 [IllegalArgumentException]，绝不静默 fallback。
+         * 生产环境数据库 URI/driver 写错时框架必须启动失败，而不是悄悄退回内存库导致数据丢失。
+         *  - `driver` 缺失 → 抛（不再默认 MEMORY）
+         *  - `driver` 未知 → 抛（不再 catch 后 fallback MEMORY）
+         *  - 非 MEMORY driver 缺 `uri` → 抛（不再生成硬编码默认库）
+         *  - MEMORY driver 的 `uri` 可选（显式选择内存库即视为开发意图）
          */
         fun fromMap(configMap: Map<String, Any>): DatabaseConfig {
-            val driverStr = configMap["driver"] as? String ?: "MEMORY"
+            val driverStr = (configMap["driver"] as? String)?.takeIf { it.isNotBlank() }
+                ?: throw IllegalArgumentException(
+                    "database config missing required 'driver' (one of: POSTGRESQL, MYSQL, SQLITE, MEMORY)"
+                )
             val driver = try {
                 DatabaseDriver.valueOf(driverStr.uppercase())
-            } catch (e: Exception) {
-                DatabaseDriver.MEMORY
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException(
+                    "Unknown database driver '$driverStr' (valid: POSTGRESQL, MYSQL, SQLITE, MEMORY)"
+                )
             }
-            
-            val uri = configMap["uri"] as? String ?: when (driver) {
-                DatabaseDriver.POSTGRESQL -> "postgresql://postgres:password@localhost:5432/app"
-                DatabaseDriver.MYSQL -> "mysql://root:password@localhost:3306/app"
-                DatabaseDriver.SQLITE -> "sqlite://data/app.db"
-                DatabaseDriver.MEMORY -> "memory://in-memory"
+
+            val uriRaw = (configMap["uri"] as? String)?.takeIf { it.isNotBlank() }
+            val uri = when {
+                uriRaw != null -> uriRaw
+                driver == DatabaseDriver.MEMORY -> "memory://in-memory"
+                else -> throw IllegalArgumentException(
+                    "database config missing required 'uri' for driver $driver"
+                )
             }
-            
+
             return DatabaseConfig(
                 driver = driver,
                 uri = uri,
@@ -168,22 +182,36 @@ data class MemoryUriInfo(
 /**
  * URI 解析器
  */
+/**
+ * 解析 URI 的 `?k=v&k2=v2` 查询串为 options map。
+ * STD-1: 不再静默丢弃查询参数（旧实现 `emptyMap() // TODO`）。空/无查询串返回空 map。
+ * 缺 '=' 或键为空的片段被跳过（不静默塞进 map，也不 fail 整个解析）。
+ */
+internal fun parseQueryOptions(uri: String): Map<String, String> {
+    val query = uri.substringAfter('?', "")
+    if (query.isBlank()) return emptyMap()
+    return query.split('&').mapNotNull { pair ->
+        val idx = pair.indexOf('=')
+        if (idx <= 0) null else pair.substring(0, idx) to pair.substring(idx + 1)
+    }.toMap()
+}
+
 object PostgresUriParser {
     fun parse(uri: String): PostgresUriInfo {
         // 简化实现，实际应该使用更健壮的 URI 解析
         val regex = Regex("postgresql://([^:]+):([^@]+)@([^:]+):(\\d+)/([^?]+)(\\?.*)?")
-        val match = regex.find(uri) 
+        val match = regex.find(uri)
             ?: throw IllegalArgumentException("Invalid PostgreSQL URI format: $uri")
-        
+
         val (username, password, host, port, database) = match.destructured
-        
+
         return PostgresUriInfo(
             host = host,
             port = port.toInt(),
             username = username,
             password = password,
             database = database,
-            options = emptyMap() // TODO: 解析查询参数
+            options = parseQueryOptions(uri)
         )
     }
 }
@@ -191,18 +219,18 @@ object PostgresUriParser {
 object MysqlUriParser {
     fun parse(uri: String): MysqlUriInfo {
         val regex = Regex("mysql://([^:]+):([^@]+)@([^:]+):(\\d+)/([^?]+)(\\?.*)?")
-        val match = regex.find(uri) 
+        val match = regex.find(uri)
             ?: throw IllegalArgumentException("Invalid MySQL URI format: $uri")
-        
+
         val (username, password, host, port, database) = match.destructured
-        
+
         return MysqlUriInfo(
             host = host,
             port = port.toInt(),
             username = username,
             password = password,
             database = database,
-            options = emptyMap()
+            options = parseQueryOptions(uri)
         )
     }
 }
@@ -212,13 +240,14 @@ object SqliteUriParser {
         if (!uri.startsWith("sqlite://")) {
             throw IllegalArgumentException("SQLite URI must start with sqlite://")
         }
-        
-        val filePath = uri.removePrefix("sqlite://")
-        
+
+        val pathAndQuery = uri.removePrefix("sqlite://")
+        val filePath = pathAndQuery.substringBefore('?')
+
         return SqliteUriInfo(
             filePath = filePath,
             database = filePath.substringAfterLast('/').substringBefore('.'),
-            options = emptyMap()
+            options = parseQueryOptions(uri)
         )
     }
 }
