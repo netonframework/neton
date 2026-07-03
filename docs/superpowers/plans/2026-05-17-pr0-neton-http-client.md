@@ -1,5 +1,11 @@
 # PR0: `neton-http-client` v0.1 Implementation Plan
 
+> **⚠️ OBSOLETE (as of Neton 1.0).** The standalone `neton-http-client` module described here was
+> merged into `neton-http`: the HTTP client now lives at `neton-http/src/.../neton/http/client/`
+> (package `neton.http.client` unchanged), and `:neton-http-client` is no longer in
+> `settings.gradle.kts`. This document is kept as a historical design/execution record only —
+> do not implement against it or reference `neton-http-client` as a separate module.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build `neton-http-client`, a thin KMP HTTP client infrastructure module that provides typed HTTP request/response, per-platform Ktor engine selection, typed errors, redaction policy, SSE parser primitive, and cancellation propagation. Prerequisite for `neton-ai` (PR1-3).

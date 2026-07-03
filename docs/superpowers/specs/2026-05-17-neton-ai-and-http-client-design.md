@@ -1,5 +1,11 @@
 # neton-ai + neton-http-client v0.1 Design Spec
 
+> **⚠️ PARTIALLY OBSOLETE (as of Neton 1.0).** The `neton-ai` design here is still accurate.
+> The `neton-http-client` portion is superseded: that standalone module was merged into
+> `neton-http` (client now at `neton-http/src/.../neton/http/client/`, package `neton.http.client`
+> unchanged; `:neton-http-client` removed from `settings.gradle.kts`). Read the http-client
+> sections as historical design only — the module boundary described no longer exists.
+
 - **Date**: 2026-05-17
 - **Status**: Approved (pending user spec review) — ready for implementation plan
 - **Authors**: zoujiaqing + Claude (interactive brainstorming session)
