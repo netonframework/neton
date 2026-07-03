@@ -197,8 +197,10 @@ Neton.run(args) {
 - ✅ 契约测试：SecurityPipelineContractTest（15 条）、GenericSerializerContractTest（5 条）
 - ⏳ 性能优化
 
-## 📋 TODO
+## 🗺️ Roadmap（1.0 之后）
 
-- [ ] 添加性能监控
-- [ ] 支持 HTTPS
-- [ ] 添加更多 HTTP 库支持（Netty、Vertx 等）
+1.0 的范围是稳定的 Ktor(CIO) 服务端 + 安全管道 + 泛型序列化。以下能力**明确不在 1.0**，按需在后续版本推进：
+
+- **HTTPS/TLS 终止**：1.0 推荐由反向代理（Nginx / Caddy / 云负载均衡）承担 TLS；进程内 TLS 暂不提供。
+- **性能监控 / metrics**：计划作为独立的 `neton-observability` 能力提供，不内嵌进 HTTP 模块。
+- **更多 HTTP 引擎（Netty / Vert.x 等）**：延后到 HTTP 适配层（HttpDispatcher）有一致性契约测试之后再评估；1.0 只支持 Ktor CIO。
