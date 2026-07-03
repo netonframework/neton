@@ -36,15 +36,7 @@ internal object TableDefRegistry {
         return def.resolve(prop)
     }
 
-    // ⚠️ find(prop) 已废除（原则 15 加固）
-    // 遍历 byClass.values 再找 propertyName 存在 O(n) 与同名字段误匹配风险。
-    // 正式路径必须走 resolve(entityClass, prop)：单表 query 已知 Table 的实体类型/def，
-    // 直接 resolve，不需要 find。find 仅保留用于调试（标 @Deprecated）。
-    @Deprecated("Use resolve(klass, prop) instead. find() is O(n) and may mismatch same-name properties across entities.")
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Any> find(prop: KProperty1<T, *>): TableDef<T>? {
-        return byClass.values.firstOrNull { def ->
-            def.columns.any { it.propertyName == prop.name }
-        } as? TableDef<T>
-    }
+    // Column resolution always goes through resolve(klass, prop): a single-table query already
+    // knows its entity type/def. The old find(prop) — an O(n) scan over byClass with same-name
+    // mismatch risk — was deprecated and is removed for 1.0 (it had no callers).
 }
