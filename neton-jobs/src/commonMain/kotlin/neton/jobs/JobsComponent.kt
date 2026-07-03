@@ -40,8 +40,13 @@ object JobsComponent : NetonComponent<JobsConfig> {
     override suspend fun prepare(ctx: NetonContext) {
         val logger = ctx.getOrNull(LoggerFactory::class)?.get("neton.jobs")
         val plan = ctx.get(RuntimePlan::class)
+        // 运行期 DB/外部覆盖源（可选）。绑定 JobConfigSource 时，其覆盖 **优先于** jobs.conf。
+        // 让后台定时任务管理（infra_jobs）成为调度真源：代码 @Job 定义 handler，DB 决定启用/调度。
+        val dbItems = ctx.getOrNull(JobConfigSource::class)?.overrides() ?: emptyList()
+        if (dbItems.isNotEmpty()) logger?.info("job.config.db_source", mapOf("overrides" to dbItems.size))
         val definitions = ctx.get(JobRegistry::class).jobs.map { def ->
-            mergeConfig(def, findOverride(plan.items, def.id))
+            val fileMerged = mergeConfig(def, findOverride(plan.items, def.id))
+            mergeConfig(fileMerged, findOverride(dbItems, def.id))
         }
 
         val hasSingleNode = definitions.any { it.enabled && it.mode == ExecutionMode.SINGLE_NODE }
