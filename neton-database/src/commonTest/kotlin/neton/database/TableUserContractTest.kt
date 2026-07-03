@@ -85,15 +85,6 @@ class TableUserContractTest {
                     override suspend fun count() = 0L
                     override suspend fun page(page: Int, size: Int) = Page.of(emptyList<Row>(), 0L, page, size)
                 }
-
-                override fun <A> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>) = error("stub")
-                override fun <A, B> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>) = error("stub")
-                override fun <A, B, C> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>) = error("stub")
-                override fun <A, B, C, D> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>, c4: kotlin.reflect.KProperty1<ContractTestEntity, D>) = error("stub")
-                override fun <A, B, C, D, E> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>, c4: kotlin.reflect.KProperty1<ContractTestEntity, D>, c5: kotlin.reflect.KProperty1<ContractTestEntity, E>) = error("stub")
-                override fun <A, B, C, D, E, F> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>, c4: kotlin.reflect.KProperty1<ContractTestEntity, D>, c5: kotlin.reflect.KProperty1<ContractTestEntity, E>, c6: kotlin.reflect.KProperty1<ContractTestEntity, F>) = error("stub")
-                override fun <A, B, C, D, E, F, G> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>, c4: kotlin.reflect.KProperty1<ContractTestEntity, D>, c5: kotlin.reflect.KProperty1<ContractTestEntity, E>, c6: kotlin.reflect.KProperty1<ContractTestEntity, F>, c7: kotlin.reflect.KProperty1<ContractTestEntity, G>) = error("stub")
-                override fun <A, B, C, D, E, F, G, H> select(c1: kotlin.reflect.KProperty1<ContractTestEntity, A>, c2: kotlin.reflect.KProperty1<ContractTestEntity, B>, c3: kotlin.reflect.KProperty1<ContractTestEntity, C>, c4: kotlin.reflect.KProperty1<ContractTestEntity, D>, c5: kotlin.reflect.KProperty1<ContractTestEntity, E>, c6: kotlin.reflect.KProperty1<ContractTestEntity, F>, c7: kotlin.reflect.KProperty1<ContractTestEntity, G>, c8: kotlin.reflect.KProperty1<ContractTestEntity, H>) = error("stub")
             }
 
     }
