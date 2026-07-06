@@ -24,9 +24,19 @@ val isMacOs = hostOs.contains("mac")
 val isLinux = hostOs.contains("linux")
 val isWindows = hostOs.contains("windows")
 
+// Linux 目标的 C 桥交叉编译器：macOS 上用 homebrew macos-cross-toolchains 的 <arch>-linux-gnu-gcc
+// （带 Linux sysroot，env.c 只需 <signal.h>+environ）；Linux 原生用 clang -target。
+fun crossGccFor(targetName: String): String? = when (targetName) {
+    "LinuxX64" -> "x86_64-linux-gnu-gcc"
+    "LinuxArm64" -> "aarch64-linux-gnu-gcc"
+    else -> null
+}
+
+// macOS 上用交叉 gcc 即可为 Linux 目标交叉编译（恢复 2026-07-02 aeda47b 前的 macOS 交叉编译能力）；
+// 交叉 gcc 缺失时 compilePosixEnv 任务会以明确错误失败（而非静默产错架构）。
 fun canBuildTarget(targetName: String): Boolean = when (targetName) {
     "MacosArm64", "MacosX64" -> isMacOs
-    "LinuxX64", "LinuxArm64" -> isLinux
+    "LinuxX64", "LinuxArm64" -> isLinux || isMacOs
     "MingwX64" -> isWindows
     else -> false
 }
@@ -135,12 +145,14 @@ for (target in nativeTargets) {
         inputs.files("src/nativeInterop/c/env.c", "src/nativeInterop/c/env.h")
         outputs.file("$outDir/env.o")
         onlyIf { canBuildTarget(target.name) }
-        commandLine(
-            "clang", "-target", target.clangTarget,
-            "-c", "src/nativeInterop/c/env.c",
-            "-I", "src/nativeInterop/c",
-            "-o", "$outDir/env.o"
-        )
+        // macOS 交叉编 Linux 目标时，clang -target 找不到 Linux 系统头（signal.h），改用带
+        // sysroot 的交叉 gcc（<arch>-linux-gnu-gcc）；原生/其它目标仍用 clang -target。
+        val crossGcc = crossGccFor(target.name)
+        val cmd = if (isMacOs && crossGcc != null)
+            listOf(crossGcc, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+        else
+            listOf("clang", "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+        commandLine(cmd)
         doFirst { out.mkdirs() }
     }
 
