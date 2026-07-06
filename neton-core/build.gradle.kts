@@ -24,12 +24,39 @@ val isMacOs = hostOs.contains("mac")
 val isLinux = hostOs.contains("linux")
 val isWindows = hostOs.contains("windows")
 
-// Linux 目标的 C 桥交叉编译器：macOS 上用 homebrew macos-cross-toolchains 的 <arch>-linux-gnu-gcc
-// （带 Linux sysroot，env.c 只需 <signal.h>+environ）；Linux 原生用 clang -target。
-fun crossGccFor(targetName: String): String? = when (targetName) {
-    "LinuxX64" -> "x86_64-linux-gnu-gcc"
-    "LinuxArm64" -> "aarch64-linux-gnu-gcc"
+data class LinuxCrossTools(val compiler: String, val archiver: String)
+
+fun configuredTool(property: String, environment: String, default: String): String =
+    providers.gradleProperty(property)
+        .orElse(providers.environmentVariable(environment))
+        .getOrElse(default)
+
+fun linuxCrossTools(targetName: String): LinuxCrossTools? = when (targetName) {
+    "LinuxX64" -> LinuxCrossTools(
+        compiler = configuredTool("neton.linuxX64.cc", "NETON_LINUX_X64_CC", "x86_64-linux-gnu-gcc"),
+        archiver = configuredTool("neton.linuxX64.ar", "NETON_LINUX_X64_AR", "x86_64-linux-gnu-ar"),
+    )
+    "LinuxArm64" -> LinuxCrossTools(
+        compiler = configuredTool("neton.linuxArm64.cc", "NETON_LINUX_ARM64_CC", "aarch64-linux-gnu-gcc"),
+        archiver = configuredTool("neton.linuxArm64.ar", "NETON_LINUX_ARM64_AR", "aarch64-linux-gnu-ar"),
+    )
     else -> null
+}
+
+fun resolveCommand(command: String): String? {
+    val executable = File(command)
+    if (executable.isAbsolute || command.contains('/')) {
+        return executable.takeIf { it.canExecute() }?.absolutePath
+    }
+    val searchPaths = buildList {
+        System.getenv("PATH")?.split(File.pathSeparatorChar)?.let(::addAll)
+        add("/opt/homebrew/bin")
+        add("/usr/local/bin")
+    }
+    return searchPaths.asSequence()
+        .map { File(it, command) }
+        .firstOrNull { it.canExecute() }
+        ?.absolutePath
 }
 
 // macOS 上用交叉 gcc 即可为 Linux 目标交叉编译（恢复 2026-07-02 aeda47b 前的 macOS 交叉编译能力）；
@@ -145,23 +172,36 @@ for (target in nativeTargets) {
         inputs.files("src/nativeInterop/c/env.c", "src/nativeInterop/c/env.h")
         outputs.file("$outDir/env.o")
         onlyIf { canBuildTarget(target.name) }
-        // macOS 交叉编 Linux 目标时，clang -target 找不到 Linux 系统头（signal.h），改用带
-        // sysroot 的交叉 gcc（<arch>-linux-gnu-gcc）；原生/其它目标仍用 clang -target。
-        val crossGcc = crossGccFor(target.name)
-        val cmd = if (isMacOs && crossGcc != null)
-            listOf(crossGcc, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+        val crossTools = linuxCrossTools(target.name)
+        val configuredCompiler = if (isMacOs && crossTools != null) crossTools.compiler else "clang"
+        val compiler = resolveCommand(configuredCompiler) ?: configuredCompiler
+        val cmd = if (isMacOs && crossTools != null)
+            listOf(compiler, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
         else
-            listOf("clang", "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+            listOf(compiler, "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
         commandLine(cmd)
-        doFirst { out.mkdirs() }
+        doFirst {
+            check(resolveCommand(configuredCompiler) != null) {
+                "Missing compiler '$configuredCompiler' for ${target.name}. See the cross-compilation section in README.md."
+            }
+            out.mkdirs()
+        }
     }
 
     tasks.register<Exec>("archivePosixEnv${target.name}") {
         dependsOn("compilePosixEnv${target.name}")
         outputs.file("$outDir/libenv.a")
         onlyIf { canBuildTarget(target.name) }
-        commandLine("ar", "rcs", "$outDir/libenv.a", "$outDir/env.o")
-        doFirst { file(outDir).mkdirs() }
+        val crossTools = linuxCrossTools(target.name)
+        val configuredArchiver = if (isMacOs && crossTools != null) crossTools.archiver else "ar"
+        val archiver = resolveCommand(configuredArchiver) ?: configuredArchiver
+        commandLine(archiver, "rcs", "$outDir/libenv.a", "$outDir/env.o")
+        doFirst {
+            check(resolveCommand(configuredArchiver) != null) {
+                "Missing archiver '$configuredArchiver' for ${target.name}. See the cross-compilation section in README.md."
+            }
+            file(outDir).mkdirs()
+        }
     }
 }
 

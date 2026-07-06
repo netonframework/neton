@@ -41,6 +41,7 @@ class NetonContext(val args: Array<String>) {
     }
 
     /** 获取绑定 */
+    @Suppress("UNCHECKED_CAST")
     fun <T : Any> get(type: KClass<T>): T {
         return registry[type] as? T
             ?: throw IllegalStateException("No binding for ${type.simpleName}. Did you install the component?")
@@ -50,6 +51,7 @@ class NetonContext(val args: Array<String>) {
     inline fun <reified T : Any> get(): T = get(T::class)
 
     /** 安全获取 */
+    @Suppress("UNCHECKED_CAST")
     fun <T : Any> getOrNull(type: KClass<T>): T? = registry[type] as? T
 
     inline fun <reified T : Any> getOrNull(): T? = getOrNull(T::class)

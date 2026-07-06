@@ -8,7 +8,7 @@
 
 - **Date**: 2026-05-17
 - **Status**: Approved (pending user spec review) — ready for implementation plan
-- **Authors**: zoujiaqing + Claude (interactive brainstorming session)
+- **Author**: zoujiaqing
 - **Target repos**:
   - `neton` (framework monorepo) — new modules `neton-http-client`, `neton-ai`
 - **Reference**: `vercel-ai` (cloned at `/Users/zoujiaqing/projects/Neton/vercel-ai`) — used for wire-protocol cross-checking and conceptual mapping; **not** copied into Neton
