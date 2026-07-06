@@ -35,8 +35,7 @@ class DefaultParamConverterRegistry : ParamConverterRegistry {
     }
 
     override fun <T : Any> register(type: KClass<T>, converter: ParamConverter<T>) {
-        @Suppress("UNCHECKED_CAST")
-        converters[type] = converter as ParamConverter<*>
+        converters[type] = converter
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -45,6 +44,6 @@ class DefaultParamConverterRegistry : ParamConverterRegistry {
 
     override fun <T : Any> convert(value: String, type: KClass<T>): T? {
         val converter = getConverter(type) ?: return null
-        return converter.convert(value) as? T
+        return converter.convert(value)
     }
 }

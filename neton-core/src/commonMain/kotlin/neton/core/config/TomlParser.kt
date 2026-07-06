@@ -15,6 +15,7 @@ object TomlParser {
     /**
      * 解析 TOML 字符串为 Map。解析失败抛 [ConfigParseException]。
      */
+    @Suppress("UNCHECKED_CAST")
     fun parse(content: String, sourceName: String = "config"): Map<String, Any?> {
         val root = mutableMapOf<String, Any?>()
         val lines = content.lines()
@@ -57,11 +58,12 @@ object TomlParser {
                     currentArrayPath = path
                     val parentPath = path.dropLast(1)
                     val key = path.last()
-                    val parent = if (parentPath.isEmpty()) root else getTableAt(parentPath) as MutableMap<String, Any?>
+                    val parent = if (parentPath.isEmpty()) root else getTableAt(parentPath)
                     val list = (parent.getOrPut(key) { mutableListOf<MutableMap<String, Any?>>() } as? MutableList<MutableMap<String, Any?>>)
                         ?: mutableListOf<MutableMap<String, Any?>>().also { parent[key] = it }
-                    arrayAccumulator = mutableMapOf<String, Any?>()
-                    list.add(arrayAccumulator!!)
+                    val table = mutableMapOf<String, Any?>()
+                    arrayAccumulator = table
+                    list.add(table)
                 }
                 trimmed.startsWith("[") && !trimmed.startsWith("[[") -> {
                     val close = trimmed.indexOf("]")
@@ -76,7 +78,7 @@ object TomlParser {
                     val valueStr = trimmed.substring(eq + 1).trim()
                     val value = parseValue(valueStr, sourceName, lineNum + 1)
                     if (arrayAccumulator != null) {
-                        arrayAccumulator!![key] = value
+                        arrayAccumulator[key] = value
                     } else {
                         setAt(currentPath, key, value)
                     }
