@@ -230,8 +230,8 @@ secrets.properties
 test-results/
 test-reports/
 
-# Documentation build
-docs/build/
+# Documentation lives in the sibling neton-docs repository.
+/docs/
 
 # Backup files
 *.bak
