@@ -737,7 +737,14 @@ private class SimpleKtorHttpRequest(private val call: io.ktor.server.application
                 val disposition = rawHeaders["Content-Disposition"]?.toString().orEmpty()
                 val partContentType = rawHeaders["Content-Type"]?.toString()
                 val name = NAME_REGEX.find(disposition)?.groupValues?.get(1).orEmpty()
+                // filename 提取三级兜底:标准 filename= → RFC 5987 filename*=(部分客户端对
+                // 非 ASCII 名只发这个)→ 有独立 Content-Type 的 part 视为文件(某些客户端
+                // 特殊字符文件名会破坏 disposition,不能因此把文件当表单字段丢掉)。
                 val filename = FILENAME_REGEX.find(disposition)?.groupValues?.get(1)
+                    ?: FILENAME_STAR_REGEX.find(disposition)?.groupValues?.get(1)?.let { encoded ->
+                        encoded.substringAfterLast("''").ifEmpty { encoded }
+                    }
+                    ?: if (partContentType != null && !partContentType.startsWith("text/plain")) "upload" else null
                 val bytes = event.body.readRemaining().readByteArray()
                 if (filename != null) {
                     files.add(
@@ -765,6 +772,9 @@ private class SimpleKtorHttpRequest(private val call: io.ktor.server.application
         // Content-Disposition: form-data; name="file"; filename="avatar.png"
         private val NAME_REGEX = Regex("""name="([^"]*)"""")
         private val FILENAME_REGEX = Regex("""filename="([^"]*)"""")
+
+        // RFC 5987: filename*=UTF-8''%E5%9B%BE.jpg（不带引号）
+        private val FILENAME_STAR_REGEX = Regex("""filename\*=([^;\s]+)""")
     }
 
     override val method: neton.core.http.HttpMethod = when (call.request.httpMethod.value) {
