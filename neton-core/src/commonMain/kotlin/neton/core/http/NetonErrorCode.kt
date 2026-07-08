@@ -61,6 +61,8 @@ object NetonErrorCode {
     const val IP_NOT_ALLOWED = 10008
     const val REFRESH_TOKEN_EXPIRED = 10009
     const val REFRESH_TOKEN_REVOKED = 10010
+    /** 登录凭证错误(账号或密码不正确)。区别于参数校验错误(10100):这是认证失败,HTTP 401。 */
+    const val INVALID_CREDENTIALS = 10011
 
     // ── Common - Params (10100-10199) ──
     const val INVALID_PARAMS = 10100
