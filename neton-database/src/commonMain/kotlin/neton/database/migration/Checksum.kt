@@ -6,6 +6,7 @@ package neton.database.migration
  * 纯 Kotlin 实现(无 expect/actual),Native 友好,无外部依赖。
  * 参考 RFC 6234。
  */
+@Suppress("REDUNDANT_CALL_OF_CONVERSION_METHOD")
 internal object Checksum {
 
     fun sha256Hex(bytes: ByteArray): String {

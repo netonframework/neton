@@ -117,9 +117,10 @@ class JobProcessor(
     // region --- 模块模式：写片段到 sink ---
 
     private fun writeToSink(entries: List<JobEntry>) {
-        ModuleFragmentSink.addStat(moduleId!!, "jobs", entries.size)
+        val moduleId = moduleId ?: error("moduleId is required in module mode")
+        ModuleFragmentSink.addStat(moduleId, "jobs", entries.size)
         ModuleFragmentSink.addImports(
-            moduleId!!,
+            moduleId,
             "import neton.jobs.JobDefinition",
             "import neton.jobs.JobSchedule",
             "import neton.jobs.ExecutionMode",

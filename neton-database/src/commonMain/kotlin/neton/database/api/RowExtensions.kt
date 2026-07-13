@@ -47,18 +47,17 @@ inline fun <reified T : Any, ID> Row.intoOrNull(prefix: String, pk: KProperty1<T
  * 用于聚合 helper 的 key 等场景，避免写字符串列名：
  *   key = { row -> row.get(U, SystemUser::id) }   // 而不是 row.long("id")
  */
-@Suppress("UNCHECKED_CAST")
 fun <T : Any, V> Row.get(ref: TableRef<T>, prop: KProperty1<T, V>): V {
     val col = ref.def.resolve(prop)
     val qualifiedName = "${ref.alias}_${col.columnName}"  // SELECT 输出的列别名
     // 根据属性类型分发（实现层根据 Column 元数据判断类型）
-    return readQualified(qualifiedName, col) as V
+    return readQualified(qualifiedName, col)
 }
 
 fun <T : Any, V> Row.getOrNull(ref: TableRef<T>, prop: KProperty1<T, V>): V? {
     val col = ref.def.resolve(prop)
     val qualifiedName = "${ref.alias}_${col.columnName}"
-    return readQualifiedOrNull(qualifiedName, col) as? V
+    return readQualifiedOrNull(qualifiedName, col)
 }
 
 /**

@@ -333,7 +333,7 @@ class KtorHttpAdapter(
                 io.ktor.http.HttpStatusCode.BadRequest,
                 neton.core.http.ApiEnvelope.error(
                     neton.core.http.NetonErrorCode.INVALID_PARAMS,
-                    e.message ?: "Bad Request",
+                    e.message,
                 ),
             )
         } catch (e: neton.core.http.HttpException) {
@@ -405,7 +405,7 @@ class KtorHttpAdapter(
             val endMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
             val latencyMs = endMs - startMs
             val bytesOut = if (httpContext.response.isCommitted && httpContext.response is SimpleKtorHttpResponse) {
-                (httpContext.response as SimpleKtorHttpResponse).lastBytesOut
+                httpContext.response.lastBytesOut
             } else {
                 0L
             }

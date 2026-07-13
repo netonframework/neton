@@ -1,14 +1,14 @@
 [versions]
-kotlin = "2.3.10"
+kotlin = "2.4.0"
 cryptography-kotlin = "0.6.0"
-kotlinx-io = "0.9.0"  # kotlinx-io-bytestring，与 cryptography-kotlin 的 kotlinx-io-core 对齐
-ksp = "2.3.6"
-ktor = "3.4.2"
-kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.10.0"
-kotlinx-datetime = "0.7.1"
-kotlinx-coroutines-test = "1.10.2"
-sqlx4k = "1.7.3"
+kotlinx-io = "0.9.1"  # kotlinx-io-bytestring，与 cryptography-kotlin 的 kotlinx-io-core 对齐
+ksp = "2.3.10"
+ktor = "3.5.1"
+kotlinx-coroutines = "1.11.0"
+kotlinx-serialization = "1.11.0"
+kotlinx-datetime = "0.8.0"
+kotlinx-coroutines-test = "1.11.0"
+sqlx4k = "1.12.0"
 konform = "0.11.1"
 
 [libraries]
@@ -50,7 +50,7 @@ sqlx4k-postgres = { module = "io.github.smyrgeorge:sqlx4k-postgres", version.ref
 sqlx4k-mysql = { module = "io.github.smyrgeorge:sqlx4k-mysql", version.ref = "sqlx4k" }
 
 # re.this (Kotlin Multiplatform Redis)
-rethis = { module = "eu.vendeli:rethis", version = "0.3.9" }
+rethis = { module = "eu.vendeli:rethis", version = "0.4.3" }
 
 # Konform (validation, internal to neton-validation)
 konform = { module = "io.konform:konform", version.ref = "konform" }
