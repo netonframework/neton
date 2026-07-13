@@ -44,12 +44,12 @@ private class ExecutorSession(
     override val dialect: Dialect,
 ) : DbSession {
     override suspend fun query(sql: String, params: Map<String, Any?>): List<Row> {
-        val rows = executor.fetchAll(statement(sql, params)).getOrThrow()
+        val rows = executor.fetchAll(statement(sql, params, dialect)).getOrThrow()
         return rows.map(::SqlxRow)
     }
 
     override suspend fun execute(sql: String, params: Map<String, Any?>): Long =
-        executor.execute(statement(sql, params)).getOrThrow()
+        executor.execute(statement(sql, params, dialect)).getOrThrow()
 }
 
 private class TransactionBackedSession(
@@ -57,16 +57,109 @@ private class TransactionBackedSession(
     override val dialect: Dialect,
 ) : DbSession {
     override suspend fun query(sql: String, params: Map<String, Any?>): List<Row> {
-        val rows = transaction.fetchAll(statement(sql, params)).getOrThrow()
+        val rows = transaction.fetchAll(statement(sql, params, dialect)).getOrThrow()
         return rows.map(::SqlxRow)
     }
 
     override suspend fun execute(sql: String, params: Map<String, Any?>): Long =
-        transaction.execute(statement(sql, params)).getOrThrow()
+        transaction.execute(statement(sql, params, dialect)).getOrThrow()
 }
 
-private fun statement(sql: String, params: Map<String, Any?>): Statement =
-    params.entries.fold(Statement.create(sql)) { current, (name, value) -> current.bind(name, value) }
+private fun statement(sql: String, params: Map<String, Any?>, dialect: Dialect): Statement {
+    val renderedSql = if (dialect.name == "postgres") applyPostgresScalarCasts(sql, params) else sql
+    return params.entries.fold(Statement.create(renderedSql)) { current, (name, value) -> current.bind(name, value) }
+}
+
+internal fun applyPostgresScalarCasts(sql: String, params: Map<String, Any?>): String {
+    if (params.isEmpty()) return sql
+
+    val out = StringBuilder(sql.length + params.size * 6)
+    var i = 0
+    while (i < sql.length) {
+        when {
+            sql.startsWith("--", i) -> {
+                val end = sql.indexOf('\n', i + 2).let { if (it == -1) sql.length else it + 1 }
+                out.append(sql, i, end)
+                i = end
+            }
+            sql.startsWith("/*", i) -> {
+                val end = sql.indexOf("*/", i + 2).let { if (it == -1) sql.length else it + 2 }
+                out.append(sql, i, end)
+                i = end
+            }
+            sql[i] == '\'' -> {
+                i = appendQuoted(sql, i, out, '\'')
+            }
+            sql[i] == '"' -> {
+                i = appendQuoted(sql, i, out, '"')
+            }
+            sql[i] == '$' -> {
+                val delimiter = dollarQuoteDelimiter(sql, i)
+                if (delimiter != null) {
+                    val bodyEnd = sql.indexOf(delimiter, i + delimiter.length)
+                    val end = if (bodyEnd == -1) sql.length else bodyEnd + delimiter.length
+                    out.append(sql, i, end)
+                    i = end
+                } else {
+                    out.append(sql[i++])
+                }
+            }
+            sql[i] == ':' && i + 1 < sql.length && sql[i + 1] == ':' -> {
+                out.append("::")
+                i += 2
+            }
+            sql[i] == ':' && i + 1 < sql.length && isIdentStart(sql[i + 1]) -> {
+                var end = i + 2
+                while (end < sql.length && isIdentPart(sql[end])) end++
+                val name = sql.substring(i + 1, end)
+                out.append(sql, i, end)
+                val alreadyCasted = end + 1 < sql.length && sql[end] == ':' && sql[end + 1] == ':'
+                if (!alreadyCasted) postgresScalarCast(params[name])?.let(out::append)
+                i = end
+            }
+            else -> out.append(sql[i++])
+        }
+    }
+    return out.toString()
+}
+
+private fun appendQuoted(sql: String, start: Int, out: StringBuilder, quote: Char): Int {
+    var i = start
+    out.append(sql[i++])
+    while (i < sql.length) {
+        out.append(sql[i])
+        if (sql[i] == quote) {
+            if (i + 1 < sql.length && sql[i + 1] == quote) {
+                out.append(sql[i + 1])
+                i += 2
+                continue
+            }
+            return i + 1
+        }
+        i++
+    }
+    return i
+}
+
+private fun dollarQuoteDelimiter(sql: String, start: Int): String? {
+    var i = start + 1
+    while (i < sql.length && isIdentPart(sql[i])) i++
+    if (i < sql.length && sql[i] == '$') return sql.substring(start, i + 1)
+    return null
+}
+
+private fun postgresScalarCast(value: Any?): String? = when (value) {
+    is Byte, is Short -> "::int2"
+    is Int -> "::int4"
+    is Long -> "::int8"
+    is Float -> "::float4"
+    is Double -> "::float8"
+    is Boolean -> "::boolean"
+    else -> null
+}
+
+private fun isIdentStart(c: Char): Boolean = c == '_' || c in 'A'..'Z' || c in 'a'..'z'
+private fun isIdentPart(c: Char): Boolean = isIdentStart(c) || c in '0'..'9'
 
 internal class SqlxRow(private val row: ResultSet.Row) : Row {
     private fun stringValue(name: String): String? = row.get(name).asStringOrNull()
