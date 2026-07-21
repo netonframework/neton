@@ -26,6 +26,7 @@ include(":neton-jobs")       // 定时任务调度（cron + fixedRate，SINGLE_N
 
 // 示例项目
 include(":examples:helloworld")
+include(":examples:sse-demo")
 include(":examples:multigroup")
 include(":examples:mvc")
 include(":examples:backend-app")
