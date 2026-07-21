@@ -24,6 +24,16 @@ import io.ktor.http.cio.MultipartEvent
 import io.ktor.http.cio.parseMultipart
 import io.ktor.utils.io.readRemaining
 import io.ktor.utils.io.writeFully
+import kotlinx.io.readByteArray
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 
 /**
  * 组挂载路径拼接：mount="/" 不产生双斜杠（gateway 根挂载契约，见 RootMountContractTest）。
@@ -38,16 +48,6 @@ internal fun joinMountPath(mount: String, pattern: String): String {
         else -> "/$m/$rel"
     }
 }
-import kotlinx.io.readByteArray
-import kotlinx.serialization.json.Json
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.coroutineScope
 
 /**
  * Ktor HTTP 适配器 - port/config 在构造时传入
