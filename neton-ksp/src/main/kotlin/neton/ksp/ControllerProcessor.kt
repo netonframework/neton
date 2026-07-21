@@ -265,6 +265,17 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
         return "$controllerName(${args.joinToString(", ")})"
     }
 
+    /**
+     * 目录约定（neton-docs routing.md §路由组与挂载）：controller 包段之后的第一段为路由组；
+     * controller 直下 = 默认组（null）。编译期确定，运行时不再解析类名。
+     */
+    private fun routeGroupFromPackage(controller: KSClassDeclaration): String? {
+        val segments = controller.packageName.asString().split('.')
+        val idx = segments.indexOf("controller")
+        if (idx == -1) return null
+        return segments.getOrNull(idx + 1)
+    }
+
     private fun generateControllerRoutes(writer: OutputStreamWriter, controller: KSClassDeclaration, ctxParam: String) {
         val controllerName = controller.qualifiedName!!.asString()
         val controllerClassName = controller.simpleName.asString()
@@ -471,6 +482,7 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                 },
                 controllerClass = "$controllerName",
                 methodName = "$methodName",
+                routeGroup = ${routeGroupFromPackage(controller)?.let { "\"$it\"" } ?: "null"},
                 allowAnonymous = $allowAnonymous,
                 requireAuth = $requireAuth,
                 permission = ${if (permission != null) "\"$permission\"" else "null"},

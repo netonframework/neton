@@ -13,8 +13,8 @@ class RequestEngineRouteGroupTest {
     fun keepsIdenticalPathsFromDifferentControllerGroups() {
         val engine = DefaultRequestEngine()
 
-        engine.registerRoute(route("controller.app.level.MemberLevelController"))
-        engine.registerRoute(route("controller.admin.level.MemberLevelController"))
+        engine.registerRoute(route("controller.app.level.MemberLevelController", group = "app"))
+        engine.registerRoute(route("controller.admin.level.MemberLevelController", group = "admin"))
 
         assertEquals(2, engine.getRoutes().size)
     }
@@ -23,13 +23,14 @@ class RequestEngineRouteGroupTest {
     fun deduplicatesIdenticalPathsWithinTheSameControllerGroup() {
         val engine = DefaultRequestEngine()
 
-        engine.registerRoute(route("controller.admin.level.MemberLevelController"))
-        engine.registerRoute(route("controller.admin.level.OtherLevelController"))
+        engine.registerRoute(route("controller.admin.level.MemberLevelController", group = "admin"))
+        engine.registerRoute(route("controller.admin.level.OtherLevelController", group = "admin"))
 
         assertEquals(1, engine.getRoutes().size)
     }
 
-    private fun route(controllerClass: String) = RouteDefinition(
+    // routeGroup 由 KSP 编译期按目录约定写入，测试直接模拟 KSP 产物
+    private fun route(controllerClass: String, group: String?) = RouteDefinition(
         pattern = "/member/level/list",
         method = HttpMethod.GET,
         handler = object : RouteHandler {
@@ -37,5 +38,6 @@ class RequestEngineRouteGroupTest {
         },
         controllerClass = controllerClass,
         methodName = "list",
+        routeGroup = group,
     )
 }
