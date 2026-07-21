@@ -356,6 +356,16 @@ class KtorHttpAdapter(
             status = httpContext.response.status.code
             throw e
         } catch (e: Exception) {
+            if (httpContext.response.isCommitted) {
+                // 响应已提交（典型：流式写出中客户端断连 Broken pipe）——无法再回 envelope，按 WARN 收尾
+                status = httpContext.response.status.code
+                log?.warn(
+                    "http.stream.aborted",
+                    fields = mapOf("method" to method, "path" to path, "traceId" to traceId),
+                    cause = e
+                )
+                return
+            }
             status = 500
             log?.error(
                 "http.error",
@@ -833,10 +843,19 @@ private class SimpleKtorHttpResponse(private val call: io.ktor.server.applicatio
         )
     }
 
+    /** 把业务侧 header() 设置的响应头应用到 Ktor（Content-Type/Length 由引擎管理，跳过）。 */
+    private fun applyHeadersToCall() {
+        for (name in headers.names()) {
+            if (name.equals("Content-Type", ignoreCase = true) || name.equals("Content-Length", ignoreCase = true)) continue
+            for (value in headers.getAll(name)) call.response.headers.append(name, value)
+        }
+    }
+
     override suspend fun write(data: ByteArray) {
         ensureNotCommitted()
         _committed = true
         lastBytesOut = data.size.toLong()
+        applyHeadersToCall()
         val ct = ContentType.parse(contentType ?: "application/octet-stream")
         call.respondBytes(data, ct, HttpStatusCode.fromValue(status.code))
     }
@@ -848,11 +867,7 @@ private class SimpleKtorHttpResponse(private val call: io.ktor.server.applicatio
     override suspend fun stream(block: suspend neton.core.http.HttpBodyWriter.() -> Unit) {
         ensureNotCommitted()
         _committed = true
-        // 应用业务侧 header() 设置的响应头（Content-Type/Length 由 Ktor 引擎管理，跳过）
-        for (name in headers.names()) {
-            if (name.equals("Content-Type", ignoreCase = true) || name.equals("Content-Length", ignoreCase = true)) continue
-            for (value in headers.getAll(name)) call.response.headers.append(name, value)
-        }
+        applyHeadersToCall()
         val ct = ContentType.parse(contentType ?: "application/octet-stream")
         var bytesOut = 0L
         call.respondBytesWriter(contentType = ct, status = HttpStatusCode.fromValue(status.code)) {
@@ -1005,13 +1020,15 @@ private class KtorQueryParameters(private val call: io.ktor.server.application.A
  * 简化的 MutableHeaders 实现
  */
 private class SimpleMutableHeaders : neton.core.http.MutableHeaders {
-    override fun get(name: String): String? = null
-    override fun getAll(name: String): List<String> = emptyList()
-    override fun contains(name: String): Boolean = false
-    override fun names(): Set<String> = emptySet()
-    override fun toMap(): Map<String, List<String>> = emptyMap()
-    override fun set(name: String, value: String) {}
-    override fun add(name: String, value: String) {}
-    override fun remove(name: String) {}
-    override fun clear() {}
+    private val map = LinkedHashMap<String, MutableList<String>>()
+    private fun key(name: String) = name.lowercase()
+    override fun get(name: String): String? = map[key(name)]?.firstOrNull()
+    override fun getAll(name: String): List<String> = map[key(name)] ?: emptyList()
+    override fun contains(name: String): Boolean = map.containsKey(key(name))
+    override fun names(): Set<String> = map.keys
+    override fun toMap(): Map<String, List<String>> = map
+    override fun set(name: String, value: String) { map[key(name)] = mutableListOf(value) }
+    override fun add(name: String, value: String) { map.getOrPut(key(name)) { mutableListOf() }.add(value) }
+    override fun remove(name: String) { map.remove(key(name)) }
+    override fun clear() { map.clear() }
 }
