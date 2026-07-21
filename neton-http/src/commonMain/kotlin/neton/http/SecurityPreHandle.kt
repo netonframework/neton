@@ -33,7 +33,17 @@ suspend fun runSecurityPreHandle(
             || (groupConfig != null && !groupConfig.requireAuth && !route.requireAuth && !hasPermission)
 
     if (isAnonymousAllowed) {
-        httpContext.removeAttribute(SecurityAttributes.IDENTITY)
+        // 匿名放行：不要求 token，但若携带有效 token 则尽力填充 identity（可选认证），
+        // 供"公开但个性化"的端点使用（如 VIP 看片鉴权、关注标记）。认证失败静默忽略。
+        val optionalAuthr = securityConfig
+            ?.takeIf { it.isEnabled }
+            ?.let { it.getAuthenticatorByGroup?.invoke(requestContext.routeGroup) ?: it.defaultAuthenticator }
+        val optionalIdentity = try { optionalAuthr?.authenticate(requestContext) } catch (_: Throwable) { null }
+        if (optionalIdentity != null) {
+            httpContext.setAttribute(SecurityAttributes.IDENTITY, optionalIdentity)
+        } else {
+            httpContext.removeAttribute(SecurityAttributes.IDENTITY)
+        }
         return
     }
 
