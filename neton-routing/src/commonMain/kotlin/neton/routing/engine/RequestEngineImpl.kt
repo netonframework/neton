@@ -88,9 +88,12 @@ class DefaultRequestEngine(
             throw IllegalArgumentException("Invalid route pattern: ${route.pattern}")
         }
 
-        // 已存在相同 method+pattern 时跳过（避免 KSP 与 configure 重复调用导致冲突）
+        // Routes are mounted by group later, so identical paths in app/admin are
+        // independent. Only registrations in the same logical group are duplicates.
         val existingRoute = routes.find {
-            it.pattern == route.pattern && it.method == route.method
+            it.pattern == route.pattern &&
+                it.method == route.method &&
+                registrationGroup(it) == registrationGroup(route)
         }
         if (existingRoute != null) {
             logger?.warn(
@@ -118,6 +121,15 @@ class DefaultRequestEngine(
     }
 
     override fun getRoutes(): List<RouteDefinition> = routes.toList()
+
+    private fun registrationGroup(route: RouteDefinition): String? {
+        route.routeGroup?.let { return it }
+
+        val segments = route.controllerClass?.split('.') ?: return null
+        val controllerIndex = segments.indexOf("controller")
+        if (controllerIndex == -1) return null
+        return segments.getOrNull(controllerIndex + 1)
+    }
 
     /**
      * 获取参数绑定器（供外部配置使用）
