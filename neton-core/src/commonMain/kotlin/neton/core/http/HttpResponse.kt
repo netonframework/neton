@@ -3,6 +3,15 @@ package neton.core.http
 import kotlinx.serialization.json.JsonObject
 
 /**
+ * 流式响应体写出器。由 [HttpResponse.stream] 提供，逐块写出响应体。
+ * 真流式适配器保证每次 writeChunk 后立即 flush；默认实现缓冲至结束一次性提交。
+ */
+interface HttpBodyWriter {
+    suspend fun writeChunk(chunk: ByteArray)
+    suspend fun writeChunk(text: String) = writeChunk(text.encodeToByteArray())
+}
+
+/**
  * HTTP 响应接口 - 抽象HTTP响应操作
  */
 interface HttpResponse {
@@ -100,6 +109,23 @@ interface HttpResponse {
      * 写入字节数组
      */
     suspend fun write(data: ByteArray)
+
+    /**
+     * 流式写出响应体。默认实现缓冲全部块后单次 write()（兼容不支持流式的适配器）；
+     * 支持真流式的适配器（如 Ktor）应覆写为逐块 flush。
+     * 与 write() 相同：调用即视为提交响应，引擎不再用返回值包 envelope。
+     */
+    suspend fun stream(block: suspend HttpBodyWriter.() -> Unit) {
+        val chunks = mutableListOf<ByteArray>()
+        val writer = object : HttpBodyWriter {
+            override suspend fun writeChunk(chunk: ByteArray) { chunks.add(chunk) }
+        }
+        writer.block()
+        val total = ByteArray(chunks.sumOf { it.size })
+        var pos = 0
+        for (c in chunks) { c.copyInto(total, pos); pos += c.size }
+        write(total)
+    }
     
     /**
      * 写入文本
