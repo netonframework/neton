@@ -58,7 +58,7 @@ interface NetonHttpClient {
                     "Invalid HTTP client config: ${errors.joinToString()}", null,
                 ))
             }
-            return DefaultNetonHttpClient(defaultTimeout = cfg.toEffectiveTimeout())
+            return DefaultNetonHttpClient(defaultTimeout = cfg.toEffectiveTimeout(), proxyUrl = cfg.proxyUrl)
         }
 
         /**
@@ -76,7 +76,7 @@ interface NetonHttpClient {
                     "Invalid HTTP client config: ${errors.joinToString()}", null,
                 ))
             }
-            return DefaultNetonHttpClient(engineFactory = engineFactory, defaultTimeout = cfg.toEffectiveTimeout())
+            return DefaultNetonHttpClient(engineFactory = engineFactory, defaultTimeout = cfg.toEffectiveTimeout(), proxyUrl = cfg.proxyUrl)
         }
     }
 }

@@ -40,6 +40,7 @@ internal class DefaultNetonHttpClient(
         requestMillis = 60_000,
         socketMillis = 60_000,
     ),
+    private val proxyUrl: String? = null,
 ) : NetonHttpClient {
 
     private val client: HttpClient = HttpClient(engineFactory) {
@@ -49,6 +50,11 @@ internal class DefaultNetonHttpClient(
             socketTimeoutMillis = defaultTimeout.socketMillis
         }
         expectSuccess = false  // We map status manually
+        if (proxyUrl != null) {
+            engine {
+                proxy = io.ktor.client.engine.ProxyBuilder.http(io.ktor.http.Url(proxyUrl))
+            }
+        }
     }
 
     override suspend fun request(request: NetonHttpRequest): NetonHttpResponse {
