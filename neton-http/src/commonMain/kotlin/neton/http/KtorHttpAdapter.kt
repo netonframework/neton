@@ -24,6 +24,20 @@ import io.ktor.http.cio.MultipartEvent
 import io.ktor.http.cio.parseMultipart
 import io.ktor.utils.io.readRemaining
 import io.ktor.utils.io.writeFully
+
+/**
+ * 组挂载路径拼接：mount="/" 不产生双斜杠（gateway 根挂载契约，见 RootMountContractTest）。
+ */
+internal fun joinMountPath(mount: String, pattern: String): String {
+    val m = mount.trim('/')
+    val rel = pattern.trimStart('/')
+    return when {
+        m.isEmpty() && rel.isEmpty() -> "/"
+        m.isEmpty() -> "/$rel"
+        rel.isEmpty() -> "/$m"
+        else -> "/$m/$rel"
+    }
+}
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CoroutineScope
@@ -187,12 +201,9 @@ class KtorHttpAdapter(
                                     }
                                 }
                                 if (mount.isNotEmpty()) {
-                                    val mountPath = mount.trimStart('/')
                                     // 扁平化：route("admin/index") { get { } } 避免嵌套路径匹配问题
                                     sorted.forEach { route ->
-                                        val rel =
-                                            if (route.pattern.startsWith("/")) route.pattern.removePrefix("/") else route.pattern
-                                        val full = if (rel.isEmpty()) "/$mountPath" else "/$mountPath/$rel"
+                                        val full = joinMountPath(mount, route.pattern)
                                         listOf(full).forEach { fp ->
                                             when (route.method.name) {
                                                 "GET" -> route(fp) { get { handleRoute(route, call) } }
