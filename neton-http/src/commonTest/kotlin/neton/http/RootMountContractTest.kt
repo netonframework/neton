@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 
 /**
  * 契约：路由组挂载路径拼接不产生双斜杠、不丢路径。
- * NewGate 的 gateway 组挂载 "/"（独占 /v1/*）依赖此行为。
+ * NewGate 的 gateway 组挂载 "/"（独占 /v1 前缀）依赖此行为。
  */
 class RootMountContractTest {
 
