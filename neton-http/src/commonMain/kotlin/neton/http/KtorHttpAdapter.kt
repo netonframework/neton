@@ -163,8 +163,10 @@ class KtorHttpAdapter(
                                 appContext?.getOrNull(ConfiguredRouteGroups::class)?.names ?: emptySet()
 
                             val rootRoute = this
+                            // routeGroup 由 KSP/DSL 写入；挂载只认 routing.conf 已配置的组，
+                            // 未配置的组按默认组处理（照常注册在根，不丢弃）
                             val routesByGroup = routes.groupBy { route ->
-                                route.routeGroup ?: inferRouteGroup(route.controllerClass, configuredGroups)
+                                route.routeGroup?.takeIf { it in configuredGroups }
                             }
                             // 无 mount 的默认组优先注册，确保 get("/") 在 route("{...}") 之前
                             val ordered = routesByGroup.entries.sortedBy { (g, _) -> if (g == null) 0 else 1 }
@@ -500,9 +502,8 @@ class KtorHttpAdapter(
         val reqHeaders = mutableMapOf<String, String>().apply {
             call.request.headers.forEach { name, values -> values.firstOrNull()?.let { put(name, it) } }
         }
-        val configuredGroups = appContext?.getOrNull(ConfiguredRouteGroups::class)?.names ?: emptySet()
+        // routeGroup 由 KSP 编译期（目录约定）或 DSL group() 写入
         val routeGroup = route.routeGroup
-            ?: inferRouteGroup(route.controllerClass, configuredGroups)
         val requestContext = KtorRequestContext(
             path = path,
             method = method,
@@ -529,17 +530,6 @@ class KtorHttpAdapter(
      * 扫描包路径中所有段，返回第一个匹配 configuredGroups 的段。
      * 例如 controller.admin.auth.AuthController → "admin"
      */
-    private fun inferRouteGroup(controllerClass: String?, configuredGroups: Set<String>): String? {
-        if (controllerClass == null || configuredGroups.isEmpty()) return null
-        val segments = controllerClass.split(".")
-        if (segments.size < 2) return null
-        // 扫描所有包段（排除最后一段即类名），返回第一个匹配的 group
-        for (i in 0 until segments.lastIndex) {
-            if (segments[i] in configuredGroups) return segments[i]
-        }
-        return null
-    }
-
     private fun generateRequestTraceId(): String {
         val ts = kotlin.time.Clock.System.now().toEpochMilliseconds()
         val r = (0 until 100000).random()
