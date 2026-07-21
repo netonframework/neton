@@ -169,11 +169,20 @@ class SecurityPipelineContractTest {
 
     // --- Test 4: AllowAnonymous 永远放行，identity 为 null ---
     @Test
-    fun allowAnonymous_alwaysPasses_identityNull() = runBlocking {
+    fun allowAnonymous_alwaysPasses_optionalIdentityPopulated() = runBlocking {
+        // 可选认证（8f68c1d）：匿名放行不要求 token，但认证器能给出身份时尽力填充
         val attrs = mutableMapOf<String, Any>()
         val ctx = testCtx(attrs)
         val config = secConfig(MockIdentity("x", emptySet()))
         runSecurityPreHandle(route(allowAnonymous = true), ctx, reqCtx(), config)
+        assertEquals("x", (ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity)?.id)
+    }
+
+    @Test
+    fun allowAnonymous_passesWithIdentityNull_whenNoAuthenticator() = runBlocking {
+        // 无认证器（未携带可解析 token 的等价情形）：匿名放行且 identity 为空
+        val ctx = testCtx()
+        runSecurityPreHandle(route(allowAnonymous = true), ctx, reqCtx(), null)
         assertNull(ctx.getAttribute(SecurityAttributes.IDENTITY))
     }
 
@@ -262,7 +271,8 @@ class SecurityPipelineContractTest {
             config,
             groupConfigs
         )
-        assertNull(ctx.getAttribute(SecurityAttributes.IDENTITY))
+        // 白名单放行不抛异常；可选认证（8f68c1d）下认证器给出的身份会被填充
+        assertEquals("x", (ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity)?.id)
     }
 
     // --- Test 10: 路由组 requireAuth 强制认证 ---
