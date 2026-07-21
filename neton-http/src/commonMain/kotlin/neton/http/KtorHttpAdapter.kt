@@ -23,6 +23,7 @@ import io.ktor.http.*
 import io.ktor.http.cio.MultipartEvent
 import io.ktor.http.cio.parseMultipart
 import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.writeFully
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CoroutineScope
@@ -350,6 +351,10 @@ class KtorHttpAdapter(
                 mapToKtorStatus(httpStatus),
                 neton.core.http.ApiEnvelope.error(e.code, e.message),
             )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // 客户端断连/协程取消：不是业务错误，向上冒泡由引擎收尾（流式响应已提交时不可再写）
+            status = httpContext.response.status.code
+            throw e
         } catch (e: Exception) {
             status = 500
             log?.error(
@@ -834,6 +839,34 @@ private class SimpleKtorHttpResponse(private val call: io.ktor.server.applicatio
         lastBytesOut = data.size.toLong()
         val ct = ContentType.parse(contentType ?: "application/octet-stream")
         call.respondBytes(data, ct, HttpStatusCode.fromValue(status.code))
+    }
+
+    /**
+     * 真流式写出：respondBytesWriter 逐块 writeFully+flush。
+     * 客户端断连时写通道抛取消/IO 异常，向上冒泡以取消 block 内的上游拉取。
+     */
+    override suspend fun stream(block: suspend neton.core.http.HttpBodyWriter.() -> Unit) {
+        ensureNotCommitted()
+        _committed = true
+        // 应用业务侧 header() 设置的响应头（Content-Type/Length 由 Ktor 引擎管理，跳过）
+        for (name in headers.names()) {
+            if (name.equals("Content-Type", ignoreCase = true) || name.equals("Content-Length", ignoreCase = true)) continue
+            for (value in headers.getAll(name)) call.response.headers.append(name, value)
+        }
+        val ct = ContentType.parse(contentType ?: "application/octet-stream")
+        var bytesOut = 0L
+        call.respondBytesWriter(contentType = ct, status = HttpStatusCode.fromValue(status.code)) {
+            val channel = this
+            val writer = object : neton.core.http.HttpBodyWriter {
+                override suspend fun writeChunk(chunk: ByteArray) {
+                    channel.writeFully(chunk, 0, chunk.size)
+                    channel.flush()
+                    bytesOut += chunk.size
+                }
+            }
+            writer.block()
+        }
+        lastBytesOut = bytesOut
     }
 
     /** redirect() 在 core 中不调用 write()，必须在此实现中显式 commit 并发送重定向。 */
