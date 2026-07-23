@@ -301,6 +301,42 @@ class MigrationEngineContractTest {
     }
 
     @Test
+    fun up_postgres_resetsSearchPathToDefault_aroundEachScript() = runTest {
+        val db = FakeMigrationDb(initialRows = emptyList())
+        val engine = MigrationEngine(db, config)
+        val r = engine.run(
+            MigrationCommand.UP,
+            listOf(
+                MigrationSource(
+                    moduleId = "gw",
+                    dialect = MigrationDialect.POSTGRESQL,
+                    scripts = listOf(
+                        MigrationScript(
+                            version = "001",
+                            description = "probe",
+                            content = "CREATE TABLE gw_probe (id BIGINT NOT NULL);",
+                            checksum = "ck-gw-001",
+                        ),
+                    ),
+                ),
+            ),
+        ) as MigrationResult.Up
+        assertTrue(r.ok)
+        // PG 迁移事务双向复位 search_path 到连接默认值：脚本前隔离上一脚本/连接的污染(如 pg_dump 风格的
+        // set_config('search_path','',false))；脚本后复位保证本脚本若自身污染(尤其最后一个 migration)也在提交前
+        // 清理、连接干净归还池。用会话级 SET(非 LOCAL)、TO DEFAULT(不硬编码 public，尊重自定义 schema)。
+        val resets = db.executedSql.withIndex()
+            .filter { it.value.trim() == "SET search_path TO DEFAULT" }.map { it.index }
+        val ddl = db.executedSql.indexOfFirst { it.contains("CREATE TABLE gw_probe") }
+        assertEquals(2, resets.size, "脚本前后各一次复位；resets=$resets sql=${db.executedSql}")
+        assertTrue(ddl >= 0, "脚本 DDL 应已执行；sql=${db.executedSql}")
+        assertTrue(
+            resets.first() < ddl && ddl < resets.last(),
+            "顺序须为 reset → DDL → reset: resets=$resets ddl=$ddl sql=${db.executedSql}",
+        )
+    }
+
+    @Test
     fun up_coldStart_commitsHistoryCreationBeforeUsingAnotherSession() = runTest {
         val db = FakeMigrationDb(
             initialRows = null,

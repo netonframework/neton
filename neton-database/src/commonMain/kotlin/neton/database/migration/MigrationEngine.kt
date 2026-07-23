@@ -281,8 +281,25 @@ class MigrationEngine(
         when (config.dialect) {
             MigrationDialect.POSTGRESQL, MigrationDialect.SQLITE -> {
                 return db.transaction {
+                    // 会话状态隔离(双向复位): pooled 连接可能被上一脚本污染(如 pg_dump 风格的
+                    // set_config('search_path','',false) 把整会话 search_path 清空),导致后续
+                    // 未限定 schema 的 DDL 报 3F000。故 PG 迁移事务采用 reset → 脚本语句 → reset → history → commit:
+                    //   - 脚本前 reset: 隔离上一脚本/连接遗留的污染,保证本脚本未限定 DDL 可执行;
+                    //   - 脚本后 reset: 若本脚本自身再次污染(尤其最后一个 migration 之后无脚本兜底),
+                    //     提交前复位,保证连接以干净会话状态归还连接池。
+                    // 复位到连接默认值(TO DEFAULT——尊重自定义 schema 部署,不硬编码 public);会话级 SET(非 LOCAL),
+                    // 成功提交后持久化,修复物理连接而非提交即回退到污染态。
+                    // 失败语义(调用方契约): 迁移失败时本事务回滚、两次 SET 一并回滚,该物理连接可能仍带污染会话状态。
+                    // NewGate 的 `migrate` CLI 以非零码退出、连接随进程销毁,故不复用。若某调用方在同一进程内直接调用
+                    // MigrationEngine 并复用连接池处理后续请求,须在迁移失败后重置或淘汰受影响连接(engine 不接管连接池生命周期)。
+                    if (config.dialect == MigrationDialect.POSTGRESQL) {
+                        execute("SET search_path TO DEFAULT")
+                    }
                     for (stmt in statements) {
                         execute(stmt)
+                    }
+                    if (config.dialect == MigrationDialect.POSTGRESQL) {
+                        execute("SET search_path TO DEFAULT")
                     }
                     val duration = currentTimeMillis() - installedAt
                     history.insert(this, script.successRow(installedAt, duration))
