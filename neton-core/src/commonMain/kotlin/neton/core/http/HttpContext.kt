@@ -95,11 +95,15 @@ enum class HttpStatus(val code: Int, val message: String) {
     // 4xx Client Error
     BAD_REQUEST(400, "Bad Request"),
     UNAUTHORIZED(401, "Unauthorized"),
+    PAYMENT_REQUIRED(402, "Payment Required"),
     FORBIDDEN(403, "Forbidden"),
     NOT_FOUND(404, "Not Found"),
     METHOD_NOT_ALLOWED(405, "Method Not Allowed"),
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
     CONFLICT(409, "Conflict"),
+    GONE(410, "Gone"),
+    PAYLOAD_TOO_LARGE(413, "Payload Too Large"),
+    TOO_EARLY(425, "Too Early"),
     UNPROCESSABLE_ENTITY(422, "Unprocessable Entity"),
     TOO_MANY_REQUESTS(429, "Too Many Requests"),
 
@@ -107,6 +111,7 @@ enum class HttpStatus(val code: Int, val message: String) {
     INTERNAL_SERVER_ERROR(500, "Internal Server Error"),
     NOT_IMPLEMENTED(501, "Not Implemented"),
     BAD_GATEWAY(502, "Bad Gateway"),
+    GATEWAY_TIMEOUT(504, "Gateway Timeout"),
     SERVICE_UNAVAILABLE(503, "Service Unavailable");
 
     companion object {
