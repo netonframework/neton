@@ -40,6 +40,28 @@ class SecureRandomTest {
     @Test fun string_rejects_bad_args() {
         assertFails { SecureRandom.string(0, "abc") }
         assertFails { SecureRandom.string(8, "") }
+        assertFails { SecureRandom.string(8, "aab") }  // 重复字符会静默降低熵
+    }
+
+    @Test fun string_handles_alphabet_larger_than_256() {
+        // 按单字节取样时 n>256 会让可接受区间为空 → 永久死循环。位宽自适应后必须正常返回。
+        val alphabet = (0 until 257).map { (0x4E00 + it).toChar() }.joinToString("")
+        assertEquals(257, alphabet.toSet().size)
+        val s = SecureRandom.string(200, alphabet)
+        assertEquals(200, s.length)
+        assertTrue(s.all { it in alphabet })
+    }
+
+    @Test fun string_handles_single_char_alphabet() {
+        assertEquals("xxxxx", SecureRandom.string(5, "x"))
+    }
+
+    @Test fun string_handles_power_of_two_alphabet() {
+        val alphabet = "0123456789abcdef"  // 16：mask 全接受，不应退化
+        val s = SecureRandom.string(128, alphabet)
+        assertEquals(128, s.length)
+        assertTrue(s.all { it in alphabet })
+        assertTrue(s.toSet().size >= 12, "16 字符表 128 位取样应覆盖大部分字符：${s.toSet().size}")
     }
 
     @Test fun string_covers_alphabet_without_modulo_bias() {
