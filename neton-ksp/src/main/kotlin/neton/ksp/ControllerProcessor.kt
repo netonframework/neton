@@ -194,7 +194,21 @@ class ControllerProcessor(
  * 包含 ${controllers.size} 个控制器的路由注册。
  */
 ${if (moduleId != null) "internal " else ""}object $generatedClassName {
-"""
+${
+                    if (hasSerializableReturn) """
+    /**
+     * 响应体序列化 Json。
+     *
+     * `encodeDefaults = true` 是**契约要求**，不是可选项：kotlinx 的裸 `Json` 默认
+     * `encodeDefaults = false`，会把任何「当前值恰好等于声明默认值」的字段**从响应
+     * JSON 里整个删掉**。对客户端而言这与「字段不存在」无法区分——例如提现单
+     * `fee = 0` / `status = 0(待审核)` 被丢掉后，H5 拿到 `undefined` 渲染出
+     * `¥NaN.NaN` 与状态「未知」（2026-07-26 生产实测）。响应字段集必须由类型决定，
+     * 不能由运行时取值决定。
+     */
+    private val responseJson = Json { encodeDefaults = true }
+""" else ""
+                }"""
             )
 
             writer.write(
@@ -424,14 +438,14 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
 
         /**
          * 将控制器方法调用包装为 JsonContent（如果返回 @Serializable 类型）。
-         * 生成: val _r = ctrl.method(...); return JsonContent(Json.encodeToString(Serializer, _r))
+         * 生成: val _r = ctrl.method(...); return JsonContent(responseJson.encodeToString(Serializer, _r))
          * 这样 Ktor 不需要在运行时通过 guessSerializer() 解析泛型类型。
          * 当返回类型可空时，使用 .nullable serializer 处理 null 值。
          */
         fun wrapWithJsonContent(invokeExpr: String): String {
             return if (serializerExpr != null) {
                 val actualSerializer = if (isReturnNullable) "$serializerExpr.nullable" else serializerExpr
-                "val _r = $invokeExpr\n                        return JsonContent(Json.encodeToString($actualSerializer, _r))"
+                "val _r = $invokeExpr\n                        return JsonContent(responseJson.encodeToString($actualSerializer, _r))"
             } else {
                 "return $invokeExpr"
             }
@@ -443,7 +457,7 @@ ${if (moduleId != null) "internal " else ""}object $generatedClassName {
                 cacheBody != null -> cacheBody.replaceFirst("return ", "")
                 else -> if (serializerExpr != null) {
                     val actualSerializer = if (isReturnNullable) "$serializerExpr.nullable" else serializerExpr
-                    "val _r = $innerInvoke\n                            JsonContent(Json.encodeToString($actualSerializer, _r))"
+                    "val _r = $innerInvoke\n                            JsonContent(responseJson.encodeToString($actualSerializer, _r))"
                 } else {
                     innerInvoke
                 }
