@@ -24,6 +24,16 @@ kotlin {
     }
 }
 
+/** 当前 macOS SDK 里的 Swift 库目录；非 Apple 主机返回 null。 */
+val appleSwiftLibDir: String? by lazy {
+    if (!org.gradle.internal.os.OperatingSystem.current().isMacOsX) return@lazy null
+    runCatching {
+        providers.exec {
+            commandLine("xcrun", "--sdk", "macosx", "--show-sdk-path")
+        }.standardOutput.asText.get().trim()
+    }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { "$it/usr/lib/swift" }
+}
+
 // ---------- Maven Central 发布（仅库模块，排除示例） ----------
 val netonVersion: String by project
 val netonGroup: String by project
@@ -33,6 +43,25 @@ subprojects {
 
     group = netonGroup
     version = netonVersion
+
+    // Apple 目标链接 Swift 互操作库所需的搜索路径。
+    //
+    // cryptography-kotlin 在 Apple 上把 AES-GCM 解析到 CryptoKit，其实现是 Swift；链接时需要
+    // SDK 里的 Swift 运行时存根（libswift_Builtin_float 等）。Kotlin/Native 不会把该目录传给 ld，
+    // Xcode 15.x 上会以 "Could not find or use auto-linked library 'swift_*'" 链接失败。
+    // CommonCrypto 没有 GCM，换 provider 行不通，因此在链接期补上 SDK 的 swift 目录。
+    plugins.withId("org.jetbrains.kotlin.multiplatform") {
+        val swiftLibDir = appleSwiftLibDir
+        if (swiftLibDir != null) {
+            extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension> {
+                targets.withType(org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget::class.java).configureEach {
+                    if (konanTarget.family.isAppleFamily) {
+                        binaries.all { linkerOpts("-L$swiftLibDir") }
+                    }
+                }
+            }
+        }
+    }
 
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
