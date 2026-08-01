@@ -2,6 +2,7 @@ package neton.ksp
 
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
+import neton.ksp.keys.KeySourceResolver
 import java.io.OutputStreamWriter
 
 class ControllerProcessor(
@@ -16,10 +17,13 @@ class ControllerProcessor(
     private val controllerAnnotationName = "neton.core.annotations.Controller"
     private val lockAnnotationName = "neton.redis.lock.Lock"
 
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
         // 使用字符串名称查找注解，不依赖具体类
         val symbols = resolver.getSymbolsWithAnnotation(controllerAnnotationName)
         val controllers = symbols.filterIsInstance<KSClassDeclaration>().toList()
+
+        reportWeavableAnnotationsOutsideControllers(resolver, controllers)
 
         if (controllers.isNotEmpty()) {
             logger.info("Found ${controllers.size} controllers to process")
@@ -29,6 +33,52 @@ class ControllerProcessor(
         }
 
         return emptyList()
+    }
+
+
+    /**
+     * @Lock / @Cacheable 这类注解只在 @Controller 的**路由方法**上织入——织入点就是生成的
+     * RouteHandler。标在 Logic/Service 上、或标在 Controller 里没有 HTTP 注解的辅助方法上，
+     * 此前既不生成代码也不吭声，使用者会以为自己加了缓存或分布式锁。这里把「静默无效」
+     * 变成编译期错误。
+     */
+    private fun reportWeavableAnnotationsOutsideControllers(
+        resolver: Resolver,
+        controllers: List<KSClassDeclaration>,
+    ) {
+        val controllerNames = controllers.mapNotNull { it.qualifiedName?.asString() }.toSet()
+        val weavable = listOf(
+            lockAnnotationName,
+            "neton.cache.Cacheable",
+            "neton.cache.CachePut",
+            "neton.cache.CacheEvict",
+        )
+        for (annotationName in weavable) {
+            val simpleName = annotationName.substringAfterLast('.')
+            resolver.getSymbolsWithAnnotation(annotationName)
+                .filterIsInstance<KSFunctionDeclaration>()
+                .forEach { function ->
+                    val owner = function.parentDeclaration as? KSClassDeclaration
+                    val ownerName = owner?.qualifiedName?.asString()
+                    val inController = ownerName != null && ownerName in controllerNames
+                    // Controller 里的普通辅助方法同样不会被织入：代码生成只走带 HTTP 注解的方法
+                    val isRoute = function.annotations.any { httpAnnotations.containsKey(it.shortName.asString()) }
+                    if (inController && isRoute) return@forEach
+
+                    val reason = if (inController) {
+                        "it has no HTTP method annotation, so no route handler is generated for it"
+                    } else {
+                        "its declaring class is not a @Controller"
+                    }
+                    logger.error(
+                        "Neton @$simpleName on ${ownerName ?: "<top level>"}#${function.simpleName.asString()}: " +
+                            "this annotation is only woven into @Controller route handlers, and $reason. Here it " +
+                            "would compile but never take effect. Annotate a route method instead, or call the " +
+                            "behaviour explicitly (LockManager.withLock / CacheManager) from this class.",
+                        function,
+                    )
+                }
+        }
     }
 
     private fun generateInitializer(controllers: List<KSClassDeclaration>) {
@@ -350,6 +400,7 @@ ${
         val retryMs: Long
         if (lockAnn != null) {
             val keyArg = lockAnn.arguments.firstOrNull { it.name?.asString() == "key" }?.value as? String ?: "lock"
+            validateKeySources(function, "@Lock", keyArg, argsNameByParam(function, fullPath, httpMethod))
             lockKeyExpr = resolveLockKeyExpression(keyArg)
             ttlMs = (lockAnn.arguments.firstOrNull { it.name?.asString() == "ttlMs" }?.value as? Long) ?: 10_000L
             waitMs = (lockAnn.arguments.firstOrNull { it.name?.asString() == "waitMs" }?.value as? Long) ?: 0L
@@ -451,7 +502,10 @@ ${
             }
         }
 
-        val cacheBody = buildCacheBody(function, innerInvoke, cacheableAnn, cachePutAnn, cacheEvictAnn)
+        val cacheBody = buildCacheBody(
+            function, innerInvoke, cacheableAnn, cachePutAnn, cacheEvictAnn,
+            argsNameByParam(function, fullPath, httpMethod),
+        )
         val body = if (lockKeyExpr != null) {
             val innerBlock = when {
                 cacheBody != null -> cacheBody.replaceFirst("return ", "")
@@ -464,7 +518,7 @@ ${
             }
             """
                         val ctx = context.getApplicationContext() ?: throw IllegalStateException("@Lock requires NetonContext")
-                        val lockManager = ctx.get(LockManager::class) ?: throw IllegalStateException("LockManager not bound. Install redis { } to enable @Lock.")
+                        val lockManager = ctx.getOrNull(LockManager::class) ?: throw IllegalStateException("LockManager not bound. Install redis { } to enable @Lock.")
                         return lockManager.withLock(
                             key = $lockKeyExpr,
                             ttl = ${ttlMs}L.milliseconds,
@@ -799,34 +853,50 @@ ${
         innerInvoke: String,
         cacheableAnn: KSAnnotation?,
         cachePutAnn: KSAnnotation?,
-        cacheEvictAnn: KSAnnotation?
+        cacheEvictAnn: KSAnnotation?,
+        argsNames: Map<String, String?>
     ): String? {
         val ann = cacheableAnn ?: cachePutAnn ?: cacheEvictAnn ?: return null
+        val label = when {
+            cacheableAnn != null -> "@Cacheable"
+            cachePutAnn != null -> "@CachePut"
+            else -> "@CacheEvict"
+        }
         val name = ann.arguments.firstOrNull { it.name?.asString() == "name" }?.value as? String ?: return null
         val keyTemplate = (ann.arguments.firstOrNull { it.name?.asString() == "key" }?.value as? String) ?: ""
+        val allEntriesArg =
+            (ann.arguments.firstOrNull { it.name?.asString() == "allEntries" }?.value as? Boolean) ?: false
+        // allEntries 清空整个 cache，压根不算 key
+        if (!allEntriesArg) validateKeySources(function, label, keyTemplate, argsNames)
         val ttlMs = (ann.arguments.firstOrNull { it.name?.asString() == "ttlMs" }?.value as? Long) ?: 0L
         val returnType = function.returnType?.resolve()?.declaration ?: return null
         val returnTypeQualified =
             (returnType as? KSClassDeclaration)?.qualifiedName?.asString() ?: returnType.toString()
         val returnTypeSimple =
             (returnType as? KSClassDeclaration)?.simpleName?.asString() ?: returnTypeQualified.substringAfterLast('.')
-        val paramNames = function.parameters.map { it.name!!.asString() }
+        // hash 必须按 args 里的键名取值——参数用 @PathVariable("id") 起了别名时，
+        // Kotlin 参数名在 args 里根本不存在，取到 null 就等于没参与 hash
+        val hashKeyNames = KeySourceResolver.hashKeyNames(argsNames)
 
         val keyExpr = if (keyTemplate.isEmpty()) {
-            "neton.cache.CacheKeyHash.stableHash(args, listOf(${paramNames.joinToString(", ") { "\"$it\"" }}))"
+            "neton.cache.CacheKeyHash.stableHash(args, listOf(${hashKeyNames.joinToString(", ") { "\"$it\"" }}))"
         } else {
             resolveLockKeyExpression(keyTemplate)
         }
         val ctxBlock = """
-                        val ctx = context.getApplicationContext() ?: throw HttpException(HttpStatus.INTERNAL_SERVER_ERROR, "Cache annotations require NetonContext")
-                        val cacheManager = ctx.get(neton.cache.CacheManager::class) ?: throw HttpException(HttpStatus.INTERNAL_SERVER_ERROR, "CacheManager not bound. Install cache { } to enable @Cacheable.")
+                        val ctx = context.getApplicationContext() ?: throw HttpException(neton.core.http.NetonErrorCode.INTERNAL_ERROR, "Cache annotations require NetonContext")
+                        val cacheManager = ctx.getOrNull(neton.cache.CacheManager::class) ?: throw HttpException(neton.core.http.NetonErrorCode.INTERNAL_ERROR, "CacheManager not bound. Install cache { } to enable @Cacheable.")
 """.trimIndent()
         val ttlExpr = if (ttlMs > 0) "${ttlMs}L.milliseconds" else "null"
 
         return when {
             cacheableAnn != null -> {
                 if (returnTypeQualified == "kotlin.Unit" || returnTypeQualified == "kotlin.Nothing") {
-                    logger.warn("@Cacheable on function ${function.simpleName} with return type $returnTypeQualified is not supported (Unit/Nothing); skipping cache weave")
+                    logger.error(
+                        "Neton @Cacheable on ${function.simpleName.asString()}: return type $returnTypeQualified cannot be " +
+                            "cached — there is no value to store. Remove the annotation or return a @Serializable value.",
+                        function,
+                    )
                     return null
                 }
                 """
@@ -840,7 +910,11 @@ ${
 
             cachePutAnn != null -> {
                 if (returnTypeQualified == "kotlin.Unit" || returnTypeQualified == "kotlin.Nothing") {
-                    logger.warn("@CachePut on function ${function.simpleName} with return type $returnTypeQualified is not supported; skipping")
+                    logger.error(
+                        "Neton @CachePut on ${function.simpleName.asString()}: return type $returnTypeQualified cannot be " +
+                            "cached — there is no value to store. Remove the annotation or return a @Serializable value.",
+                        function,
+                    )
                     return null
                 }
                 """
@@ -855,18 +929,74 @@ ${
             }
 
             cacheEvictAnn != null -> {
-                val allEntries =
-                    (ann.arguments.firstOrNull { it.name?.asString() == "allEntries" }?.value as? Boolean) ?: false
+                val allEntries = allEntriesArg
+                // evict 与值类型无关：被标注的方法常返回 Unit，拿不到可序列化的值类型，
+                // 所以走 CacheManager 的类型无关入口（它会清 L2 + 所有类型分片的 L1）。
                 """
                         val result = $innerInvoke
                         $ctxBlock
-                        val cache = cacheManager.getCache<kotlin.Any?>("$name")
-                        ${if (allEntries) "cache.clear()" else "val key = $keyExpr\n                        cache.delete(key)"}
+                        ${if (allEntries) "cacheManager.evictAll(\"$name\")" else "val key = $keyExpr\n                        cacheManager.evict(\"$name\", key)"}
                         return result
 """.trimIndent()
             }
 
             else -> null
+        }
+    }
+
+
+    /**
+     * 能参与 @Lock / @Cacheable key 的参数名。
+     *
+     * 生成的 key 表达式读的是运行时的 [HandlerArgs]，而它只装 path 和 query 两类值。
+     * body、header、cookie、表单字段、以及注入的框架类型（HttpContext/Identity/上传文件等）
+     * 在 args 里一律取到 null。让它们参与 hash 等于没参与——两个 body 不同的请求会算出同一个
+     * key，@Cacheable 就会把 A 的响应返回给 B。所以这些情况必须在编译期拦下来，而不是运行时错命中。
+     */
+    /** 把 KSP 的参数符号翻译成 [KeySourceResolver] 的纯数据模型 */
+    private fun argsNameByParam(
+        function: KSFunctionDeclaration,
+        fullPath: String,
+        httpMethod: String,
+    ): Map<String, String?> {
+        val pathParamNames = KeySourceResolver.placeholdersOf(fullPath).toSet()
+        val params = function.parameters.mapNotNull { param ->
+            val kotlinName = param.name?.asString() ?: return@mapNotNull null
+            val resolved = param.type.resolve()
+            fun aliasOf(annotationName: String): String? = param.annotations
+                .firstOrNull { it.shortName.asString() == annotationName }
+                ?.arguments?.firstOrNull()?.value as? String
+
+            KeySourceResolver.KeyParam(
+                kotlinName = kotlinName,
+                typeQualified = resolved.declaration.qualifiedName?.asString() ?: "kotlin.Any",
+                annotations = param.annotations.map { it.shortName.asString() }.toSet(),
+                pathVariableAlias = aliasOf("PathVariable"),
+                queryParamAlias = aliasOf("QueryParam"),
+                queryAlias = aliasOf("Query"),
+                isUploadFileList = resolved.declaration.qualifiedName?.asString() == "kotlin.collections.List" &&
+                    resolved.arguments.firstOrNull()?.type?.resolve()
+                        ?.declaration?.qualifiedName?.asString() == "neton.core.http.UploadFile",
+            )
+        }
+        return KeySourceResolver.resolveArgsNames(params, pathParamNames, httpMethod)
+    }
+
+    /**
+     * 校验 key 的来源是否都能真正参与运算，不能则编译期报错。
+     *
+     * @param keyTemplate 空串表示走默认的 hash(所有参数)
+     * @param argsNames Kotlin 参数名 → args 键名；值为 null 表示这个参数取不到
+     */
+    private fun validateKeySources(
+        function: KSFunctionDeclaration,
+        annotationLabel: String,
+        keyTemplate: String,
+        argsNames: Map<String, String?>,
+    ) {
+        val where = function.simpleName.asString()
+        KeySourceResolver.validate(keyTemplate, argsNames).forEach { problem ->
+            logger.error(KeySourceResolver.describe(problem, annotationLabel, where), function)
         }
     }
 
