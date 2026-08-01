@@ -15,7 +15,7 @@ import neton.security.RequestContext
 import neton.security.identity.AuthenticationException
 import neton.security.identity.IdentityUser
 import neton.security.identity.UserId
-import neton.security.internal.HmacSha256
+import neton.security.crypto.HmacSha256
 
 data class VerifiedJwtToken(
     val identity: IdentityUser,

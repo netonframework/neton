@@ -1,4 +1,4 @@
-package neton.security.internal
+package neton.security.crypto
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
