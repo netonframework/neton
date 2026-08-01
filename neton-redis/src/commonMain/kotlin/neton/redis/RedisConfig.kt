@@ -1,16 +1,10 @@
 package neton.redis
 
 /**
- * Redis 安装层配置（Layer 1 DSL）
+ * 落定后的 Redis 运行时配置，字段全部非空。
  *
- * Neton.run {
- *     redis {
- *         host = "127.0.0.1"
- *         port = 6379
- *         poolSize = 16
- *         database = 0
- *     }
- * }
+ * 面向用户的入口是 [RedisSettings]（`redis { }` 的 receiver，字段可空）；
+ * 三层优先级由 [resolveRedisConfig] 落定成这个类型。
  */
 data class RedisConfig(
     var host: String = "127.0.0.1",
@@ -32,16 +26,4 @@ data class RedisConfig(
         return errors
     }
 
-    companion object {
-        fun fromMap(m: Map<String, Any>): RedisConfig = RedisConfig(
-            host = m["host"]?.toString() ?: "127.0.0.1",
-            port = (m["port"] as? Number)?.toInt() ?: 6379,
-            poolSize = (m["poolSize"] as? Number)?.toInt() ?: (m["maxConnections"] as? Number)?.toInt() ?: 16,
-            database = (m["database"] as? Number)?.toInt() ?: 0,
-            password = m["password"]?.toString(),
-            timeoutMs = (m["timeout"] as? Number)?.toLong() ?: 5000,
-            debug = m["debug"] as? Boolean ?: false,
-            keyPrefix = m["keyPrefix"]?.toString() ?: "neton",
-        )
-    }
 }
