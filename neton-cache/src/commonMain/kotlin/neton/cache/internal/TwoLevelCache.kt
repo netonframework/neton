@@ -57,6 +57,21 @@ internal class TwoLevelCache<V : Any>(
         if (config.enableL1) l1.clear()
     }
 
+    /**
+     * 只清进程内 L1，不碰 L2。
+     *
+     * 供 [neton.cache.CacheManager.evict] 使用：L2 按 name 分区、只需删一次，
+     * 而每种值类型有各自的 L1 分片，必须逐个清。
+     */
+    internal suspend fun deleteL1(key: String) {
+        if (config.enableL1) l1.delete(key)
+    }
+
+    /** 只清进程内 L1，不碰 L2。供 [neton.cache.CacheManager.evictAll] 使用。 */
+    internal suspend fun clearL1() {
+        if (config.enableL1) l1.clear()
+    }
+
     override suspend fun getOrPut(key: String, ttl: Duration?, loader: suspend () -> V?): V? = coroutineScope {
         get(key)?.let { return@coroutineScope it }
         val effectiveTtl = ttl ?: config.ttl
