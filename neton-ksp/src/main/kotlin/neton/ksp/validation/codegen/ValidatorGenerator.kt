@@ -64,38 +64,38 @@ object ValidatorGenerator {
                     if (rule.isNullable) "value.${rule.propertyName} == null || value.${rule.propertyName}.isBlank()" else "value.${rule.propertyName}.isBlank()"
                 """
                     if ($cond) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
             }
 
             "NotNull" -> """
                     if (value.${rule.propertyName} == null) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
 
             "Min" -> if (rule.isNullable) """
                     value.${rule.propertyName}?.let {
                         if (it < ${rule.valueArgs.firstOrNull() ?: "0"}L) {
-                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                         }
                     }
                 """ else """
                     if (value.${rule.propertyName} < ${rule.valueArgs.firstOrNull() ?: "0"}L) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
 
             "Max" -> if (rule.isNullable) """
                     value.${rule.propertyName}?.let {
                         if (it > ${rule.valueArgs.firstOrNull() ?: "0"}L) {
-                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                         }
                     }
                 """ else """
                     if (value.${rule.propertyName} > ${rule.valueArgs.firstOrNull() ?: "0"}L) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
 
@@ -114,7 +114,7 @@ object ValidatorGenerator {
                         """
                     $sizeExpr?.let { $sizeVar ->
                         if ($sizeVar < $min || $sizeVar > $max) {
-                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                         }
                     }
                 """
@@ -122,7 +122,7 @@ object ValidatorGenerator {
                         """
                     val $sizeVar = $sizeExpr
                     if ($sizeVar < $min || $sizeVar > $max) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
                     }
@@ -135,24 +135,24 @@ object ValidatorGenerator {
             "Pattern" -> if (rule.isNullable) """
                     value.${rule.propertyName}?.let {
                         if (!${rule.propertyName}Pattern.matches(it)) {
-                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                         }
                     }
                 """ else """
                     if (!${rule.propertyName}Pattern.matches(value.${rule.propertyName})) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
 
             "Email" -> if (rule.isNullable) """
                     value.${rule.propertyName}?.let {
                         if (!Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\$").matches(it)) {
-                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                            errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                         }
                     }
                 """ else """
                     if (!Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\$").matches(value.${rule.propertyName})) {
-                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message}", code = "${rule.constraintCode}")
+                        errors += neton.core.http.ValidationError(path = "${rule.propertyName}", message = "${rule.message.escapeForKotlinLiteral()}", code = "${rule.constraintCode}")
                     }
                 """
 
@@ -191,3 +191,14 @@ object ValidatorGenerator {
     private fun nullableAccess(rule: ValidationRule, member: String): String =
         if (rule.isNullable) "value.${rule.propertyName}?.$member" else "value.${rule.propertyName}.$member"
 }
+
+/**
+ * 消息要嵌进生成代码的 Kotlin 字符串字面量里，用户自定义 message 里的引号/反斜杠
+ * 会直接把生成文件写坏，这里统一转义。
+ */
+private fun String.escapeForKotlinLiteral(): String =
+    replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("$", "\\$")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
