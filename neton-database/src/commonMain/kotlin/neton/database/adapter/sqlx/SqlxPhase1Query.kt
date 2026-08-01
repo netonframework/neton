@@ -132,8 +132,13 @@ internal suspend fun SqlxTableAdapter<*, *>.executePhase1Mutate(built: BuiltSql)
 private class SqlxUpdateScope<T : Any>(
     private val propToColumn: (String) -> String
 ) : neton.database.api.UpdateScope<T> {
-    val assignments = linkedMapOf<String, Any?>()
+    val assignments = linkedMapOf<String, neton.database.api.ColumnAssignment>()
+
     override fun <V> set(prop: kotlin.reflect.KProperty1<T, V>, value: V) {
-        assignments[propToColumn(prop.name)] = value
+        assignments[propToColumn(prop.name)] = neton.database.api.ColumnAssignment.Literal(value)
+    }
+
+    override fun increment(prop: kotlin.reflect.KProperty1<T, *>, delta: Long) {
+        assignments[propToColumn(prop.name)] = neton.database.api.ColumnAssignment.Delta(delta)
     }
 }

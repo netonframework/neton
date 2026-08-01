@@ -23,6 +23,7 @@ interface Table<T : Any, ID : Any> {
      * This API does not mutate input entities or return their database-generated ids.
      */
     suspend fun insertBatch(entities: List<T>): Int
+
     suspend fun updateBatch(entities: List<T>): Int
     suspend fun update(entity: T): Boolean
     suspend fun destroy(id: ID): Boolean

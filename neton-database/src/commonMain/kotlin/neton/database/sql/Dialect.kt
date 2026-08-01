@@ -10,6 +10,7 @@ interface Dialect {
     fun quoteIdent(name: String): String
     fun limitOffset(limitPlaceholder: String?, offsetPlaceholder: String?): String
     fun likeExpression(columnSql: String, valuePlaceholder: String): String
+
 }
 
 object PostgresDialect : Dialect {
@@ -24,6 +25,7 @@ object PostgresDialect : Dialect {
     }
     override fun likeExpression(columnSql: String, valuePlaceholder: String) =
         "$columnSql LIKE $valuePlaceholder"
+
 }
 
 object MySqlDialect : Dialect {
@@ -38,6 +40,7 @@ object MySqlDialect : Dialect {
     }
     override fun likeExpression(columnSql: String, valuePlaceholder: String) =
         "$columnSql LIKE $valuePlaceholder"
+
 }
 
 /** SQLite：占位符 ?，LIMIT/OFFSET 同 PostgreSQL */
@@ -53,4 +56,6 @@ object SqliteDialect : Dialect {
     }
     override fun likeExpression(columnSql: String, valuePlaceholder: String) =
         "$columnSql LIKE $valuePlaceholder"
+
+    // 同理不用 INSERT OR IGNORE：SQLite 3.24+ 支持 UPSERT 语法，只针对冲突
 }
