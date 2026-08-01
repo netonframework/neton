@@ -1,95 +1,30 @@
 package neton.routing.engine
 
-import neton.routing.matcher.DefaultRouteMatcher
-import neton.routing.matcher.PathPatternUtils
-import neton.routing.matcher.RouteMatcher
-import neton.routing.binder.DefaultParameterBinder
-import neton.routing.binder.ParameterBinder
-import neton.routing.ratelimit.RateLimitInterceptor
-import neton.core.http.HttpContext
-import neton.core.http.HttpStatus
-import neton.core.interfaces.RequestProcessingException
 import neton.logging.Logger
 
 /**
- * 默认请求处理引擎实现
+ * 路由注册表。
  *
- * 整合路由匹配、参数绑定和方法调用的完整流程
+ * **它不分发请求**：HTTP 适配器（[neton.http.KtorHttpAdapter]）从 [getRoutes] 拿到路由后
+ * 直接调用 [RouteDefinition.handler]（KSP 编译期生成的 lambda，自带参数绑定与序列化）。
+ * 因此这里只负责「登记 + 去重 + 供查询」。
+ *
+ * 历史说明：本类曾带一条完整的 `processRequest` 分发链（路由匹配 → 限流 → 参数绑定 →
+ * 响应序列化），但从未被任何生产路径调用；限流真正的执行点现在是
+ * [neton.core.interfaces.RateLimitGate]，由适配器在分发前调用。
  */
-class DefaultRequestEngine(
-    private val routeMatcher: RouteMatcher = DefaultRouteMatcher(),
-    private val parameterBinder: ParameterBinder = DefaultParameterBinder(),
-    rateLimitInterceptor: RateLimitInterceptor? = null
-) : RequestEngine {
+class DefaultRequestEngine : RequestEngine {
 
     private var logger: Logger? = null
-    private var _rateLimitInterceptor: RateLimitInterceptor? = rateLimitInterceptor
+    private val routes = mutableListOf<RouteDefinition>()
 
     fun setLogger(log: Logger?) {
         logger = log
     }
 
-    fun setRateLimitInterceptor(interceptor: RateLimitInterceptor) {
-        _rateLimitInterceptor = interceptor
-    }
-
-    private val routes = mutableListOf<RouteDefinition>()
-
-    override suspend fun processRequest(context: HttpContext): Any? {
-        try {
-            // 1. 路由匹配
-            val routeMatch = routeMatcher.match(
-                path = context.request.path,
-                method = context.request.method,
-                routes = routes
-            ) ?: throw RequestProcessingException.RouteNotFoundException(
-                context.request.path,
-                context.request.method
-            )
-
-            // 2. 限流检查（在参数绑定之前）
-            val rlConfig = routeMatch.route.rateLimit
-            val rlInterceptor = _rateLimitInterceptor
-            if (rlConfig != null && rlInterceptor != null) {
-                val identity = context.getAttribute("identity") as? neton.core.interfaces.Identity
-                val routeId = routeMatch.route.controllerClass?.let { "$it.${routeMatch.route.methodName}" }
-                    ?: "${routeMatch.route.method}:${routeMatch.route.pattern}"
-                val allowed = rlInterceptor.intercept(context, routeId, rlConfig, identity)
-                if (!allowed) {
-                    return null  // 已返回 429 响应
-                }
-            }
-
-            // 3. 参数绑定
-            val argsMap = bindParameters(routeMatch, context)
-            val args = neton.core.http.MapBackedHandlerArgs(argsMap)
-            val result = routeMatch.route.handler.invoke(context, args)
-
-            // 4. 响应处理
-            handleResponse(result, context)
-
-            return result
-
-        } catch (e: RequestProcessingException) {
-            handleError(e, context)
-            return null // 发生错误时返回 null
-        } catch (e: Exception) {
-            handleError(
-                RequestProcessingException.MethodInvocationException("unknown", e),
-                context
-            )
-            return null // 发生错误时返回 null
-        }
-    }
-
     override fun registerRoute(route: RouteDefinition) {
-        // 验证路由模式
-        if (!PathPatternUtils.isValidPattern(route.pattern)) {
-            throw IllegalArgumentException("Invalid route pattern: ${route.pattern}")
-        }
-
-        // Routes are mounted by group later, so identical paths in app/admin are
-        // independent. Only registrations in the same logical group are duplicates.
+        // 相同 path 在 app/admin 等不同组下是各自独立的（挂载时按组加前缀），
+        // 只有同一逻辑组内的重复注册才算冲突。
         // routeGroup 由 KSP 编译期写入（目录约定）或 DSL group() 注入；运行时不解析类名。
         val existingRoute = routes.find {
             it.pattern == route.pattern &&
@@ -122,157 +57,4 @@ class DefaultRequestEngine(
     }
 
     override fun getRoutes(): List<RouteDefinition> = routes.toList()
-
-    /**
-     * 获取参数绑定器（供外部配置使用）
-     */
-    fun getParameterBinder(): ParameterBinder = parameterBinder
-
-    /**
-     * 绑定方法参数
-     */
-    private suspend fun bindParameters(
-        routeMatch: RouteMatch,
-        context: HttpContext
-    ): Map<String, Any?> {
-        val args = mutableMapOf<String, Any?>()
-
-        for (binding in routeMatch.route.parameterBindings) {
-            val value = parameterBinder.bindParameter(
-                binding = binding,
-                context = context,
-                pathParameters = routeMatch.pathParameters
-            )
-            args[binding.parameterName] = value
-        }
-
-        return args
-    }
-
-    /**
-     * 处理方法返回值
-     */
-    private suspend fun handleResponse(result: Any?, context: HttpContext) {
-        when (result) {
-            null -> {
-                // 空返回值，不做处理
-                context.response.text("")
-            }
-            is String -> {
-                // 直接返回字符串，不需要JSON序列化
-                context.response.contentType = "text/plain"
-                context.response.text(result)
-            }
-            is ByteArray -> {
-                context.response.write(result)
-            }
-            else -> {
-                // 其他类型，尝试序列化为 JSON
-                try {
-                    val jsonString = serializeToJson(result)
-                    context.response.json(jsonString)
-                } catch (e: Exception) {
-                    throw RequestProcessingException.ResponseSerializationException(e)
-                }
-            }
-        }
-    }
-
-    /**
-     * 处理错误
-     */
-    private suspend fun handleError(error: RequestProcessingException, context: HttpContext) {
-        when (error) {
-            is RequestProcessingException.RouteNotFoundException -> {
-                context.response.status = HttpStatus.NOT_FOUND
-                context.response.text("Route not found: ${error.message}")
-            }
-            is RequestProcessingException.ParameterBindingException -> {
-                context.response.status = HttpStatus.BAD_REQUEST
-                context.response.text("Parameter binding error: ${error.message}")
-            }
-            is RequestProcessingException.MethodInvocationException -> {
-                context.response.status = HttpStatus.INTERNAL_SERVER_ERROR
-                context.response.text("Internal server error: ${error.message}")
-            }
-            is RequestProcessingException.ResponseSerializationException -> {
-                context.response.status = HttpStatus.INTERNAL_SERVER_ERROR
-                context.response.text("Response serialization error: ${error.message}")
-            }
-        }
-
-        logger?.error(
-            "routing.request.error",
-            mapOf("message" to (error.message ?: "")),
-            cause = error
-        )
-    }
-
-    /**
-     * 序列化为 JSON
-     * RESERVED FOR v1.1: 完整的 JSON 序列化
-     */
-    private fun serializeToJson(obj: Any): String {
-        // 暂时简单处理
-        return when (obj) {
-            is Map<*, *> -> mapToJson(obj)
-            is List<*> -> listToJson(obj)
-            else -> obj.toString()
-        }
-    }
-
-    /**
-     * 简单的 Map 转 JSON
-     */
-    private fun mapToJson(map: Map<*, *>): String {
-        val entries = map.entries.joinToString(",") { (k, v) ->
-            "\"$k\":${valueToJson(v)}"
-        }
-        return "{$entries}"
-    }
-
-    /**
-     * 简单的 List 转 JSON
-     */
-    private fun listToJson(list: List<*>): String {
-        val items = list.joinToString(",") { valueToJson(it) }
-        return "[$items]"
-    }
-
-    /**
-     * 值转 JSON
-     */
-    private fun valueToJson(value: Any?): String {
-        return when (value) {
-            null -> "null"
-            is String -> "\"${value.replace("\"", "\\\"")}\""
-            is Number -> value.toString()
-            is Boolean -> value.toString()
-            is Map<*, *> -> mapToJson(value)
-            is List<*> -> listToJson(value)
-            else -> "\"${value.toString().replace("\"", "\\\"")}\""
-        }
-    }
-}
-
-/**
- * 请求引擎构建器
- */
-class RequestEngineBuilder {
-    private var routeMatcher: RouteMatcher = DefaultRouteMatcher()
-    private var parameterBinder: ParameterBinder = DefaultParameterBinder()
-
-    fun withRouteMatcher(matcher: RouteMatcher): RequestEngineBuilder {
-        this.routeMatcher = matcher
-        return this
-    }
-
-    fun withParameterBinder(binder: ParameterBinder): RequestEngineBuilder {
-        this.parameterBinder = binder
-        return this
-    }
-
-    fun build(): DefaultRequestEngine {
-        return DefaultRequestEngine(routeMatcher, parameterBinder)
-    }
 }

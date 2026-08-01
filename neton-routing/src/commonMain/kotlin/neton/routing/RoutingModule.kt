@@ -68,24 +68,12 @@ class RoutingRequestEngineAdapter(
         (routingEngine as? neton.routing.engine.DefaultRequestEngine)?.setLogger(log)
     }
 
-    fun setRateLimitInterceptor(interceptor: neton.routing.ratelimit.RateLimitInterceptor) {
-        (routingEngine as? neton.routing.engine.DefaultRequestEngine)?.setRateLimitInterceptor(interceptor)
-    }
-
-    override suspend fun processRequest(context: HttpContext): Any? {
-        return routingEngine.processRequest(context)
-    }
-
     override fun registerRoute(route: RouteDefinition) {
         routingEngine.registerRoute(route)
     }
 
     override fun getRoutes(): List<RouteDefinition> {
         return routingEngine.getRoutes()
-    }
-
-    override fun setAuthenticationContext(authContext: AuthenticationContext) {
-        // RESERVED FOR v1.1: 认证上下文设置
     }
 }
 

@@ -15,11 +15,6 @@ import kotlin.reflect.KClass
 interface RequestEngine {
 
     /**
-     * 处理请求
-     */
-    suspend fun processRequest(context: HttpContext): Any?
-
-    /**
      * 注册路由定义
      */
     fun registerRoute(route: RouteDefinition)
@@ -28,11 +23,6 @@ interface RequestEngine {
      * 获取所有注册的路由
      */
     fun getRoutes(): List<RouteDefinition>
-
-    /**
-     * 设置认证上下文
-     */
-    fun setAuthenticationContext(authContext: AuthenticationContext)
 }
 
 /**

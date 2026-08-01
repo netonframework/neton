@@ -23,27 +23,3 @@ interface HttpAdapter {
     /** 适配器名称，用于启动 banner（如 "Ktor"） */
     fun adapterName(): String = "Unknown"
 }
-
-/**
- * Mock HTTP 适配器 - 无 HTTP 模块时使用
- */
-class MockHttpAdapter(private val mockPort: Int = 8080) : HttpAdapter {
-
-    private var isRunning = false
-
-    override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) {
-        CoreLog.logOrBootstrap().warn("neton.mock.http_adapter", mapOf("hint" to "no HTTP module found"))
-        isRunning = true
-        onStarted?.invoke(0L)
-        while (isRunning) {
-            kotlinx.coroutines.delay(1000)
-        }
-    }
-
-    override suspend fun stop() {
-        isRunning = false
-    }
-
-    override fun port(): Int = mockPort
-    override fun adapterName(): String = "Mock"
-}

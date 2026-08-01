@@ -14,15 +14,11 @@ typealias ParameterBinding = neton.core.interfaces.ParameterBinding
 typealias RequestProcessingException = neton.core.interfaces.RequestProcessingException
 
 /**
- * 请求处理引擎接口 — routing 层仍保留自己的 interface
- * 与 core 的 RequestEngine 区别：不含 setAuthenticationContext
+ * 路由注册表接口 — routing 层保留自己的 interface（core 版另有 adapter 包装）。
+ *
+ * 只登记与查询：请求分发由 HTTP 适配器直接调用 RouteDefinition.handler 完成。
  */
 interface RequestEngine {
-
-    /**
-     * 处理请求
-     */
-    suspend fun processRequest(context: neton.core.http.HttpContext): Any?
 
     /**
      * 注册路由定义

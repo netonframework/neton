@@ -58,6 +58,9 @@ class KtorHttpAdapter(
 ) : HttpAdapter {
 
     private var requestEngine: RequestEngine? = null
+
+    /** `@RateLimit` 执行入口，由 `routing { }` bind；未装 routing 时为 null（不限流）。 */
+    private var rateLimitGate: RateLimitGate? = null
     private var embeddedServer: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private var appContext: NetonContext? = null
     private var backgroundJob: Job? = null
@@ -71,6 +74,7 @@ class KtorHttpAdapter(
     override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) {
         appContext = ctx
         requestEngine = ctx.getOrNull(RequestEngine::class)
+        rateLimitGate = ctx.getOrNull(RateLimitGate::class)
         val job = SupervisorJob()
         backgroundJob = job
         backgroundScope = CoroutineScope(job + Dispatchers.Default)
@@ -297,6 +301,7 @@ class KtorHttpAdapter(
             backgroundJob = null
             appContext = null
             requestEngine = null
+            rateLimitGate = null
         }
     }
 
@@ -331,13 +336,22 @@ class KtorHttpAdapter(
         val log = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
         try {
             securityPreHandle(route, httpContext, path, method, call, log)
-            val args = buildHandlerArgs(call, route.pattern)
-            val result = route.handler.invoke(httpContext, args)
-            // v1.1 方案 B：response.write 优先；已提交则不再用返回值 respond
-            status = if (httpContext.response.isCommitted) {
+
+            // 限流在鉴权之后、handler 之前：USER scope 需要 identity，且被限流的请求不应执行业务逻辑。
+            // 拒绝时 gate 已写好 429（含 X-RateLimit-* / Retry-After），这里只负责不再往下走。
+            val allowed = runRateLimitPreHandle(route, httpContext, rateLimitGate)
+
+            status = if (!allowed) {
                 httpContext.response.status.code
             } else {
-                handleResponse(call, result, routeInfo, log)
+                val args = buildHandlerArgs(call, route.pattern)
+                val result = route.handler.invoke(httpContext, args)
+                // v1.1 方案 B：response.write 优先；已提交则不再用返回值 respond
+                if (httpContext.response.isCommitted) {
+                    httpContext.response.status.code
+                } else {
+                    handleResponse(call, result, routeInfo, log)
+                }
             }
         } catch (e: neton.core.http.ValidationException) {
             status = 400

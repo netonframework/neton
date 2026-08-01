@@ -7,25 +7,11 @@ import neton.core.http.HttpMethod
 import neton.core.security.AuthenticationContext
 
 /**
- * Mock 请求处理引擎 - Core 模块默认实现
+ * 内存路由注册表 —— 供生命周期类测试在不装 neton-routing 的情况下满足 RequestEngine 依赖。
  */
 class MockRequestEngine : RequestEngine {
 
     private val routes = mutableListOf<RouteDefinition>()
-    private var authContext: AuthenticationContext? = null
-
-    override suspend fun processRequest(context: HttpContext): Any? {
-        CoreLog.logOrBootstrap().warn("neton.mock.request_engine", mapOf("hint" to "No routing module found"))
-
-        for (route in routes) {
-            if (route.pattern == context.request.path && route.method == context.request.method) {
-                return route.handler.invoke(context, neton.core.http.MapBackedHandlerArgs(emptyMap()))
-            }
-        }
-
-        context.response.status = neton.core.http.HttpStatus.NOT_FOUND
-        return "404 - Route not found: ${context.request.method} ${context.request.path}"
-    }
 
     override fun registerRoute(route: RouteDefinition) {
         routes.add(route)
@@ -34,10 +20,6 @@ class MockRequestEngine : RequestEngine {
     }
 
     override fun getRoutes(): List<RouteDefinition> = routes.toList()
-
-    override fun setAuthenticationContext(authContext: AuthenticationContext) {
-        this.authContext = authContext
-    }
 }
 
 /**
@@ -104,119 +86,6 @@ class MockAuthenticationContext : AuthenticationContext {
     override fun currentUser(): Any? = null
 }
 
-/**
- * Mock 安全构建器
- */
-class MockSecurityBuilder : SecurityBuilder {
-
-    private val authenticators = mutableListOf<Authenticator>()
-    private val guards = mutableListOf<Guard>()
-    private var permissionEval: PermissionEvaluator? = null
-
-    override fun registerMockAuthenticator(userId: String, roles: Set<String>, permissions: Set<String>) {
-        val authenticator = MockAuthenticator(MockIdentity(userId, roles, permissions))
-        authenticators.add(authenticator)
-        CoreLog.logOrBootstrap().info("neton.mock.authenticator", mapOf("userId" to userId))
-    }
-
-    override fun registerMockAuthenticator(name: String, userId: String, roles: Set<String>, permissions: Set<String>) {
-        registerMockAuthenticator(userId, roles, permissions)
-        CoreLog.logOrBootstrap().info("neton.mock.authenticator.named", mapOf("name" to name))
-    }
-
-    override fun registerJwtAuthenticator(secretKey: String, headerName: String, tokenPrefix: String) {
-        CoreLog.logOrBootstrap().warn("neton.mock.jwt.unavailable")
-    }
-
-    override fun registerSessionAuthenticator(sessionKey: String) {
-        CoreLog.logOrBootstrap().warn("neton.mock.session.unavailable")
-    }
-
-    override fun registerBasicAuthenticator(userProvider: suspend (username: String, password: String) -> Identity?) {
-        CoreLog.logOrBootstrap().warn("neton.mock.basic.unavailable")
-    }
-
-    override fun bindDefaultGuard() {
-        guards.add(MockDefaultGuard())
-    }
-
-    override fun bindAdminGuard() {
-        guards.add(MockAdminGuard())
-    }
-
-    override fun bindRoleGuard(vararg roles: String) {
-        guards.add(MockRoleGuard(arrayOf(*roles)))
-    }
-
-    override fun bindNamedRoleGuard(name: String, vararg roles: String) {
-        bindRoleGuard(*roles)
-    }
-
-    override fun bindAnonymousGuard() {
-        guards.add(MockAnonymousGuard())
-    }
-
-    override fun registerAuthenticator(authenticator: Authenticator) {
-        authenticators.add(authenticator)
-    }
-
-    override fun registerAuthenticator(name: String, authenticator: Authenticator) {
-        authenticators.add(authenticator)
-    }
-
-    override fun bindGuard(guard: Guard) {
-        guards.add(guard)
-    }
-
-    override fun bindGuard(name: String, guard: Guard) {
-        guards.add(guard)
-    }
-
-    override fun setDefaultAuthenticator(auth: Authenticator?) {
-        if (auth != null) {
-            authenticators.clear()
-            authenticators.add(auth)
-        }
-    }
-
-    override fun setDefaultGuard(guard: Guard) {
-        guards.clear()
-        guards.add(guard)
-    }
-
-    override fun setGroupAuthenticator(group: String, auth: Authenticator?) {
-        if (group.isBlank()) throw IllegalArgumentException("Security group name must not be blank")
-        if (auth != null) authenticators.add(auth)
-    }
-
-    override fun setGroupGuard(group: String, guard: Guard) {
-        if (group.isBlank()) throw IllegalArgumentException("Security group name must not be blank")
-        guards.add(guard)
-    }
-
-    override fun setPermissionEvaluator(evaluator: PermissionEvaluator) {
-        permissionEval = evaluator
-    }
-
-    override fun getGroupConfigSummary(): List<SecurityGroupConfig> {
-        return listOf(SecurityGroupConfig(group = null, authenticator = null, guard = "<mock>"))
-    }
-
-    override fun build(): SecurityConfiguration {
-        CoreLog.logOrBootstrap().warn("neton.mock.security_builder", mapOf("hint" to "No security module found"))
-        return SecurityConfiguration(
-            isEnabled = authenticators.isNotEmpty() || guards.isNotEmpty(),
-            authenticatorCount = authenticators.size,
-            guardCount = guards.size,
-            authenticationContext = MockAuthenticationContext(),
-            permissionEvaluator = permissionEval
-        )
-    }
-
-    override fun getAuthenticationContext(): AuthenticationContext {
-        return MockAuthenticationContext()
-    }
-}
 
 /**
  * Mock 路由处理器
