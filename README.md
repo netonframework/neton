@@ -49,10 +49,14 @@ Neton is a production-ready, engineering-focused web framework that differs from
 | Platform | Target | Status |
 |----------|--------|--------|
 | macOS ARM64 | `macosArm64` | Supported |
-| macOS x64 | `macosX64` | Supported |
+| macOS x64 | `macosX64` | Supported, except `neton-database` |
 | Linux x64 | `linuxX64` | Supported |
 | Linux ARM64 | `linuxArm64` | Supported |
 | Windows x64 | `mingwX64` | Supported |
+
+`neton-database` has no `macosX64` target because its driver, sqlx4k, publishes no
+`macosX64` artifact. Every other module builds on Intel Macs; database work needs
+Apple Silicon, Linux or Windows.
 
 ---
 
