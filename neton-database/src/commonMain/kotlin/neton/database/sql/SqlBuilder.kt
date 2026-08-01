@@ -1,5 +1,6 @@
 package neton.database.sql
 
+import neton.database.api.ColumnAssignment
 import neton.database.dsl.ColumnRef
 import neton.database.dsl.Predicate
 import neton.database.dsl.QueryAst
@@ -67,12 +68,17 @@ class SqlBuilder(private val dialect: Dialect) {
         return BuiltSql(sql, args.toList())
     }
 
-    fun <T : Any> buildUpdate(ast: QueryAst<T>, sets: Map<String, Any?>): BuiltSql {
+    fun <T : Any> buildUpdate(ast: QueryAst<T>, sets: Map<String, ColumnAssignment>): BuiltSql {
         require(sets.isNotEmpty()) { "buildUpdate requires at least one column to set" }
         reset()
         val tableSql = dialect.quoteIdent(ast.table.tableName)
-        val setClause = "SET " + sets.entries.joinToString(", ") { (col, value) ->
-            "${dialect.quoteIdent(col)} = ${addArg(value)}"
+        val setClause = "SET " + sets.entries.joinToString(", ") { (col, assignment) ->
+            val quoted = dialect.quoteIdent(col)
+            when (assignment) {
+                is ColumnAssignment.Literal -> "$quoted = ${addArg(assignment.value)}"
+                // col = col + ?：原子增减留在数据库里做，delta 仍走绑定参数
+                is ColumnAssignment.Delta -> "$quoted = $quoted + ${addArg(assignment.delta)}"
+            }
         }
         val whereClause = buildWhereClause(ast.where)
         val sql = listOf("UPDATE $tableSql", setClause, whereClause)
