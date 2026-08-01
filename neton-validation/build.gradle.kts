@@ -20,7 +20,6 @@ kotlin {
                 implementation(project(":neton-core"))
                 implementation(libs.kotlin.stdlib.common)
                 implementation(libs.kotlinx.serialization.json)
-                implementation(libs.konform)
             }
         }
         commonTest {

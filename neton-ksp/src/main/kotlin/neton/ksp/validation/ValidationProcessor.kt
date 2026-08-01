@@ -129,12 +129,33 @@ class ValidationProcessor(
         return ValidationRule(
             propertyName = propName,
             annotationSimpleName = simpleName,
-            message = message,
+            message = resolveMessagePlaceholders(message, simpleName, valueArgs),
             constraintCode = simpleName,
             valueArgs = valueArgs,
             propertyTypeQualified = propertyTypeQualified,
             isNullable = isNullable
         )
+    }
+
+    /**
+     * 把消息模板里的占位符换成注解上的真实约束值。
+     *
+     * `@Min(1)` 的默认消息是 `"must be >= {value}"`；不替换的话客户端收到的就是字面量
+     * `must be >= {value}`，而不是 `must be >= 1`。
+     *
+     * 只替换数值型占位符（Min/Max 的 `{value}`、Size 的 `{min}`/`{max}`）——它们进生成代码时
+     * 是安全的字面量。Pattern 的 regex 不做替换，避免把反斜杠/引号带进消息字符串。
+     */
+    private fun resolveMessagePlaceholders(
+        template: String,
+        simpleName: String,
+        valueArgs: List<String>
+    ): String = when (simpleName) {
+        "Min", "Max" -> template.replace("{value}", valueArgs.getOrElse(0) { "{value}" })
+        "Size" -> template
+            .replace("{min}", valueArgs.getOrElse(0) { "{min}" })
+            .replace("{max}", valueArgs.getOrElse(1) { "{max}" })
+        else -> template
     }
 
     private fun defaultMessage(simpleName: String): String = when (simpleName) {
