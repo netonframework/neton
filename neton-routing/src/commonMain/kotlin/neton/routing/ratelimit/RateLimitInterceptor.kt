@@ -5,21 +5,24 @@ import neton.core.http.HttpStatus
 import neton.core.interfaces.Identity
 import neton.core.interfaces.RateLimitConfig
 import neton.core.interfaces.RateLimitDecision
+import neton.core.interfaces.RateLimitGate
 import neton.core.interfaces.RateLimiter
 
 /**
  * 限流拦截器 — 挂在路由匹配之后、handler 调用之前
  * 检查 route 上的 rateLimit 配置，决定是否放行
+ *
+ * 实现 [RateLimitGate]：由 `routing { }` bind 进 NetonContext，HTTP 适配器在分发前调用。
  */
 class RateLimitInterceptor(
     private val limiter: RateLimiter,
     private val resolver: RateLimitKeyResolver
-) {
+) : RateLimitGate {
 
     /**
      * 处理限流检查。返回 true 表示放行，false 表示已返回 429 响应。
      */
-    suspend fun intercept(
+    override suspend fun allow(
         context: HttpContext,
         routeId: String,
         config: RateLimitConfig,

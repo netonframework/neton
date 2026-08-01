@@ -449,7 +449,6 @@ class Neton private constructor() {
         ): RequestEngine {
             val requestEngine =
                 ctx.getOrNull(RequestEngine::class) ?: error("Routing component not installed - add routing { }")
-            requestEngine.setAuthenticationContext(securityConfig.authenticationContext)
             ctx.bind(SecurityConfiguration::class, securityConfig)
             return requestEngine
         }

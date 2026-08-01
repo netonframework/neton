@@ -3,6 +3,7 @@ package neton.routing
 import neton.core.Neton
 import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
+import neton.core.interfaces.RateLimitGate
 import neton.core.interfaces.RequestEngine
 import neton.core.interfaces.RouteGroupSecurityConfig
 import neton.core.interfaces.RouteGroupSecurityConfigs
@@ -34,7 +35,9 @@ object RoutingComponent : NetonComponent<RequestEngine> {
             limiter = FixedWindowRateLimiter(store),
             resolver = DefaultRateLimitKeyResolver()
         )
-        (config as? RoutingRequestEngineAdapter)?.setRateLimitInterceptor(rlInterceptor)
+        // HTTP 适配器直接调用 RouteDefinition.handler（KSP 生成的 lambda），
+        // 所以限流必须以 RateLimitGate 的形式 bind 给适配器，由它在分发前执行。
+        ctx.bind(RateLimitGate::class, rlInterceptor)
         log?.info("rateLimit.initialized", mapOf(
             "store" to if (store is RedisRateLimitStore) "redis" else "local"
         ))
