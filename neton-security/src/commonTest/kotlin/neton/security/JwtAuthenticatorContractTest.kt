@@ -5,7 +5,7 @@ import kotlin.io.encoding.Base64
 import neton.security.identity.AuthenticationException
 import neton.security.identity.IdentityUser
 import neton.security.identity.UserId
-import neton.security.internal.HmacSha256
+import neton.security.crypto.HmacSha256
 import neton.security.jwt.JwtAuthenticatorV1
 import kotlin.test.Test
 import kotlin.test.assertEquals

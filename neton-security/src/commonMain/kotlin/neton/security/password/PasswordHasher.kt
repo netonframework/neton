@@ -3,7 +3,7 @@ package neton.security.password
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.random.Random
-import neton.security.internal.HmacSha256
+import neton.security.crypto.HmacSha256
 import neton.security.internal.constantTimeEquals
 
 object PasswordHasher {
@@ -98,10 +98,10 @@ object PasswordHasher {
             saltBlock[salt.size + 2] = (blockIndex ushr 8).toByte()
             saltBlock[salt.size + 3] = blockIndex.toByte()
 
-            var u = HmacSha256.signForPassword(password, saltBlock)
+            var u = HmacSha256.sign(password, saltBlock)
             val t = u.copyOf()
             repeat(iterations - 1) {
-                u = HmacSha256.signForPassword(password, u)
+                u = HmacSha256.sign(password, u)
                 for (i in t.indices) {
                     t[i] = (t[i].toInt() xor u[i].toInt()).toByte()
                 }
