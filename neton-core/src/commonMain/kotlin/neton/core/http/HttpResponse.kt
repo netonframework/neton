@@ -1,6 +1,59 @@
 package neton.core.http
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
+/**
+ * 响应体序列化 Json。
+ *
+ * `encodeDefaults = true` 是**契约要求**，不是可选项：kotlinx 的裸 `Json` 默认
+ * `encodeDefaults = false`，会把任何「当前值恰好等于声明默认值」的字段**从响应
+ * JSON 里整个删掉**。对客户端而言这与「这个字段不存在」无法区分——提现单
+ * `fee = 0`、`status = 0(待审核)` 被丢掉后，H5 拿到 `undefined`，渲染出
+ * `¥NaN.NaN` 和状态「未知」（2026-07-26 生产实测，一个根因炸三处）。
+ *
+ * **响应字段集必须由类型决定，不能由运行时取值决定。**
+ *
+ * 这一条 KSP 生成的路由（`ControllerProcessor.responseJson`）与两个适配器的
+ * envelope 序列化都已遵守；本文件是同一条路径上最后一个还在用裸 `Json` 的出口。
+ *
+ * Kotlin 客户端感知不到这个 bug——它反序列化时会把缺失字段补回声明的默认值。
+ * 只有 JS/TS 端才炸，所以它极容易在联调里被漏掉。
+ */
+private val responseJson = Json { encodeDefaults = true }
+
+/**
+ * 把 Map / List / 原始类型转成 [JsonElement]。
+ *
+ * 这里**不能**用 `Json.encodeToString(serializer(), data)`：`json()` 的形参声明成 `Any`，
+ * reified 的 `serializer()` 就只能解析出 `Any` 的序列化器，运行期直接
+ * `SerializationException`。也就是说这个分支此前对**任何**对象都是抛异常——
+ * 包括限流拦截器传进来的那个 `mapOf("code" to 429, ...)`：触发限流时返回给客户端的
+ * 不是 429 JSON，而是一个序列化异常。
+ *
+ * `@Serializable` 业务对象不走这条路：它们由 KSP 生成的路由预序列化成 `JsonContent`
+ * （那条路径自带 `encodeDefaults = true`）。这里只兜底 Map / List / 原始类型，
+ * 遇到别的类型显式报错，说清该怎么办——而不是留一个看不懂的序列化异常。
+ */
+private fun Any?.toResponseJsonElement(): JsonElement = when (this) {
+    null -> JsonNull
+    is JsonElement -> this
+    is String -> JsonPrimitive(this)
+    is Boolean -> JsonPrimitive(this)
+    is Number -> JsonPrimitive(this)
+    is Map<*, *> -> JsonObject(entries.associate { (k, v) -> k.toString() to v.toResponseJsonElement() })
+    is Iterable<*> -> JsonArray(map { it.toResponseJsonElement() })
+    is Array<*> -> JsonArray(map { it.toResponseJsonElement() })
+    else -> throw IllegalArgumentException(
+        "HttpResponse.json() only accepts a pre-encoded String, a JsonElement, or Map/List/primitives. " +
+            "Got ${this::class.simpleName}. Serialize @Serializable types with a Json configured " +
+            "with encodeDefaults = true (or return them from a controller and let KSP do it).",
+    )
+}
 
 /**
  * 流式响应体写出器。由 [HttpResponse.stream] 提供，逐块写出响应体。
@@ -150,9 +203,7 @@ interface HttpResponse {
         val jsonString = when (data) {
             is String -> data
             is JsonObject -> data.toString()
-            else -> kotlinx.serialization.json.Json.encodeToString(
-                kotlinx.serialization.serializer(), data
-            )
+            else -> responseJson.encodeToString(JsonElement.serializer(), data.toResponseJsonElement())
         }
         write(jsonString.encodeToByteArray())
     }
