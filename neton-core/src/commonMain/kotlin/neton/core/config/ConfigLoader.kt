@@ -62,7 +62,9 @@ object ConfigLoader {
             val envPath = "$configPath/$baseName.$environment.conf"
             loadRawConfigFile(envPath)?.let { ConfigMerge.merge(base, it) } ?: base
         }
-        return ConfigOverrides.applyOverrides(merged.toMutableMap(), getEnvMap(), args)
+        // 命名空间取文件名（DataModule → database.conf → "database"），不是传入的 moduleName。
+        val namespace = configFileName.removeSuffix(".conf")
+        return ConfigOverrides.applyModuleOverrides(namespace, merged.toMutableMap(), getEnvMap(), args)
     }
 
     /**

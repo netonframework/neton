@@ -191,6 +191,71 @@ class ConfigContractTest {
         assertEquals(ConfigSource.ENV, e.source)
     }
 
+    // ---------- 5.4 模块覆盖的命名空间隔离 ----------
+
+    /**
+     * 这条是生产事故的最小复现：`.env` 里的 `NETON_DATABASE__URI` 会生成
+     * `database = {uri: ...}`。全量合并时它落进**每一个**模块的配置，而 redis 恰好也有
+     * 一个 `database` 字段（选库号，Int），拿到 Map 后启动直接崩：
+     * `redis.conf: 'database' must be a number, got '{uri=postgresql://...}'`。
+     */
+    @Test
+    fun anotherModulesEnvOverrideDoesNotLeakIntoThisOne() {
+        val env = mapOf(
+            "NETON_DATABASE__URI" to "postgresql://user:pw@127.0.0.1:5432/app",
+            "NETON_REDIS__HOST" to "10.0.0.9",
+        )
+        val redisFile = mutableMapOf<String, Any?>("host" to "127.0.0.1", "database" to 0)
+
+        val merged = ConfigOverrides.applyModuleOverrides("redis", redisFile, env, emptyArray())
+
+        assertEquals(
+            0,
+            get(merged, "database"),
+            "database 库号被别的模块的 uri 覆盖了——这正是生产启动崩溃的形状",
+        )
+        assertEquals("10.0.0.9", get(merged, "host"), "本命名空间的覆盖必须生效")
+    }
+
+    /** 模块配置是根级平铺的，ENV 的命名空间前缀要剥掉，不能原样留在 map 里。 */
+    @Test
+    fun moduleOverrideStripsTheNamespacePrefix() {
+        val env = mapOf("NETON_PRIVCHAT__SERVER__SERVICE_API_BASE_URL" to "http://127.0.0.1:9090")
+        val file = mutableMapOf<String, Any?>(
+            "server" to mapOf("service_api_base_url" to "http://old:9090"),
+        )
+
+        val merged = ConfigOverrides.applyModuleOverrides("privchat", file, env, emptyArray())
+
+        assertEquals("http://127.0.0.1:9090", get(merged, "server.service_api_base_url"))
+        assertNull(get(merged, "privchat.server.service_api_base_url"), "前缀没剥掉，覆盖等于没生效")
+    }
+
+    /** CLI 优先于 ENV 的规则在模块作用域内同样成立。 */
+    @Test
+    fun cliStillWinsOverEnvWithinTheModule() {
+        val env = mapOf("NETON_REDIS__PORT" to "6379")
+        val merged = ConfigOverrides.applyModuleOverrides(
+            "redis",
+            mutableMapOf<String, Any?>("port" to 1111),
+            env,
+            arrayOf("--redis.port=6380"),
+        )
+        assertEquals("6380", get(merged, "port"))
+    }
+
+    /** 没有本模块的覆盖时，文件内容原样保留。 */
+    @Test
+    fun noOverrideForThisModuleLeavesTheFileAlone() {
+        val env = mapOf("NETON_DATABASE__URI" to "postgresql://user:pw@127.0.0.1:5432/app")
+        val file = mutableMapOf<String, Any?>("host" to "127.0.0.1", "database" to 3)
+
+        val merged = ConfigOverrides.applyModuleOverrides("redis", file, env, emptyArray())
+
+        assertEquals(3, get(merged, "database"))
+        assertEquals("127.0.0.1", get(merged, "host"))
+    }
+
     // ---------- 5.4 解析错误 fail-fast（file + line）----------
 
     @Test

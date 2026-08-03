@@ -45,6 +45,10 @@ object ConfigOverrides {
 
     /**
      * 对 base 先合并 ENV 再合并 CLI（优先级 CLI > ENV）。
+     *
+     * 用于 application.conf —— 主配置没有命名空间前缀，`NETON_SECURITY__JWT__SECRETKEY`
+     * 直接对应文件里的 `[security.jwt] secretKey`。模块配置不要用这个，见
+     * [applyModuleOverrides]。
      */
     fun applyOverrides(
         base: MutableMap<String, Any?>,
@@ -53,5 +57,33 @@ object ConfigOverrides {
     ): Map<String, Any?> {
         val withEnv = ConfigMerge.merge(base, envToOverrides(env))
         return ConfigMerge.merge(withEnv, cliToOverrides(args))
+    }
+
+    /**
+     * 模块配置的覆盖：**只取属于本命名空间的那一支**。
+     *
+     * 模块配置文件是根级平铺的（文件名 = 命名空间：redis.conf 根级写 host/port，
+     * database.conf 根级写 `[default]`），而 ENV 变量带命名空间前缀
+     * （`NETON_REDIS__HOST` → `redis.host`）。所以要先剥掉这一层再合并。
+     *
+     * 用 [applyOverrides] 的全量合并会**串味**：`NETON_DATABASE__URI` 生成的
+     * `database = {uri: ...}` 会落进每一个模块的配置里。redis 正好也有个 `database`
+     * 字段（选库号，Int），于是拿到一个 Map —— 生产环境上就是这样启动崩溃的：
+     * `redis.conf: 'database' must be a number, got '{uri=postgresql://...}'`。
+     * 这个污染一直存在，只是以前被宽容解析静默吞掉，改成 fail-fast 后才炸出来。
+     *
+     * @param namespace 模块命名空间，取配置文件名去掉 `.conf`（不是传入的 moduleName ——
+     *   `DataModule` 映射到 database.conf，命名空间是 `database`）。
+     */
+    fun applyModuleOverrides(
+        namespace: String,
+        base: MutableMap<String, Any?>,
+        env: Map<String, String>,
+        args: Array<String>
+    ): Map<String, Any?> {
+        val all = ConfigMerge.merge(envToOverrides(env), cliToOverrides(args))
+        @Suppress("UNCHECKED_CAST")
+        val scoped = all[namespace.lowercase()] as? Map<String, Any?> ?: return base
+        return ConfigMerge.merge(base, scoped)
     }
 }
