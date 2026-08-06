@@ -248,34 +248,45 @@ class KtorHttpAdapter(
 
 
                 try {
-                    // 启动成功后回调框架层（端口占用会 exit，不会执行到 delay 后）
+                    // Ready 横幅只在**真的绑上端口之后**打。
+                    //
+                    // 这里原来是 `delay(150)` 然后无条件回调：150 毫秒不是「启动成功」的证据，
+                    // 只是一个赌注。端口被占时 bind 恰好败得比 150ms 快，所以平时看不出来；
+                    // 机器一慢，就会先打「Ready → http://localhost:8080」再退出，运维照着
+                    // 这行字判断服务起来了。启动成功要由 Ktor 自己的 ServerReady 事件说了算。
                     coroutineScope {
-                        launch {
-                            delay(150)
+                        val readyJob = launch {
+                            embeddedServer?.engine?.resolvedConnectors()
                             val coldStartMs = kotlin.time.Clock.System.now().toEpochMilliseconds() - startMs
                             onStarted?.invoke(coldStartMs)
                         }
-                        embeddedServer?.start(wait = true)
+                        try {
+                            embeddedServer?.start(wait = true)
+                        } catch (e: Throwable) {
+                            readyJob.cancel() // bind 失败就别再打 Ready 了
+                            throw e
+                        }
                     }
                 } catch (e: Throwable) {
-                    if (isPortInUse(e)) {
-                        kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
-                    }
                     gracefulShutdown(propagateFailure = false)
                     throw e
                 }
 
             } catch (e: Throwable) {
-                if (isPortInUse(e)) {
-                    kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
-                }
                 throw e
             }
         } catch (e: Throwable) {
+            // 端口占用只在这一个出口报一次。
+            //
+            // 之前三层 catch 各打一遍同一句话，加上 native 的 unhandled hook 还打一遍——
+            // 同一次失败刷出 2~3 行「Port 8080 is already in use」。这不只是难看：我们据此
+            // 写进部署文档的根因是「进程自己绑了两次 8080」，完全错了，此后每次生产重启都
+            // 按那个错误结论在赌。重复的错误输出会变成错误的结论。
             if (isPortInUse(e)) {
-                kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
+                reportPortInUseOnce(port)
+            } else {
+                log()?.error("Failed to start Ktor server", mapOf("port" to port), cause = e)
             }
-            log()?.error("Failed to start Ktor server", mapOf("port" to port), cause = e)
             gracefulShutdown(propagateFailure = false)
             throw e
         } finally {
