@@ -18,7 +18,7 @@ private fun isPortInUse(e: Throwable): Boolean {
 internal actual fun installPortInUseHandler(port: Int) {
     setUnhandledExceptionHook { e ->
         if (isPortInUse(e)) {
-            kotlin.io.println("Port $port is already in use. Stop the other process or use a different port.")
+            reportPortInUseOnce(port)
             kotlin.system.exitProcess(1)
         }
         terminateWithUnhandledException(e)
