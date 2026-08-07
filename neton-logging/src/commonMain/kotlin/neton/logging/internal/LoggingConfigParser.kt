@@ -45,6 +45,10 @@ internal fun parseLoggingConfig(configMap: Map<String, Any?>?): LoggingConfig? {
     val asyncRaw = configMap["async"] as? Map<String, Any?>
     val async = parseAsyncConfig(asyncRaw)
 
+    // [logging] retention_days 作为所有 file sink 的默认值；单个 sink 可再覆盖。
+    val defaultRetentionDays = (configMap["retention_days"] as? Number)?.toInt()
+        ?: LogRetention.DEFAULT_RETENTION_DAYS
+
     @Suppress("UNCHECKED_CAST")
     val sinksRaw = configMap["sinks"] as? List<Map<String, Any?>>
     if (sinksRaw.isNullOrEmpty()) return null
@@ -79,7 +83,15 @@ internal fun parseLoggingConfig(configMap: Map<String, Any?>?): LoggingConfig? {
             }
             else -> {
                 val msgEquals = if (route.isNullOrEmpty()) null else route
-                rules.add(RouteRule(name = name, levels = levels, msgEquals = msgEquals, sinks = listOf(SinkSpec.File(file))))
+                val retentionDays = (sink["retention_days"] as? Number)?.toInt() ?: defaultRetentionDays
+                rules.add(
+                    RouteRule(
+                        name = name,
+                        levels = levels,
+                        msgEquals = msgEquals,
+                        sinks = listOf(SinkSpec.File(file, retentionDays)),
+                    )
+                )
             }
         }
     }
