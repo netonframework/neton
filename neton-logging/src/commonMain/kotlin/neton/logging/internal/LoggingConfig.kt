@@ -38,7 +38,15 @@ internal data class RouteRule(
 
 internal sealed class SinkSpec {
     data class Stdout(val enabled: Boolean = true) : SinkSpec()
-    data class File(val path: String) : SinkSpec()
+
+    /**
+     * @param retentionDays 归档保留天数（含今天）；<= 0 关闭清理。
+     *   见 [LogRetention]——不清理的话文件只涨不降，生产上出过 847MB 单文件。
+     */
+    data class File(
+        val path: String,
+        val retentionDays: Int = LogRetention.DEFAULT_RETENTION_DAYS,
+    ) : SinkSpec()
 }
 
 internal fun SinkSpec.sinkKey(): String = when (this) {

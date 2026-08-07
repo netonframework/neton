@@ -57,5 +57,5 @@ private fun buildSinksFromConfig(config: LoggingConfig): Map<String, Sink> {
 
 private fun SinkSpec.toSink(): Sink = when (this) {
     is SinkSpec.Stdout -> StdoutSink()
-    is SinkSpec.File -> createFileSink(path)
+    is SinkSpec.File -> createFileSink(path, retentionDays)
 }

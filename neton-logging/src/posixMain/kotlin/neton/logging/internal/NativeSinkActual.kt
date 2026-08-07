@@ -3,7 +3,8 @@ package neton.logging.internal
 /**
  * Native actual：FileSinkNative + AsyncLogDispatcherNative。
  */
-internal actual fun createFileSink(path: String): Sink = FileSinkNative(path)
+internal actual fun createFileSink(path: String, retentionDays: Int): Sink =
+    FileSinkNative(path, retentionDays)
 
 internal actual fun createAsyncLogDispatcher(
     sinks: Map<String, Sink>,
