@@ -379,10 +379,17 @@ class KtorHttpAdapter(
             // body.code 是权威，HTTP status 由 framework 内部 [httpStatusForErrorCode] 推导
             val httpStatus = neton.core.http.httpStatusForErrorCode(e.code)
             status = httpStatus.code
+            // 4xx 是**客户端错误**，不是故障：token 过期、参数不合法、没权限，都在预期之内，
+            // 一行结构化日志（method/path/status/traceId）就够定位了。带上 cause 会打出完整
+            // Kotlin 堆栈——生产上实测每条约 47 行，56624 次异常把 error.log 撑到 434MB，
+            // 其中 219 万行是堆栈，真正的故障反而被埋了。
+            //
+            // 5xx 仍然带堆栈：那是服务端自己出了问题，没有调用栈就查不下去。
+            val isClientError = status in 400..499
             log?.warn(
                 "http.error",
                 fields = mapOf("method" to method, "path" to path, "status" to status, "traceId" to traceId),
-                cause = e
+                cause = if (isClientError) null else e
             )
             respondEnvelope(
                 call,
