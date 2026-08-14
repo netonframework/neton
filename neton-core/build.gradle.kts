@@ -101,13 +101,13 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
-    val includePath = project.file("src/nativeInterop/c").absolutePath
+    val includePath = project.file("src/nativeInterop/c").invariantSeparatorsPath
 
     // 辅助函数：为每个 Native 目标配置 cinterop 和 linker
     fun org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget.configurePosixEnv() {
         val targetName = this.name
         val targetCapital = targetName.replaceFirstChar { it.uppercase() }
-        val interopDir = project.file("build/nativeInterop/$targetName").absolutePath
+        val interopDir = project.file("build/nativeInterop/$targetName").invariantSeparatorsPath
 
         val defFile = layout.buildDirectory.file("posixenv-$targetName.def").get().asFile
         tasks.register("writePosixenvDef$targetCapital") {
