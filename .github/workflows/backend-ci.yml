@@ -69,28 +69,6 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
 
-      - name: Configure MinGW toolchain
-        if: matrix.target == 'mingwX64'
-        shell: pwsh
-        run: |
-          $prefixes = @(
-            "C:\msys64\mingw64\bin",
-            "C:\msys64\ucrt64\bin"
-          )
-          $toolchain = $prefixes | Where-Object {
-            (Test-Path (Join-Path $_ "gcc.exe")) -and
-            (Test-Path (Join-Path $_ "ar.exe"))
-          } | Select-Object -First 1
-          if (-not $toolchain) {
-            throw "No MinGW GCC toolchain was found in the GitHub runner image."
-          }
-          $compiler = Join-Path $toolchain "gcc.exe"
-          $archiver = Join-Path $toolchain "ar.exe"
-          "NETON_MINGW_X64_CC=$compiler" >> $env:GITHUB_ENV
-          "NETON_MINGW_X64_AR=$archiver" >> $env:GITHUB_ENV
-          & $compiler --version
-          & $archiver --version
-
       - name: Run native Core tests
         if: matrix.target != 'mingwX64'
         run: ${{ matrix.gradle }} --no-daemon :neton-core:${{ matrix.target }}Test
