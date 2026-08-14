@@ -31,6 +31,17 @@ fun configuredTool(property: String, environment: String, default: String): Stri
         .orElse(providers.environmentVariable(environment))
         .getOrElse(default)
 
+fun kotlinNativeMingwTool(name: String): String? {
+    val dependencies = File(System.getProperty("user.home"), ".konan/dependencies")
+    return dependencies.listFiles()
+        ?.asSequence()
+        ?.filter { it.isDirectory && it.name.startsWith("msys2-mingw-w64-x86_64-") }
+        ?.map { File(it, "bin/$name.exe") }
+        ?.filter { it.isFile }
+        ?.maxByOrNull { it.lastModified() }
+        ?.absolutePath
+}
+
 fun targetTools(targetName: String): NativeTools? = when {
     isMacOs && targetName == "LinuxX64" -> NativeTools(
         compiler = configuredTool("neton.linuxX64.cc", "NETON_LINUX_X64_CC", "x86_64-linux-gnu-gcc"),
@@ -41,8 +52,12 @@ fun targetTools(targetName: String): NativeTools? = when {
         archiver = configuredTool("neton.linuxArm64.ar", "NETON_LINUX_ARM64_AR", "aarch64-linux-gnu-ar"),
     )
     isWindows && targetName == "MingwX64" -> NativeTools(
-        compiler = configuredTool("neton.mingwX64.cc", "NETON_MINGW_X64_CC", "gcc"),
-        archiver = configuredTool("neton.mingwX64.ar", "NETON_MINGW_X64_AR", "ar"),
+        compiler = providers.gradleProperty("neton.mingwX64.cc")
+            .orElse(providers.environmentVariable("NETON_MINGW_X64_CC"))
+            .orNull ?: kotlinNativeMingwTool("gcc") ?: "gcc",
+        archiver = providers.gradleProperty("neton.mingwX64.ar")
+            .orElse(providers.environmentVariable("NETON_MINGW_X64_AR"))
+            .orNull ?: kotlinNativeMingwTool("ar") ?: "ar",
     )
     else -> null
 }
@@ -185,19 +200,23 @@ for (target in nativeTargets) {
         inputs.files("src/nativeInterop/c/env.c", "src/nativeInterop/c/env.h")
         outputs.file("$outDir/env.o")
         onlyIf { canBuildTarget(target.name) }
-        val tools = targetTools(target.name)
-        val configuredCompiler = tools?.compiler ?: "clang"
-        val compiler = resolveCommand(configuredCompiler) ?: configuredCompiler
-        val cmd = if (tools != null)
-            listOf(compiler, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
-        else
-            listOf(compiler, "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
-        commandLine(cmd)
+        if (target.name == "MingwX64") {
+            dependsOn("downloadKotlinNativeDistribution")
+        }
         doFirst {
+            val tools = targetTools(target.name)
+            val configuredCompiler = tools?.compiler ?: "clang"
+            val compiler = resolveCommand(configuredCompiler) ?: configuredCompiler
             check(resolveCommand(configuredCompiler) != null) {
                 "Missing compiler '$configuredCompiler' for ${target.name}. See the cross-compilation section in README.md."
             }
             out.mkdirs()
+            commandLine(
+                if (tools != null)
+                    listOf(compiler, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+                else
+                    listOf(compiler, "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+            )
         }
     }
 
@@ -205,15 +224,15 @@ for (target in nativeTargets) {
         dependsOn("compilePosixEnv${target.name}")
         outputs.file("$outDir/libenv.a")
         onlyIf { canBuildTarget(target.name) }
-        val tools = targetTools(target.name)
-        val configuredArchiver = tools?.archiver ?: "ar"
-        val archiver = resolveCommand(configuredArchiver) ?: configuredArchiver
-        commandLine(archiver, "rcs", "$outDir/libenv.a", "$outDir/env.o")
         doFirst {
+            val tools = targetTools(target.name)
+            val configuredArchiver = tools?.archiver ?: "ar"
+            val archiver = resolveCommand(configuredArchiver) ?: configuredArchiver
             check(resolveCommand(configuredArchiver) != null) {
                 "Missing archiver '$configuredArchiver' for ${target.name}. See the cross-compilation section in README.md."
             }
             file(outDir).mkdirs()
+            commandLine(archiver, "rcs", "$outDir/libenv.a", "$outDir/env.o")
         }
     }
 }
