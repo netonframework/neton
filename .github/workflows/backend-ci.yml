@@ -73,8 +73,43 @@ jobs:
         if: matrix.target == 'mingwX64'
         shell: pwsh
         run: |
-          "NETON_MINGW_X64_CC=C:\msys64\mingw64\bin\gcc.exe" >> $env:GITHUB_ENV
-          "NETON_MINGW_X64_AR=C:\msys64\mingw64\bin\ar.exe" >> $env:GITHUB_ENV
+          $prefixes = @(
+            "C:\msys64\mingw64\bin",
+            "C:\msys64\ucrt64\bin"
+          )
+          $toolchain = $prefixes | Where-Object {
+            (Test-Path (Join-Path $_ "gcc.exe")) -and
+            (Test-Path (Join-Path $_ "ar.exe"))
+          } | Select-Object -First 1
+          if (-not $toolchain) {
+            throw "No MinGW GCC toolchain was found in the GitHub runner image."
+          }
+          $compiler = Join-Path $toolchain "gcc.exe"
+          $archiver = Join-Path $toolchain "ar.exe"
+          "NETON_MINGW_X64_CC=$compiler" >> $env:GITHUB_ENV
+          "NETON_MINGW_X64_AR=$archiver" >> $env:GITHUB_ENV
+          & $compiler --version
+          & $archiver --version
 
       - name: Run native Core tests
+        if: matrix.target != 'mingwX64'
         run: ${{ matrix.gradle }} --no-daemon :neton-core:${{ matrix.target }}Test
+
+      - name: Run native Core tests
+        if: matrix.target == 'mingwX64'
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP "neton-mingw-test.log"
+          & .\gradlew.bat --no-daemon --stacktrace :neton-core:mingwX64Test 2>&1 |
+            Tee-Object -FilePath $log
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0) {
+            Get-Content $log |
+              Select-String -Pattern "error:|FAILED|FAILURE:|Exception|undefined reference|unresolved reference|Missing compiler|Missing archiver" |
+              Select-Object -Last 20 |
+              ForEach-Object {
+                $message = $_.Line.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+                Write-Output "::error::$message"
+              }
+            exit $exitCode
+          }
