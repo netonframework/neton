@@ -24,21 +24,25 @@ val isMacOs = hostOs.contains("mac")
 val isLinux = hostOs.contains("linux")
 val isWindows = hostOs.contains("windows")
 
-data class LinuxCrossTools(val compiler: String, val archiver: String)
+data class NativeTools(val compiler: String, val archiver: String)
 
 fun configuredTool(property: String, environment: String, default: String): String =
     providers.gradleProperty(property)
         .orElse(providers.environmentVariable(environment))
         .getOrElse(default)
 
-fun linuxCrossTools(targetName: String): LinuxCrossTools? = when (targetName) {
-    "LinuxX64" -> LinuxCrossTools(
+fun targetTools(targetName: String): NativeTools? = when {
+    isMacOs && targetName == "LinuxX64" -> NativeTools(
         compiler = configuredTool("neton.linuxX64.cc", "NETON_LINUX_X64_CC", "x86_64-linux-gnu-gcc"),
         archiver = configuredTool("neton.linuxX64.ar", "NETON_LINUX_X64_AR", "x86_64-linux-gnu-ar"),
     )
-    "LinuxArm64" -> LinuxCrossTools(
+    isMacOs && targetName == "LinuxArm64" -> NativeTools(
         compiler = configuredTool("neton.linuxArm64.cc", "NETON_LINUX_ARM64_CC", "aarch64-linux-gnu-gcc"),
         archiver = configuredTool("neton.linuxArm64.ar", "NETON_LINUX_ARM64_AR", "aarch64-linux-gnu-ar"),
+    )
+    isWindows && targetName == "MingwX64" -> NativeTools(
+        compiler = configuredTool("neton.mingwX64.cc", "NETON_MINGW_X64_CC", "gcc"),
+        archiver = configuredTool("neton.mingwX64.ar", "NETON_MINGW_X64_AR", "ar"),
     )
     else -> null
 }
@@ -48,13 +52,22 @@ fun resolveCommand(command: String): String? {
     if (executable.isAbsolute || command.contains('/')) {
         return executable.takeIf { it.canExecute() }?.absolutePath
     }
+    val names = if (isWindows && executable.extension.isEmpty()) {
+        val extensions = System.getenv("PATHEXT")
+            ?.split(';')
+            ?.filter { it.isNotBlank() }
+            ?: listOf(".COM", ".EXE", ".BAT", ".CMD")
+        listOf(command) + extensions.map { command + it.lowercase() } + extensions.map { command + it.uppercase() }
+    } else {
+        listOf(command)
+    }
     val searchPaths = buildList {
         System.getenv("PATH")?.split(File.pathSeparatorChar)?.let(::addAll)
         add("/opt/homebrew/bin")
         add("/usr/local/bin")
     }
     return searchPaths.asSequence()
-        .map { File(it, command) }
+        .flatMap { path -> names.asSequence().map { File(path, it) } }
         .firstOrNull { it.canExecute() }
         ?.absolutePath
 }
@@ -162,7 +175,7 @@ kotlin.sourceSets.commonMain {
     kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
 }
 
-// 为每个目标注册 clang 编译 + ar 归档任务
+// 为每个目标注册 C bridge 编译 + 归档任务
 for (target in nativeTargets) {
     val targetLower = target.name.replaceFirstChar { it.lowercase() }
     val outDir = "build/nativeInterop/$targetLower"
@@ -172,10 +185,10 @@ for (target in nativeTargets) {
         inputs.files("src/nativeInterop/c/env.c", "src/nativeInterop/c/env.h")
         outputs.file("$outDir/env.o")
         onlyIf { canBuildTarget(target.name) }
-        val crossTools = linuxCrossTools(target.name)
-        val configuredCompiler = if (isMacOs && crossTools != null) crossTools.compiler else "clang"
+        val tools = targetTools(target.name)
+        val configuredCompiler = tools?.compiler ?: "clang"
         val compiler = resolveCommand(configuredCompiler) ?: configuredCompiler
-        val cmd = if (isMacOs && crossTools != null)
+        val cmd = if (tools != null)
             listOf(compiler, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
         else
             listOf(compiler, "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
@@ -192,8 +205,8 @@ for (target in nativeTargets) {
         dependsOn("compilePosixEnv${target.name}")
         outputs.file("$outDir/libenv.a")
         onlyIf { canBuildTarget(target.name) }
-        val crossTools = linuxCrossTools(target.name)
-        val configuredArchiver = if (isMacOs && crossTools != null) crossTools.archiver else "ar"
+        val tools = targetTools(target.name)
+        val configuredArchiver = tools?.archiver ?: "ar"
         val archiver = resolveCommand(configuredArchiver) ?: configuredArchiver
         commandLine(archiver, "rcs", "$outDir/libenv.a", "$outDir/env.o")
         doFirst {

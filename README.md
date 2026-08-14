@@ -267,6 +267,8 @@ Custom toolchain paths can be supplied through `NETON_LINUX_X64_CC`, `NETON_LINU
 
 Cross-compilation verifies linking only. Run the produced executable and runtime smoke tests on the target Linux architecture before release.
 
+Windows builds use a MinGW GCC toolchain for the small native lifecycle bridge. When `gcc` and `ar` are not on `PATH`, set `NETON_MINGW_X64_CC` and `NETON_MINGW_X64_AR`, or the corresponding Gradle properties `neton.mingwX64.cc` and `neton.mingwX64.ar`.
+
 **Visit:** http://localhost:8080/
 
 **Response:**
