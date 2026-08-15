@@ -264,6 +264,11 @@ class Neton private constructor() {
             try {
                 ctx.bind(NetonContext::class, ctx)
                 ctx.bind(NetonConfigRegistry::class, configRegistry ?: EmptyNetonConfigRegistry)
+                // 事件总线由框架绑定，而不是让每个应用在装配层自己 bind。
+                // 发布方在模块初始化时就要取到它，取不到就写成 `events?.publish(...)`，
+                // 于是漏装配的后果是全链路静默空转——曾经真的发生过（在线充值不自动到账）。
+                // 由框架保证它一定存在，这个失败模式就不存在了。
+                ctx.bind(neton.core.event.DomainEventBus::class, neton.core.event.DomainEventBus())
                 for (binding in deferredBindings) binding(ctx)
 
                 val env = ConfigLoader.resolveEnvironment(args)
@@ -298,6 +303,8 @@ class Neton private constructor() {
 
                 ctx.markValidating()
                 validateRuntimeGraph(ctx)
+                // 监听者与持久化设施都登记完了：转只读，并校验 RETRYABLE 有落库设施
+                ctx.getOrNull(neton.core.event.DomainEventBus::class)?.seal()
                 ctx.freeze()
                 ctx.markStarting()
 
