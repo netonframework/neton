@@ -3,9 +3,9 @@ package neton.core.event
 /**
  * 待投递事件的持久化端口。
  *
- * 声明在 core、实现在持久化模块：core 不依赖数据库，未装配实现时
- * [DeliveryMode.RETRYABLE] 会退化为 [DeliveryMode.BEST_EFFORT]（见 [DomainEventBus]），
- * 框架在没有数据库的场景下仍可运行。
+ * 声明在 core、实现在持久化模块：core 不依赖数据库，没有 [DeliveryMode.RETRYABLE]
+ * 监听者的部署不需要装配它。有 RETRYABLE 监听者却没装配时，[DomainEventBus.seal]
+ * 在启动期直接失败——不做静默降级。
  *
  * 之所以是"存表 + 轮询"而不是消息中间件：投递记录与发布方的业务写入落在**同一个事务**里，
  * 这是消息中间件给不了的 —— 先写库再发消息会在两者之间留下丢消息的窗口，
@@ -34,13 +34,22 @@ interface DomainEventStore {
      */
     suspend fun claimDue(now: Long, limit: Int, staleBefore: Long): List<StoredEventRecord>
 
-    /** 投递成功，标记完成。 */
-    suspend fun markDelivered(id: Long, now: Long)
+    /**
+     * 投递成功，标记完成。
+     *
+     * 必须校验 [claimToken]：领取的行锁只覆盖 [claimDue] 那一条语句，监听者执行期间早已释放。
+     * 领取者 A 超时后被 B 重领，A 迟到的落定若不带令牌，会把 B 已经完成的记录改回去。
+     * 令牌不匹配时本次落定应当**静默忽略**（返回 false）——它已经不是这条记录的所有者了。
+     *
+     * @return 是否真的落定了（令牌匹配且状态仍为投递中）
+     */
+    suspend fun markDelivered(id: Long, claimToken: String, now: Long): Boolean
 
     /**
      * 投递失败：记录错误并安排下次重试时间；超过上限则置为终态失败，等待人工处理。
+     * 同样校验 [claimToken]，理由见 [markDelivered]。
      */
-    suspend fun markFailed(id: Long, now: Long, nextAttemptAt: Long?, error: String)
+    suspend fun markFailed(id: Long, claimToken: String, now: Long, nextAttemptAt: Long?, error: String): Boolean
 }
 
 /**
@@ -66,6 +75,12 @@ data class StoredEventRecord(
     val listenerId: String,
     val payload: String,
     val attempts: Int,
+    /**
+     * 本次领取的所有权令牌，落定时必须原样带回。
+     *
+     * 每次领取都换新值，因此超时被重领后，旧领取者手里的令牌自动失效。
+     */
+    val claimToken: String,
 )
 
 /**

@@ -106,8 +106,8 @@ class DomainEventBusTest {
         val store = object : DomainEventStore {
             override suspend fun append(record: PendingEventRecord) { appended += record }
             override suspend fun claimDue(now: Long, limit: Int, staleBefore: Long) = emptyList<StoredEventRecord>()
-            override suspend fun markDelivered(id: Long, now: Long) {}
-            override suspend fun markFailed(id: Long, now: Long, nextAttemptAt: Long?, error: String) {}
+            override suspend fun markDelivered(id: Long, claimToken: String, now: Long) = true
+            override suspend fun markFailed(id: Long, claimToken: String, now: Long, nextAttemptAt: Long?, error: String) = true
         }
         val listener = Recorder(mode = DeliveryMode.RETRYABLE)
         val bus = DomainEventBus(listOf(listener), store = store, codec = jsonCodec)
@@ -207,7 +207,51 @@ class DomainEventBusTest {
     private object NoopStore : DomainEventStore {
         override suspend fun append(record: PendingEventRecord) {}
         override suspend fun claimDue(now: Long, limit: Int, staleBefore: Long) = emptyList<StoredEventRecord>()
-        override suspend fun markDelivered(id: Long, now: Long) {}
-        override suspend fun markFailed(id: Long, now: Long, nextAttemptAt: Long?, error: String) {}
+        override suspend fun markDelivered(id: Long, claimToken: String, now: Long) = true
+        override suspend fun markFailed(id: Long, claimToken: String, now: Long, nextAttemptAt: Long?, error: String) = true
+    }
+
+    // ---- 取消 ----
+
+    /** 取消不是失败：BEST_EFFORT 也不能吞掉它，否则关闭时请求无法收敛，还会被记成监听者错误。 */
+    @Test
+    fun cancellationPropagatesEvenForBestEffort() = runBlocking {
+        val errors = mutableListOf<Throwable>()
+        val cancelling = object : DomainEventListener<Paid> {
+            override val eventType = Paid::class
+            override val listenerId = "test.cancelling"
+            override val mode = DeliveryMode.BEST_EFFORT
+            override suspend fun onEvent(event: Paid) {
+                throw kotlin.coroutines.cancellation.CancellationException("shutting down")
+            }
+        }
+        val bus = DomainEventBus(listOf(cancelling), onError = { _, _, e -> errors += e })
+        assertFailsWith<kotlin.coroutines.cancellation.CancellationException> { bus.publish(Paid(1)) }
+        assertTrue(errors.isEmpty(), "取消不该被记成监听者错误")
+    }
+
+    // ---- listenerId 校验 ----
+
+    /** 重复的 listenerId 会让 listenerOf 永远命中第一个，后注册者的积压事件静默投给别人。 */
+    @Test
+    fun sealRejectsDuplicateListenerIds() {
+        val bus = DomainEventBus(
+            listOf(Recorder(listenerId = "dup"), Recorder(listenerId = "dup")),
+        )
+        val e = assertFailsWith<IllegalStateException> { bus.seal() }
+        assertTrue(e.message!!.contains("dup"), e.message!!)
+    }
+
+    @Test
+    fun sealRejectsBlankListenerId() {
+        val bus = DomainEventBus(listOf(Recorder(listenerId = "  ")))
+        assertFailsWith<IllegalStateException> { bus.seal() }
+    }
+
+    /** 匿名类没有 qualifiedName，落库的键会含内存地址——必须拒绝，不能退回 toString。 */
+    @Test
+    fun eventTypeKeyRejectsAnonymousEvent() {
+        val anonymous = object : DomainEvent {}
+        assertFailsWith<IllegalStateException> { anonymous.eventTypeKey() }
     }
 }
