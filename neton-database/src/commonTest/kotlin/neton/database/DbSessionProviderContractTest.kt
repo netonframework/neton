@@ -133,6 +133,60 @@ class DbSessionProviderContractTest {
         assertEquals(1, interceptor.executions)
         assertEquals(0, interceptor.errors)
     }
+
+    // ---- inTransaction()：事务性 outbox 的 append 靠它做前置断言 ----
+
+    @Test
+    fun inTransactionIsFalseOutsideAndTrueInside() = runTest {
+        val provider = CoroutineDbSessionProvider(RecordingSession("root"), RecordingTransactionRunner(RecordingSession("tx")))
+        val db = SqlxDbContext(provider)
+
+        assertEquals(false, db.inTransaction())
+        db.transaction { assertEquals(true, inTransaction()) }
+        assertEquals(false, db.inTransaction(), "退出事务后必须恢复")
+    }
+
+    @Test
+    fun inTransactionStaysTrueInsideNestedTransaction() = runTest {
+        val provider = CoroutineDbSessionProvider(RecordingSession("root"), RecordingTransactionRunner(RecordingSession("tx")))
+        val db = SqlxDbContext(provider)
+
+        db.transaction {
+            transaction {
+                assertEquals(true, inTransaction(), "嵌套事务加入外层，仍在事务中")
+            }
+            assertEquals(true, inTransaction(), "内层退出后外层仍在事务中")
+        }
+        assertEquals(false, db.inTransaction())
+    }
+
+    @Test
+    fun inTransactionResetsAfterExceptionalExit() = runTest {
+        val provider = CoroutineDbSessionProvider(RecordingSession("root"), RecordingTransactionRunner(RecordingSession("tx")))
+        val db = SqlxDbContext(provider)
+
+        assertFailsWith<IllegalStateException> {
+            db.transaction {
+                assertEquals(true, inTransaction())
+                throw IllegalStateException("boom")
+            }
+        }
+        assertEquals(false, db.inTransaction(), "异常退出后不能残留事务状态")
+    }
+
+    @Test
+    fun inTransactionResetsAfterCancellation() = runTest {
+        val provider = CoroutineDbSessionProvider(RecordingSession("root"), RecordingTransactionRunner(RecordingSession("tx")))
+        val db = SqlxDbContext(provider)
+
+        assertFailsWith<CancellationException> {
+            db.transaction {
+                assertEquals(true, inTransaction())
+                throw CancellationException("cancelled")
+            }
+        }
+        assertEquals(false, db.inTransaction(), "取消退出后不能残留事务状态")
+    }
 }
 
 private data class TestEntity(val id: Long, val name: String)
