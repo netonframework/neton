@@ -116,6 +116,8 @@ internal class FakeMigrationDb(
     override suspend fun executeBuilt(built: BuiltSql): Long =
         error("FakeMigrationDb does not support DSL queries")
 
+    override suspend fun inTransaction(): Boolean = transactionDepth > 0
+
     override suspend fun <R> transaction(block: suspend DbContext.() -> R): R {
         transactionDepth++
         return try {

@@ -64,6 +64,14 @@ interface DbContext {
     suspend fun <R> transaction(block: suspend DbContext.() -> R): R
 
     /**
+     * 当前协程是否处在 [transaction] 块内。
+     *
+     * 给「必须与业务写入同事务」的操作做前置断言用（如事务性 outbox 的 append）：
+     * 在事务外执行会立即提交，随后业务失败也收不回来，而这类错误在测试里几乎不会暴露。
+     */
+    suspend fun inTransaction(): Boolean
+
+    /**
      * Interceptor 链（只读，C+ 扩展点）。
      * 用于多租户、数据权限、慢 SQL 统计、Metrics 埋点。
      */

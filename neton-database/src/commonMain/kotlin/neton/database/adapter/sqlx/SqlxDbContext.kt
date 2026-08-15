@@ -37,6 +37,8 @@ internal class SqlxDbContext(
         return execute(sql, params)
     }
 
+    override suspend fun inTransaction(): Boolean = sessions.inTransaction()
+
     override suspend fun <R> transaction(block: suspend DbContext.() -> R): R =
         sessions.transaction { block(this) }
 

@@ -22,6 +22,9 @@ interface DbSessionProvider {
     suspend fun current(): DbSession
 
     suspend fun <R> transaction(block: suspend () -> R): R
+
+    /** 当前协程是否处在 [transaction] 块内。 */
+    suspend fun inTransaction(): Boolean
 }
 
 internal interface DbTransactionRunner {
@@ -37,6 +40,9 @@ internal class CoroutineDbSessionProvider(
 
     override suspend fun current(): DbSession =
         currentCoroutineContext()[TransactionSession]?.session ?: root
+
+    override suspend fun inTransaction(): Boolean =
+        currentCoroutineContext()[TransactionSession] != null
 
     override suspend fun <R> transaction(block: suspend () -> R): R {
         if (currentCoroutineContext()[TransactionSession] != null) return block()
