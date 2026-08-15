@@ -268,7 +268,9 @@ class Neton private constructor() {
                 // 发布方在模块初始化时就要取到它，取不到就写成 `events?.publish(...)`，
                 // 于是漏装配的后果是全链路静默空转——曾经真的发生过（在线充值不自动到账）。
                 // 由框架保证它一定存在，这个失败模式就不存在了。
-                ctx.bind(neton.core.event.DomainEventBus::class, neton.core.event.DomainEventBus())
+                // 错误回调在调用时才去取 CoreLog：总线绑定早于 Logger 就绪，构造期拿不到。
+                // 不能用默认的空回调——BEST_EFFORT 的契约是"失败被记录"，空回调让它变成静默吞掉。
+                ctx.bind(neton.core.event.DomainEventBus::class, neton.core.event.DomainEventBus(onError = ::logListenerFailure))
                 for (binding in deferredBindings) binding(ctx)
 
                 val env = ConfigLoader.resolveEnvironment(args)
@@ -374,6 +376,27 @@ class Neton private constructor() {
                 "lifecycle.stop.failed",
                 mapOf("owner" to owner, "error" to (error.message ?: error.toString())),
                 cause = error,
+            )
+        }
+
+        /**
+         * BEST_EFFORT 监听者失败的记录方式。走 [CoreLog] 是因为总线在 Logger 就绪之前
+         * 就要绑定；[CoreLog.ensureBootstrap] 保证即使 Logger 从未装配也有输出可去，
+         * 不会退化成空操作。
+         */
+        private fun logListenerFailure(
+            event: neton.core.event.DomainEvent,
+            listener: neton.core.event.DomainEventListener<*>,
+            error: Throwable,
+        ) {
+            CoreLog.ensureBootstrap().warn(
+                "event.listener.failed",
+                mapOf(
+                    "listener" to listener.listenerId,
+                    "event" to (event::class.qualifiedName ?: event::class.simpleName ?: "?"),
+                    "mode" to listener.mode.name,
+                ),
+                error,
             )
         }
 
