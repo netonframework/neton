@@ -1,5 +1,6 @@
 package neton.core.event
 
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KClass
 
 /**
@@ -67,6 +68,20 @@ class DomainEventBus(
      */
     fun seal() {
         if (sealed) return
+
+        // listenerId 是落库路由键。空白无法路由；重复时 listenerOf 只会命中第一个，
+        // 后面的监听者的积压事件永远投给别人——静默地。
+        val blank = all.filter { it.listenerId.isBlank() }
+        check(blank.isEmpty()) {
+            "有 ${blank.size} 个监听者的 listenerId 为空白（eventType=" +
+                blank.joinToString { it.eventType.simpleName ?: "?" } + "）。listenerId 是持久化路由键，必须显式声明。"
+        }
+        val duplicated = all.groupBy { it.listenerId }.filterValues { it.size > 1 }.keys
+        check(duplicated.isEmpty()) {
+            "listenerId 重复：${duplicated.joinToString()}。落库事件按 listenerId 路由回监听者，" +
+                "重复会让后注册的监听者永远收不到自己的积压事件。"
+        }
+
         val needsStore = all.filter { it.mode == DeliveryMode.RETRYABLE }
         if (needsStore.isNotEmpty() && (store == null || codec == null)) {
             val missing = buildList {
@@ -126,6 +141,9 @@ class DomainEventBus(
 
             try {
                 (listener as DomainEventListener<DomainEvent>).onEvent(event)
+            } catch (e: CancellationException) {
+                // 取消不是失败：吞掉它会让请求/任务在关闭时无法收敛，还会把取消记成监听者错误
+                throw e
             } catch (e: Throwable) {
                 if (listener.mode == DeliveryMode.SYNC) throw e
                 onError(event, listener, e)
@@ -167,6 +185,13 @@ class DomainEventBus(
  *
  * 用全限定名而不是 simpleName：这个字符串会写进数据库、跨进程重启后仍要能解回来，
  * 而不同包下的同名事件（两个 `OrderPaid`）在 simpleName 下会撞成同一个键。
+ *
+ * 拿不到全限定名（匿名类、局部类）时**抛错**而不是退回 `toString()`：后者在 Native 上
+ * 含内存地址，每次进程都不同，落库后必然解不回来。要落库的事件必须是具名顶层/嵌套类。
  */
 fun DomainEvent.eventTypeKey(): String =
-    this::class.qualifiedName ?: this::class.simpleName ?: this::class.toString()
+    this::class.qualifiedName
+        ?: error(
+            "事件 ${this::class} 没有稳定的全限定名（匿名类或局部类），不能落库投递。" +
+                "请把它声明为具名的顶层类或嵌套类。"
+        )
