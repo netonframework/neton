@@ -119,8 +119,15 @@ subprojects {
             }
         }
 
-        if (sub.hasProperty("signing.keyId")) {
-            sub.extensions.getByType<org.gradle.plugins.signing.SigningExtension>().sign(publishing.publications)
+        // Central 强制签名。优先内存 key（CI / 无 keyring 的机器），其次本地 keyring。
+        val signing = sub.extensions.getByType<org.gradle.plugins.signing.SigningExtension>()
+        val inMemoryKey = sub.findProperty("signingInMemoryKey") as String?
+        when {
+            !inMemoryKey.isNullOrBlank() -> {
+                signing.useInMemoryPgpKeys(inMemoryKey, sub.findProperty("signingInMemoryKeyPassword") as String? ?: "")
+                signing.sign(publishing.publications)
+            }
+            sub.hasProperty("signing.keyId") -> signing.sign(publishing.publications)
         }
     }
 }
