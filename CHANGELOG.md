@@ -10,6 +10,13 @@ so this release focuses on hardening the public surface rather than adding featu
 
 ### Fixed
 
+- Publishing collapsed every Kotlin/Native target publication onto the root artifact id, so a
+  full publish overwrote `neton-core` with whichever target was published last and the root
+  Gradle module metadata lost its `available-at` links. Target publications keep their own
+  artifact ids again.
+- The MinGW C bridge (`posixenv`) can now be cross-compiled on macOS and Linux with `clang`
+  and the msys2 sysroot that Kotlin/Native already downloads, so a single host can produce
+  every target and the root publication. Windows still builds natively.
 - **`@RateLimit` never limited anything.** The only enforcement point lived in
   `DefaultRequestEngine.processRequest`, which the HTTP adapter never calls — it
   dispatches the KSP-generated `RouteDefinition.handler` directly. The annotation,
@@ -82,6 +89,10 @@ so this release focuses on hardening the public surface rather than adding featu
 
 ### Added
 
+- A single entry coordinate, `com.netonstream:neton`, that depends on `neton-core`,
+  `neton-logging`, `neton-http` and `neton-routing` and exports `neton-bom` constraints. One
+  versioned line gives a runnable service; every other module is then added without a
+  version and resolves to the same release. `neton-bom` is also published on its own.
 - `cache { }` DSL and `config/cache.conf` (`[caches.<name>]`) with fail-fast parsing:
   unknown codec, non-numeric `ttlMs`/`maxSize` and non-boolean flags are rejected
   rather than silently replaced by defaults. Installing `cache { }` without `redis { }`

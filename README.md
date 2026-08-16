@@ -62,6 +62,24 @@ Apple Silicon, Linux or Windows.
 
 ## Quick Start
 
+### Dependency
+
+```kotlin
+implementation("com.netonstream:neton:1.0.0-beta1")
+```
+
+`neton` brings in `neton-core`, `neton-logging`, `neton-http` and `neton-routing` — enough for a
+running service — and pins every other module to the same release, so optional modules are added
+without a version:
+
+```kotlin
+implementation("com.netonstream:neton-database")
+implementation("com.netonstream:neton-redis")
+```
+
+Projects that only want the version constraints can use
+`implementation(platform("com.netonstream:neton-bom:1.0.0-beta1"))`.
+
 ### Minimal Example
 
 ```kotlin
@@ -296,6 +314,8 @@ Hello Neton!
 
 | Module | Responsibility | Status |
 |--------|---------------|--------|
+| neton | Entry coordinate: core + logging + http + routing, plus BOM constraints | Stable |
+| neton-bom | Version alignment for all modules | Stable |
 | neton-core | Bootstrap / components / config | Stable |
 | neton-http | Default Ktor server adapter + outbound HTTP client | Stable |
 | neton-logging | Structured logging + sinks/async | Stable |

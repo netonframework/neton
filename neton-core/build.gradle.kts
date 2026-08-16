@@ -24,23 +24,40 @@ val isMacOs = hostOs.contains("mac")
 val isLinux = hostOs.contains("linux")
 val isWindows = hostOs.contains("windows")
 
-data class NativeTools(val compiler: String, val archiver: String)
+/** [compilerArgs] 是放在源文件之前的额外参数（如 --sysroot / -target）。 */
+data class NativeTools(val compiler: String, val archiver: String, val compilerArgs: List<String> = emptyList())
 
 fun configuredTool(property: String, environment: String, default: String): String =
     providers.gradleProperty(property)
         .orElse(providers.environmentVariable(environment))
         .getOrElse(default)
 
-fun kotlinNativeMingwTool(name: String): String? {
-    val dependencies = File(System.getProperty("user.home"), ".konan/dependencies")
-    return dependencies.listFiles()
+val konanDependencies = File(System.getProperty("user.home"), ".konan/dependencies")
+
+fun kotlinNativeMingwTool(name: String): String? =
+    konanDependencies.listFiles()
         ?.asSequence()
         ?.filter { it.isDirectory && it.name.startsWith("msys2-mingw-w64-x86_64-") }
         ?.map { File(it, "bin/$name.exe") }
         ?.filter { it.isFile }
         ?.maxByOrNull { it.lastModified() }
         ?.absolutePath
-}
+
+/** Kotlin/Native 为 mingw 交叉编译下载的 msys2 sysroot（含 signal.h 等 CRT 头文件）。 */
+fun kotlinNativeMingwSysroot(): File? =
+    konanDependencies.listFiles()
+        ?.filter { it.isDirectory && it.name.startsWith("msys2-mingw-w64-x86_64-") }
+        ?.maxByOrNull { it.lastModified() }
+
+/** Kotlin/Native 自带的 llvm-ar，能正确归档 COFF 目标（Apple ar 不认 COFF）。 */
+fun kotlinNativeLlvmTool(name: String): String? =
+    konanDependencies.listFiles()
+        ?.asSequence()
+        ?.filter { it.isDirectory && it.name.startsWith("llvm-") }
+        ?.map { File(it, "bin/$name") }
+        ?.filter { it.isFile }
+        ?.maxByOrNull { it.lastModified() }
+        ?.absolutePath
 
 fun targetTools(targetName: String): NativeTools? = when {
     isMacOs && targetName == "LinuxX64" -> NativeTools(
@@ -59,6 +76,16 @@ fun targetTools(targetName: String): NativeTools? = when {
             .orElse(providers.environmentVariable("NETON_MINGW_X64_AR"))
             .orNull ?: kotlinNativeMingwTool("ar") ?: "ar",
     )
+    // 非 Windows 主机为 mingw 交叉编译：clang -target x86_64-w64-mingw32 + K/N 已下载的 msys2 sysroot。
+    // 这让 macOS / Linux 能产出全部五个 target 的 cinterop klib，成为可以发布根 publication 的主机。
+    !isWindows && targetName == "MingwX64" -> {
+        val sysroot = kotlinNativeMingwSysroot()
+        if (sysroot == null) null else NativeTools(
+            compiler = configuredTool("neton.mingwX64.cc", "NETON_MINGW_X64_CC", "clang"),
+            archiver = configuredTool("neton.mingwX64.ar", "NETON_MINGW_X64_AR", kotlinNativeLlvmTool("llvm-ar") ?: "llvm-ar"),
+            compilerArgs = listOf("-target", "x86_64-w64-mingw32", "--sysroot=${sysroot.absolutePath}"),
+        )
+    }
     else -> null
 }
 
@@ -92,7 +119,8 @@ fun resolveCommand(command: String): String? {
 fun canBuildTarget(targetName: String): Boolean = when (targetName) {
     "MacosArm64", "MacosX64" -> isMacOs
     "LinuxX64", "LinuxArm64" -> isLinux || isMacOs
-    "MingwX64" -> isWindows
+    // Windows 原生构建，或非 Windows 主机上有 K/N 下载的 msys2 sysroot 可供 clang 交叉编译
+    "MingwX64" -> isWindows || kotlinNativeMingwSysroot() != null
     else -> false
 }
 
@@ -213,7 +241,7 @@ for (target in nativeTargets) {
             out.mkdirs()
             commandLine(
                 if (tools != null)
-                    listOf(compiler, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
+                    listOf(compiler) + tools.compilerArgs + listOf("-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
                 else
                     listOf(compiler, "-target", target.clangTarget, "-c", "src/nativeInterop/c/env.c", "-I", "src/nativeInterop/c", "-o", "$outDir/env.o")
             )

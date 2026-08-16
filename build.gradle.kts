@@ -88,9 +88,22 @@ subprojects {
             }
         }
 
+        // java-platform（neton-bom）没有自动 publication，手动建
+        if (sub.plugins.hasPlugin("java-platform") && publishing.publications.isEmpty()) {
+            publishing.publications.create<MavenPublication>("javaPlatform") {
+                from(sub.components["javaPlatform"])
+                artifactId = sub.name
+                groupId = netonGroup
+                version = netonVersion
+                pom { configurePom(sub, this) }
+            }
+        }
+
+        // 只统一 group / version / POM，不动 artifactId：KMP 每个 target 的 publication
+        // 有自己的 artifactId（neton-core-macosarm64 等），全部改成 sub.name 会让它们互相覆盖，
+        // 根坐标上留下的是某个 target 的 .module，消费方按元数据解析就拿到坏包。
         publishing.publications.withType<MavenPublication>().configureEach {
             groupId = netonGroup
-            artifactId = sub.name
             version = netonVersion
             pom { configurePom(sub, this) }
         }
