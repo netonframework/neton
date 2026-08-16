@@ -16,6 +16,8 @@ fun main(args: Array<String>) {
         }
         database { }
         routing { }
+        // KSP 为本应用的 @Controller 生成的注册器，必须显式传入
+        modules(neton.core.generated.GeneratedInitializer)
         onStart {
             UserTable.ensureTable()
             RoleTable.ensureTable()

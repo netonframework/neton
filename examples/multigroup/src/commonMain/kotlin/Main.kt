@@ -27,6 +27,9 @@ fun main(args: Array<String>) {
             println("🛣️ Routing configured - KSP will auto-generate controller routes")
         }
 
+        // KSP 为本应用的 @Controller 生成的注册器，必须显式传入
+        modules(neton.core.generated.GeneratedInitializer)
+
         redis {
             // keyPrefix 默认 "neton"，锁 key = neton:lock:xxx
         }

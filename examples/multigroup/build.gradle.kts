@@ -40,26 +40,25 @@ kotlin {
 }
 
 // KSP 按编译目标配置
+// KSP：只在 macosArm64 目标生成一次（各目标生成内容一致），输出共享到 commonMain，
+// 这样 commonMain 里的 Main.kt 才能引用生成的 GeneratedInitializer。
 dependencies {
     add("kspMacosArm64", project(":neton-ksp"))
-    add("kspMacosX64", project(":neton-ksp"))
-    add("kspLinuxX64", project(":neton-ksp"))
-    add("kspLinuxArm64", project(":neton-ksp"))
-    add("kspMingwX64", project(":neton-ksp"))
 }
 
-// KSP 生成代码加入各平台 sourceSet
-for (targetName in listOf("MacosArm64", "MacosX64", "LinuxX64", "LinuxArm64", "MingwX64")) {
-    val lower = targetName.replaceFirstChar { it.lowercase() }
-    kotlin.sourceSets.named("${lower}Main") {
-        kotlin.srcDir("build/generated/ksp/$lower/${lower}Main/kotlin")
+kotlin.sourceSets.named("commonMain") {
+    kotlin.srcDir("build/generated/ksp/macosArm64/macosArm64Main/kotlin")
+}
+afterEvaluate {
+    kotlin.sourceSets.findByName("macosArm64Main")?.let { ss ->
+        val filtered = ss.kotlin.srcDirs.filter { !it.path.contains("generated/ksp") }
+        if (filtered.size < ss.kotlin.srcDirs.size) ss.kotlin.setSrcDirs(filtered)
     }
 }
 
-// compile 依赖 KSP 生成
+// 所有目标的编译都依赖 macosArm64 的 KSP 生成
 tasks.matching { it.name.matches(Regex("compileKotlin(MacosArm64|MacosX64|LinuxX64|LinuxArm64|MingwX64)")) }.configureEach {
-    val targetName = name.removePrefix("compileKotlin")
-    dependsOn("kspKotlin$targetName")
+    dependsOn("kspKotlinMacosArm64")
 }
 
 // link 依赖 libenv.a

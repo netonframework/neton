@@ -28,6 +28,10 @@ fun main(args: Array<String>) {
 
         routing { }
 
+        // KSP 为本应用的 @Controller 生成的注册器，必须显式传入
+
+        modules(neton.core.generated.GeneratedInitializer)
+
         onStart {
             val ctx = get(NetonContext::class)
             val loggerFactory = get(LoggerFactory::class)

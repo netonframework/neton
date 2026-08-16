@@ -297,4 +297,25 @@ class ControllerProcessorDiagnosticsTest {
         assertContains(compiled.generatedSource, """args.first("id")""")
         assertContains(compiled.generatedSource, "lockManager.withLock")
     }
+
+    // ---- 非模块应用的注册方式：显式，而不是靠链接期同名覆盖 ----
+
+    /**
+     * 生成物必须是 ModuleInitializer，让应用能 `modules(GeneratedInitializer)` 显式传入。
+     * 之前靠应用里的同名对象覆盖 neton-core 内的 stub——用发布出去的 klib 时不成立，
+     * 所有 @Controller 路由静默 404（neton-start 首次对接 Central 产物时发现）。
+     */
+    @Test
+    fun generatedInitializerIsAnExplicitModuleInitializer() {
+        val compiled = compile(
+            """
+            @Get("/a")
+            suspend fun a(): Reply = Reply("a")
+            """,
+        )
+        assertContains(compiled.generatedSource, "object GeneratedInitializer : neton.core.module.ModuleInitializer")
+        assertContains(compiled.generatedSource, "override val moduleId: String = \"application\"")
+        assertContains(compiled.generatedSource, "override fun initialize(ctx: neton.core.component.NetonContext)")
+        assertFalse(compiled.generatedSource.contains("NetonContext?)"), "非模块模式不该再有可空 ctx 的旧签名")
+    }
 }

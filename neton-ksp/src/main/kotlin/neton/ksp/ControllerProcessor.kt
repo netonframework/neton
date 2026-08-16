@@ -243,7 +243,7 @@ class ControllerProcessor(
  * 此文件由 Neton KSP 处理器自动生成，请勿手动编辑。
  * 包含 ${controllers.size} 个控制器的路由注册。
  */
-${if (moduleId != null) "internal " else ""}object $generatedClassName {
+${if (moduleId != null) "internal object $generatedClassName {" else "object $generatedClassName : neton.core.module.ModuleInitializer {"}
 ${
                     if (hasSerializableReturn) """
     /**
@@ -262,17 +262,34 @@ ${
             )
 
             writer.write(
-                """
-    /**
-     * 初始化所有 KSP 生成的路由（从 ctx 获取 RequestEngine）
-     * 签名必须与 neton-core 的 fallback 一致：initialize(ctx: NetonContext?)
-     */
+                if (moduleId != null) """
+    /** 由模块 manifest 在模块初始化时调用。 */
     fun initialize(ctx: neton.core.component.NetonContext?) {
         if (ctx == null) return
         val engine = ctx.get(neton.core.interfaces.RequestEngine::class)
         registerRoutes(engine, ctx)
     }
+""" else """
+    override val moduleId: String = "application"
 
+    override val stats: Map<String, Int> = mapOf("routes" to ${getTotalRouteCount(controllers)})
+
+    /**
+     * 由应用入口显式传入：`Neton.run(args) { modules(GeneratedInitializer) }`。
+     *
+     * 框架不再自动调用它。之前靠「应用里生成一个与 neton-core 内 stub 同名的对象、
+     * 链接时覆盖」来做到零配置，但那只对源码依赖成立——用发布到 Maven 的 klib 时，
+     * 框架的调用绑定到自己的 stub，应用的控制器路由全部静默 404。显式注册没有这个问题。
+     */
+    override fun initialize(ctx: neton.core.component.NetonContext) {
+        val engine = ctx.get(neton.core.interfaces.RequestEngine::class)
+        registerRoutes(engine, ctx)
+    }
+"""
+            )
+
+            writer.write(
+                """
     /**
      * 注册所有路由到请求引擎
      */
