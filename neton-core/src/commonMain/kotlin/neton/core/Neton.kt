@@ -445,9 +445,27 @@ class Neton private constructor() {
                 log?.info("modules.summary", summary)
             }
 
-            // 应用入口自身的 controllers/validators 不属于任何模块 manifest，必须在模块
-            // 初始化后单独注册。无模块应用也复用同一路径。
-            neton.core.generated.GeneratedInitializer.initialize(ctx)
+            // 应用入口自身的 @Controller 由 KSP 生成的 GeneratedInitializer（一个 ModuleInitializer）
+            // 注册，应用通过 modules(GeneratedInitializer) 显式传入——与其它模块走同一条路径。
+            // 这里不再隐式调用任何生成物：隐式调用靠链接期同名覆盖，用发布出去的 klib 时不成立。
+            warnIfRoutingHasNoRoutes(ctx, log)
+        }
+
+        /**
+         * 装了 routing { } 却一条路由都没有，最常见的原因是写了 @Controller 但忘了
+         * `modules(GeneratedInitializer)`。这种情况下所有接口都是 404 且没有任何报错，
+         * 所以启动时给一条明确的提示。DSL 路由或模块路由存在时不会触发。
+         */
+        private fun warnIfRoutingHasNoRoutes(ctx: NetonContext, log: Logger?) {
+            val engine = ctx.getOrNull(RequestEngine::class) ?: return
+            if (engine.getRoutes().isNotEmpty()) return
+            log?.warn(
+                "routing.no_routes",
+                mapOf(
+                    "hint" to "No routes are registered. If this application declares @Controller classes, " +
+                        "pass the KSP-generated initializer explicitly: Neton.run(args) { modules(GeneratedInitializer) }",
+                ),
+            )
         }
 
         private fun executeComponentConfiguration(ctx: NetonContext, log: Logger?) {

@@ -2,6 +2,38 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta2
+
+### Fixed
+
+- **`@Controller` routes were never registered in applications built against the published
+  artifacts.** The framework called a stub `neton.core.generated.GeneratedInitializer` inside
+  `neton-core` and relied on the application's KSP-generated object of the same name
+  shadowing it at link time. That happens to work for source (project) dependencies and
+  does not work for klibs resolved from Maven: the call binds to the stub, the generated
+  routes are dead code, and every controller endpoint answers 404 with no error anywhere.
+  Every application in this repository uses project dependencies, which is why it went
+  unnoticed until the first standalone application was built against 1.0.0-beta1.
+
+  Registration is now explicit. KSP generates `GeneratedInitializer` as a
+  `neton.core.module.ModuleInitializer` and the application passes it in:
+
+  ```kotlin
+  Neton.run(args) {
+      routing { }
+      modules(GeneratedInitializer)   // neton.core.generated.GeneratedInitializer
+  }
+  ```
+
+  Applications that already use module manifests (`modules(*GeneratedApplicationModules.modules)`)
+  are unaffected. Startup now logs `routing.no_routes` when `routing { }` is installed but
+  nothing registered a route, which is the symptom of forgetting the line above.
+
+### Changed
+
+- The `neton.core.generated.GeneratedInitializer` stub was removed from `neton-core`; the
+  name is now owned entirely by the application's generated code.
+
 ## 1.0.0-beta1
 
 First public beta. The framework core (HTTP, routing, security, database, logging,
