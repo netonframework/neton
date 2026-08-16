@@ -109,6 +109,11 @@ subprojects {
         }
 
         publishing.repositories {
+            // 本地文件仓库：产出可直接打成 Central Portal bundle 的目录树（含签名与校验和）
+            maven {
+                name = "stagingLocal"
+                url = uri(rootProject.layout.buildDirectory.dir("staging-repo"))
+            }
             maven {
                 name = "sonatypeCentral"
                 url = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
