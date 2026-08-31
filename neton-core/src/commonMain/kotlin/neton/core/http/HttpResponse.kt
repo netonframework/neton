@@ -82,6 +82,11 @@ interface HttpResponse {
      * 是否已提交响应
      */
     val isCommitted: Boolean
+
+    /**
+     * 已写出的响应体字节数，供 access log 的 bytesOut 使用；默认 0。
+     */
+    val bytesOut: Long get() = 0L
     
     /**
      * 内容类型
