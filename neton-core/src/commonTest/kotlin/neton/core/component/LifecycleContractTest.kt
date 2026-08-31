@@ -223,6 +223,8 @@ class LifecycleContractTest {
     private class RecordingHttpAdapter(
         private val events: MutableList<String>,
     ) : HttpAdapter {
+        override val capabilities = emptySet<neton.core.http.adapter.HttpCapability>()
+
         override suspend fun start(
             ctx: NetonContext,
             onStarted: (suspend (coldStartMs: Long) -> Unit)?,

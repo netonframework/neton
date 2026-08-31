@@ -47,6 +47,7 @@ class EventBusAssemblyTest {
                 override suspend fun start(ctx: NetonContext, onStarted: (suspend (Long) -> Unit)?) { onStarted?.invoke(1L) }
                 override suspend fun stop() {}
                 override fun port() = 0
+                override val capabilities = emptySet<neton.core.http.adapter.HttpCapability>()
             })
         }
     }
