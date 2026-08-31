@@ -17,7 +17,9 @@ import kotlinx.serialization.json.JsonNull
  * - `message`: 简短描述（错误时携带可读信息，成功时通常为 `"OK"`）
  * - `data`: 业务数据；错误时**必须** `null`
  *
- * 序列化经 [kotlinx.serialization]，禁止手拼 JSON 字符串。
+ * 序列化默认经 [kotlinx.serialization]；neton-http 对常见值形态（null/String/数字/Boolean/Map/Iterable）
+ * 提供字节级等价的快速写入路径（契约测试锁定等价性），快速路径覆盖不到的值自动回退到
+ * kotlinx.serialization，禁止未经契约测试的手工拼接。
  */
 @Serializable
 data class ApiEnvelope(

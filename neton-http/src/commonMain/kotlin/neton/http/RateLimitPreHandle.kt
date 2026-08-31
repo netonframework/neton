@@ -17,7 +17,7 @@ import neton.core.interfaces.SecurityAttributes
  *
  * @return true 放行；false 表示 [gate] 已写入 429，调用方必须跳过 handler
  */
-internal suspend fun runRateLimitPreHandle(
+public suspend fun runRateLimitPreHandle(
     route: RouteDefinition,
     httpContext: HttpContext,
     gate: RateLimitGate?,
