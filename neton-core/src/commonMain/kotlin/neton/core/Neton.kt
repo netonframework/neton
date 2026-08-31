@@ -4,6 +4,9 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import neton.core.http.adapter.HttpAdapter
+import neton.core.http.adapter.HttpCapability
+import neton.core.http.adapter.HttpCapabilityRequirements
+import neton.core.http.adapter.validateHttpCapabilities
 import neton.core.interfaces.*
 import neton.core.config.ConfigLoader
 import neton.core.config.EmptyNetonConfigRegistry
@@ -188,6 +191,27 @@ class Neton private constructor() {
         }
 
         /**
+         * 声明本应用需要的 HTTP 引擎能力
+         * （spec http-engine-capabilities §2.3）。
+         *
+         * 引擎不具备时**启动即失败**，而不是降级运行——比如在不支持真流式的引擎上
+         * 跑 SSE 不会报错，只会把事件全堆到响应结束才一次吐出，那种故障极难定位。
+         *
+         * 组件也可以自己登记（取 ctx 里的 [HttpCapabilityRequirements]），
+         * 框架取并集。
+         */
+        fun requireHttpCapabilities(
+            vararg capabilities: HttpCapability,
+            requiredBy: String = "application",
+        ) {
+            deferredBindings.add { ctx ->
+                val req = ctx.getOrNull(HttpCapabilityRequirements::class)
+                    ?: HttpCapabilityRequirements().also { ctx.bind(HttpCapabilityRequirements::class, it) }
+                req.require(capabilities.toList(), requiredBy)
+            }
+        }
+
+        /**
          * 传入 KSP 生成的配置注册表，供 @NetonConfig 自动应用
          * 不调用则使用空注册表（不应用任何业务配置器）
          */
@@ -299,6 +323,11 @@ class Neton private constructor() {
                 val securityConfig = buildSecurityConfigurationFromCtx(ctx, log)
                 configureRequestEngineFromCtx(ctx, securityConfig)
                 val adapter = ctx.get<HttpAdapter>()
+                // 能力校验必须在 start() 之前:端口被占用之后才失败,会让一次
+                // 配置错误看起来像端口冲突(spec http-engine-capabilities §2.4)。
+                ctx.getOrNull(HttpCapabilityRequirements::class)?.let { required ->
+                    validateHttpCapabilities(adapter.adapterName(), adapter.capabilities, required)
+                }
                 httpAdapter = adapter
                 val application = KotlinApplication(adapter.port(), ctx)
                 userBlock?.invoke(application)

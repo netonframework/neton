@@ -69,6 +69,22 @@ class KtorHttpAdapter(
     override fun port(): Int = serverConfig.port
     override fun adapterName(): String = "Ktor CIO"
 
+    /**
+     * Ktor CIO 的实际能力（spec http-engine-capabilities §3）。
+     *
+     * **没有 `HTTP_2`，而且这不是待办**：Ktor 的 HTTP/2 只在 Netty / Jetty 引擎上，
+     * 那两个是 JVM-only；Kotlin/Native 目标只有 CIO。实测
+     * `ktor-server-cio-*Main-3.5.1.klib` 中 http2 / h2c 相关符号为 0。
+     * 需要 HTTP/2 的应用应改用 hyper4k 适配器。
+     *
+     * 同理没有 `TRAILERS`。
+     */
+    override val capabilities: Set<neton.core.http.adapter.HttpCapability> = setOf(
+        neton.core.http.adapter.HttpCapability.STREAMING_RESPONSE,
+        neton.core.http.adapter.HttpCapability.MULTIPART,
+        neton.core.http.adapter.HttpCapability.ASYNC_HANDOFF,
+    )
+
     private fun log(): neton.logging.Logger? = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
 
     override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) {

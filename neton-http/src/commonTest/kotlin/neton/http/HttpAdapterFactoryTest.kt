@@ -27,6 +27,7 @@ class HttpAdapterFactoryTest {
 }
 
 private class StubAdapter(private val configuredPort: Int) : HttpAdapter {
+    override val capabilities = emptySet<neton.core.http.adapter.HttpCapability>()
     override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) = Unit
     override suspend fun stop() = Unit
     override fun port(): Int = configuredPort
