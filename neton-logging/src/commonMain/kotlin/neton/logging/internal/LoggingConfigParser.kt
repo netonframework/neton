@@ -51,7 +51,11 @@ internal fun parseLoggingConfig(configMap: Map<String, Any?>?): LoggingConfig? {
 
     @Suppress("UNCHECKED_CAST")
     val sinksRaw = configMap["sinks"] as? List<Map<String, Any?>>
-    if (sinksRaw.isNullOrEmpty()) return null
+    if (sinksRaw.isNullOrEmpty()) {
+        // 无 [[logging.sinks]] 时沿用默认路由规则，但 level/format/async 必须生效；
+        // 早先直接 return null 会退回 INFO 默认配置，导致 `[logging] level` 被静默忽略。
+        return defaultLoggingConfig().copy(minLevel = minLevel, format = format, async = async)
+    }
 
     val rules = mutableListOf<RouteRule>()
     var hasStdout = false

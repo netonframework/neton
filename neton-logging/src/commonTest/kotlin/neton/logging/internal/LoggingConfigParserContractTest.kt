@@ -45,10 +45,25 @@ class LoggingConfigParserContractTest {
     }
 
     @Test
-    fun nullOrEmptySinks_returnsNull() {
+    fun nullConfig_returnsNull() {
         assertEquals(null, parseLoggingConfig(null))
-        val empty = parseLoggingConfig(mapOf("level" to "DEBUG", "sinks" to emptyList<Map<String, Any?>>()))
-        assertEquals(null, empty)
+    }
+
+    @Test
+    fun whenNoSinksConfigured_levelFormatAsyncStillApply() {
+        // 回归：早先无 [[logging.sinks]] 时直接 return null，
+        // `[logging] level = "WARN"` 被静默忽略、退回 INFO 默认配置。
+        val result = parseLoggingConfig(mapOf("level" to "WARN"))
+            ?: error("Expected non-null LoggingConfig")
+        assertEquals(LogLevel.WARN, result.minLevel)
+        // 沿用默认路由规则（含 access/error/all）
+        assertNotNull(result.rules.find { it.msgEquals == "http.access" })
+
+        val emptySinks = parseLoggingConfig(
+            mapOf("level" to "ERROR", "format" to "JSON", "sinks" to emptyList<Map<String, Any?>>())
+        ) ?: error("Expected non-null LoggingConfig")
+        assertEquals(LogLevel.ERROR, emptySinks.minLevel)
+        assertEquals(LogFormat.JSON, emptySinks.format)
     }
 
     @Test
