@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package neton.http
+package neton.http.ktor
 
 import platform.posix.getenv
 import platform.posix._putenv

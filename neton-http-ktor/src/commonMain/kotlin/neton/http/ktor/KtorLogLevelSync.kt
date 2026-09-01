@@ -1,4 +1,4 @@
-package neton.http
+package neton.http.ktor
 
 /**
  * 将 KTOR_LOG_LEVEL 与框架 [logging] level 同步。
