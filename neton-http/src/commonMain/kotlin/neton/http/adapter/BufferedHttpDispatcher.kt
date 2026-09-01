@@ -593,7 +593,7 @@ public class BufferedHttpDispatcher(
             return segments.dropLast(1).firstOrNull { it in configuredGroups }
         }
 
-        fun joinPath(mount: String, route: String): String {
+        internal fun joinPath(mount: String, route: String): String {
             val joined = listOf(mount, route)
                 .flatMap { it.split('/').filter(String::isNotEmpty) }
                 .joinToString("/", prefix = "/")

@@ -1,5 +1,7 @@
 package neton.http.client
 
+import neton.core.annotations.InternalNetonApi
+
 /**
  * DSL config for standalone NetonHttpClient.create { ... } AND HttpClientComponent.
  * Nullable fields = "not set" (let defaults or file config fill in).
@@ -13,6 +15,8 @@ class HttpClientConfig {
     /** HTTP(S) 代理地址，如 "http://host:port"。仅支持 HTTP 代理（CIO 引擎不支持 SOCKS）。 */
     var proxyUrl: String? = null
 
+    /** Public only so client adapter modules can resolve the same defaults. */
+    @InternalNetonApi
     fun toEffectiveTimeout(): NetonHttpTimeout = NetonHttpTimeout(
         connectMillis = connectMillis ?: 5_000,
         requestMillis = requestMillis ?: 60_000,

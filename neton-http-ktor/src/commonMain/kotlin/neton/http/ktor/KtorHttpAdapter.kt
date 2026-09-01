@@ -1,6 +1,5 @@
 package neton.http.ktor
 
-import neton.http.joinMountPath
 
 
 import neton.core.http.adapter.HttpServerConfig
