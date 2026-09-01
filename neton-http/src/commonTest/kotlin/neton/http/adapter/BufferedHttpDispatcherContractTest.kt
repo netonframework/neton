@@ -1,5 +1,7 @@
 package neton.http.adapter
 
+import neton.core.http.adapter.HttpServerConfig
+
 import kotlinx.coroutines.runBlocking
 import neton.core.component.NetonContext
 import neton.core.http.ApiEnvelope
@@ -13,7 +15,6 @@ import neton.core.http.SimpleCookie
 import neton.core.interfaces.RequestEngine
 import neton.core.interfaces.RouteDefinition
 import neton.core.interfaces.RouteHandler
-import neton.http.HttpServerConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -1,5 +1,9 @@
 package neton.http
 
+import neton.core.http.adapter.HttpAdapterFactory
+
+import neton.core.http.adapter.HttpServerConfig
+
 import neton.core.component.NetonContext
 import neton.core.http.DefaultParamConverterRegistry
 import neton.core.http.adapter.HttpAdapter

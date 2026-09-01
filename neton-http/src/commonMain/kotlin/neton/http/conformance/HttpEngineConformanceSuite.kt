@@ -1,5 +1,7 @@
 package neton.http.conformance
 
+import neton.core.http.adapter.HttpServerConfig
+
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -166,17 +168,17 @@ public abstract class HttpEngineConformanceSuite {
      */
     public suspend fun checkStreamingReleasesChunksAsProduced() {
         requiring(HttpCapability.STREAMING_RESPONSE, "checkStreamingReleasesChunksAsProduced") {
-            var releasedBeforeSecond = -1
+            var firstArrivedBeforeSecond = false
             val stream = streamRoundTrip(
                 ConformanceRequest(method = "GET", path = ConformanceFixtures.STREAM),
             ) { writer, meter ->
                 writer.writeChunk("chunk-1")
-                releasedBeforeSecond = meter.released()
+                firstArrivedBeforeSecond = meter.awaitReleased(1)
                 writer.writeChunk("chunk-2")
             }
 
-            expect(releasedBeforeSecond >= 1) {
-                "response was buffered: 0 chunks had reached the client before the last one was produced"
+            expect(firstArrivedBeforeSecond) {
+                "response was buffered: no chunk reached the client before the last one was produced"
             }
             expect(stream.chunks.size == 2) { "expected 2 chunks downstream, got ${stream.chunks.size}" }
             expect(stream.chunks[0].decodeToString() == "chunk-1") { "chunk order changed" }
@@ -202,9 +204,22 @@ private fun expect(condition: Boolean, message: () -> String) {
     if (!condition) throw AssertionError(message())
 }
 
-/** How many chunks the transport has handed downstream. See [HttpEngineConformanceSuite.streamRoundTrip]. */
-public fun interface ChunkMeter {
+/**
+ * How many chunks the transport has handed downstream.
+ *
+ * [awaitReleased] rather than a bare sample, because a write returning does not mean
+ * the client received anything: the engine may still be holding the chunk in its own
+ * buffer. Sampling races the transport and passes or fails on timing. Waiting is
+ * decisive in both directions: a streaming engine satisfies it almost immediately,
+ * and a buffering one can never satisfy it, because it writes nothing until the
+ * producer returns.
+ */
+public interface ChunkMeter {
+    /** Chunks delivered so far, without waiting. */
     public fun released(): Int
+
+    /** Waits until at least [count] chunks reached the client. False on timeout. */
+    public suspend fun awaitReleased(count: Int, timeoutMillis: Long = 2_000): Boolean
 }
 
 /** What one streaming round trip observed. */

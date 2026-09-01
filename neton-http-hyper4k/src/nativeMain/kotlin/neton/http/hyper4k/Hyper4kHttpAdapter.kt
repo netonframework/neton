@@ -1,5 +1,7 @@
 package neton.http.hyper4k
 
+import neton.core.http.adapter.HttpServerConfig
+
 import hyper4k.Hyper4kRequest
 import hyper4k.Hyper4kResponse
 import hyper4k.Hyper4kResponseChannel
@@ -9,7 +11,6 @@ import neton.core.component.NetonContext
 import neton.core.http.ParamConverterRegistry
 import neton.core.http.adapter.HttpAdapter
 import neton.core.http.adapter.HttpCapability
-import neton.http.HttpServerConfig
 import neton.http.adapter.BufferedHttpDispatcher
 import neton.http.adapter.BufferedHttpRequest
 import neton.http.adapter.BufferedHttpResponse
