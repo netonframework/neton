@@ -1,5 +1,7 @@
 package neton.http
 
+import neton.core.http.adapter.HttpServerConfig
+
 import neton.core.component.NetonContext
 import neton.core.config.ConfigLoader
 import neton.core.http.Cookie

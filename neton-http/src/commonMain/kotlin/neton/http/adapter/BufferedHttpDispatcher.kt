@@ -1,5 +1,7 @@
 package neton.http.adapter
 
+import neton.core.http.adapter.HttpServerConfig
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +50,6 @@ import neton.core.interfaces.SecurityConfiguration
 import neton.logging.CurrentLogContext
 import neton.logging.LogContext
 import neton.logging.LoggerFactory
-import neton.http.HttpServerConfig
 import neton.http.runRateLimitPreHandle
 import neton.http.runSecurityPreHandle
 

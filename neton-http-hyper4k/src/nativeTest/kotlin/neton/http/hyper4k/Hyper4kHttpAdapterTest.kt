@@ -1,5 +1,9 @@
 package neton.http.hyper4k
 
+import neton.core.http.adapter.HttpAdapterFactory
+
+import neton.core.http.adapter.HttpServerConfig
+
 import hyper4k.Hyper4kRequest
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -21,8 +25,6 @@ import neton.core.interfaces.RequestEngine
 import neton.core.interfaces.RouteDefinition
 import neton.core.interfaces.RouteGroupMounts
 import neton.core.interfaces.RouteHandler
-import neton.http.HttpAdapterFactory
-import neton.http.HttpServerConfig
 import neton.http.http
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -6,9 +6,9 @@ import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
 import neton.core.http.ParamConverterRegistry
 import neton.core.http.adapter.HttpAdapter
+import neton.core.http.adapter.HttpAdapterFactory
+import neton.core.http.adapter.HttpServerConfig
 import neton.core.config.ConfigLoader
-
-typealias HttpAdapterFactory = (HttpServerConfig, ParamConverterRegistry) -> HttpAdapter
 
 /**
  * HTTP 组件 - 无内部状态，port/config 在 Component，Adapter 内部持有
@@ -91,17 +91,6 @@ class HttpComponent(
     }
 }
 
-data class HttpServerConfig(
-    val port: Int,
-    val timeout: Long = 30000L,
-    val maxConnections: Int = 1000,
-    val enableCompression: Boolean = true,
-    val corsConfig: CorsConfig? = null
-) {
-    fun printSummary() {
-        // 端口等信息由 access log / 启动统计统一输出，此处不再 println
-    }
-}
 
 /** 语法糖：http { port = 8080 } */
 fun neton.core.Neton.LaunchBuilder.http(block: HttpConfig.() -> Unit = {}) {

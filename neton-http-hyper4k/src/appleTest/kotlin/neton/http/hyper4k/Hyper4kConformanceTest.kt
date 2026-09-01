@@ -1,5 +1,7 @@
 package neton.http.hyper4k
 
+import neton.core.http.adapter.HttpServerConfig
+
 import hyper4k.Hyper4kResponse
 import hyper4k.Hyper4kServer
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -15,9 +17,11 @@ import kotlinx.cinterop.value
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import neton.core.component.NetonContext
 import neton.core.http.DefaultParamConverterRegistry
 import neton.core.http.HttpBodyWriter
@@ -26,7 +30,6 @@ import neton.core.http.adapter.HttpCapability
 import neton.core.interfaces.ConfiguredRouteGroups
 import neton.core.interfaces.RequestEngine
 import neton.core.interfaces.RouteDefinition
-import neton.http.HttpServerConfig
 import neton.http.conformance.ChunkMeter
 import neton.http.conformance.ConformanceFixtures
 import neton.http.conformance.ConformanceRequest
@@ -97,7 +100,7 @@ class Hyper4kConformanceTest : HttpEngineConformanceSuite() {
         val server = Hyper4kServer(host = "127.0.0.1", port = port)
         server.start { _, channel ->
             val live = Hyper4kLiveResponse(channel, corsHeaders = emptyMap())
-            live.stream { produce(this, ChunkMeter { delivered.load() }) }
+            live.stream { produce(this, DeliveryMeter(delivered)) }
             Hyper4kResponse.streamed(live.status.code)
         }
 
@@ -301,4 +304,16 @@ private class Socket(port: Int) {
             close(fd)
         }
     }
+}
+
+/** Reports what the socket reader has actually parsed off the wire. */
+@OptIn(ExperimentalAtomicApi::class)
+private class DeliveryMeter(private val delivered: AtomicInt) : ChunkMeter {
+    override fun released(): Int = delivered.load()
+
+    override suspend fun awaitReleased(count: Int, timeoutMillis: Long): Boolean =
+        withTimeoutOrNull(timeoutMillis) {
+            while (delivered.load() < count) delay(2)
+            true
+        } ?: false
 }
