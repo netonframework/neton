@@ -7,6 +7,8 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
+import neton.core.http.HttpHeader
+import neton.core.http.HttpHeaders
 import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
@@ -78,7 +80,7 @@ internal class DefaultNetonHttpClient(
 
         return NetonHttpResponse(
             statusCode = response.status.value,
-            headers = response.headers.entries().associate { it.key to it.value.firstOrNull().orEmpty() },
+            headers = response.headers.toNeton(),
             body = bodyText,
         )
     }
@@ -122,7 +124,7 @@ internal class DefaultNetonHttpClient(
             }
             send(
                 NetonHttpStreamChunk.End(
-                    finalHeaders = response.headers.entries().associate { it.key to it.value.firstOrNull().orEmpty() }
+                    finalHeaders = response.headers.toNeton()
                 )
             )
         }
@@ -136,7 +138,7 @@ internal class DefaultNetonHttpClient(
         method = req.method.toKtor()
         url(req.url)
         headers {
-            req.headers.forEach { (k, v) -> append(k, v) }
+            req.headers.asList().forEach { append(it.name, it.value) }
         }
         req.body?.let { applyBody(it) }
         req.timeout?.let { t ->
@@ -179,3 +181,10 @@ internal class DefaultNetonHttpClient(
         private const val DEFAULT_STREAM_CHUNK_BYTES = 8 * 1024
     }
 }
+
+/**
+ * Keeps every value. The previous mapping took `firstOrNull()` per name, which
+ * dropped repeated `Set-Cookie` on the floor without a trace.
+ */
+private fun io.ktor.http.Headers.toNeton(): HttpHeaders =
+    HttpHeaders.of(entries().flatMap { (name, values) -> values.map { HttpHeader(name, it) } })

@@ -3,6 +3,9 @@ package neton.http.client
 import kotlinx.coroutines.flow.Flow
 import neton.http.client.internal.DefaultNetonHttpClient
 
+/** Native-safe outbound client factory. External engines use constructor/function references. */
+typealias NetonHttpClientFactory = (HttpClientConfig) -> NetonHttpClient
+
 /**
  * Provider-neutral outbound HTTP client. Public API of neton-http.
  *
@@ -51,6 +54,18 @@ interface NetonHttpClient {
          * @throws NetonHttpException(NetonHttpError.Unknown) on invalid config (non-positive timeouts).
          */
         fun create(block: HttpClientConfig.() -> Unit = {}): NetonHttpClient {
+            return create(::createKtorClient, block)
+        }
+
+        /**
+         * Standalone factory with an application-selected transport implementation.
+         *
+         * The same config validation runs before an external factory is invoked.
+         */
+        fun create(
+            factory: NetonHttpClientFactory,
+            block: HttpClientConfig.() -> Unit = {},
+        ): NetonHttpClient {
             val cfg = HttpClientConfig().apply(block)
             val errors = cfg.validate()
             if (errors.isNotEmpty()) {
@@ -58,7 +73,7 @@ interface NetonHttpClient {
                     "Invalid HTTP client config: ${errors.joinToString()}", null,
                 ))
             }
-            return DefaultNetonHttpClient(defaultTimeout = cfg.toEffectiveTimeout(), proxyUrl = cfg.proxyUrl)
+            return factory(cfg)
         }
 
         /**
@@ -80,3 +95,6 @@ interface NetonHttpClient {
         }
     }
 }
+
+private fun createKtorClient(config: HttpClientConfig): NetonHttpClient =
+    DefaultNetonHttpClient(defaultTimeout = config.toEffectiveTimeout(), proxyUrl = config.proxyUrl)

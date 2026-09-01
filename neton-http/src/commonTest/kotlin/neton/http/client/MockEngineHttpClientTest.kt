@@ -1,6 +1,8 @@
 // Outbound HTTP client MockEngine contract.
 package neton.http.client
 
+import neton.core.http.HttpHeaders
+
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
@@ -58,6 +60,48 @@ class MockEngineHttpClientTest {
     }
 
     @Test
+    fun repeatedResponseHeadersSurvive() = runTest {
+        val engine = MockEngine { _ ->
+            respond(
+                content = "ok",
+                status = HttpStatusCode.OK,
+                headers = headersOf("Set-Cookie", listOf("a=1; Path=/", "b=2; Path=/")),
+            )
+        }
+        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+
+        val resp = client.request(NetonHttpRequest(
+            method = NetonHttpMethod.Get,
+            url = "https://api.example.com/x",
+        ))
+
+        // A Map<String, String> response model kept only the first cookie and dropped
+        // the rest without a trace, which is unrecoverable at the call site.
+        assertEquals(listOf("a=1; Path=/", "b=2; Path=/"), resp.headers.getAll("Set-Cookie"))
+        assertEquals("a=1; Path=/", resp.headers["set-cookie"])
+        client.close()
+    }
+
+    @Test
+    fun repeatedRequestHeadersReachTheEngine() = runTest {
+        var captured: List<String>? = null
+        val engine = MockEngine { request ->
+            captured = request.headers.getAll("X-Multi")
+            respond("ok", HttpStatusCode.OK)
+        }
+        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+
+        client.request(NetonHttpRequest(
+            method = NetonHttpMethod.Get,
+            url = "https://api.example.com/x",
+            headers = HttpHeaders.of("X-Multi" to "one", "X-Multi" to "two"),
+        ))
+
+        assertEquals(listOf("one", "two"), captured)
+        client.close()
+    }
+
+    @Test
     fun headersForwardedToEngine() = runTest {
         var capturedAuth: String? = null
         val engine = MockEngine { request ->
@@ -68,7 +112,7 @@ class MockEngineHttpClientTest {
         client.request(NetonHttpRequest(
             method = NetonHttpMethod.Get,
             url = "https://api.example.com/x",
-            headers = mapOf("Authorization" to "Bearer test-key"),
+            headers = HttpHeaders.of("Authorization" to "Bearer test-key"),
         ))
         assertEquals("Bearer test-key", capturedAuth)
         client.close()

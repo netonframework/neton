@@ -1,5 +1,7 @@
 package neton.http.client.sse
 
+import neton.core.http.HttpHeaders
+
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -27,7 +29,7 @@ class SseFlowOpsTest {
             NetonHttpStreamChunk.Bytes("data: hel".encodeToByteArray()),
             NetonHttpStreamChunk.Bytes("lo\n\ndata: wor".encodeToByteArray()),
             NetonHttpStreamChunk.Bytes("ld\n\n".encodeToByteArray()),
-            NetonHttpStreamChunk.End(emptyMap()),
+            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
         assertEquals(listOf(NetonSseEvent(data = "hello"), NetonSseEvent(data = "world")), events)
@@ -38,7 +40,7 @@ class SseFlowOpsTest {
         // No trailing blank line; finish() must flush.
         val chunks = flowOf(
             NetonHttpStreamChunk.Bytes("data: pending".encodeToByteArray()),
-            NetonHttpStreamChunk.End(emptyMap()),
+            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
         assertEquals(listOf(NetonSseEvent(data = "pending")), events)
@@ -48,7 +50,7 @@ class SseFlowOpsTest {
     fun handlesCrlfLineEndings() = runTest {
         val chunks = flowOf(
             NetonHttpStreamChunk.Bytes("data: ok\r\n\r\n".encodeToByteArray()),
-            NetonHttpStreamChunk.End(emptyMap()),
+            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
         assertEquals(listOf(NetonSseEvent(data = "ok")), events)
@@ -59,7 +61,7 @@ class SseFlowOpsTest {
         val chunks = flowOf(
             NetonHttpStreamChunk.Bytes("event: messa".encodeToByteArray()),
             NetonHttpStreamChunk.Bytes("ge_start\ndata: {}\n\n".encodeToByteArray()),
-            NetonHttpStreamChunk.End(emptyMap()),
+            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
         assertEquals(listOf(NetonSseEvent(event = "message_start", data = "{}")), events)
@@ -70,7 +72,7 @@ class SseFlowOpsTest {
         val chunks = flowOf(
             NetonHttpStreamChunk.Text("data: a"),
             NetonHttpStreamChunk.Text("\n\ndata: b\n\n"),
-            NetonHttpStreamChunk.End(emptyMap()),
+            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
         assertEquals(listOf(NetonSseEvent(data = "a"), NetonSseEvent(data = "b")), events)

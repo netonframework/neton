@@ -1,5 +1,7 @@
 package neton.ai.adapter.openaicompatible
 
+import neton.core.http.HttpHeaders
+
 import kotlinx.serialization.json.Json
 import neton.ai.AiError
 import neton.ai.AiException
@@ -45,7 +47,7 @@ internal class OpenAiCompatibleEmbeddingModel(
             httpClient.request(NetonHttpRequest(
                 method = NetonHttpMethod.Post,
                 url = "$baseUrl/embeddings",
-                headers = headers,
+                headers = HttpHeaders.from(headers),
                 body = NetonHttpBody.Json(bodyJson),
                 metadata = request.metadata,
             ))

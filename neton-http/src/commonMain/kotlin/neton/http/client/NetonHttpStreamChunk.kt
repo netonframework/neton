@@ -1,5 +1,7 @@
 package neton.http.client
 
+import neton.core.http.HttpHeaders
+
 sealed interface NetonHttpStreamChunk {
     data class Bytes(val bytes: ByteArray) : NetonHttpStreamChunk {
         override fun equals(other: Any?): Boolean {
@@ -13,5 +15,5 @@ sealed interface NetonHttpStreamChunk {
     data class Text(val text: String) : NetonHttpStreamChunk
 
     /** Terminal chunk; emitted after the last byte/text chunk to signal end of body. */
-    data class End(val finalHeaders: Map<String, String>) : NetonHttpStreamChunk
+    data class End(val finalHeaders: HttpHeaders) : NetonHttpStreamChunk
 }

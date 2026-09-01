@@ -1,6 +1,8 @@
 // neton-ai/src/commonMain/kotlin/neton/ai/adapter/anthropic/AnthropicTextModel.kt
 package neton.ai.adapter.anthropic
 
+import neton.core.http.HttpHeaders
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -57,7 +59,7 @@ internal class AnthropicTextModel(
             httpClient.request(NetonHttpRequest(
                 method = NetonHttpMethod.Post,
                 url = url,
-                headers = headers,
+                headers = HttpHeaders.from(headers),
                 body = NetonHttpBody.Json(bodyJson),
                 metadata = request.metadata,
             ))
@@ -88,7 +90,7 @@ internal class AnthropicTextModel(
         val chunkFlow = httpClient.stream(NetonHttpRequest(
             method = NetonHttpMethod.Post,
             url = url,
-            headers = headers,
+            headers = HttpHeaders.from(headers),
             body = NetonHttpBody.Json(bodyJson),
             metadata = request.metadata,
         ))

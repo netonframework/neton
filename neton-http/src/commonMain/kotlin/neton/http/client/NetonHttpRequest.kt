@@ -1,5 +1,7 @@
 package neton.http.client
 
+import neton.core.http.HttpHeaders
+
 /**
  * Request envelope passed to NetonHttpClient.
  *
@@ -8,7 +10,7 @@ package neton.http.client
 data class NetonHttpRequest(
     val method: NetonHttpMethod,
     val url: String,
-    val headers: Map<String, String> = emptyMap(),
+    val headers: HttpHeaders = HttpHeaders.EMPTY,
     val body: NetonHttpBody? = null,
     val timeout: NetonHttpTimeout? = null,
     val metadata: Map<String, String> = emptyMap(),
