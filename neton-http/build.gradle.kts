@@ -23,11 +23,11 @@ kotlin {
         }
         val macosMain by creating {
             dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.darwin) }
+            dependencies {  }
         }
         val linuxMain by creating {
             dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.cio) }
+            dependencies {  }
         }
         val macosArm64Main by getting {
             dependsOn(macosMain)
@@ -43,7 +43,7 @@ kotlin {
         }
         val mingwX64Main by getting {
             dependsOn(nativeMain)
-            dependencies { implementation(libs.ktor.client.winhttp) }
+            dependencies {  }
         }
 
         commonMain {
@@ -51,8 +51,6 @@ kotlin {
                 api(project(":neton-core"))
                 implementation(project(":neton-logging"))
                 implementation(libs.kotlinx.coroutines.core)
-                // Public outbound client SPI exposes Ktor's engine factory for test injection.
-                api(libs.ktor.client.core)
             }
         }
 
@@ -63,7 +61,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.kotlinx.serialization.json)
-                implementation(libs.ktor.client.mock)
+                
             }
         }
     }

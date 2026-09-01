@@ -9,7 +9,6 @@ import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import neton.http.client.internal.DefaultNetonHttpClient
 import neton.http.client.sse.parseSseEvents
 import kotlin.test.Test
 import kotlin.test.assertEquals

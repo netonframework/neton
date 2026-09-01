@@ -14,15 +14,7 @@ import neton.logging.LoggerFactory
  * Removing this file does NOT affect standalone usage via `NetonHttpClient.create { ... }`.
  */
 class HttpClientComponent(
-    private val clientFactory: NetonHttpClientFactory = { config ->
-        NetonHttpClient.create {
-            connectMillis = config.connectMillis
-            requestMillis = config.requestMillis
-            socketMillis = config.socketMillis
-            debug = config.debug
-            proxyUrl = config.proxyUrl
-        }
-    },
+    private val clientFactory: NetonHttpClientFactory,
 ) : NetonComponent<HttpClientConfig> {
 
     override fun defaultConfig(): HttpClientConfig = HttpClientConfig()
@@ -32,7 +24,7 @@ class HttpClientComponent(
 
         // Build via the same standalone factory used by Mode 1 callers — single source of truth.
         // NetonHttpClient.create throws NetonHttpException on invalid config.
-        val client = NetonHttpClient.create(clientFactory) {
+        val client = NetonHttpClient.createWith(clientFactory) {
             connectMillis = config.connectMillis
             requestMillis = config.requestMillis
             socketMillis = config.socketMillis
@@ -53,22 +45,6 @@ class HttpClientComponent(
     override suspend fun stop(ctx: NetonContext) {
         ctx.getOrNull(NetonHttpClient::class)?.close()
     }
-}
-
-/** DSL entry: `httpClient { ... }` */
-fun Neton.LaunchBuilder.httpClient(block: HttpClientConfig.() -> Unit = {}) {
-    httpClient(
-        factory = { config ->
-            NetonHttpClient.create {
-                connectMillis = config.connectMillis
-                requestMillis = config.requestMillis
-                socketMillis = config.socketMillis
-                debug = config.debug
-                proxyUrl = config.proxyUrl
-            }
-        },
-        block = block,
-    )
 }
 
 /** Installs an application-selected outbound HTTP client implementation. */

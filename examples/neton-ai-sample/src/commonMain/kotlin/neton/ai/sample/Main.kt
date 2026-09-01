@@ -1,5 +1,7 @@
 package neton.ai.sample
 
+import neton.http.client.create
+
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import neton.ai.AiClient
