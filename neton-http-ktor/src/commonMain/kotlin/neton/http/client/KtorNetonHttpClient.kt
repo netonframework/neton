@@ -33,24 +33,3 @@ fun NetonHttpClient.Companion.createWithEngine(
 @OptIn(InternalNetonApi::class)
 private fun createKtorClient(config: HttpClientConfig): NetonHttpClient =
     DefaultNetonHttpClient(defaultTimeout = config.toEffectiveTimeout(), proxyUrl = config.proxyUrl)
-
-/**
- * DSL entry: `httpClient { ... }`, backed by Ktor.
- *
- * Same reason as [create]: neton-http keeps the explicit
- * `httpClient(factory) { }` overload and never names an engine.
- */
-fun Neton.LaunchBuilder.httpClient(block: HttpClientConfig.() -> Unit = {}) {
-    httpClient(
-        factory = { config ->
-            NetonHttpClient.create {
-                connectMillis = config.connectMillis
-                requestMillis = config.requestMillis
-                socketMillis = config.socketMillis
-                debug = config.debug
-                proxyUrl = config.proxyUrl
-            }
-        },
-        block = block,
-    )
-}

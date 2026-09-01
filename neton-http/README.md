@@ -60,12 +60,16 @@ val client = NetonHttpClient.create {
 }
 ```
 
-也可以安装进 NetonContext，供 `neton-ai` 等组件使用：
+Client 没有对应的组件装配层：出站 Client 是应用自己的资源，可以在没有 HTTP Server 的
+worker / job / CLI 里使用，和入站 Server 的生命周期无关。需要让 `neton-ai` 之类的模块
+用上它时，由应用创建、绑定并负责关闭：
 
 ```kotlin
 Neton.run(args) {
-    httpClient { requestMillis = 30_000 }
-    ai { /* ... */ }
+    val client = NetonHttpClient.create { requestMillis = 30_000 }
+    bind(NetonHttpClient::class, client)
+    // 谁创建谁关闭：注册进 lifecycle，停机时确定性释放连接池
+    ai { httpClient = client }
     http { port = 8080 }
 }
 ```

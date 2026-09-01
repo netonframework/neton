@@ -8,10 +8,11 @@ typealias NetonHttpClientFactory = (HttpClientConfig) -> NetonHttpClient
 /**
  * Provider-neutral outbound HTTP client. Public API of neton-http.
  *
- * **Dual usage**:
- *   1. Standalone (any KMP project): `val client = NetonHttpClient.create { requestMillis = 30_000 }`
- *   2. Neton Framework component (PR1+ neton-ai etc.): `Neton.run { httpClient { ... } }`; downstream
- *      modules use `ctx.get(NetonHttpClient::class)`.
+ * Built by the application, never by a framework component:
+ * `val client = NetonHttpClient.create { requestMillis = 30_000 }`.
+ *
+ * Ownership: the creator closes it. Register it with `ctx.lifecycle` so shutdown is
+ * deterministic; modules handed a client only borrow it and must not close it.
  *
  * Implementations are responsible for:
  *  - per-platform Ktor engine selection (Darwin / CIO / WinHttp)
