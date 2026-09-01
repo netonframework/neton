@@ -9,7 +9,9 @@ repositories {
 }
 
 kotlin {
-    listOf(macosArm64(), macosX64(), linuxX64(), linuxArm64(), mingwX64()).forEach { target ->
+    // 没有 macosX64：本示例用 neton-database，而它的 sqlx4k driver 只发布了
+    // linuxX64 / linuxArm64 / macosArm64 / mingwX64，Intel Mac 上无产物可解析。
+    listOf(macosArm64(), linuxX64(), linuxArm64(), mingwX64()).forEach { target ->
         target.binaries {
             executable {
                 entryPoint = "main"
