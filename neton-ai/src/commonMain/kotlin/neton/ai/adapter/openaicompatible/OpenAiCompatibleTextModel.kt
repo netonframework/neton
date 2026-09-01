@@ -1,6 +1,8 @@
 // neton-ai/src/commonMain/kotlin/neton/ai/adapter/openaicompatible/OpenAiCompatibleTextModel.kt
 package neton.ai.adapter.openaicompatible
 
+import neton.core.http.HttpHeaders
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -52,7 +54,7 @@ internal class OpenAiCompatibleTextModel(
             httpClient.request(NetonHttpRequest(
                 method = NetonHttpMethod.Post,
                 url = url,
-                headers = headers,
+                headers = HttpHeaders.from(headers),
                 body = NetonHttpBody.Json(bodyJson),
                 metadata = request.metadata,
             ))
@@ -87,7 +89,7 @@ internal class OpenAiCompatibleTextModel(
         val chunkFlow = httpClient.stream(NetonHttpRequest(
             method = NetonHttpMethod.Post,
             url = "$baseUrl/chat/completions",
-            headers = headers,
+            headers = HttpHeaders.from(headers),
             body = NetonHttpBody.Json(bodyJson),
             metadata = request.metadata,
         ))

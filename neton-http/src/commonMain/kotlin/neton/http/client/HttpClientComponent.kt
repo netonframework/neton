@@ -13,7 +13,17 @@ import neton.logging.LoggerFactory
  *
  * Removing this file does NOT affect standalone usage via `NetonHttpClient.create { ... }`.
  */
-object HttpClientComponent : NetonComponent<HttpClientConfig> {
+class HttpClientComponent(
+    private val clientFactory: NetonHttpClientFactory = { config ->
+        NetonHttpClient.create {
+            connectMillis = config.connectMillis
+            requestMillis = config.requestMillis
+            socketMillis = config.socketMillis
+            debug = config.debug
+            proxyUrl = config.proxyUrl
+        }
+    },
+) : NetonComponent<HttpClientConfig> {
 
     override fun defaultConfig(): HttpClientConfig = HttpClientConfig()
 
@@ -22,11 +32,12 @@ object HttpClientComponent : NetonComponent<HttpClientConfig> {
 
         // Build via the same standalone factory used by Mode 1 callers — single source of truth.
         // NetonHttpClient.create throws NetonHttpException on invalid config.
-        val client = NetonHttpClient.create {
+        val client = NetonHttpClient.create(clientFactory) {
             connectMillis = config.connectMillis
             requestMillis = config.requestMillis
             socketMillis = config.socketMillis
             debug = config.debug
+            proxyUrl = config.proxyUrl
         }
         ctx.bind(NetonHttpClient::class, client)
 
@@ -46,5 +57,24 @@ object HttpClientComponent : NetonComponent<HttpClientConfig> {
 
 /** DSL entry: `httpClient { ... }` */
 fun Neton.LaunchBuilder.httpClient(block: HttpClientConfig.() -> Unit = {}) {
-    install(HttpClientComponent, block)
+    httpClient(
+        factory = { config ->
+            NetonHttpClient.create {
+                connectMillis = config.connectMillis
+                requestMillis = config.requestMillis
+                socketMillis = config.socketMillis
+                debug = config.debug
+                proxyUrl = config.proxyUrl
+            }
+        },
+        block = block,
+    )
+}
+
+/** Installs an application-selected outbound HTTP client implementation. */
+fun Neton.LaunchBuilder.httpClient(
+    factory: NetonHttpClientFactory,
+    block: HttpClientConfig.() -> Unit = {},
+) {
+    install(HttpClientComponent(factory), block)
 }
