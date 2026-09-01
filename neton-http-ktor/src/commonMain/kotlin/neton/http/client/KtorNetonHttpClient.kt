@@ -2,6 +2,7 @@ package neton.http.client
 
 import io.ktor.client.engine.HttpClientEngineFactory
 import neton.core.Neton
+import neton.core.annotations.InternalNetonApi
 
 /**
  * The Ktor-backed client entry points.
@@ -17,6 +18,7 @@ fun NetonHttpClient.Companion.create(block: HttpClientConfig.() -> Unit = {}): N
  * Construct with a caller-supplied Ktor engine. Intended for tests (MockEngine) and
  * for production cases that need engine-specific configuration.
  */
+@OptIn(InternalNetonApi::class)
 fun NetonHttpClient.Companion.createWithEngine(
     engineFactory: HttpClientEngineFactory<*>,
     block: HttpClientConfig.() -> Unit = {},
@@ -28,6 +30,7 @@ fun NetonHttpClient.Companion.createWithEngine(
     )
 }, block)
 
+@OptIn(InternalNetonApi::class)
 private fun createKtorClient(config: HttpClientConfig): NetonHttpClient =
     DefaultNetonHttpClient(defaultTimeout = config.toEffectiveTimeout(), proxyUrl = config.proxyUrl)
 
