@@ -6,11 +6,11 @@ import neton.ai.provider.AiEmbeddingModel
 import neton.ai.provider.AiProvider
 import neton.ai.provider.AiStreamingTextModel
 import neton.ai.provider.AiTextModel
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 
 class AnthropicProvider(
     override val id: String,
-    private val httpClient: NetonHttpClient,
+    private val httpClient: HttpClient,
     private val baseUrl: String = "https://api.anthropic.com",
     private val apiKey: String,
     private val version: String = "2023-06-01",

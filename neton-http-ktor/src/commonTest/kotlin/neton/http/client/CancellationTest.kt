@@ -26,16 +26,16 @@ class CancellationTest {
                 headers = headersOf("Content-Type", "text/event-stream"),
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val chunks = client.stream(NetonHttpRequest(
-            method = NetonHttpMethod.Get,
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val chunks = client.stream(HttpClientRequest(
+            method = HttpClientMethod.Get,
             url = "https://api.example.com/stream",
         )).toList()
 
-        // Must end with NetonHttpStreamChunk.End
-        assertTrue(chunks.last() is NetonHttpStreamChunk.End, "Last chunk must be End, was ${chunks.last()::class.simpleName}")
+        // Must end with HttpClientStreamChunk.End
+        assertTrue(chunks.last() is HttpClientStreamChunk.End, "Last chunk must be End, was ${chunks.last()::class.simpleName}")
         // Concatenated byte content must equal payload
-        val combined = chunks.filterIsInstance<NetonHttpStreamChunk.Bytes>()
+        val combined = chunks.filterIsInstance<HttpClientStreamChunk.Bytes>()
             .joinToString(separator = "") { it.bytes.decodeToString() }
         assertEquals(payload, combined)
         client.close()
@@ -51,8 +51,8 @@ class CancellationTest {
                 headers = headersOf("Content-Type", "text/event-stream"),
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val events = client.stream(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://x/stream"))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val events = client.stream(HttpClientRequest(method = HttpClientMethod.Get, url = "https://x/stream"))
             .parseSseEvents()
             .toList()
         assertEquals(3, events.size)
@@ -75,9 +75,9 @@ class CancellationTest {
                 headers = headersOf("Content-Type", "text/event-stream"),
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
         // take(1) cancels the upstream flow after first element
-        val first = client.stream(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://x/stream"))
+        val first = client.stream(HttpClientRequest(method = HttpClientMethod.Get, url = "https://x/stream"))
             .parseSseEvents()
             .take(1)
             .toList()

@@ -41,13 +41,13 @@ Rust 引擎；Client 位于 `neton.http.client` 包，不再使用独立的 `net
 - 默认创建 `KtorHttpAdapter`
 - 接收任意满足 `HttpAdapterFactory` 签名的 Adapter 构造器
 
-### NetonHttpClient
+### HttpClient
 
 出站 Client 的完整能力已经合并到本模块：
 
-- `NetonHttpClient.request()`：缓冲式请求/响应
-- `NetonHttpClient.stream()`：支持取消传播的流式响应
-- `NetonHttpError` / `NetonHttpException`：统一错误模型
+- `HttpClient.request()`：缓冲式请求/响应
+- `HttpClient.stream()`：支持取消传播的流式响应
+- `HttpClientError` / `HttpClientException`：统一错误模型
 - SSE parser 与 Flow 操作
 - Header 脱敏和 retry primitive
 - macOS Darwin、Linux CIO、Windows WinHttp 平台 Engine
@@ -55,7 +55,7 @@ Rust 引擎；Client 位于 `neton.http.client` 包，不再使用独立的 `net
 可独立创建：
 
 ```kotlin
-val client = NetonHttpClient.create {
+val client = HttpClient.create {
     requestMillis = 30_000
 }
 ```
@@ -66,8 +66,8 @@ worker / job / CLI 里使用，和入站 Server 的生命周期无关。需要�
 
 ```kotlin
 Neton.run(args) {
-    val client = NetonHttpClient.create { requestMillis = 30_000 }
-    bind(NetonHttpClient::class, client)
+    val client = HttpClient.create { requestMillis = 30_000 }
+    bind(HttpClient::class, client)
     // 谁创建谁关闭：注册进 lifecycle，停机时确定性释放连接池
     ai { httpClient = client }
     http { port = 8080 }

@@ -7,7 +7,7 @@ package neton.http.client
  *
  * Hard rule: API keys NEVER appear in logs regardless of policy.
  */
-data class NetonRedactionPolicy(
+data class RedactionPolicy(
     val redactedHeaders: Set<String> = DEFAULT_REDACTED_HEADERS,
     val allowBodyLogging: Boolean = false,
 )

@@ -12,16 +12,16 @@ import neton.ai.internal.withRedactedValues
 import neton.ai.provider.AiEmbeddingModel
 import neton.ai.provider.ProviderEmbedRequest
 import neton.ai.provider.ProviderEmbedResponse
-import neton.http.client.NetonHttpBody
-import neton.http.client.NetonHttpClient
-import neton.http.client.NetonHttpException
-import neton.http.client.NetonHttpMethod
-import neton.http.client.NetonHttpRequest
+import neton.http.client.HttpClientBody
+import neton.http.client.HttpClient
+import neton.http.client.HttpClientException
+import neton.http.client.HttpClientMethod
+import neton.http.client.HttpClientRequest
 
 internal class OpenAiCompatibleEmbeddingModel(
     override val providerId: String,
     override val modelName: String,
-    private val httpClient: NetonHttpClient,
+    private val httpClient: HttpClient,
     private val baseUrl: String,
     private val apiKey: String,
     private val organization: String?,
@@ -44,19 +44,19 @@ internal class OpenAiCompatibleEmbeddingModel(
             logSink.invoke("ai.provider.${providerId} model=$modelName POST $baseUrl/embeddings headers=${headers.withRedactedValues()}")
         }
         val resp = try {
-            httpClient.request(NetonHttpRequest(
-                method = NetonHttpMethod.Post,
+            httpClient.request(HttpClientRequest(
+                method = HttpClientMethod.Post,
                 url = "$baseUrl/embeddings",
                 headers = HttpHeaders.from(headers),
-                body = NetonHttpBody.Json(bodyJson),
+                body = HttpClientBody.Json(bodyJson),
                 metadata = request.metadata,
             ))
-        } catch (e: NetonHttpException) {
+        } catch (e: HttpClientException) {
             throw AiException(when (val err = e.error) {
-                is neton.http.client.NetonHttpError.Network -> AiError.Network(err.message, err.cause)
-                is neton.http.client.NetonHttpError.Timeout -> AiError.Timeout(err.message, err.cause)
-                is neton.http.client.NetonHttpError.Http -> AiError.Unknown("HTTP error: ${err.message}", null)
-                is neton.http.client.NetonHttpError.Unknown -> AiError.Unknown(err.message, err.cause)
+                is neton.http.client.HttpClientError.Network -> AiError.Network(err.message, err.cause)
+                is neton.http.client.HttpClientError.Timeout -> AiError.Timeout(err.message, err.cause)
+                is neton.http.client.HttpClientError.Http -> AiError.Unknown("HTTP error: ${err.message}", null)
+                is neton.http.client.HttpClientError.Unknown -> AiError.Unknown(err.message, err.cause)
             })
         }
         if (resp.statusCode !in 200..299) {

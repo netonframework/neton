@@ -57,6 +57,6 @@ internal class DefaultAiClient(
     }
 
     override suspend fun close() {
-        // DefaultAiClient 不拥有 NetonHttpClient；外层（standalone factory / AiComponent）负责管理生命周期
+        // DefaultAiClient 不拥有 HttpClient；外层（standalone factory / AiComponent）负责管理生命周期
     }
 }

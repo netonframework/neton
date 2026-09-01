@@ -13,7 +13,7 @@ import neton.ai.AiStreamEvent
 import neton.ai.AiToolCall
 import neton.ai.AiUsage
 import neton.ai.adapter.openaicompatible.dto.OpenAiStreamChunk
-import neton.http.client.NetonHttpStreamChunk
+import neton.http.client.HttpClientStreamChunk
 import neton.http.client.sse.parseSseEvents
 
 private class ToolCallAccumulator {
@@ -28,7 +28,7 @@ internal class OpenAiCompatibleStreamMapper(
 ) {
 
     /** Map raw chunked HTTP body to a stream of AiStreamEvent. Does NOT emit Started/ToolResultReady. */
-    fun map(chunks: Flow<NetonHttpStreamChunk>): Flow<AiStreamEvent> = flow {
+    fun map(chunks: Flow<HttpClientStreamChunk>): Flow<AiStreamEvent> = flow {
         // Per-tool-call accumulator (keyed by OpenAI 'index' field)
         val acc = mutableMapOf<Int, ToolCallAccumulator>()
 

@@ -5,7 +5,7 @@ import neton.core.http.HttpHeaders
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import neton.http.client.NetonHttpStreamChunk
+import neton.http.client.HttpClientStreamChunk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -19,62 +19,62 @@ class SseFlowOpsTest {
             "data: world",
             "",
         ).parseSseEvents().toList()
-        assertEquals(listOf(NetonSseEvent(data = "hello"), NetonSseEvent(data = "world")), events)
+        assertEquals(listOf(SseEvent(data = "hello"), SseEvent(data = "world")), events)
     }
 
     @Test
     fun handlesCrossChunkLineFragmentation() = runTest {
         // Chunk boundaries don't align with line boundaries: "data: hel" + "lo\n\ndata: wor" + "ld\n\n"
         val chunks = flowOf(
-            NetonHttpStreamChunk.Bytes("data: hel".encodeToByteArray()),
-            NetonHttpStreamChunk.Bytes("lo\n\ndata: wor".encodeToByteArray()),
-            NetonHttpStreamChunk.Bytes("ld\n\n".encodeToByteArray()),
-            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
+            HttpClientStreamChunk.Bytes("data: hel".encodeToByteArray()),
+            HttpClientStreamChunk.Bytes("lo\n\ndata: wor".encodeToByteArray()),
+            HttpClientStreamChunk.Bytes("ld\n\n".encodeToByteArray()),
+            HttpClientStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
-        assertEquals(listOf(NetonSseEvent(data = "hello"), NetonSseEvent(data = "world")), events)
+        assertEquals(listOf(SseEvent(data = "hello"), SseEvent(data = "world")), events)
     }
 
     @Test
     fun flushesPendingEventAtStreamEnd() = runTest {
         // No trailing blank line; finish() must flush.
         val chunks = flowOf(
-            NetonHttpStreamChunk.Bytes("data: pending".encodeToByteArray()),
-            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
+            HttpClientStreamChunk.Bytes("data: pending".encodeToByteArray()),
+            HttpClientStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
-        assertEquals(listOf(NetonSseEvent(data = "pending")), events)
+        assertEquals(listOf(SseEvent(data = "pending")), events)
     }
 
     @Test
     fun handlesCrlfLineEndings() = runTest {
         val chunks = flowOf(
-            NetonHttpStreamChunk.Bytes("data: ok\r\n\r\n".encodeToByteArray()),
-            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
+            HttpClientStreamChunk.Bytes("data: ok\r\n\r\n".encodeToByteArray()),
+            HttpClientStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
-        assertEquals(listOf(NetonSseEvent(data = "ok")), events)
+        assertEquals(listOf(SseEvent(data = "ok")), events)
     }
 
     @Test
     fun preservesEventTypeAcrossChunks() = runTest {
         val chunks = flowOf(
-            NetonHttpStreamChunk.Bytes("event: messa".encodeToByteArray()),
-            NetonHttpStreamChunk.Bytes("ge_start\ndata: {}\n\n".encodeToByteArray()),
-            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
+            HttpClientStreamChunk.Bytes("event: messa".encodeToByteArray()),
+            HttpClientStreamChunk.Bytes("ge_start\ndata: {}\n\n".encodeToByteArray()),
+            HttpClientStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
-        assertEquals(listOf(NetonSseEvent(event = "message_start", data = "{}")), events)
+        assertEquals(listOf(SseEvent(event = "message_start", data = "{}")), events)
     }
 
     @Test
     fun textChunkFlowAlsoSupported() = runTest {
         val chunks = flowOf(
-            NetonHttpStreamChunk.Text("data: a"),
-            NetonHttpStreamChunk.Text("\n\ndata: b\n\n"),
-            NetonHttpStreamChunk.End(HttpHeaders.EMPTY),
+            HttpClientStreamChunk.Text("data: a"),
+            HttpClientStreamChunk.Text("\n\ndata: b\n\n"),
+            HttpClientStreamChunk.End(HttpHeaders.EMPTY),
         )
         val events = chunks.parseSseEvents().toList()
-        assertEquals(listOf(NetonSseEvent(data = "a"), NetonSseEvent(data = "b")), events)
+        assertEquals(listOf(SseEvent(data = "a"), SseEvent(data = "b")), events)
     }
 }

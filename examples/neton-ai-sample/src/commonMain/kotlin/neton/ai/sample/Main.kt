@@ -7,7 +7,7 @@ import kotlinx.coroutines.runBlocking
 import neton.ai.AiClient
 import neton.ai.AiStreamEvent
 import neton.ai.AiException
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 
 /**
  * neton-ai v0.1 sample. Demonstrates standalone (Mode 1) usage:
@@ -30,7 +30,7 @@ fun main() = runBlocking {
         println("(This sample compiles and binds the AiClient even without keys; it just skips live calls.)")
     }
 
-    val httpClient = NetonHttpClient.create { requestMillis = 60_000 }
+    val httpClient = HttpClient.create { requestMillis = 60_000 }
 
     val ai = if (openaiKey != null || anthropicKey != null) {
         AiClient.create {

@@ -2,8 +2,8 @@ package neton.http.client
 
 import neton.core.http.HttpHeaders
 
-sealed interface NetonHttpStreamChunk {
-    data class Bytes(val bytes: ByteArray) : NetonHttpStreamChunk {
+sealed interface HttpClientStreamChunk {
+    data class Bytes(val bytes: ByteArray) : HttpClientStreamChunk {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Bytes) return false
@@ -12,8 +12,8 @@ sealed interface NetonHttpStreamChunk {
         override fun hashCode(): Int = bytes.contentHashCode()
     }
 
-    data class Text(val text: String) : NetonHttpStreamChunk
+    data class Text(val text: String) : HttpClientStreamChunk
 
     /** Terminal chunk; emitted after the last byte/text chunk to signal end of body. */
-    data class End(val finalHeaders: HttpHeaders) : NetonHttpStreamChunk
+    data class End(val finalHeaders: HttpHeaders) : HttpClientStreamChunk
 }

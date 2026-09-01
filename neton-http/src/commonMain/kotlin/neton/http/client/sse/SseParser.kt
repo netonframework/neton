@@ -8,7 +8,7 @@ package neton.http.client.sse
  *
  * Not thread-safe. Use one parser per stream / collection coroutine.
  */
-class NetonSseParser {
+class SseParser {
 
     private var dataBuffer = StringBuilder()
     private var eventType: String? = null
@@ -19,7 +19,7 @@ class NetonSseParser {
      * Feed one line (already stripped of CR/LF terminator).
      * Returns 0 or 1 emitted events.
      */
-    fun accept(line: String): List<NetonSseEvent> {
+    fun accept(line: String): List<SseEvent> {
         // Blank line: dispatch event if data accumulated
         if (line.isEmpty()) return dispatch()
 
@@ -50,7 +50,7 @@ class NetonSseParser {
                 // Spec: ignore id values containing NUL; we use isNotBlank() as a simple guard
                 if (rawValue.isNotEmpty() && !rawValue.contains(' ')) lastId = rawValue
             }
-            // "retry" and unknown fields: ignored (not represented in NetonSseEvent)
+            // "retry" and unknown fields: ignored (not represented in SseEvent)
         }
 
         return emptyList()
@@ -59,16 +59,16 @@ class NetonSseParser {
     /**
      * Flush any pending event (e.g., stream ended without trailing blank line).
      */
-    fun finish(): List<NetonSseEvent> = dispatch()
+    fun finish(): List<SseEvent> = dispatch()
 
-    private fun dispatch(): List<NetonSseEvent> {
+    private fun dispatch(): List<SseEvent> {
         if (!hasData) {
             // Per spec: do not dispatch if data buffer is empty (no "data:" field seen since last event)
             // Reset eventType anyway (spec: event field reset after each dispatch / blank line)
             eventType = null
             return emptyList()
         }
-        val event = NetonSseEvent(
+        val event = SseEvent(
             id = lastId,  // lastId persists across events per spec
             event = eventType,
             data = dataBuffer.toString(),
