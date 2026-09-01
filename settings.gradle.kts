@@ -12,7 +12,8 @@ rootProject.name = "neton"
 // 🚀 Neton Framework - 现代化平铺模块结构
 include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ 实现（neton.logging.internal，单模块内分层）
 include(":neton-core")       // 主框架模块
-include(":neton-http")       // HTTP 组件模块
+include(":neton-http")       // HTTP 组件模块：纯 API / 模型 / Dispatcher / 能力契约
+include(":neton-http-hyper4k") // Hyper4k 适配层（Rust 引擎本体是独立仓库）
 include(":neton-ai")         // AI 抽象层（generateText/streamText/tool loop/router/usage, OpenAi-compat + Anthropic v0.1）
 include(":neton-routing")    // 路由组件模块
 include(":neton-security")   // 安全组件模块
@@ -35,3 +36,6 @@ include(":examples:mvc")
 include(":examples:backend-app")
 include(":examples:neton-ai-sample")
 include(":examples:bench")
+
+// Rust 引擎仓库。没有 checkout 时本仓其余模块照常构建。
+if (file("../hyper4k").isDirectory) includeBuild("../hyper4k")
