@@ -7,7 +7,7 @@ import neton.core.http.Parameters
 /**
  * 字节级 multipart/form-data 解析器（引擎无关）。
  *
- * 从原始请求体解析文件与文本字段，使所有 buffered 适配器（Ktor / may4k / hyper4k）
+ * 从原始请求体解析文件与文本字段，使所有 buffered 适配器（Hyper4k / Ktor）
  * 共享同一份 [UploadFiles] / [Parameters] 契约，不再依赖 Ktor 的流式 parseMultipart。
  * 语义与旧 Ktor 实现逐条对齐：name/filename 同时接受引号与 token 形态，
  * filename* 走 RFC 5987，无 filename 但带非 text/plain Content-Type 的 part 视为文件。

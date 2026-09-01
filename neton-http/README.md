@@ -101,7 +101,7 @@ class XxxHttpAdapter(
 
 缓冲型外部引擎应复用 `neton.http.adapter.BufferedHttpDispatcher`。它统一实现路由、安全、
 限流、CORS、响应信封和 `HttpContext`，Adapter 只负责把引擎请求映射成
-`BufferedHttpRequest`，再将 `BufferedHttpResponse` 写回传输层。Hyper4k 和 May4k
+`BufferedHttpRequest`，再将 `BufferedHttpResponse` 写回传输层。Hyper4k 和 Ktor
 都使用这条标准管线。
 
 ### SecurityPreHandle
@@ -138,16 +138,15 @@ Adapter 模块会传递并锁定兼容的 `hyper4k` 引擎版本，应用不需�
 Hyper Adapter 固定使用异步 handoff：Tokio 只负责连接与协议，请求快照交给有界的
 Kotlin/Native 协程执行。它直接复用 `http.maxConnections` 与 `http.timeout`，不增加引擎线程池开关。
 
-面向极致 HTTP/1.1 API / gateway 吞吐时可选择 May：
+需要纯 Kotlin 实现（开发服务器、无 Rust 工具链的环境）时显式切到 Ktor：
 
 ```kotlin
 dependencies {
-    implementation("com.netonframework:neton-http-may4k:<adapter-version>")
+    implementation("com.netonframework:neton-http-ktor:<adapter-version>")
 }
 ```
 
-`http(::May4kHttpAdapter)` 使用 May 的 CPU 核数默认 worker 和框架内固定的安全栈大小，
-同样不要求应用配置 Rust 调度器。May4k 不声明 streaming、multipart、WebSocket 或 HTTP/2。
+Ktor 只能显式选用（`http(::KtorHttpAdapter)`），不提供无参 `http { }` 默认。
 
 ### 2. 使用 install DSL（推荐）
 
@@ -217,8 +216,8 @@ Neton.run(args) {
 
 ## 🗺️ Roadmap（1.0 之后）
 
-1.0 核心默认仍是稳定的 Ktor CIO。Hyper4k 与 May4k 作为独立仓库的可选 Adapter 演进，
-不会把 Rust 依赖带入 Neton 主仓。
+默认引擎是 Hyper4k（`neton-http-hyper4k` 模块，无参 `http { }` 即解析到它）；
+Ktor 作为纯 Kotlin 兼容实现保留，只能显式选用。
 
 - **HTTPS/TLS 终止**：1.0 推荐由反向代理（Nginx / Caddy / 云负载均衡）承担 TLS；进程内 TLS 暂不提供。
 - **性能监控 / metrics**：计划作为独立的 `neton-observability` 能力提供，不内嵌进 HTTP 模块。

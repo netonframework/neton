@@ -35,9 +35,9 @@ import kotlinx.coroutines.launch
 /**
  * Ktor CIO HTTP 适配器 —— 薄传输层。
  *
- * 与 may4k / hyper4k 一样，只负责 socket 与字节搬运：请求进来先整体缓冲成
+ * 与 hyper4k 一样，只负责 socket 与字节搬运：请求进来先整体缓冲成
  * [BufferedHttpRequest]，交给共享的 [BufferedHttpDispatcher]（路由 / 安全 / 限流 /
- * CORS / envelope / access log 全部在那里，三个引擎一份实现）；响应通过
+ * CORS / envelope / access log 全部在那里，两个引擎一份实现）；响应通过
  * [KtorLiveResponse] 真流式写回（SSE / relay 依赖），未提交的返回值由本类一次性写出。
  *
  * Ktor 定位为**开发服务器**（错误信息友好、生态成熟），生产主推 hyper4k。
@@ -106,7 +106,7 @@ class KtorHttpAdapter(
             embeddedServer = embeddedServer(CIO, port = port, host = "0.0.0.0") {
                 // 不装 ContentNegotiation / IgnoreTrailingSlash / CORS 插件：
                 // envelope、尾斜杠归一、CORS 全部由 BufferedHttpDispatcher 统一处理，
-                // 三个引擎行为一致（旧版插件路径曾与 may4k/hyper4k 各自漂移）。
+                // 两个引擎行为一致（旧版插件路径曾与 hyper4k 漂移）。
                 routing {
                     // 根级裸 handle 在 Ktor 里不是 catch-all（只命中根路由自身），
                     // 必须用 "{...}" tailcard 吃掉任意路径段，所有调用才都会到这里。

@@ -1,7 +1,7 @@
-# Neton 基准应用（Ktor CIO 默认引擎）
+# Neton 基准应用（Hyper4k 默认引擎）
 
-TechEmpower 风格的框架级基准应用。路由与响应契约与 `neton-http-hyper4k`、
-`neton-http-may4k` 仓库中的 bench 应用完全一致，唯一变量是 `http(...)` 的 Adapter。
+TechEmpower 风格的框架级基准应用。无参 `http { }` 解析到 Hyper4k；
+对照 Ktor 时把它换成 `http(::KtorHttpAdapter)`，其余路由与响应契约不变。
 完整规则见 `neton-docs` 的《HTTP 引擎能力规范》第九节。
 
 ## 构建与运行
