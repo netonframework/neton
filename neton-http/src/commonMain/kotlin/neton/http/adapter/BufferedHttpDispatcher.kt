@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import neton.core.component.CorsConfig
 import neton.core.component.NetonContext
 import neton.core.http.ApiEnvelope
 import neton.core.http.ArgsView
@@ -396,7 +397,7 @@ public class BufferedHttpDispatcher(
     }
 
     private fun preflightResponse(request: BufferedHttpRequest): BufferedHttpResponse {
-        val cors = serverConfig.corsConfig ?: return errorResponse(
+        val cors = corsConfig() ?: return errorResponse(
             HttpStatus.FORBIDDEN,
             NetonErrorCode.PERMISSION_DENIED,
             "CORS is not enabled",
@@ -432,7 +433,7 @@ public class BufferedHttpDispatcher(
      * 供 live transport 在提交响应**前**注入（提交后头无法再补），buffered 路径由 [applyCors] 内部使用。
      */
     public fun corsHeaders(request: BufferedHttpRequest): Map<String, List<String>> {
-        val cors = serverConfig.corsConfig ?: return emptyMap()
+        val cors = corsConfig() ?: return emptyMap()
         val origin = request.header("Origin") ?: return emptyMap()
         if (!cors.allowsOrigin(origin)) return emptyMap()
         val allowOrigin = if ("*" in cors.allowedOrigins && !cors.allowCredentials) "*" else origin
@@ -556,6 +557,9 @@ public class BufferedHttpDispatcher(
     )
 
     private fun logger() = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
+
+    /** CORS is policy, not transport: it arrives via the context like the security config does. */
+    private fun corsConfig(): CorsConfig? = appContext?.getOrNull(CorsConfig::class)
 
     private data class MatchedRoute(
         val route: RouteDefinition,

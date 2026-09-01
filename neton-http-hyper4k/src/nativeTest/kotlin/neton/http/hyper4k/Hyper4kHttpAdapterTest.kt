@@ -39,10 +39,7 @@ class Hyper4kHttpAdapterTest {
     @Test
     fun createsConfiguredAdapter() {
         val factory: HttpAdapterFactory = ::Hyper4kHttpAdapter
-        val adapter = factory(
-            HttpServerConfig(port = 0),
-            neton.core.http.DefaultParamConverterRegistry(),
-        )
+        val adapter = factory(HttpServerConfig(port = 0))
 
         assertIs<Hyper4kHttpAdapter>(adapter)
         assertEquals(
@@ -103,7 +100,13 @@ class Hyper4kHttpAdapterTest {
             allowedHeaders = listOf("Authorization", "Content-Type")
             allowCredentials = true
         }
-        val adapter = newAdapter(HttpServerConfig(port = 0, corsConfig = cors))
+        val adapter = newAdapter(HttpServerConfig(port = 0))
+        adapter.bindContext(
+            NetonContext(emptyArray()).apply {
+                bind(RequestEngine::class, TestRequestEngine(emptyList()))
+                bind(cors)
+            },
+        )
 
         val response = adapter.dispatch(
             Hyper4kRequest(
@@ -179,7 +182,7 @@ class Hyper4kHttpAdapterTest {
 }
 
 private fun newAdapter(config: HttpServerConfig): Hyper4kHttpAdapter =
-    Hyper4kHttpAdapter(config, neton.core.http.DefaultParamConverterRegistry())
+    Hyper4kHttpAdapter(config)
 
 private class TestRequestEngine(
     private val routes: List<RouteDefinition>,

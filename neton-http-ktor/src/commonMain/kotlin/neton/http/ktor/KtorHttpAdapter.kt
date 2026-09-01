@@ -44,8 +44,6 @@ import kotlinx.coroutines.launch
  */
 class KtorHttpAdapter(
     private val serverConfig: HttpServerConfig,
-    @Suppress("UNUSED_PARAMETER")
-    private val paramConverterRegistry: neton.core.http.ParamConverterRegistry = neton.core.http.DefaultParamConverterRegistry()
 ) : HttpAdapter {
 
     private val dispatcher = BufferedHttpDispatcher(serverConfig)

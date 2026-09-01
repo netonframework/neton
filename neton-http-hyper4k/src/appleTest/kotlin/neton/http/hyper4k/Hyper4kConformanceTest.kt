@@ -23,7 +23,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import neton.core.component.NetonContext
-import neton.core.http.DefaultParamConverterRegistry
 import neton.core.http.HttpBodyWriter
 import neton.core.http.adapter.HttpAdapter
 import neton.core.http.adapter.HttpCapability
@@ -70,7 +69,7 @@ class Hyper4kConformanceTest : HttpEngineConformanceSuite() {
     private val skipped = mutableListOf<String>()
 
     override fun createAdapter(): HttpAdapter =
-        Hyper4kHttpAdapter(HttpServerConfig(port = 0), DefaultParamConverterRegistry())
+        Hyper4kHttpAdapter(HttpServerConfig(port = 0))
 
     override fun recordSkipped(capability: HttpCapability, testName: String) {
         skipped += "$capability/$testName"
@@ -78,7 +77,7 @@ class Hyper4kConformanceTest : HttpEngineConformanceSuite() {
     }
 
     override suspend fun roundTrip(request: ConformanceRequest): ConformanceResponse {
-        val adapter = Hyper4kHttpAdapter(HttpServerConfig(port = 0), DefaultParamConverterRegistry())
+        val adapter = Hyper4kHttpAdapter(HttpServerConfig(port = 0))
         adapter.bindContext(fixtureContext())
         val response = adapter.dispatch(request.toHyper4k())
         return ConformanceResponse(

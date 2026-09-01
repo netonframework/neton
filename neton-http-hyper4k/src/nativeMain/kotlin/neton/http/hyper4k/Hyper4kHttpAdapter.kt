@@ -8,7 +8,6 @@ import hyper4k.Hyper4kResponseChannel
 import hyper4k.Hyper4kServer
 import kotlinx.coroutines.delay
 import neton.core.component.NetonContext
-import neton.core.http.ParamConverterRegistry
 import neton.core.http.adapter.HttpAdapter
 import neton.core.http.adapter.HttpCapability
 import neton.http.adapter.BufferedHttpDispatcher
@@ -19,7 +18,6 @@ import neton.logging.LoggerFactory
 /** Tokio + Hyper transport for Neton's standard buffered HTTP dispatcher. */
 public class Hyper4kHttpAdapter(
     private val serverConfig: HttpServerConfig,
-    @Suppress("UNUSED_PARAMETER") converterRegistry: ParamConverterRegistry,
 ) : HttpAdapter {
     private val dispatcher = BufferedHttpDispatcher(serverConfig)
     private var server: Hyper4kServer? = null

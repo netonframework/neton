@@ -41,10 +41,14 @@ class HttpComponent(
             timeout = timeout,
             maxConnections = maxConnections,
             enableCompression = enableCompression,
-            corsConfig = corsConfig
         )
         ctx.bind(serverConfig)
-        ctx.bind(HttpAdapter::class, adapterFactory(serverConfig, registry))
+        // CORS is policy, not transport: the shared dispatcher reads it from the context
+        // and no adapter carries it. This binding is authoritative -- it is the result of
+        // the application.conf > DSL precedence resolved above, so it must not defer to an
+        // earlier one.
+        corsConfig?.let { ctx.bind(CorsConfig::class, it) }
+        ctx.bind(HttpAdapter::class, adapterFactory(serverConfig))
     }
 
     private fun resolveInt(config: Map<String, Any?>?, path: String): Int? {
