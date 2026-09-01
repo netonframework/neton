@@ -17,11 +17,19 @@ kotlin {
     sourceSets {
         val nativeMain by creating { dependsOn(commonMain.get()) }
         val posixMain by creating { dependsOn(nativeMain) }
-        macosArm64Main.get().dependsOn(posixMain)
-        macosX64Main.get().dependsOn(posixMain)
-        linuxX64Main.get().dependsOn(posixMain)
-        linuxArm64Main.get().dependsOn(posixMain)
-        mingwX64Main.get().dependsOn(nativeMain)
+        val macosMain by creating {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.darwin) }
+        }
+        val linuxMain by creating {
+            dependsOn(posixMain)
+            dependencies { implementation(libs.ktor.client.cio) }
+        }
+        macosArm64Main.get().dependsOn(macosMain)
+        macosX64Main.get().dependsOn(macosMain)
+        linuxX64Main.get().dependsOn(linuxMain)
+        linuxArm64Main.get().dependsOn(linuxMain)
+        mingwX64Main.get().apply { dependsOn(nativeMain); dependencies { implementation(libs.ktor.client.winhttp) } }
 
         commonMain {
             dependencies {
@@ -37,12 +45,15 @@ kotlin {
                 implementation(libs.ktor.server.sessions)
                 implementation(libs.ktor.server.cors)
                 implementation(libs.kotlinx.coroutines.core)
+                api(libs.ktor.client.core)
             }
         }
         commonTest {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.ktor.client.mock)
             }
         }
     }

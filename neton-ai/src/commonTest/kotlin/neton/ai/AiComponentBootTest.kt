@@ -1,6 +1,8 @@
 // neton-ai/src/commonTest/kotlin/neton/ai/AiComponentBootTest.kt
 package neton.ai
 
+import neton.http.client.create
+
 import kotlinx.coroutines.test.runTest
 import neton.core.component.NetonContext
 import neton.http.client.NetonHttpClient

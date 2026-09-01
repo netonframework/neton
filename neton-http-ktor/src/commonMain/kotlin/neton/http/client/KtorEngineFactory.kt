@@ -1,4 +1,4 @@
-package neton.http.client.internal
+package neton.http.client
 
 import io.ktor.client.engine.HttpClientEngineFactory
 

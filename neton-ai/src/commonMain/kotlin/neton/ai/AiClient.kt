@@ -1,5 +1,6 @@
 package neton.ai
 
+
 import kotlinx.coroutines.flow.Flow
 import neton.ai.builder.EmbeddingRequestBuilder
 import neton.ai.builder.GenerateTextRequestBuilder

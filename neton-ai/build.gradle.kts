@@ -45,6 +45,7 @@ kotlin {
 
         commonTest {
             dependencies {
+                implementation(project(":neton-http-ktor"))
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.ktor.client.mock)

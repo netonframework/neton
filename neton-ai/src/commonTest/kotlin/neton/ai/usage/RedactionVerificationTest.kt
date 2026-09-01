@@ -1,6 +1,9 @@
 // neton-ai/src/commonTest/kotlin/neton/ai/usage/RedactionVerificationTest.kt
 package neton.ai.usage
 
+import neton.http.client.create
+import neton.http.client.createWithEngine
+
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.mock.MockEngine

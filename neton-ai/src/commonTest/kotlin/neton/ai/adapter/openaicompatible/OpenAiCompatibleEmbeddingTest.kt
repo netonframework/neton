@@ -1,5 +1,8 @@
 package neton.ai.adapter.openaicompatible
 
+import neton.http.client.create
+import neton.http.client.createWithEngine
+
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.mock.MockEngine

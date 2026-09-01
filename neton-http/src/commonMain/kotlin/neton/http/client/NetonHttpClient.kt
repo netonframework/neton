@@ -1,7 +1,6 @@
 package neton.http.client
 
 import kotlinx.coroutines.flow.Flow
-import neton.http.client.internal.DefaultNetonHttpClient
 
 /** Native-safe outbound client factory. External engines use constructor/function references. */
 typealias NetonHttpClientFactory = (HttpClientConfig) -> NetonHttpClient
@@ -48,21 +47,11 @@ interface NetonHttpClient {
 
     companion object {
         /**
-         * Standalone factory. Constructs a [NetonHttpClient] from a config DSL without
-         * requiring any Neton runtime (`Neton.run`, `NetonContext`, etc.).
-         *
-         * @throws NetonHttpException(NetonHttpError.Unknown) on invalid config (non-positive timeouts).
-         */
-        fun create(block: HttpClientConfig.() -> Unit = {}): NetonHttpClient {
-            return create(::createKtorClient, block)
-        }
-
-        /**
          * Standalone factory with an application-selected transport implementation.
          *
          * The same config validation runs before an external factory is invoked.
          */
-        fun create(
+        fun createWith(
             factory: NetonHttpClientFactory,
             block: HttpClientConfig.() -> Unit = {},
         ): NetonHttpClient {
@@ -76,25 +65,5 @@ interface NetonHttpClient {
             return factory(cfg)
         }
 
-        /**
-         * Construct with a caller-supplied Ktor engine factory. Intended for tests (MockEngine)
-         * and advanced production cases (custom engine config). Use [create] for normal usage.
-         */
-        fun createWithEngine(
-            engineFactory: io.ktor.client.engine.HttpClientEngineFactory<*>,
-            block: HttpClientConfig.() -> Unit = {},
-        ): NetonHttpClient {
-            val cfg = HttpClientConfig().apply(block)
-            val errors = cfg.validate()
-            if (errors.isNotEmpty()) {
-                throw NetonHttpException(NetonHttpError.Unknown(
-                    "Invalid HTTP client config: ${errors.joinToString()}", null,
-                ))
-            }
-            return DefaultNetonHttpClient(engineFactory = engineFactory, defaultTimeout = cfg.toEffectiveTimeout(), proxyUrl = cfg.proxyUrl)
-        }
     }
 }
-
-private fun createKtorClient(config: HttpClientConfig): NetonHttpClient =
-    DefaultNetonHttpClient(defaultTimeout = config.toEffectiveTimeout(), proxyUrl = config.proxyUrl)

@@ -13,7 +13,7 @@ class HttpClientConfig {
     /** HTTP(S) 代理地址，如 "http://host:port"。仅支持 HTTP 代理（CIO 引擎不支持 SOCKS）。 */
     var proxyUrl: String? = null
 
-    internal fun toEffectiveTimeout(): NetonHttpTimeout = NetonHttpTimeout(
+    fun toEffectiveTimeout(): NetonHttpTimeout = NetonHttpTimeout(
         connectMillis = connectMillis ?: 5_000,
         requestMillis = requestMillis ?: 60_000,
         socketMillis = socketMillis ?: 60_000,
