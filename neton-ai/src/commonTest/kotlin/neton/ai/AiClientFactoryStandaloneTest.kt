@@ -20,7 +20,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -41,7 +41,7 @@ class AiClientFactoryStandaloneTest {
             )
         }
         val ai = AiClient.create {
-            httpClient = NetonHttpClient.createWithEngine(factoryOf(engine))
+            httpClient = HttpClient.createWithEngine(factoryOf(engine))
             providers {
                 openAiCompatible("openai") {
                     baseUrl = "https://api.example.com/v1"
@@ -72,7 +72,7 @@ class AiClientFactoryStandaloneTest {
     @Test fun missingProvidersFailsValidate() {
         val ex = assertFailsWith<AiException> {
             AiClient.create {
-                httpClient = NetonHttpClient.create()
+                httpClient = HttpClient.create()
                 routing { defaultModel = "x:y" }
             }
         }
@@ -82,7 +82,7 @@ class AiClientFactoryStandaloneTest {
     @Test fun routingReferencingUnknownProviderFails() {
         val ex = assertFailsWith<AiException> {
             AiClient.create {
-                httpClient = NetonHttpClient.create()
+                httpClient = HttpClient.create()
                 providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }
                 routing { defaultModel = "missing:m" }
             }
@@ -93,7 +93,7 @@ class AiClientFactoryStandaloneTest {
 
     @Test fun dualProviderSetupBuilds() = runTest {
         val ai = AiClient.create {
-            httpClient = NetonHttpClient.create()
+            httpClient = HttpClient.create()
             providers {
                 openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" }
                 anthropic("anthropic") { apiKey = "a" }

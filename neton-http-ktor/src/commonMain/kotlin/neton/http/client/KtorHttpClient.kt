@@ -1,6 +1,6 @@
 package neton.http.client
 
-import io.ktor.client.HttpClient
+import io.ktor.client.HttpClient as KtorEngineClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
@@ -25,27 +25,27 @@ import kotlinx.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import neton.http.client.NetonHttpBody
-import neton.http.client.NetonHttpClient
-import neton.http.client.NetonHttpError
-import neton.http.client.NetonHttpException
-import neton.http.client.NetonHttpMethod
-import neton.http.client.NetonHttpRequest
-import neton.http.client.NetonHttpResponse
-import neton.http.client.NetonHttpStreamChunk
-import neton.http.client.NetonHttpTimeout
+import neton.http.client.HttpClientBody
+import neton.http.client.HttpClient
+import neton.http.client.HttpClientError
+import neton.http.client.HttpClientException
+import neton.http.client.HttpClientMethod
+import neton.http.client.HttpClientRequest
+import neton.http.client.HttpClientResponse
+import neton.http.client.HttpClientStreamChunk
+import neton.http.client.HttpClientTimeouts
 
-internal class DefaultNetonHttpClient(
+internal class KtorHttpClient(
     engineFactory: HttpClientEngineFactory<*> = defaultKtorEngine(),
-    private val defaultTimeout: NetonHttpTimeout = NetonHttpTimeout(
+    private val defaultTimeout: HttpClientTimeouts = HttpClientTimeouts(
         connectMillis = 5_000,
         requestMillis = 60_000,
         socketMillis = 60_000,
     ),
     private val proxyUrl: String? = null,
-) : NetonHttpClient {
+) : HttpClient {
 
-    private val client: HttpClient = HttpClient(engineFactory) {
+    private val client: KtorEngineClient = KtorEngineClient(engineFactory) {
         install(HttpTimeout) {
             connectTimeoutMillis = defaultTimeout.connectMillis
             requestTimeoutMillis = defaultTimeout.requestMillis
@@ -59,33 +59,33 @@ internal class DefaultNetonHttpClient(
         }
     }
 
-    override suspend fun request(request: NetonHttpRequest): NetonHttpResponse {
+    override suspend fun request(request: HttpClientRequest): HttpClientResponse {
         val response: HttpResponse = try {
             client.request { applyRequest(request) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: HttpRequestTimeoutException) {
-            throw NetonHttpException(NetonHttpError.Timeout(e.message ?: "Request timeout", e))
+            throw HttpClientException(HttpClientError.Timeout(e.message ?: "Request timeout", e))
         } catch (e: IOException) {
-            throw NetonHttpException(NetonHttpError.Network(e.message ?: "Network error", e))
+            throw HttpClientException(HttpClientError.Network(e.message ?: "Network error", e))
         } catch (e: Throwable) {
-            throw NetonHttpException(NetonHttpError.Unknown(e.message ?: "Unknown HTTP error", e))
+            throw HttpClientException(HttpClientError.Unknown(e.message ?: "Unknown HTTP error", e))
         }
 
         val bodyText = try {
             response.bodyAsText()
         } catch (e: Throwable) {
-            throw NetonHttpException(NetonHttpError.Network("Failed to read response body: ${e.message}", e))
+            throw HttpClientException(HttpClientError.Network("Failed to read response body: ${e.message}", e))
         }
 
-        return NetonHttpResponse(
+        return HttpClientResponse(
             statusCode = response.status.value,
             headers = response.headers.toNeton(),
             body = bodyText,
         )
     }
 
-    override fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk> = channelFlow {
+    override fun stream(request: HttpClientRequest): Flow<HttpClientStreamChunk> = channelFlow {
         client.prepareRequest { applyRequest(request) }.execute { response ->
             // Non-2xx: surface as typed Http error BEFORE streaming the body. Without this check,
             // an error JSON body (e.g. OpenAI 429) would flow through SSE parsing as zero events
@@ -99,8 +99,8 @@ internal class DefaultNetonHttpClient(
                 } catch (_: Throwable) {
                     null
                 }
-                throw NetonHttpException(
-                    NetonHttpError.Http(
+                throw HttpClientException(
+                    HttpClientError.Http(
                         statusCode = status,
                         message = "HTTP $status",
                         body = errorBody,
@@ -113,17 +113,17 @@ internal class DefaultNetonHttpClient(
                 while (true) {
                     val n = channel.readAvailable(buf)
                     if (n <= 0) break
-                    send(NetonHttpStreamChunk.Bytes(buf.copyOf(n)))
+                    send(HttpClientStreamChunk.Bytes(buf.copyOf(n)))
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: IOException) {
-                throw NetonHttpException(NetonHttpError.Network(e.message ?: "Stream read error", e))
+                throw HttpClientException(HttpClientError.Network(e.message ?: "Stream read error", e))
             } catch (e: Throwable) {
-                throw NetonHttpException(NetonHttpError.Unknown(e.message ?: "Unknown stream error", e))
+                throw HttpClientException(HttpClientError.Unknown(e.message ?: "Unknown stream error", e))
             }
             send(
-                NetonHttpStreamChunk.End(
+                HttpClientStreamChunk.End(
                     finalHeaders = response.headers.toNeton()
                 )
             )
@@ -134,7 +134,7 @@ internal class DefaultNetonHttpClient(
         client.close()
     }
 
-    private fun HttpRequestBuilder.applyRequest(req: NetonHttpRequest) {
+    private fun HttpRequestBuilder.applyRequest(req: HttpClientRequest) {
         method = req.method.toKtor()
         url(req.url)
         headers {
@@ -150,31 +150,31 @@ internal class DefaultNetonHttpClient(
         }
     }
 
-    private fun HttpRequestBuilder.applyBody(body: NetonHttpBody) {
+    private fun HttpRequestBuilder.applyBody(body: HttpClientBody) {
         when (body) {
-            is NetonHttpBody.Json -> {
+            is HttpClientBody.Json -> {
                 contentType(ContentType.Application.Json)
                 setBody(body.text)
             }
-            is NetonHttpBody.Text -> {
+            is HttpClientBody.Text -> {
                 contentType(ContentType.parse(body.contentType))
                 setBody(body.text)
             }
-            is NetonHttpBody.Bytes -> {
+            is HttpClientBody.Bytes -> {
                 contentType(ContentType.parse(body.contentType))
                 setBody(body.bytes)
             }
         }
     }
 
-    private fun NetonHttpMethod.toKtor(): HttpMethod = when (this) {
-        NetonHttpMethod.Get -> HttpMethod.Get
-        NetonHttpMethod.Post -> HttpMethod.Post
-        NetonHttpMethod.Put -> HttpMethod.Put
-        NetonHttpMethod.Delete -> HttpMethod.Delete
-        NetonHttpMethod.Patch -> HttpMethod.Patch
-        NetonHttpMethod.Head -> HttpMethod.Head
-        NetonHttpMethod.Options -> HttpMethod.Options
+    private fun HttpClientMethod.toKtor(): HttpMethod = when (this) {
+        HttpClientMethod.Get -> HttpMethod.Get
+        HttpClientMethod.Post -> HttpMethod.Post
+        HttpClientMethod.Put -> HttpMethod.Put
+        HttpClientMethod.Delete -> HttpMethod.Delete
+        HttpClientMethod.Patch -> HttpMethod.Patch
+        HttpClientMethod.Head -> HttpMethod.Head
+        HttpClientMethod.Options -> HttpMethod.Options
     }
 
     companion object {

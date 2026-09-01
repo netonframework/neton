@@ -19,7 +19,7 @@ import neton.ai.adapter.anthropic.dto.AnthropicContentBlockStopData
 import neton.ai.adapter.anthropic.dto.AnthropicMessageDeltaData
 import neton.ai.adapter.anthropic.dto.AnthropicMessageStartData
 import neton.ai.adapter.anthropic.dto.AnthropicStreamErrorData
-import neton.http.client.NetonHttpStreamChunk
+import neton.http.client.HttpClientStreamChunk
 import neton.http.client.sse.parseSseEvents
 
 // Per-block-index accumulator (Kotlin disallows local sealed interfaces; keep at file scope)
@@ -31,7 +31,7 @@ internal class AnthropicStreamMapper(
     private val json: Json = Json { ignoreUnknownKeys = true; explicitNulls = false },
 ) {
 
-    fun map(chunks: Flow<NetonHttpStreamChunk>): Flow<AiStreamEvent> = flow {
+    fun map(chunks: Flow<HttpClientStreamChunk>): Flow<AiStreamEvent> = flow {
         val blocks = mutableMapOf<Int, BlockAcc>()
         val orderedBlockIndexes = mutableListOf<Int>()  // preserve insertion order for final assembly
         var lastUsage: AiUsage? = null  // input from message_start; updated cumulatively from message_delta

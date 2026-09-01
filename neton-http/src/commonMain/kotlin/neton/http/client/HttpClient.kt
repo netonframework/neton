@@ -3,13 +3,13 @@ package neton.http.client
 import kotlinx.coroutines.flow.Flow
 
 /** Native-safe outbound client factory. External engines use constructor/function references. */
-typealias NetonHttpClientFactory = (HttpClientConfig) -> NetonHttpClient
+typealias HttpClientFactory = (HttpClientConfig) -> HttpClient
 
 /**
  * Provider-neutral outbound HTTP client. Public API of neton-http.
  *
  * Built by the application, never by a framework component:
- * `val client = NetonHttpClient.create { requestMillis = 30_000 }`.
+ * `val client = HttpClient.create { requestMillis = 30_000 }`.
  *
  * Ownership: the creator closes it. Register it with `ctx.lifecycle` so shutdown is
  * deterministic; modules handed a client only borrow it and must not close it.
@@ -17,31 +17,31 @@ typealias NetonHttpClientFactory = (HttpClientConfig) -> NetonHttpClient
  * Implementations are responsible for:
  *  - per-platform Ktor engine selection (Darwin / CIO / WinHttp)
  *  - timeout enforcement
- *  - typed error mapping (NetonHttpException for failures)
+ *  - typed error mapping (HttpClientException for failures)
  *  - cancellation propagation (Flow cancel → HTTP body close)
  *  - redaction of sensitive headers in any internal logging
  *
  * Downstream consumers (neton-ai, future neton-webhooks, etc.) consume this interface,
  * NEVER `io.ktor.client.*` directly.
  */
-interface NetonHttpClient {
+interface HttpClient {
     /**
-     * Execute a one-shot HTTP request. Body fully buffered in [NetonHttpResponse.body].
-     * Throws [NetonHttpException] on transport / HTTP failures.
+     * Execute a one-shot HTTP request. Body fully buffered in [HttpClientResponse.body].
+     * Throws [HttpClientException] on transport / HTTP failures.
      */
-    suspend fun request(request: NetonHttpRequest): NetonHttpResponse
+    suspend fun request(request: HttpClientRequest): HttpClientResponse
 
     /**
-     * Open a streaming HTTP body. Flow emits [NetonHttpStreamChunk.Bytes] (or [NetonHttpStreamChunk.Text] for text bodies)
-     * followed by exactly one [NetonHttpStreamChunk.End].
+     * Open a streaming HTTP body. Flow emits [HttpClientStreamChunk.Bytes] (or [HttpClientStreamChunk.Text] for text bodies)
+     * followed by exactly one [HttpClientStreamChunk.End].
      *
      * Cancellation: cancelling the Flow collection closes the underlying HTTP response body,
      * which closes the TCP connection. Server observes the close and stops generating.
      *
-     * Throws [NetonHttpException] on connection failures before the first chunk is read.
-     * Errors mid-stream propagate as Flow exceptions (also [NetonHttpException]).
+     * Throws [HttpClientException] on connection failures before the first chunk is read.
+     * Errors mid-stream propagate as Flow exceptions (also [HttpClientException]).
      */
-    fun stream(request: NetonHttpRequest): Flow<NetonHttpStreamChunk>
+    fun stream(request: HttpClientRequest): Flow<HttpClientStreamChunk>
 
     /** Release engine resources. Idempotent. */
     suspend fun close()
@@ -53,13 +53,13 @@ interface NetonHttpClient {
          * The same config validation runs before an external factory is invoked.
          */
         fun createWith(
-            factory: NetonHttpClientFactory,
+            factory: HttpClientFactory,
             block: HttpClientConfig.() -> Unit = {},
-        ): NetonHttpClient {
+        ): HttpClient {
             val cfg = HttpClientConfig().apply(block)
             val errors = cfg.validate()
             if (errors.isNotEmpty()) {
-                throw NetonHttpException(NetonHttpError.Unknown(
+                throw HttpClientException(HttpClientError.Unknown(
                     "Invalid HTTP client config: ${errors.joinToString()}", null,
                 ))
             }

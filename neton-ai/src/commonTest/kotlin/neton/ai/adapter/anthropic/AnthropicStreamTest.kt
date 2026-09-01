@@ -23,7 +23,7 @@ import neton.ai.AiStreamEvent
 import neton.ai.AiUsage
 import neton.ai.ToolChoice
 import neton.ai.provider.ProviderCallRequest
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -32,8 +32,8 @@ import kotlin.test.assertTrue
 
 class AnthropicStreamTest {
 
-    private fun httpClient(engine: MockEngine): NetonHttpClient =
-        NetonHttpClient.createWithEngine(factoryOf(engine))
+    private fun httpClient(engine: MockEngine): HttpClient =
+        HttpClient.createWithEngine(factoryOf(engine))
 
     private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
         override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine

@@ -7,14 +7,14 @@ import neton.core.Neton
 import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
 import neton.core.config.ConfigLoader
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 import neton.logging.LoggerFactory
 
 /**
  * Mode 2 thin adapter — binds AiClient into NetonContext for downstream code.
  *
  * Precondition: HttpClientComponent must be installed BEFORE this component. AiComponent.init
- * fail-fasts with a clear error if NetonHttpClient is not in the context.
+ * fail-fasts with a clear error if HttpClient is not in the context.
  *
  * Config flow per spec §4.3:
  *   1. DSL block runs (caller-provided config)
@@ -29,11 +29,11 @@ object AiComponent : NetonComponent<AiConfig> {
         // The client is a borrowed resource: whoever created it owns closing it, so this
         // component neither builds one nor takes one implicitly out of the context.
         if (config.httpClient == null) {
-            config.httpClient = ctx.getOrNull(NetonHttpClient::class)
+            config.httpClient = ctx.getOrNull(HttpClient::class)
                 ?: throw AiException(AiError.InvalidRequest(
-                    "neton-ai needs an HTTP client. Build one with NetonHttpClient.create { } and " +
+                    "neton-ai needs an HTTP client. Build one with HttpClient.create { } and " +
                     "either set it in `ai { httpClient = ... }` or bind it with " +
-                    "ctx.bind(NetonHttpClient::class, client) before `ai { }`."
+                    "ctx.bind(HttpClient::class, client) before `ai { }`."
                 ))
         }
 

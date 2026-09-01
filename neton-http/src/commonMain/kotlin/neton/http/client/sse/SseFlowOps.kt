@@ -2,14 +2,14 @@ package neton.http.client.sse
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import neton.http.client.NetonHttpStreamChunk
+import neton.http.client.HttpClientStreamChunk
 
 /**
  * Convert a Flow of complete lines (no terminators) into SSE events.
- * Each line is fed directly to a [NetonSseParser]; blank string ("") finalizes the current event.
+ * Each line is fed directly to a [SseParser]; blank string ("") finalizes the current event.
  */
-fun Flow<String>.parseSseEvents(): Flow<NetonSseEvent> = flow {
-    val parser = NetonSseParser()
+fun Flow<String>.parseSseEvents(): Flow<SseEvent> = flow {
+    val parser = SseParser()
     collect { line ->
         parser.accept(line).forEach { emit(it) }
     }
@@ -20,10 +20,10 @@ fun Flow<String>.parseSseEvents(): Flow<NetonSseEvent> = flow {
  * Convert a Flow of byte/text chunks (with arbitrary boundaries) into SSE events.
  * Handles cross-chunk line fragmentation by accumulating into a buffer and splitting on LF.
  * Strips trailing CR (handles CRLF line endings).
- * Stops accumulating when [NetonHttpStreamChunk.End] is received; flushes any pending event.
+ * Stops accumulating when [HttpClientStreamChunk.End] is received; flushes any pending event.
  */
-fun Flow<NetonHttpStreamChunk>.parseSseEvents(): Flow<NetonSseEvent> = flow {
-    val parser = NetonSseParser()
+fun Flow<HttpClientStreamChunk>.parseSseEvents(): Flow<SseEvent> = flow {
+    val parser = SseParser()
     // Use a mutable reference to a String so we can reassign the remainder after draining lines.
     var buffer = ""
 
@@ -49,15 +49,15 @@ fun Flow<NetonHttpStreamChunk>.parseSseEvents(): Flow<NetonSseEvent> = flow {
 
     collect { chunk ->
         when (chunk) {
-            is NetonHttpStreamChunk.Bytes -> {
+            is HttpClientStreamChunk.Bytes -> {
                 buffer += chunk.bytes.decodeToString()
                 drainLines()
             }
-            is NetonHttpStreamChunk.Text -> {
+            is HttpClientStreamChunk.Text -> {
                 buffer += chunk.text
                 drainLines()
             }
-            is NetonHttpStreamChunk.End -> {
+            is HttpClientStreamChunk.End -> {
                 // Drain any complete lines remaining in the buffer
                 drainLines()
                 // If there is still an incomplete fragment without a trailing LF, feed it as a line

@@ -1,6 +1,6 @@
 package neton.http.client
 
-enum class NetonHttpMethod {
+enum class HttpClientMethod {
     Get,
     Post,
     Put,

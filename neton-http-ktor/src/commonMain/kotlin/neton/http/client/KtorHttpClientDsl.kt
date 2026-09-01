@@ -7,11 +7,11 @@ import neton.core.annotations.InternalNetonApi
 /**
  * The Ktor-backed client entry points.
  *
- * They live here rather than on [NetonHttpClient] itself so neton-http carries no
+ * They live here rather than on [HttpClient] itself so neton-http carries no
  * Ktor dependency. Declared in package `neton.http.client`, so applications keep
- * writing `NetonHttpClient.create { }` and only add this module to their build.
+ * writing `HttpClient.create { }` and only add this module to their build.
  */
-fun NetonHttpClient.Companion.create(block: HttpClientConfig.() -> Unit = {}): NetonHttpClient =
+fun HttpClient.Companion.create(block: HttpClientConfig.() -> Unit = {}): HttpClient =
     createWith(::createKtorClient, block)
 
 /**
@@ -19,11 +19,11 @@ fun NetonHttpClient.Companion.create(block: HttpClientConfig.() -> Unit = {}): N
  * for production cases that need engine-specific configuration.
  */
 @OptIn(InternalNetonApi::class)
-fun NetonHttpClient.Companion.createWithEngine(
+fun HttpClient.Companion.createWithEngine(
     engineFactory: HttpClientEngineFactory<*>,
     block: HttpClientConfig.() -> Unit = {},
-): NetonHttpClient = createWith({ cfg ->
-    DefaultNetonHttpClient(
+): HttpClient = createWith({ cfg ->
+    KtorHttpClient(
         engineFactory = engineFactory,
         defaultTimeout = cfg.toEffectiveTimeout(),
         proxyUrl = cfg.proxyUrl,
@@ -31,5 +31,5 @@ fun NetonHttpClient.Companion.createWithEngine(
 }, block)
 
 @OptIn(InternalNetonApi::class)
-private fun createKtorClient(config: HttpClientConfig): NetonHttpClient =
-    DefaultNetonHttpClient(defaultTimeout = config.toEffectiveTimeout(), proxyUrl = config.proxyUrl)
+private fun createKtorClient(config: HttpClientConfig): HttpClient =
+    KtorHttpClient(defaultTimeout = config.toEffectiveTimeout(), proxyUrl = config.proxyUrl)

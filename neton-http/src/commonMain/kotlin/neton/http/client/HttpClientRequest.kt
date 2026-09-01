@@ -3,15 +3,15 @@ package neton.http.client
 import neton.core.http.HttpHeaders
 
 /**
- * Request envelope passed to NetonHttpClient.
+ * Request envelope passed to HttpClient.
  *
  * @property metadata caller-supplied tags forwarded to logging/retry hooks (do NOT put secrets here)
  */
-data class NetonHttpRequest(
-    val method: NetonHttpMethod,
+data class HttpClientRequest(
+    val method: HttpClientMethod,
     val url: String,
     val headers: HttpHeaders = HttpHeaders.EMPTY,
-    val body: NetonHttpBody? = null,
-    val timeout: NetonHttpTimeout? = null,
+    val body: HttpClientBody? = null,
+    val timeout: HttpClientTimeouts? = null,
     val metadata: Map<String, String> = emptyMap(),
 )

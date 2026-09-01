@@ -13,7 +13,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiClient
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -34,7 +34,7 @@ class RedactionVerificationTest {
             )
         }
         val ai = AiClient.create {
-            httpClient = NetonHttpClient.createWithEngine(factoryOf(engine))
+            httpClient = HttpClient.createWithEngine(factoryOf(engine))
             providers {
                 openAiCompatible("openai") {
                     baseUrl = "https://api.example.com/v1"
@@ -67,7 +67,7 @@ class RedactionVerificationTest {
                 HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
         }
         val ai = AiClient.create {
-            httpClient = NetonHttpClient.createWithEngine(factoryOf(engine))
+            httpClient = HttpClient.createWithEngine(factoryOf(engine))
             providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }
             routing { defaultModel = "openai:m" }
             debug = false

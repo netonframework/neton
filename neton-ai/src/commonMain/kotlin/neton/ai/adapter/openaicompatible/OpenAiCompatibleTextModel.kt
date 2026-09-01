@@ -16,17 +16,17 @@ import neton.ai.internal.withRedactedValues
 import neton.ai.provider.AiStreamingTextModel
 import neton.ai.provider.ProviderCallRequest
 import neton.ai.provider.ProviderCallResponse
-import neton.http.client.NetonHttpBody
-import neton.http.client.NetonHttpClient
-import neton.http.client.NetonHttpError
-import neton.http.client.NetonHttpException
-import neton.http.client.NetonHttpMethod
-import neton.http.client.NetonHttpRequest
+import neton.http.client.HttpClientBody
+import neton.http.client.HttpClient
+import neton.http.client.HttpClientError
+import neton.http.client.HttpClientException
+import neton.http.client.HttpClientMethod
+import neton.http.client.HttpClientRequest
 
 internal class OpenAiCompatibleTextModel(
     override val providerId: String,
     override val modelName: String,
-    private val httpClient: NetonHttpClient,
+    private val httpClient: HttpClient,
     private val baseUrl: String,
     private val apiKey: String,
     private val organization: String?,
@@ -51,19 +51,19 @@ internal class OpenAiCompatibleTextModel(
             logSink.invoke("ai.provider.$providerId model=$modelName POST $url headers=${headers.withRedactedValues()}")
         }
         val resp = try {
-            httpClient.request(NetonHttpRequest(
-                method = NetonHttpMethod.Post,
+            httpClient.request(HttpClientRequest(
+                method = HttpClientMethod.Post,
                 url = url,
                 headers = HttpHeaders.from(headers),
-                body = NetonHttpBody.Json(bodyJson),
+                body = HttpClientBody.Json(bodyJson),
                 metadata = request.metadata,
             ))
-        } catch (e: NetonHttpException) {
+        } catch (e: HttpClientException) {
             throw AiException(when (val err = e.error) {
-                is neton.http.client.NetonHttpError.Network -> AiError.Network(err.message, err.cause)
-                is neton.http.client.NetonHttpError.Timeout -> AiError.Timeout(err.message, err.cause)
-                is neton.http.client.NetonHttpError.Http -> throw IllegalStateException("Http error should not occur here (expectSuccess=false)")
-                is neton.http.client.NetonHttpError.Unknown -> AiError.Unknown(err.message, err.cause)
+                is neton.http.client.HttpClientError.Network -> AiError.Network(err.message, err.cause)
+                is neton.http.client.HttpClientError.Timeout -> AiError.Timeout(err.message, err.cause)
+                is neton.http.client.HttpClientError.Http -> throw IllegalStateException("Http error should not occur here (expectSuccess=false)")
+                is neton.http.client.HttpClientError.Unknown -> AiError.Unknown(err.message, err.cause)
             })
         }
         if (resp.statusCode !in 200..299) {
@@ -86,11 +86,11 @@ internal class OpenAiCompatibleTextModel(
             logSink.invoke("ai.provider.$providerId model=$modelName POST $baseUrl/chat/completions (stream) headers=${headers.withRedactedValues()}")
         }
 
-        val chunkFlow = httpClient.stream(NetonHttpRequest(
-            method = NetonHttpMethod.Post,
+        val chunkFlow = httpClient.stream(HttpClientRequest(
+            method = HttpClientMethod.Post,
             url = "$baseUrl/chat/completions",
             headers = HttpHeaders.from(headers),
-            body = NetonHttpBody.Json(bodyJson),
+            body = HttpClientBody.Json(bodyJson),
             metadata = request.metadata,
         ))
 
@@ -98,12 +98,12 @@ internal class OpenAiCompatibleTextModel(
             streamMapper.map(chunkFlow).collect { send(it) }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: NetonHttpException) {
+        } catch (e: HttpClientException) {
             throw AiException(when (val err = e.error) {
-                is NetonHttpError.Network -> AiError.Network(err.message, err.cause)
-                is NetonHttpError.Timeout -> AiError.Timeout(err.message, err.cause)
-                is NetonHttpError.Http -> mapHttpStreamError(err)
-                is NetonHttpError.Unknown -> AiError.Unknown(err.message, err.cause)
+                is HttpClientError.Network -> AiError.Network(err.message, err.cause)
+                is HttpClientError.Timeout -> AiError.Timeout(err.message, err.cause)
+                is HttpClientError.Http -> mapHttpStreamError(err)
+                is HttpClientError.Unknown -> AiError.Unknown(err.message, err.cause)
             })
         } catch (e: AiException) {
             throw e
@@ -112,7 +112,7 @@ internal class OpenAiCompatibleTextModel(
         }
     }
 
-    private fun mapHttpStreamError(err: NetonHttpError.Http): AiError {
+    private fun mapHttpStreamError(err: HttpClientError.Http): AiError {
         val body = err.body
         if (body != null) {
             // Reuse the full non-streaming error mapping (parses error.message / error.code,

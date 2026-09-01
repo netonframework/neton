@@ -15,7 +15,7 @@ import neton.ai.routing.RoutingConfig
  * and sets this field internally before the DSL block runs.
  */
 class AiConfig {
-    var httpClient: neton.http.client.NetonHttpClient? = null
+    var httpClient: neton.http.client.HttpClient? = null
     internal val providers = mutableMapOf<String, ProviderSpec>()
     internal var routing: RoutingConfig = RoutingConfig()
     internal var usage: UsageConfig = UsageConfig(recorder = null)

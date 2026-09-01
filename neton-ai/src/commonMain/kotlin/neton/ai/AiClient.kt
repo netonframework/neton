@@ -34,11 +34,11 @@ interface AiClient {
     companion object {
         /**
          * Standalone factory (Mode 1). Constructs an AiClient from a DSL block WITHOUT requiring
-         * any Neton runtime (Neton.run / NetonContext). Caller must provide an NetonHttpClient.
+         * any Neton runtime (Neton.run / NetonContext). Caller must provide an HttpClient.
          *
          * Example:
          *   val ai = AiClient.create {
-         *       httpClient = NetonHttpClient.create { requestMillis = 30_000 }
+         *       httpClient = HttpClient.create { requestMillis = 30_000 }
          *       providers {
          *           openAiCompatible("openai") { baseUrl = "..."; apiKey = "sk-..." }
          *       }

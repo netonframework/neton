@@ -22,15 +22,15 @@ import neton.ai.AiToolExecutor
 import neton.ai.AiUsage
 import neton.ai.ToolChoice
 import neton.ai.provider.ProviderCallRequest
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class OpenAiCompatibleIntegrationTest {
 
-    private fun httpClient(engine: MockEngine): NetonHttpClient =
-        NetonHttpClient.createWithEngine(factoryOf(engine))
+    private fun httpClient(engine: MockEngine): HttpClient =
+        HttpClient.createWithEngine(factoryOf(engine))
 
     private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
         override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine

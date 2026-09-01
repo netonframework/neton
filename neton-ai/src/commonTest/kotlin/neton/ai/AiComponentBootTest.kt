@@ -5,7 +5,7 @@ import neton.http.client.create
 
 import kotlinx.coroutines.test.runTest
 import neton.core.component.NetonContext
-import neton.http.client.NetonHttpClient
+import neton.http.client.HttpClient
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
 class AiComponentBootTest {
 
     @Test fun initFailsWithClearMessageWhenHttpClientMissing() = runTest {
-        val ctx = NetonContext(emptyArray())  // no NetonHttpClient bound
+        val ctx = NetonContext(emptyArray())  // no HttpClient bound
         val ex = assertFailsWith<AiException> {
             AiComponent.init(ctx, AiConfig().apply {
                 providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }
@@ -36,8 +36,8 @@ class AiComponentBootTest {
 
     @Test fun initBindsAiClientWhenConfigValid() = runTest {
         val ctx = NetonContext(emptyArray())
-        val httpClient = NetonHttpClient.create()
-        ctx.bind(NetonHttpClient::class, httpClient)
+        val httpClient = HttpClient.create()
+        ctx.bind(HttpClient::class, httpClient)
         AiComponent.init(ctx, AiConfig().apply {
             providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }
             routing { defaultModel = "openai:m" }

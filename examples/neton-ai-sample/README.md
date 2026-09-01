@@ -20,7 +20,7 @@ If neither key is set, the sample compiles and binds the client but skips live A
 
 ## What it demonstrates
 
-- `NetonHttpClient.create { ... }` — standalone HTTP client
+- `HttpClient.create { ... }` — standalone HTTP client
 - `AiClient.create { httpClient = ...; providers { ... }; routing { ... } }` — standalone AI client (Mode 1, no Neton runtime)
 - `ai.generateText { user("...") }` — non-streaming chat
 - `ai.streamText { user("...") }.collect { ... }` — SSE streaming

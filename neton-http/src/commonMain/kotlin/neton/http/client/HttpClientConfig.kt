@@ -3,7 +3,7 @@ package neton.http.client
 import neton.core.annotations.InternalNetonApi
 
 /**
- * DSL config for standalone NetonHttpClient.create { ... } AND HttpClientComponent.
+ * DSL config for HttpClient.create { ... }.
  * Nullable fields = "not set" (let defaults or file config fill in).
  */
 class HttpClientConfig {
@@ -17,7 +17,7 @@ class HttpClientConfig {
 
     /** Public only so client adapter modules can resolve the same defaults. */
     @InternalNetonApi
-    fun toEffectiveTimeout(): NetonHttpTimeout = NetonHttpTimeout(
+    fun toEffectiveTimeout(): HttpClientTimeouts = HttpClientTimeouts(
         connectMillis = connectMillis ?: 5_000,
         requestMillis = requestMillis ?: 60_000,
         socketMillis = socketMillis ?: 60_000,

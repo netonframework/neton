@@ -8,6 +8,6 @@ import io.ktor.client.engine.HttpClientEngineFactory
  *  - Linux (posix)   → CIO engine
  *  - Windows         → WinHttp engine
  *
- * Returns the engine factory; engine is instantiated by [DefaultNetonHttpClient].
+ * Returns the engine factory; engine is instantiated by [KtorHttpClient].
  */
 internal expect fun defaultKtorEngine(): HttpClientEngineFactory<*>

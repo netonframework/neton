@@ -27,9 +27,9 @@ class MockEngineHttpClientTest {
                 headers = headersOf("Content-Type", "application/json"),
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val resp = client.request(NetonHttpRequest(
-            method = NetonHttpMethod.Get,
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val resp = client.request(HttpClientRequest(
+            method = HttpClientMethod.Get,
             url = "https://api.example.com/v1/test",
         ))
         assertEquals(200, resp.statusCode)
@@ -47,11 +47,11 @@ class MockEngineHttpClientTest {
             capturedContentType = request.body.contentType.toString()
             respond("ok", HttpStatusCode.OK)
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        client.request(NetonHttpRequest(
-            method = NetonHttpMethod.Post,
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        client.request(HttpClientRequest(
+            method = HttpClientMethod.Post,
             url = "https://api.example.com/x",
-            body = NetonHttpBody.Json("""{"k":1}"""),
+            body = HttpClientBody.Json("""{"k":1}"""),
         ))
         assertEquals("""{"k":1}""", capturedBody)
         assertTrue(capturedContentType?.startsWith("application/json") == true)
@@ -67,10 +67,10 @@ class MockEngineHttpClientTest {
                 headers = headersOf("Set-Cookie", listOf("a=1; Path=/", "b=2; Path=/")),
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
 
-        val resp = client.request(NetonHttpRequest(
-            method = NetonHttpMethod.Get,
+        val resp = client.request(HttpClientRequest(
+            method = HttpClientMethod.Get,
             url = "https://api.example.com/x",
         ))
 
@@ -88,10 +88,10 @@ class MockEngineHttpClientTest {
             captured = request.headers.getAll("X-Multi")
             respond("ok", HttpStatusCode.OK)
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
 
-        client.request(NetonHttpRequest(
-            method = NetonHttpMethod.Get,
+        client.request(HttpClientRequest(
+            method = HttpClientMethod.Get,
             url = "https://api.example.com/x",
             headers = HttpHeaders.of("X-Multi" to "one", "X-Multi" to "two"),
         ))
@@ -107,9 +107,9 @@ class MockEngineHttpClientTest {
             capturedAuth = request.headers["Authorization"]
             respond("ok", HttpStatusCode.OK)
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        client.request(NetonHttpRequest(
-            method = NetonHttpMethod.Get,
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        client.request(HttpClientRequest(
+            method = HttpClientMethod.Get,
             url = "https://api.example.com/x",
             headers = HttpHeaders.of("Authorization" to "Bearer test-key"),
         ))
@@ -126,21 +126,21 @@ class MockEngineHttpClientTest {
                 status = HttpStatusCode.InternalServerError,
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val resp = client.request(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://api.example.com/x"))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val resp = client.request(HttpClientRequest(method = HttpClientMethod.Get, url = "https://api.example.com/x"))
         assertEquals(500, resp.statusCode)
         assertEquals("""{"error":"upstream"}""", resp.body)
         client.close()
     }
 
     @Test
-    fun networkErrorMapsToNetonHttpExceptionNetwork() = runTest {
+    fun networkErrorMapsToHttpClientExceptionNetwork() = runTest {
         val engine = MockEngine { _ -> throw kotlinx.io.IOException("connection refused") }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val ex = assertFailsWith<NetonHttpException> {
-            client.request(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://api.example.com/x"))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val ex = assertFailsWith<HttpClientException> {
+            client.request(HttpClientRequest(method = HttpClientMethod.Get, url = "https://api.example.com/x"))
         }
-        assertTrue(ex.error is NetonHttpError.Network, "Expected Network error, got ${ex.error::class.simpleName}")
+        assertTrue(ex.error is HttpClientError.Network, "Expected Network error, got ${ex.error::class.simpleName}")
         client.close()
     }
 
@@ -156,13 +156,13 @@ class MockEngineHttpClientTest {
                 headers = headersOf("Content-Type", "application/json"),
             )
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val ex = assertFailsWith<NetonHttpException> {
-            client.stream(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://api.example.com/stream"))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val ex = assertFailsWith<HttpClientException> {
+            client.stream(HttpClientRequest(method = HttpClientMethod.Get, url = "https://api.example.com/stream"))
                 .collect { }
         }
         val err = ex.error
-        assertTrue(err is NetonHttpError.Http, "Expected Http error, got ${err::class.simpleName}")
+        assertTrue(err is HttpClientError.Http, "Expected Http error, got ${err::class.simpleName}")
         assertEquals(429, err.statusCode)
         assertEquals(errorBody, err.body, "Error body must be captured for downstream classification")
         client.close()
@@ -173,13 +173,13 @@ class MockEngineHttpClientTest {
         val engine = MockEngine { _ ->
             respond(content = "upstream exploded", status = HttpStatusCode.InternalServerError)
         }
-        val client = DefaultNetonHttpClient(engineFactory = engineFactoryFor(engine))
-        val ex = assertFailsWith<NetonHttpException> {
-            client.stream(NetonHttpRequest(method = NetonHttpMethod.Get, url = "https://api.example.com/stream"))
+        val client = KtorHttpClient(engineFactory = engineFactoryFor(engine))
+        val ex = assertFailsWith<HttpClientException> {
+            client.stream(HttpClientRequest(method = HttpClientMethod.Get, url = "https://api.example.com/stream"))
                 .collect { }
         }
         val err = ex.error
-        assertTrue(err is NetonHttpError.Http, "Expected Http error, got ${err::class.simpleName}")
+        assertTrue(err is HttpClientError.Http, "Expected Http error, got ${err::class.simpleName}")
         assertEquals(500, err.statusCode)
         client.close()
     }
@@ -187,7 +187,7 @@ class MockEngineHttpClientTest {
 
 /**
  * Helper: wrap a pre-built MockEngine instance as a factory.
- * MockEngine itself implements HttpClientEngine, but DefaultNetonHttpClient takes a Factory.
+ * MockEngine itself implements HttpClientEngine, but KtorHttpClient takes a Factory.
  */
 private fun engineFactoryFor(engine: MockEngine): io.ktor.client.engine.HttpClientEngineFactory<io.ktor.client.engine.mock.MockEngineConfig> {
     return object : io.ktor.client.engine.HttpClientEngineFactory<io.ktor.client.engine.mock.MockEngineConfig> {
