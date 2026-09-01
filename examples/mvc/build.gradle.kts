@@ -28,6 +28,7 @@ kotlin {
             dependencies {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-http"))
+                implementation(project(":neton-http-hyper4k"))
                 implementation(project(":neton-routing"))
                 implementation(project(":neton-database"))
                 implementation(project(":neton-logging"))

@@ -1,4 +1,4 @@
-package neton.http
+package neton.http.ktor
 
 import neton.core.http.adapter.HttpAdapterFactory
 

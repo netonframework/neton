@@ -1,5 +1,5 @@
 @file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
-package neton.http
+package neton.http.ktor
 
 import kotlin.native.setUnhandledExceptionHook
 import kotlin.native.terminateWithUnhandledException

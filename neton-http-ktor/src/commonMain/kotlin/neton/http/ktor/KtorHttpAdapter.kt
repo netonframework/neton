@@ -1,4 +1,7 @@
-package neton.http
+package neton.http.ktor
+
+import neton.http.joinMountPath
+
 
 import neton.core.http.adapter.HttpServerConfig
 
@@ -29,19 +32,6 @@ import kotlinx.io.readByteArray
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-/**
- * 组挂载路径拼接：mount="/" 不产生双斜杠（gateway 根挂载契约，见 RootMountContractTest）。
- */
-internal fun joinMountPath(mount: String, pattern: String): String {
-    val m = mount.trim('/')
-    val rel = pattern.trimStart('/')
-    return when {
-        m.isEmpty() && rel.isEmpty() -> "/"
-        m.isEmpty() -> "/$rel"
-        rel.isEmpty() -> "/$m"
-        else -> "/$m/$rel"
-    }
-}
 
 /**
  * Ktor CIO HTTP 适配器 —— 薄传输层。
