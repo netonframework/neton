@@ -11,7 +11,7 @@ import neton.ai.routing.RoutingConfig
 /**
  * Root DSL config. Used by both standalone (AiClient.Companion.create) and component (AiComponent).
  *
- * `httpClient` field: required for standalone usage; component usage gets it from NetonContext
+ * `httpClient` field: required. Borrowed from the application; neton-ai never closes it.
  * and sets this field internally before the DSL block runs.
  */
 class AiConfig {

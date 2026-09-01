@@ -26,13 +26,16 @@ object AiComponent : NetonComponent<AiConfig> {
     override fun defaultConfig(): AiConfig = AiConfig()
 
     override suspend fun init(ctx: NetonContext, config: AiConfig) {
-        val httpClient = ctx.getOrNull(NetonHttpClient::class)
-            ?: throw AiException(AiError.InvalidRequest(
-                "HTTP client must be installed before neton-ai. " +
-                "Add `httpClient { ... }` before `ai { ... }` in your Neton.run { ... } block."
-            ))
-        // Wire httpClient from context (Mode 2 caller doesn't set it manually in DSL)
-        config.httpClient = httpClient
+        // The client is a borrowed resource: whoever created it owns closing it, so this
+        // component neither builds one nor takes one implicitly out of the context.
+        if (config.httpClient == null) {
+            config.httpClient = ctx.getOrNull(NetonHttpClient::class)
+                ?: throw AiException(AiError.InvalidRequest(
+                    "neton-ai needs an HTTP client. Build one with NetonHttpClient.create { } and " +
+                    "either set it in `ai { httpClient = ... }` or bind it with " +
+                    "ctx.bind(NetonHttpClient::class, client) before `ai { }`."
+                ))
+        }
 
         // Merge file config (config/ai.conf) into DSL config
         val fileMap = ConfigLoader.loadModuleConfig(
