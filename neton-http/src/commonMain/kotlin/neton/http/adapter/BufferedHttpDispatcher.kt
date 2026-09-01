@@ -139,7 +139,7 @@ public class BufferedHttpDispatcher(
 
     /**
      * 统一请求入口：路由 + 安全 + 限流 + envelope，外加 LogContext / access log /
-     * error log 可观测性。所有引擎（Ktor / may4k / hyper4k）共用这一份实现。
+     * error log 可观测性。所有引擎（Hyper4k / Ktor）共用这一份实现。
      *
      * [liveResponse] 非 null 时作为 handler 看到的 `context.response`（真流式 transport，
      * 如 Ktor）；handler 提交后返回的 [BufferedHttpResponse.streamed] 为 true，适配器不再写出。

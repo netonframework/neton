@@ -27,7 +27,7 @@ import neton.http.adapter.BufferedHttpResponse
  *
  * ## 测什么
  *
- * **不测** [neton.http.adapter.BufferedHttpDispatcher] 本身——那是三个引擎共用的
+ * **不测** [neton.http.adapter.BufferedHttpDispatcher] 本身——那是所有引擎共用的
  * 一份代码，测它只会把同一段逻辑测三遍。真正会漂移的是每个 Adapter 的**翻译层**：
  * 引擎原生请求 → [BufferedHttpRequest]，以及 [BufferedHttpResponse] → 引擎响应。
  * header 大小写、多值 header、query 切分、空 body 与缺失 body、非 UTF-8 字节，
