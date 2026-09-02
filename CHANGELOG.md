@@ -2,6 +2,37 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta3
+
+### Added
+
+- **`com.netonstream:neton` now ships an HTTP engine.** The aggregate pulled in `neton-http`,
+  which is the abstraction only, so a one-line dependency did not actually compile: `http { }`
+  is an extension supplied by an engine module and no engine was on the classpath. It now
+  depends on `neton-http-hyper4k`, the Rust engine, so
+
+  ```kotlin
+  implementation("com.netonstream:neton:1.0.0-beta3")
+  ```
+
+  is enough to start a server.
+
+- **Windows (`mingwX64`) support for the hyper4k engine.** `neton-http-hyper4k` had dropped the
+  Windows target; it is back, so all five targets of the aggregate — macOS arm64/x64, Linux
+  x64/arm64 and Windows x64 — carry an engine.
+
+### Fixed
+
+- **The startup banner and the `modules.loaded` log reported `1.0.0-beta1` in every release
+  since.** `Neton.VERSION` was a hand-written constant and nobody bumped it. It is now generated
+  from the Gradle project version, so it cannot drift again. The fix lands after 1.0.0-beta3 was
+  published, so beta3 binaries still print `1.0.0-beta1`.
+
+### Changed
+
+- The hyper4k engine is resolved from Maven Central (`com.netonstream:hyper4k:0.1.1`) rather
+  than from a sibling checkout. Build `hyper4k` from source with `-Phyper4k.local=true`.
+
 ## 1.0.0-beta2
 
 ### Fixed

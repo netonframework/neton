@@ -39,4 +39,9 @@ include(":examples:neton-ai-sample")
 include(":examples:bench")
 
 // Rust 引擎仓库。没有 checkout 时本仓其余模块照常构建。
-if (file("../hyper4k").isDirectory) includeBuild("../hyper4k")
+// hyper4k 是独立发布的库（com.netonstream:hyper4k），默认按坐标从仓库解析——
+// 构建出的产物和使用者拿到的一致。本地联调 hyper4k 时用 -Phyper4k.local=true 打开源码替换；
+// 默认关闭是为了避免「本地改了 hyper4k、neton 构建通过、发布出去却依赖未含该改动的版本」。
+if (providers.gradleProperty("hyper4k.local").orNull == "true" && file("../hyper4k").isDirectory) {
+    includeBuild("../hyper4k")
+}

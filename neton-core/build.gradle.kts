@@ -213,10 +213,34 @@ dependencies {
     add("kspCommonMainMetadata", project(":neton-ksp"))
 }
 
+// 框架版本从 gradle.properties 的 netonVersion 生成，不再手写常量：
+// 1.0.0-beta2 和 beta3 都发出去了才发现 banner 还在报 beta1。
+val generateBuildInfo by tasks.registering {
+    val version = project.version.toString()
+    val outDir = layout.buildDirectory.dir("generated/buildinfo/commonMain/kotlin")
+    inputs.property("version", version)
+    outputs.dir(outDir)
+    doLast {
+        val dir = outDir.get().asFile.resolve("neton/core")
+        dir.mkdirs()
+        dir.resolve("BuildInfo.kt").writeText(
+            """
+            package neton.core
+
+            /** Generated from the Gradle project version. Do not edit. */
+            internal const val NETON_VERSION: String = "$version"
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
 // 确保生成的代码包含在编译中
 kotlin.sourceSets.commonMain {
     kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
+    kotlin.srcDir(generateBuildInfo)
 }
+
+
 
 // 为每个目标注册 C bridge 编译 + 归档任务
 for (target in nativeTargets) {
