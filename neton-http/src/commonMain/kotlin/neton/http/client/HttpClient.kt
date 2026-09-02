@@ -14,8 +14,12 @@ typealias HttpClientFactory = (HttpClientConfig) -> HttpClient
  * Ownership: the creator closes it. Register it with `ctx.lifecycle` so shutdown is
  * deterministic; modules handed a client only borrow it and must not close it.
  *
+ * The no-argument `HttpClient.create { }` is not declared here. An engine module
+ * declares it in this package (spec zh-hans/spec/http-engine.md §4): depend on
+ * `neton-http-hyper4k` and it resolves to the hyper4k client, depend on
+ * `neton-http-ktor` and it resolves to Ktor. This file never names an engine.
+ *
  * Implementations are responsible for:
- *  - per-platform Ktor engine selection (Darwin / CIO / WinHttp)
  *  - timeout enforcement
  *  - typed error mapping (HttpClientException for failures)
  *  - cancellation propagation (Flow cancel → HTTP body close)
@@ -46,6 +50,15 @@ interface HttpClient {
     /** Release engine resources. Idempotent. */
     suspend fun close()
 
+    /**
+     * What this client can actually do (spec http-engine.md §5.2).
+     *
+     * No default on purpose: an empty default lets a new implementation quietly
+     * support nothing, a full default lets it quietly claim everything. Either
+     * way the mismatch surfaces at runtime instead of at the declaration.
+     */
+    val capabilities: Set<HttpClientCapability>
+
     companion object {
         /**
          * Standalone factory with an application-selected transport implementation.
@@ -63,7 +76,19 @@ interface HttpClient {
                     "Invalid HTTP client config: ${errors.joinToString()}", null,
                 ))
             }
-            return factory(cfg)
+            val client = factory(cfg)
+            // A proxy the engine cannot honour must fail here, not be ignored: an
+            // ignored proxyUrl means requests leave through the wrong network path,
+            // which is a security problem dressed up as a convenience one.
+            if (cfg.proxyUrl != null && HttpClientCapability.PROXY !in client.capabilities) {
+                throw HttpClientException(HttpClientError.Unknown(
+                    "proxyUrl is set but this HTTP client does not declare " +
+                        "${HttpClientCapability.PROXY} (capabilities: ${client.capabilities}). " +
+                        "Use an engine with proxy support or drop proxyUrl.",
+                    null,
+                ))
+            }
+            return client
         }
 
     }

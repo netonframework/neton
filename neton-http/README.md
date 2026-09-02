@@ -134,7 +134,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("com.netonframework:neton-http-hyper4k:<adapter-version>")
+    implementation("com.netonstream:neton-http-hyper4k:1.0.0-beta3")
 }
 ```
 
@@ -146,7 +146,7 @@ Kotlin/Native 协程执行。它直接复用 `http.maxConnections` 与 `http.tim
 
 ```kotlin
 dependencies {
-    implementation("com.netonframework:neton-http-ktor:<adapter-version>")
+    implementation("com.netonstream:neton-http-ktor:1.0.0-beta3")
 }
 ```
 
