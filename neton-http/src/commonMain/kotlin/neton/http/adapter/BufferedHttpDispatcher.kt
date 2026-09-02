@@ -821,6 +821,9 @@ private class BufferedHttpRequestView(
         source.header("X-Forwarded-For")?.substringBefore(',')?.trim()?.takeIf { it.isNotEmpty() }
             ?: source.remoteAddress
     }
+
+    /** 真实 socket 对端（不受 XFF 影响）：IP 白名单/可信代理判定必须以此为起点。 */
+    override val peerAddress: String get() = source.remoteAddress
     override val isSecure: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
         source.header("X-Forwarded-Proto")?.equals("https", ignoreCase = true) == true
     }

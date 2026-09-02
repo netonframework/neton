@@ -46,8 +46,22 @@ interface HttpRequest {
 
     /**
      * 客户端IP地址
+     *
+     * 注意：请求视图层（`neton-http` 的 BufferedHttpRequestView）在存在 `X-Forwarded-For` 时取其**最左项**
+     * 作为本值（这样反代之后仍能拿到客户端 IP），而 XFF 由客户端自由填写——因此这个值**不可**用于任何
+     * 安全决策，只适合日志/展示。需要判定来源（IP 白名单、可信代理、封禁）时用 [peerAddress]。
      */
     val remoteAddress: String
+
+    /**
+     * 传输层对端地址（TCP 连接的另一端），**永不**由 `X-Forwarded-For` 推导。
+     *
+     * 安全决策只能从这里出发：先用对端地址判断来者是否可信代理，只有可信时才采信 XFF，
+     * 并从右往左剥掉每一跳可信代理——否则一个请求头就能伪造出任意来源 IP。
+     *
+     * 默认回落到 [remoteAddress]，保证既有实现不破；transport 适配层应覆盖为真实 socket 对端。
+     */
+    val peerAddress: String get() = remoteAddress
 
     /**
      * 用户代理
