@@ -28,8 +28,8 @@ import kotlin.reflect.KClass
 class Neton private constructor() {
 
     companion object {
-        /** 框架版本，用于启动 banner */
-        const val VERSION = "1.0.0-beta1"
+        /** 框架版本，用于启动 banner。由构建从 gradle.properties 的 netonVersion 生成。 */
+        val VERSION = NETON_VERSION
         private const val DEFAULT_PORT = 8080  // 与 application.conf 默认端口保持一致
 
         /**

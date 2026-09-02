@@ -29,6 +29,10 @@ kotlin {
                 api(project(":neton-logging"))
                 api(project(":neton-http"))
                 api(project(":neton-routing"))
+                // 默认 HTTP 引擎。依赖这个模块才会带上 `http { }` 的默认重载
+                // （neton.http.http），一行依赖即可跑起来；不带引擎的话 http { }
+                // 根本不存在，最小应用编译不过。hyper4k 是 Rust 实现，五个目标全覆盖。
+                api(project(":neton-http-hyper4k"))
                 api(dependencies.platform(project(":neton-bom")))
             }
         }
