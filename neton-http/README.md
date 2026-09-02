@@ -1,228 +1,87 @@
 # Neton HTTP 模块
 
-HTTP 模块统一提供入站 Server 与出站 Client。Server 默认使用 Ktor，不会依赖或链接
-Rust 引擎；Client 位于 `neton.http.client` 包，不再使用独立的 `neton-http-client` 模块。
+`neton-http` 是 HTTP 的**契约层**：入站 `HttpAdapter`、出站 `HttpClient`、共享的
+`BufferedHttpDispatcher`（路由、安全、限流、CORS、响应信封）、错误模型，以及两套
+引擎一致性套件。它**不引用任何引擎**。
 
-## 🎯 设计原则
+引擎由**引擎模块**交付，且一个引擎模块同时交付 Server 与 Client 两个入口
+（spec：`neton-docs/docs/zh-hans/spec/http-engine.md`）：
 
-按照依赖倒置原则设计：
+| 模块 | Server | Client | 说明 |
+|---|---|---|---|
+| `neton-http-hyper4k` | `http { }` | `HttpClient.create { }` | **默认**。`com.netonstream:neton` 聚合只装它 |
+| `neton-http-ktor` | 同上 | 同上 | 维护模式；不进聚合、不进 BOM，只能显式依赖 |
 
-- **Core 模块**：定义 `HttpAdapter` 接口标准
-- **HTTP 模块**：依赖 Core 模块，实现具体的 HTTP 服务器功能
-- **Mock 实现**：当 HTTP 模块不存在时，Core 模块使用 Mock 实现
+两个入口都声明在契约层的包下（`neton.http` / `neton.http.client`），应用源码
+里**不出现引擎名**；换引擎 = 改一行 build 文件。
 
-## 🏗️ 架构设计
-
-```
-┌─────────────────┐    依赖    ┌─────────────────┐
-│ neton-http      │ ---------> │   Core 模块     │
-│ KtorHttpAdapter │            │ HttpAdapter接口 │
-└─────────────────┘            └─────────────────┘
-        │                             │
-        │ init 时 ctx.bind            │ 提供接口
-        ▼                             ▼
-┌─────────────────────────────────────────────────┐
-│            NetonContext（唯一容器）              │
-│  ctx.get<HttpAdapter>() -> 实际实现 或 Mock      │
-└─────────────────────────────────────────────────┘
-```
-
-## 🔧 主要组件
-
-### KtorHttpAdapter
-- 实现真正的 Ktor HTTP 服务器
-- 支持所有 HTTP 方法（GET, POST, PUT, DELETE 等）
-- 自动将 Ktor 请求转换为 Neton HttpContext
-- 支持会话管理
-- **JsonContent 响应**：检测 `JsonContent` 返回值，直接以 `application/json` 响应，绕过 Ktor content negotiation
-
-### HttpComponent
-- 负责模块初始化和注册
-- 默认创建 `KtorHttpAdapter`
-- 接收任意满足 `HttpAdapterFactory` 签名的 Adapter 构造器
-
-### HttpClient
-
-出站 Client 的完整能力已经合并到本模块：
-
-- `HttpClient.request()`：缓冲式请求/响应
-- `HttpClient.stream()`：支持取消传播的流式响应
-- `HttpClientError` / `HttpClientException`：统一错误模型
-- SSE parser 与 Flow 操作
-- Header 脱敏和 retry primitive
-- macOS Darwin、Linux CIO、Windows WinHttp 平台 Engine
-
-可独立创建：
+## 使用
 
 ```kotlin
-val client = HttpClient.create {
-    requestMillis = 30_000
-}
+// build.gradle.kts —— 一行依赖，Server 与 Client 都有了
+implementation("com.netonstream:neton:1.0.0-beta4")
 ```
 
-Client 没有对应的组件装配层：出站 Client 是应用自己的资源，可以在没有 HTTP Server 的
-worker / job / CLI 里使用，和入站 Server 的生命周期无关。需要让 `neton-ai` 之类的模块
-用上它时，由应用创建、绑定并负责关闭：
-
 ```kotlin
+import neton.http.http
+import neton.http.client.HttpClient
+import neton.http.client.create
+
 Neton.run(args) {
+    // 出站 Client 是应用的资源：应用创建、绑定、关闭。neton-ai / neton-storage 只借用。
     val client = HttpClient.create { requestMillis = 30_000 }
     bind(HttpClient::class, client)
-    // 谁创建谁关闭：注册进 lifecycle，停机时确定性释放连接池
-    ai { httpClient = client }
+
     http { port = 8080 }
 }
 ```
 
-入站 Server Adapter 的选择不改变出站 Client Engine。
+显式选引擎：`http(::KtorHttpAdapter) { }` / `HttpClient.createWith(factory) { }`。
 
-### 外部 Server Adapter
+### 没有引擎时
 
-Neton 主仓不引入第三方 Server Adapter。Kotlin/Native 应用添加对应依赖后，直接传入
-Adapter 的构造器引用：
+契约层带一个只在缺引擎时才会被选中的 fallback 重载，所以错误是可读的，而不是
+`Unresolved reference`：
+
+```
+e: 'HttpClient.create(...)' is deprecated. No HTTP engine on the classpath.
+   HttpClient.create { } is provided by an engine module: add
+   com.netonstream:neton-http-hyper4k, or depend on com.netonstream:neton which includes it.
+```
+
+调用方需要 `import neton.http.client.create`（引擎的入口与 fallback 都是该包下的
+扩展函数）。
+
+## 出站 Client
 
 ```kotlin
-import neton.http.http
-import neton.http.hyper4k.Hyper4kHttpAdapter
-
-Neton.run(args) {
-    http(::Hyper4kHttpAdapter) {
-        port = 8080
-    }
+interface HttpClient {
+    suspend fun request(request: HttpClientRequest): HttpClientResponse   // 任意状态码都作为响应返回
+    fun stream(request: HttpClientRequest): Flow<HttpClientStreamChunk>   // 非 2xx 在第一个 chunk 前抛 Http
+    suspend fun close()
+    val capabilities: Set<HttpClientCapability>
 }
 ```
 
-`http { }` 是 `http(::KtorHttpAdapter) { }` 的默认语法糖。第三方 Adapter 使用统一构造函数：
+`capabilities` 无默认实现。`createWith` 会在返回前拒绝引擎不具备的配置——例如在没有
+`PROXY` 能力的引擎上设置 `proxyUrl`——而不是静默忽略。
 
-```kotlin
-class XxxHttpAdapter(
-    serverConfig: HttpServerConfig,
-    converterRegistry: ParamConverterRegistry,
-) : HttpAdapter
-```
+## 一致性套件与 testkit
 
-这里使用 constructor reference 而不是 `KClass`，因为 Kotlin/Native 不依赖运行时反射。
+- `neton.http.conformance.HttpEngineConformanceSuite`：Server 侧，每个引擎模块跑一遍。
+- `neton.http.conformance.HttpClientConformanceSuite`：Client 侧，自带引擎无关的
+  `ScriptedOrigin`（POSIX 目标）。声明了某能力却跳过对应测试 = 构建失败。
+- `neton.http.testkit.ScriptedHttpClient`：消费方测试用的脚本化客户端，零引擎。
 
-缓冲型外部引擎应复用 `neton.http.adapter.BufferedHttpDispatcher`。它统一实现路由、安全、
-限流、CORS、响应信封和 `HttpContext`，Adapter 只负责把引擎请求映射成
-`BufferedHttpRequest`，再将 `BufferedHttpResponse` 写回传输层。Hyper4k 和 Ktor
-都使用这条标准管线。
+这些套件是「删掉任何一个引擎，另一个的通过状态不变」的证明，不是承诺。
 
-### SecurityPreHandle
-- 安全管道前置处理（认证 + 授权 + 权限检查）
-- **permission implies auth** 规则：`@Permission` 注解隐含强制认证，即使路由组 requireAuth=false
+## 配置
 
-### 泛型序列化（KSP 编译期生成）
-- Kotlin/Native 下 Ktor 的 `guessSerializer()` 无法处理泛型 `@Serializable` 类型
-- KSP `ControllerProcessor` 在编译期检测 `@Serializable` 返回类型，生成显式序列化代码
-- 返回值包装为 `JsonContent(Json.encodeToString(serializer, result))`
-- 支持嵌套泛型，如 `PageResponse<UserVO>`、`ApiResponse<PageResponse<UserVO>>`
+HTTP 只读 `application.conf` 的 `[server]` / `[http]` / `[cors]`；DSL 里的值只是
+代码默认值（详见 `neton-docs` 的 http.md §6）。
 
-## 📦 使用方式
+## 边界
 
-### 1. 添加依赖
-
-```kotlin
-// build.gradle.kts
-dependencies {
-    implementation(project(":neton-core"))
-    implementation(project(":neton-http"))
-}
-```
-
-只有选择 Hyper 的应用才添加：
-
-```kotlin
-dependencies {
-    implementation("com.netonstream:neton-http-hyper4k:1.0.0-beta3")
-}
-```
-
-Adapter 模块会传递并锁定兼容的 `hyper4k` 引擎版本，应用不需要重复声明。
-Hyper Adapter 固定使用异步 handoff：Tokio 只负责连接与协议，请求快照交给有界的
-Kotlin/Native 协程执行。它直接复用 `http.maxConnections` 与 `http.timeout`，不增加引擎线程池开关。
-
-需要纯 Kotlin 实现（开发服务器、无 Rust 工具链的环境）时显式切到 Ktor：
-
-```kotlin
-dependencies {
-    implementation("com.netonstream:neton-http-ktor:1.0.0-beta3")
-}
-```
-
-Ktor 只能显式选用（`http(::KtorHttpAdapter)`），不提供无参 `http { }` 默认。
-
-### 2. 使用 install DSL（推荐）
-
-```kotlin
-// Main.kt
-import neton.core.Neton
-import neton.http.http
-import neton.security.security
-import neton.routing.routing
-
-fun main(args: Array<String>) {
-    Neton.run(args) {
-
-        http {
-            port = 8080
-        }
-
-        security {
-            registerMockAuthenticator("test-user", listOf("user", "admin"))
-        }
-
-        routing {
-            // KSP 自动生成路由
-        }
-
-        onStart {
-            println("Server at http://localhost:${getPort()}")
-        }
-    }
-}
-```
-
-## 🚀 特性
-
-- ✅ **真正的 Ktor 服务器**：完全替代 Mock 实现
-- ✅ **浏览器访问支持**：可通过浏览器直接访问
-- ✅ **自动适配**：无缝集成 Neton HttpContext
-- ✅ **会话支持**：内置 Session 管理
-- ✅ **错误处理**：完整的异常处理机制
-- ✅ **可扩展性**：未来可支持其他 HTTP 库
-
-## 🔄 切换 HTTP 后端
-
-HTTP 后端由应用在编译期显式注入：
-
-1. 引入可选 Adapter 模块。
-2. 将 Adapter 构造器传给 `http(...)`。
-3. `application.conf` 只配置端口、超时、CORS 等运行参数。
-
-```kotlin
-// 默认 Ktor
-Neton.run(args) {
-    http { port = 8080 }
-    routing { }
-}
-```
-
-## 🧪 开发状态
-
-- ✅ 基础架构完成
-- ✅ Ktor 服务器集成完成
-- ✅ 完整的请求/响应处理
-- ✅ 安全管道（认证 + 授权 + 权限）
-- ✅ 泛型序列化（KSP 编译期 JsonContent）
-- ✅ 契约测试：SecurityPipelineContractTest（15 条）、GenericSerializerContractTest（5 条）
-- ⏳ 性能优化
-
-## 🗺️ Roadmap（1.0 之后）
-
-默认引擎是 Hyper4k（`neton-http-hyper4k` 模块，无参 `http { }` 即解析到它）；
-Ktor 作为纯 Kotlin 兼容实现保留，只能显式选用。
-
-- **HTTPS/TLS 终止**：1.0 推荐由反向代理（Nginx / Caddy / 云负载均衡）承担 TLS；进程内 TLS 暂不提供。
-- **性能监控 / metrics**：计划作为独立的 `neton-observability` 能力提供，不内嵌进 HTTP 模块。
-- **更多 HTTP 引擎**：必须复用标准 Dispatcher 或通过完整一致性套件，不接受复制业务管线的 Adapter。
+- 框架内出站请求只经 `HttpClient` 接口；`io.ktor` 只允许出现在 `neton-http-ktor/`，CI 用 grep 守着。
+- Server 侧不终止 TLS，HTTP/2 的含义是 h2c；TLS 与 ALPN 由前置反向代理承担。
+- 第三方引擎在独立仓库发布；主仓不引用、不枚举。
