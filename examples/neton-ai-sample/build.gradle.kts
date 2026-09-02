@@ -29,7 +29,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(project(":neton-http"))
-                implementation(project(":neton-http-ktor"))
+                // One engine, never two: both would declare HttpClient.create { }.
                 implementation(project(":neton-http-hyper4k"))
                 implementation(project(":neton-ai"))
                 implementation(libs.kotlinx.coroutines.core)
