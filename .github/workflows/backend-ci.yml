@@ -36,10 +36,14 @@ jobs:
 
       - name: One outbound HTTP path (spec http-engine.md rule 4)
         run: |
-          if grep -rn "io\.ktor" --include='*.kt' --include='*.kts' . \
+          # Sources: no io.ktor import outside the Ktor engine module.
+          # Build files: no Ktor coordinate or catalog alias either. neton-core once
+          # carried five ktor-server dependencies nothing referenced; every binary
+          # linked them anyway.
+          if grep -rnE "io\.ktor|libs\.ktor" --include='*.kt' --include='*.kts' . \
                | grep -Ev '^(\./)?(neton-http-ktor|examples)/' \
                | grep -v '/build/'; then
-            echo "::error::io.ktor is referenced outside neton-http-ktor. Framework modules must use neton.http.client.HttpClient."
+            echo "::error::Ktor is referenced outside neton-http-ktor. Framework modules must use neton.http.client.HttpClient (spec http-engine.md rule 4)."
             exit 1
           fi
 
