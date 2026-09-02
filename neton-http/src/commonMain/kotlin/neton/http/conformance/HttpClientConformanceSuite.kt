@@ -74,7 +74,11 @@ public abstract class HttpClientConformanceSuite {
         check(response.headers.get("x-origin") == "seen") { "header lookup must be case-insensitive: ${response.headers}" }
         val seen = origin.requests.single()
         check(seen.method == "GET") { "origin saw method ${seen.method}" }
+        // origin-form (RFC 9112 §3.2.1): a direct connection must not carry the
+        // scheme and authority in the request-target; only proxies see that form.
         check(seen.target == "/path?q=1") { "origin saw target ${seen.target}" }
+        // Host is mandatory in HTTP/1.1; a missing one is a 400 from most servers.
+        check(seen.headers.get("host")?.startsWith("127.0.0.1") == true) { "Host header missing or wrong: ${seen.headers}" }
     }
 
     public suspend fun checkRequestBodyBytesAreVerbatim(): Unit = withOrigin(
