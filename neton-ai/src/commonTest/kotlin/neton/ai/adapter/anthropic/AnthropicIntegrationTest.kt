@@ -1,17 +1,11 @@
 // neton-ai/src/commonTest/kotlin/neton/ai/adapter/anthropic/AnthropicIntegrationTest.kt
 package neton.ai.adapter.anthropic
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.bodyText
+import neton.ai.testkit.jsonResponse
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.engine.mock.toByteArray
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiContent
 import neton.ai.AiException
@@ -30,13 +24,6 @@ import kotlin.test.assertTrue
 
 class AnthropicIntegrationTest {
 
-    private fun httpClient(engine: MockEngine): HttpClient =
-        HttpClient.createWithEngine(factoryOf(engine))
-
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
-
     @Test fun nonStreamChatMapsRequestAndResponseEndToEnd() = runTest {
         var capturedUrl: String? = null
         var capturedApiKey: String? = null
@@ -44,20 +31,15 @@ class AnthropicIntegrationTest {
         var capturedAuthBearer: String? = null
         var capturedBody: String? = null
 
-        val engine = MockEngine { req ->
-            capturedUrl = req.url.toString()
-            capturedApiKey = req.headers["x-api-key"]
-            capturedVersion = req.headers["anthropic-version"]
-            capturedAuthBearer = req.headers["Authorization"]
-            capturedBody = req.body.toByteArray().decodeToString()
-            respond(
-                content = """{"id":"msg_1","model":"claude-3-5-sonnet-20241022","role":"assistant","content":[{"type":"text","text":"Hello!"}],"stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":3}}""",
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { req ->
+            capturedUrl = req.url
+            capturedApiKey = req.headers.get("x-api-key")
+            capturedVersion = req.headers.get("anthropic-version")
+            capturedAuthBearer = req.headers.get("Authorization")
+            capturedBody = req.bodyText()
+            jsonResponse(200, """{"id":"msg_1","model":"claude-3-5-sonnet-20241022","role":"assistant","content":[{"type":"text","text":"Hello!"}],"stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":3}}""")}
 
-        val client = httpClient(engine)
+        val client = engine
         val provider = AnthropicProvider(
             id = "anthropic", httpClient = client,
             baseUrl = "https://api.anthropic.com",
@@ -88,14 +70,9 @@ class AnthropicIntegrationTest {
     }
 
     @Test fun toolUseResponseMapsToToolCalls() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                content = """{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"get_weather","input":{"city":"Tokyo"}}],"stop_reason":"tool_use"}""",
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, """{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"get_weather","input":{"city":"Tokyo"}}],"stop_reason":"tool_use"}""")}
+        val client = engine
         val provider = AnthropicProvider(
             id = "anthropic", httpClient = client,
             apiKey = "sk-ant-test",
@@ -116,13 +93,9 @@ class AnthropicIntegrationTest {
     }
 
     @Test fun http401MapsToUnauthorizedAiError() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                content = """{"type":"error","error":{"type":"authentication_error","message":"invalid api key"}}""",
-                status = HttpStatusCode.Unauthorized,
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(401, """{"type":"error","error":{"type":"authentication_error","message":"invalid api key"}}""")}
+        val client = engine
         val provider = AnthropicProvider(
             id = "anthropic", httpClient = client,
             apiKey = "bad-key",

@@ -1,16 +1,11 @@
 package neton.ai.adapter.openaicompatible
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.jsonResponse
+import neton.ai.testkit.sseChunks
+import neton.ai.testkit.streamHttpError
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
-import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiContent
@@ -33,13 +28,6 @@ import kotlin.test.assertTrue
 
 class OpenAiCompatibleStreamTest {
 
-    private fun httpClient(engine: MockEngine): HttpClient =
-        HttpClient.createWithEngine(factoryOf(engine))
-
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
-
     private fun makeRequest(text: String = "hello") = ProviderCallRequest(
         messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text(text)))),
         tools = emptyList(),
@@ -59,14 +47,8 @@ class OpenAiCompatibleStreamTest {
             append("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\" world\"},\"finish_reason\":\"stop\"}]}\n\n")
             append("data: [DONE]\n\n")
         }
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 
@@ -99,14 +81,8 @@ class OpenAiCompatibleStreamTest {
             append("data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\n")
             append("data: [DONE]\n\n")
         }
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 
@@ -149,14 +125,8 @@ class OpenAiCompatibleStreamTest {
             append("data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":3,\"total_tokens\":13}}\n\n")
             append("data: [DONE]\n\n")
         }
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 
@@ -179,14 +149,8 @@ class OpenAiCompatibleStreamTest {
             append("data: {\"choices\":[{\"delta\":{\"content\":\"unreachable\"},\"finish_reason\":\"stop\"}]}\n\n")
             append("data: [DONE]\n\n")
         }
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 
@@ -207,14 +171,8 @@ class OpenAiCompatibleStreamTest {
             append("data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{bad-json\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\n")
             append("data: [DONE]\n\n")
         }
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 
@@ -229,14 +187,8 @@ class OpenAiCompatibleStreamTest {
     /** Regression: streaming 429 must surface as RateLimited (was: silent empty Completed). */
     @Test
     fun stream429ThrowsRateLimitedWithProviderMessage() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                content = """{"error":{"message":"Rate limit exceeded, retry later","type":"rate_limit_error"}}""",
-                status = HttpStatusCode.TooManyRequests,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { streamHttpError(429, """{"error":{"message":"Rate limit exceeded, retry later","type":"rate_limit_error"}}""") }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 
@@ -251,14 +203,8 @@ class OpenAiCompatibleStreamTest {
     /** Regression: streaming 500 must surface as ServerError and be fallback-eligible. */
     @Test
     fun stream500ThrowsServerErrorFallbackEligible() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                content = """{"error":{"message":"internal error","type":"server_error"}}""",
-                status = HttpStatusCode.InternalServerError,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { streamHttpError(500, """{"error":{"message":"internal error","type":"server_error"}}""") }
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.streamingTextModel("gpt-4o-mini")
 

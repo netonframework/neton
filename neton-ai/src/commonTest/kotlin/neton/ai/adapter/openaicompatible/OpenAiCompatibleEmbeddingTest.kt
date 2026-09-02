@@ -1,15 +1,9 @@
 package neton.ai.adapter.openaicompatible
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.jsonResponse
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiError
 import neton.ai.AiException
@@ -25,13 +19,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class OpenAiCompatibleEmbeddingTest {
-
-    private fun httpClient(engine: MockEngine): HttpClient =
-        HttpClient.createWithEngine(factoryOf(engine))
-
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
 
     private fun makeEmbedRequest(vararg texts: String) = ProviderEmbedRequest(
         input = texts.toList(),
@@ -51,14 +38,9 @@ class OpenAiCompatibleEmbeddingTest {
               "usage": {"prompt_tokens": 5, "total_tokens": 5}
             }
         """.trimIndent()
-        val engine = MockEngine { _ ->
-            respond(
-                content = body,
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, body)}
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.embeddingModel("text-embedding-3-small")
 
@@ -89,14 +71,9 @@ class OpenAiCompatibleEmbeddingTest {
               "usage": {"prompt_tokens": 15, "total_tokens": 15}
             }
         """.trimIndent()
-        val engine = MockEngine { _ ->
-            respond(
-                content = body,
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, body)}
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.embeddingModel("text-embedding-3-small")
 
@@ -123,14 +100,9 @@ class OpenAiCompatibleEmbeddingTest {
               "usage": {"prompt_tokens": 8, "completion_tokens": 0, "total_tokens": 8}
             }
         """.trimIndent()
-        val engine = MockEngine { _ ->
-            respond(
-                content = body,
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, body)}
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-test")
         val model = provider.embeddingModel("text-embedding-3-small")
 
@@ -146,14 +118,9 @@ class OpenAiCompatibleEmbeddingTest {
     @Test
     fun embedHttpErrorMapsToAiException() = runTest {
         val body = """{"error":{"message":"Incorrect API key provided","type":"invalid_request_error","code":"invalid_api_key"}}"""
-        val engine = MockEngine { _ ->
-            respond(
-                content = body,
-                status = HttpStatusCode.Unauthorized,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(401, body)}
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://api.openai.com/v1", "sk-bad")
         val model = provider.embeddingModel("text-embedding-3-small")
 
@@ -169,10 +136,9 @@ class OpenAiCompatibleEmbeddingTest {
     /** Test 5: AnthropicProvider.embeddingModel() returns null → AiException(ModelNotFound) via AiClient.embed */
     @Test
     fun embedAnthropicProviderReturnsModelNotFound() = runTest {
-        val engine = MockEngine { _ ->
-            respond(content = "", status = HttpStatusCode.OK)
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, "")}
+        val client = engine
         val provider = AnthropicProvider(
             id = "anthropic",
             httpClient = client,

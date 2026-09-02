@@ -9,7 +9,7 @@ import neton.storage.internal.DefaultStorageManager
 import neton.storage.internal.SourceConfigParser
 import neton.storage.local.LocalStorageOperator
 import neton.storage.s3.S3StorageOperator
-import io.ktor.client.*
+import neton.http.client.HttpClient
 
 object StorageComponent : NetonComponent<StorageConfig> {
 
@@ -29,7 +29,7 @@ object StorageComponent : NetonComponent<StorageConfig> {
         SourceConfigParser.validateSources(merged)
 
         val operators = merged.associate { src ->
-            src.name to createOperator(src, logger)
+            src.name to createOperator(ctx, src, logger)
         }
 
         val manager = DefaultStorageManager(operators)
@@ -63,11 +63,18 @@ object StorageComponent : NetonComponent<StorageConfig> {
         }
     }
 
-    private fun createOperator(src: SourceConfig, logger: Logger?): StorageOperator {
+    private fun createOperator(ctx: NetonContext, src: SourceConfig, logger: Logger?): StorageOperator {
         return when (src.type) {
             "local" -> LocalStorageOperator(src.name, src.basePath, logger)
             "s3" -> {
-                val httpClient = HttpClient()
+                // Borrowed, never created here: the application builds one client,
+                // binds it, and closes it at shutdown. Same rule as neton-ai.
+                val httpClient = ctx.getOrNull(HttpClient::class)
+                    ?: throw IllegalStateException(
+                        "storage source '${src.name}' is type s3 and needs an HttpClient bound in " +
+                            "NetonContext. Build one with HttpClient.create { } and bind(HttpClient::class, it) " +
+                            "before the storage component initialises.",
+                    )
                 S3StorageOperator(
                     name = src.name,
                     endpoint = src.endpoint,

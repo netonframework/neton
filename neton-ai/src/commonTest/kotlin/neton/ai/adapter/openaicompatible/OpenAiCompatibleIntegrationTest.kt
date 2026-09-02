@@ -1,17 +1,11 @@
 // neton-ai/src/commonTest/kotlin/neton/ai/adapter/openaicompatible/OpenAiCompatibleIntegrationTest.kt
 package neton.ai.adapter.openaicompatible
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.bodyText
+import neton.ai.testkit.jsonResponse
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.engine.mock.toByteArray
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiContent
 import neton.ai.AiFinishReason
@@ -29,28 +23,16 @@ import kotlin.test.assertTrue
 
 class OpenAiCompatibleIntegrationTest {
 
-    private fun httpClient(engine: MockEngine): HttpClient =
-        HttpClient.createWithEngine(factoryOf(engine))
-
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
-
     @Test fun nonStreamGenerateMapsRequestAndResponseEndToEnd() = runTest {
         var capturedUrl: String? = null
         var capturedAuth: String? = null
         var capturedBody: String? = null
-        val engine = MockEngine { req ->
-            capturedUrl = req.url.toString()
-            capturedAuth = req.headers["Authorization"]
-            capturedBody = req.body.toByteArray().decodeToString()
-            respond(
-                content = """{"choices":[{"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}""",
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { req ->
+            capturedUrl = req.url
+            capturedAuth = req.headers.get("Authorization")
+            capturedBody = req.bodyText()
+            jsonResponse(200, """{"choices":[{"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}""")}
+        val client = engine
         val provider = OpenAiCompatibleProvider(
             id = "openai", httpClient = client,
             baseUrl = "https://api.openai.com/v1", apiKey = "sk-test",
@@ -73,14 +55,9 @@ class OpenAiCompatibleIntegrationTest {
     }
 
     @Test fun nonStreamGenerateMapsToolCallResponse() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                content = """{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"get_balance","arguments":"{\"userId\":7}"}}]},"finish_reason":"tool_calls"}]}""",
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, """{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"get_balance","arguments":"{\"userId\":7}"}}]},"finish_reason":"tool_calls"}]}""")}
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://x", "sk")
         val resp = provider.textModel("m").generate(ProviderCallRequest(
             messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("balance?")))),
@@ -97,10 +74,9 @@ class OpenAiCompatibleIntegrationTest {
     }
 
     @Test fun http429MapsToAiErrorRateLimited() = runTest {
-        val engine = MockEngine { _ ->
-            respond("""{"error":{"message":"slow down"}}""", HttpStatusCode.TooManyRequests)
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(429, """{"error":{"message":"slow down"}}""")}
+        val client = engine
         val provider = OpenAiCompatibleProvider("openai", client, "https://x", "sk")
         val model = provider.textModel("m")
         val ex = kotlin.test.assertFailsWith<neton.ai.AiException> {

@@ -34,8 +34,20 @@ jobs:
       - name: Compile framework
         run: ./gradlew compileKotlinMacosArm64
 
+      - name: One outbound HTTP path (spec http-engine.md rule 4)
+        run: |
+          if grep -rn "io\.ktor" --include='*.kt' --include='*.kts' . \
+               | grep -Ev '^(\./)?(neton-http-ktor|examples)/' \
+               | grep -v '/build/'; then
+            echo "::error::io.ktor is referenced outside neton-http-ktor. Framework modules must use neton.http.client.HttpClient."
+            exit 1
+          fi
+
       - name: Run foundation tests
         run: ./gradlew :neton-core:macosArm64Test :neton-http:macosArm64Test :neton-database:macosArm64Test :neton-logging:macosArm64Test :neton-security:macosArm64Test
+
+      - name: Run HTTP engine conformance suites
+        run: ./gradlew :neton-http-ktor:macosArm64Test :neton-http-hyper4k:macosArm64Test :neton-ai:macosArm64Test :neton-storage:macosArm64Test
 
       - name: Run logging redaction contract
         run: ./gradlew :neton-logging:macosArm64Test --tests 'neton.logging.internal.JsonLoggerContractTest.sensitiveRedaction_expandedSensitiveKeys'

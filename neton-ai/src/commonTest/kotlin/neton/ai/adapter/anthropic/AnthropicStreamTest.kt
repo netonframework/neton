@@ -1,16 +1,11 @@
 package neton.ai.adapter.anthropic
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.jsonResponse
+import neton.ai.testkit.sseChunks
+import neton.ai.testkit.streamHttpError
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
-import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiContent
@@ -31,13 +26,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class AnthropicStreamTest {
-
-    private fun httpClient(engine: MockEngine): HttpClient =
-        HttpClient.createWithEngine(factoryOf(engine))
-
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
 
     private fun makeRequest(text: String = "hello") = ProviderCallRequest(
         messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text(text)))),
@@ -73,14 +61,8 @@ class AnthropicStreamTest {
             "message_delta" to """{"delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}""",
             "message_stop" to "{}",
         )
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-3-5-sonnet-20241022")
 
@@ -121,14 +103,8 @@ class AnthropicStreamTest {
             "message_delta" to """{"delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":30}}""",
             "message_stop" to "{}",
         )
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-3-5-sonnet-20241022")
 
@@ -175,14 +151,8 @@ class AnthropicStreamTest {
             "message_delta" to """{"delta":{},"usage":{"output_tokens":25}}""",
             "message_stop" to "{}",
         )
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-3-5-sonnet-20241022")
 
@@ -215,14 +185,8 @@ class AnthropicStreamTest {
             "ping" to "{}",
             "message_stop" to "{}",
         )
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-3-5-sonnet-20241022")
 
@@ -257,14 +221,8 @@ class AnthropicStreamTest {
             "message_delta" to """{"delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":1}}""",
             "message_stop" to "{}",
         )
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-3-5-sonnet-20241022")
 
@@ -292,14 +250,8 @@ class AnthropicStreamTest {
             "message_start" to """{"message":{"usage":{"input_tokens":1,"output_tokens":0}}}""",
             "error" to """{"type":"error","error":{"type":"overloaded_error","message":"server too busy"}}""",
         )
-        val engine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel(payload),
-                status = HttpStatusCode.OK,
-                headers = headersOf("Content-Type", "text/event-stream"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { sseChunks(payload) }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-3-5-sonnet-20241022")
 
@@ -320,14 +272,8 @@ class AnthropicStreamTest {
     /** Regression: streaming HTTP 429 must surface as RateLimited (was: silent empty Completed). */
     @Test
     fun streamHttp429ThrowsRateLimited() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                content = """{"type":"error","error":{"type":"rate_limit_error","message":"Number of requests exceeded"}}""",
-                status = HttpStatusCode.TooManyRequests,
-                headers = headersOf("Content-Type", "application/json"),
-            )
-        }
-        val client = httpClient(engine)
+        val engine = ScriptedHttpClient().onStream(HttpClientMethod.Post, "") { streamHttpError(429, """{"type":"error","error":{"type":"rate_limit_error","message":"Number of requests exceeded"}}""") }
+        val client = engine
         val provider = AnthropicProvider("anthropic", client, apiKey = "sk-ant-test")
         val model = provider.streamingTextModel("claude-sonnet-4-5")
 

@@ -1,16 +1,10 @@
 // neton-ai/src/commonTest/kotlin/neton/ai/usage/RedactionVerificationTest.kt
 package neton.ai.usage
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.jsonResponse
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import neton.ai.AiClient
 import neton.http.client.HttpClient
@@ -20,21 +14,12 @@ import kotlin.test.assertTrue
 
 class RedactionVerificationTest {
 
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
-
     @Test fun debugLogsDoNotContainApiKey() = runTest {
         val capturedLines = mutableListOf<String>()
-        val engine = MockEngine { _ ->
-            respond(
-                """{"choices":[{"message":{"role":"assistant","content":"x"},"finish_reason":"stop"}]}""",
-                HttpStatusCode.OK,
-                headersOf("Content-Type", "application/json"),
-            )
-        }
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, """{"choices":[{"message":{"role":"assistant","content":"x"},"finish_reason":"stop"}]}""")}
         val ai = AiClient.create {
-            httpClient = HttpClient.createWithEngine(factoryOf(engine))
+            httpClient = engine
             providers {
                 openAiCompatible("openai") {
                     baseUrl = "https://api.example.com/v1"
@@ -62,12 +47,10 @@ class RedactionVerificationTest {
 
     @Test fun debugFalseEmitsNoLogs() = runTest {
         val capturedLines = mutableListOf<String>()
-        val engine = MockEngine { _ ->
-            respond("""{"choices":[{"message":{"role":"assistant","content":"x"},"finish_reason":"stop"}]}""",
-                HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
-        }
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, """{"choices":[{"message":{"role":"assistant","content":"x"},"finish_reason":"stop"}]}""")}
         val ai = AiClient.create {
-            httpClient = HttpClient.createWithEngine(factoryOf(engine))
+            httpClient = engine
             providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }
             routing { defaultModel = "openai:m" }
             debug = false

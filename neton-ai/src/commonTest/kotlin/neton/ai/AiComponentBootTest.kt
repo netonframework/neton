@@ -1,7 +1,7 @@
 // neton-ai/src/commonTest/kotlin/neton/ai/AiComponentBootTest.kt
 package neton.ai
 
-import neton.http.client.create
+import neton.http.testkit.ScriptedHttpClient
 
 import kotlinx.coroutines.test.runTest
 import neton.core.component.NetonContext
@@ -36,7 +36,7 @@ class AiComponentBootTest {
 
     @Test fun initBindsAiClientWhenConfigValid() = runTest {
         val ctx = NetonContext(emptyArray())
-        val httpClient = HttpClient.create()
+        val httpClient = ScriptedHttpClient()
         ctx.bind(HttpClient::class, httpClient)
         AiComponent.init(ctx, AiConfig().apply {
             providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }

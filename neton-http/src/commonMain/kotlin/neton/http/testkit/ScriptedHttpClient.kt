@@ -28,7 +28,7 @@ class ScriptedHttpClient : HttpClient {
         val method: HttpClientMethod,
         val urlPrefix: String,
         val respond: (suspend (HttpClientRequest) -> HttpClientResponse)?,
-        val chunks: List<HttpClientStreamChunk>?,
+        val stream: (suspend (HttpClientRequest) -> List<HttpClientStreamChunk>)?,
     )
 
     private val scripts = mutableListOf<Script>()
@@ -49,15 +49,25 @@ class ScriptedHttpClient : HttpClient {
         urlPrefix: String,
         respond: suspend (HttpClientRequest) -> HttpClientResponse,
     ): ScriptedHttpClient = apply {
-        scripts += Script(method, urlPrefix, respond, chunks = null)
+        scripts += Script(method, urlPrefix, respond, stream = null)
     }
 
     fun onStream(
         method: HttpClientMethod,
         urlPrefix: String,
         chunks: List<HttpClientStreamChunk>,
+    ): ScriptedHttpClient = onStream(method, urlPrefix) { chunks }
+
+    /**
+     * 脚本化的流式响应。lambda 可以抛 [HttpClientException]，用来模拟真实客户端在
+     * 第一个 chunk 之前就以 `Http(4xx/5xx)` 失败的契约。
+     */
+    fun onStream(
+        method: HttpClientMethod,
+        urlPrefix: String,
+        respond: suspend (HttpClientRequest) -> List<HttpClientStreamChunk>,
     ): ScriptedHttpClient = apply {
-        scripts += Script(method, urlPrefix, respond = null, chunks = chunks)
+        scripts += Script(method, urlPrefix, respond = null, stream = respond)
     }
 
     override suspend fun request(request: HttpClientRequest): HttpClientResponse {
@@ -76,14 +86,14 @@ class ScriptedHttpClient : HttpClient {
     override fun stream(request: HttpClientRequest): Flow<HttpClientStreamChunk> = flow {
         record(request)
         val script = match(request) ?: throw noScript(request)
-        val chunks = script.chunks
+        val stream = script.stream
             ?: throw HttpClientException(
                 HttpClientError.Unknown(
                     "script for ${request.method} ${request.url} is buffered; call request() not stream()",
                     null,
                 ),
             )
-        for (chunk in chunks) emit(chunk)
+        for (chunk in stream(request)) emit(chunk)
     }
 
     override suspend fun close() {

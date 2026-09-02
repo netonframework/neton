@@ -1,15 +1,30 @@
 package neton.storage.s3
 
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
+import kotlinx.coroutines.flow.collect
+import neton.core.http.HttpHeaders
+import neton.http.client.HttpClient
+import neton.http.client.HttpClientBody
+import neton.http.client.HttpClientError
+import neton.http.client.HttpClientException
+import neton.http.client.HttpClientMethod
+import neton.http.client.HttpClientRequest
+import neton.http.client.HttpClientResponse
+import neton.http.client.HttpClientStreamChunk
 import neton.logging.Logger
 import neton.storage.*
 import neton.storage.internal.guessMimeType
 import neton.storage.internal.ManagedStorageOperator
 import kotlin.time.Duration
 
+/**
+ * S3 over Neton's own [HttpClient] (spec zh-hans/spec/http-engine.md rule 4):
+ * the framework has exactly one outbound HTTP path, and this module used to be
+ * the one place that bypassed it with a direct Ktor client.
+ *
+ * The client is borrowed from the application, which created it and closes it;
+ * [close] therefore does not touch it. Closing a borrowed client would tear
+ * down every other user of it, silently, at storage shutdown.
+ */
 internal class S3StorageOperator(
     override val name: String,
     private val endpoint: String,
@@ -25,7 +40,7 @@ internal class S3StorageOperator(
     override val scheme: String = "s3"
 
     override fun close() {
-        httpClient.close()
+        // Borrowed client: the application owns its lifecycle.
     }
 
     override suspend fun write(path: String, data: ByteArray, options: WriteOptions) {
@@ -41,19 +56,18 @@ internal class S3StorageOperator(
 
         val signedHeaders = AwsV4Signer.sign("PUT", url, reqHeaders, data, accessKey, secretKey, region)
 
-        val response = httpClient.put(url) {
-            for ((k, v) in reqHeaders) header(k, v)
-            for ((k, v) in signedHeaders) header(k, v)
-            setBody(data)
-        }
+        val response = send(
+            HttpClientMethod.Put, url, reqHeaders + signedHeaders,
+            body = HttpClientBody.Bytes(data, contentType),
+        )
 
-        when (response.status.value) {
+        when (response.statusCode) {
             in 200..299 -> { /* success */
             }
 
             412 -> throw StorageAlreadyExistsException(path)
             403 -> throw StorageAccessDeniedException(path)
-            else -> throw StorageException("S3 PUT failed: ${response.status.value} for $path")
+            else -> throw StorageException("S3 PUT failed: ${response.statusCode} for $path")
         }
     }
 
@@ -64,17 +78,32 @@ internal class S3StorageOperator(
         val reqHeaders = mapOf("Host" to host)
         val signedHeaders = AwsV4Signer.sign("GET", url, reqHeaders, ByteArray(0), accessKey, secretKey, region)
 
-        val response = httpClient.get(url) {
-            for ((k, v) in reqHeaders) header(k, v)
-            for ((k, v) in signedHeaders) header(k, v)
+        // Objects are bytes. `request()` hands back a String body, which would
+        // corrupt anything that is not UTF-8 text, so the object body is read
+        // through the streaming path and assembled here.
+        val request = HttpClientRequest(
+            method = HttpClientMethod.Get,
+            url = url,
+            headers = toHeaders(reqHeaders + signedHeaders),
+        )
+        var bytes = ByteArray(0)
+        try {
+            httpClient.stream(request).collect { chunk ->
+                when (chunk) {
+                    is HttpClientStreamChunk.Bytes -> bytes += chunk.bytes
+                    is HttpClientStreamChunk.Text -> bytes += chunk.text.encodeToByteArray()
+                    is HttpClientStreamChunk.End -> Unit
+                }
+            }
+        } catch (e: HttpClientException) {
+            val http = e.error as? HttpClientError.Http ?: throw StorageException("S3 GET failed for $path: ${e.error.message}", e)
+            when (http.statusCode) {
+                404 -> throw StorageNotFoundException(path)
+                403 -> throw StorageAccessDeniedException(path)
+                else -> throw StorageException("S3 GET failed: ${http.statusCode} for $path")
+            }
         }
-
-        return when (response.status.value) {
-            in 200..299 -> response.readRawBytes()
-            404 -> throw StorageNotFoundException(path)
-            403 -> throw StorageAccessDeniedException(path)
-            else -> throw StorageException("S3 GET failed: ${response.status.value} for $path")
-        }
+        return bytes
     }
 
     override suspend fun delete(path: String) {
@@ -84,12 +113,9 @@ internal class S3StorageOperator(
         val reqHeaders = mapOf("Host" to host)
         val signedHeaders = AwsV4Signer.sign("DELETE", url, reqHeaders, ByteArray(0), accessKey, secretKey, region)
 
-        val response = httpClient.delete(url) {
-            for ((k, v) in reqHeaders) header(k, v)
-            for ((k, v) in signedHeaders) header(k, v)
-        }
+        val response = send(HttpClientMethod.Delete, url, reqHeaders + signedHeaders)
 
-        when (response.status.value) {
+        when (response.statusCode) {
             in 200..299 -> { /* success */
             }
 
@@ -97,7 +123,7 @@ internal class S3StorageOperator(
             }
 
             403 -> throw StorageAccessDeniedException(path)
-            else -> throw StorageException("S3 DELETE failed: ${response.status.value} for $path")
+            else -> throw StorageException("S3 DELETE failed: ${response.statusCode} for $path")
         }
     }
 
@@ -108,16 +134,13 @@ internal class S3StorageOperator(
         val reqHeaders = mapOf("Host" to host)
         val signedHeaders = AwsV4Signer.sign("HEAD", url, reqHeaders, ByteArray(0), accessKey, secretKey, region)
 
-        val response = httpClient.head(url) {
-            for ((k, v) in reqHeaders) header(k, v)
-            for ((k, v) in signedHeaders) header(k, v)
-        }
+        val response = send(HttpClientMethod.Head, url, reqHeaders + signedHeaders)
 
-        return when (response.status.value) {
+        return when (response.statusCode) {
             in 200..299 -> true
             404 -> false
             403 -> throw StorageAccessDeniedException(path)
-            else -> throw StorageException("S3 HEAD failed: ${response.status.value} for $path")
+            else -> throw StorageException("S3 HEAD failed: ${response.statusCode} for $path")
         }
     }
 
@@ -128,16 +151,13 @@ internal class S3StorageOperator(
         val reqHeaders = mapOf("Host" to host)
         val signedHeaders = AwsV4Signer.sign("HEAD", url, reqHeaders, ByteArray(0), accessKey, secretKey, region)
 
-        val response = httpClient.head(url) {
-            for ((k, v) in reqHeaders) header(k, v)
-            for ((k, v) in signedHeaders) header(k, v)
-        }
+        val response = send(HttpClientMethod.Head, url, reqHeaders + signedHeaders)
 
-        return when (response.status.value) {
+        return when (response.statusCode) {
             in 200..299 -> {
-                val size = response.headers["Content-Length"]?.toLongOrNull() ?: 0
-                val contentType = response.headers["Content-Type"]
-                val lastModified = response.headers["Last-Modified"]?.let { parseHttpDate(it) } ?: 0
+                val size = response.headers.get("Content-Length")?.toLongOrNull() ?: 0
+                val contentType = response.headers.get("Content-Type")
+                val lastModified = response.headers.get("Last-Modified")?.let { parseHttpDate(it) } ?: 0
                 FileStat(
                     path = path,
                     size = size,
@@ -149,7 +169,7 @@ internal class S3StorageOperator(
 
             404 -> throw StorageNotFoundException(path)
             403 -> throw StorageAccessDeniedException(path)
-            else -> throw StorageException("S3 HEAD failed: ${response.status.value} for $path")
+            else -> throw StorageException("S3 HEAD failed: ${response.statusCode} for $path")
         }
     }
 
@@ -180,15 +200,11 @@ internal class S3StorageOperator(
             val reqHeaders = mapOf("Host" to host)
             val signedHeaders = AwsV4Signer.sign("GET", url, reqHeaders, ByteArray(0), accessKey, secretKey, region)
 
-            val response = httpClient.get(url) {
-                for ((k, v) in reqHeaders) header(k, v)
-                for ((k, v) in signedHeaders) header(k, v)
-            }
+            val response = send(HttpClientMethod.Get, url, reqHeaders + signedHeaders)
 
-            when (response.status.value) {
+            when (response.statusCode) {
                 in 200..299 -> {
-                    val xml = response.bodyAsText()
-                    val parsed = S3Utils.parseListObjectsV2Response(xml)
+                    val parsed = S3Utils.parseListObjectsV2Response(response.body)
 
                     for (obj in parsed.contents) {
                         results.add(
@@ -216,7 +232,7 @@ internal class S3StorageOperator(
                 }
 
                 403 -> throw StorageAccessDeniedException(path)
-                else -> throw StorageException("S3 LIST failed: ${response.status.value} for $path")
+                else -> throw StorageException("S3 LIST failed: ${response.statusCode} for $path")
             }
         } while (continuationToken != null && results.size < options.maxResults)
 
@@ -235,18 +251,15 @@ internal class S3StorageOperator(
 
         val signedHeaders = AwsV4Signer.sign("PUT", url, reqHeaders, ByteArray(0), accessKey, secretKey, region)
 
-        val response = httpClient.put(url) {
-            for ((k, v) in reqHeaders) header(k, v)
-            for ((k, v) in signedHeaders) header(k, v)
-        }
+        val response = send(HttpClientMethod.Put, url, reqHeaders + signedHeaders)
 
-        when (response.status.value) {
+        when (response.statusCode) {
             in 200..299 -> { /* success */
             }
 
             404 -> throw StorageNotFoundException(src)
             403 -> throw StorageAccessDeniedException(src)
-            else -> throw StorageException("S3 COPY failed: ${response.status.value} for $src -> $dst")
+            else -> throw StorageException("S3 COPY failed: ${response.statusCode} for $src -> $dst")
         }
     }
 
@@ -266,6 +279,20 @@ internal class S3StorageOperator(
         val host = S3Utils.buildHostHeader(endpoint, bucket, pathStyle)
         return AwsV4Signer.presign("PUT", url, mapOf("Host" to host), accessKey, secretKey, region, ttl)
     }
+
+    /** Transport failures become [StorageException]; HTTP statuses are the caller's to interpret. */
+    private suspend fun send(
+        method: HttpClientMethod,
+        url: String,
+        headers: Map<String, String>,
+        body: HttpClientBody? = null,
+    ): HttpClientResponse = try {
+        httpClient.request(HttpClientRequest(method = method, url = url, headers = toHeaders(headers), body = body))
+    } catch (e: HttpClientException) {
+        throw StorageException("S3 ${method.name.uppercase()} failed for $url: ${e.error.message}", e)
+    }
+
+    private fun toHeaders(map: Map<String, String>): HttpHeaders = HttpHeaders.from(map)
 
     /**
      * Simple HTTP date parser (e.g., "Fri, 14 Feb 2026 09:30:00 GMT").
