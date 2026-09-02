@@ -4,7 +4,7 @@ import io.ktor.client.engine.HttpClientEngineFactory
 
 /**
  * Per-platform Ktor engine selection.
- *  - macOS (Darwin)  → Darwin engine (NSURLSession)
+ *  - macOS           → CIO (Darwin/NSURLSession failed the client conformance suite)
  *  - Linux (posix)   → CIO engine
  *  - Windows         → WinHttp engine
  *

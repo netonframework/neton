@@ -17,19 +17,26 @@ kotlin {
     sourceSets {
         val nativeMain by creating { dependsOn(commonMain.get()) }
         val posixMain by creating { dependsOn(nativeMain) }
-        val macosMain by creating {
-            dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.darwin) }
-        }
-        val linuxMain by creating {
-            dependsOn(posixMain)
-            dependencies { implementation(libs.ktor.client.cio) }
-        }
+        // CIO on every POSIX target. Darwin failed the client conformance suite
+        // (merged Set-Cookie, buffered chunked bodies, ignored cancellation).
+        val macosMain by creating { dependsOn(posixMain) }
+        val linuxMain by creating { dependsOn(posixMain) }
+        posixMain.dependencies { implementation(libs.ktor.client.cio) }
         macosArm64Main.get().dependsOn(macosMain)
         macosX64Main.get().dependsOn(macosMain)
         linuxX64Main.get().dependsOn(linuxMain)
         linuxArm64Main.get().dependsOn(linuxMain)
         mingwX64Main.get().apply { dependsOn(nativeMain); dependencies { implementation(libs.ktor.client.winhttp) } }
+
+        // The client conformance suite needs the contract layer's ScriptedOrigin,
+        // which only exists on POSIX targets.
+        val posixTest by creating {
+            dependsOn(commonTest.get())
+        }
+        macosArm64Test.get().dependsOn(posixTest)
+        macosX64Test.get().dependsOn(posixTest)
+        linuxX64Test.get().dependsOn(posixTest)
+        linuxArm64Test.get().dependsOn(posixTest)
 
         commonMain {
             dependencies {

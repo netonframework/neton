@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import neton.http.client.HttpClientBody
 import neton.http.client.HttpClient
+import neton.http.client.HttpClientCapability
 import neton.http.client.HttpClientError
 import neton.http.client.HttpClientException
 import neton.http.client.HttpClientMethod
@@ -45,6 +46,21 @@ internal class KtorHttpClient(
     private val proxyUrl: String? = null,
 ) : HttpClient {
 
+    /**
+     * What CIO (POSIX) and WinHttp (Windows) both deliver, verified by the client
+     * conformance suite. No HTTP_2: CIO cannot speak it on Kotlin/Native. No
+     * CUSTOM_CA: HttpClientConfig has no CA option to honour. Under-declaring is
+     * safe; an application that needs either fails at create time, not in
+     * production.
+     */
+    override val capabilities: Set<HttpClientCapability> = setOf(
+        HttpClientCapability.STREAMING_BODY,
+        HttpClientCapability.CANCELLATION,
+        HttpClientCapability.PROXY,
+    )
+
+    private var closed = false
+
     private val client: KtorEngineClient = KtorEngineClient(engineFactory) {
         install(HttpTimeout) {
             connectTimeoutMillis = defaultTimeout.connectMillis
@@ -60,6 +76,7 @@ internal class KtorHttpClient(
     }
 
     override suspend fun request(request: HttpClientRequest): HttpClientResponse {
+        rejectIfClosed()
         val response: HttpResponse = try {
             client.request { applyRequest(request) }
         } catch (e: CancellationException) {
@@ -86,6 +103,7 @@ internal class KtorHttpClient(
     }
 
     override fun stream(request: HttpClientRequest): Flow<HttpClientStreamChunk> = channelFlow {
+        rejectIfClosed()
         client.prepareRequest { applyRequest(request) }.execute { response ->
             // Non-2xx: surface as typed Http error BEFORE streaming the body. Without this check,
             // an error JSON body (e.g. OpenAI 429) would flow through SSE parsing as zero events
@@ -131,7 +149,14 @@ internal class KtorHttpClient(
     }
 
     override suspend fun close() {
+        closed = true
         client.close()
+    }
+
+    // Ktor answers a request on a closed client with its own cancellation-flavoured
+    // exception. Callers only know HttpClientException, so the contract is ours to keep.
+    private fun rejectIfClosed() {
+        if (closed) throw HttpClientException(HttpClientError.Unknown("HttpClient is closed", null))
     }
 
     private fun HttpRequestBuilder.applyRequest(req: HttpClientRequest) {
