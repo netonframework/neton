@@ -45,10 +45,10 @@ kotlin {
 
         commonTest {
             dependencies {
-                implementation(project(":neton-http-ktor"))
+                // No engine: the tests script HttpClient directly (neton-http testkit),
+                // which is what keeps neton-ai's test suite alive if an engine is removed.
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
-                implementation(libs.ktor.client.mock)
             }
         }
     }

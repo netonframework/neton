@@ -9,16 +9,10 @@
 // If this test ever needs Neton runtime imports, the standalone-usage contract is broken.
 package neton.ai
 
-import neton.http.client.create
-import neton.http.client.createWithEngine
+import neton.ai.testkit.jsonResponse
+import neton.http.client.HttpClientMethod
+import neton.http.testkit.ScriptedHttpClient
 
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.MockEngineConfig
-import io.ktor.client.engine.mock.respond
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import neton.http.client.HttpClient
 import kotlin.test.Test
@@ -28,20 +22,11 @@ import kotlin.test.assertTrue
 
 class AiClientFactoryStandaloneTest {
 
-    private fun factoryOf(engine: MockEngine) = object : HttpClientEngineFactory<MockEngineConfig> {
-        override fun create(block: MockEngineConfig.() -> Unit): HttpClientEngine = engine
-    }
-
     @Test fun createWithMinimalConfigSucceeds() = runTest {
-        val engine = MockEngine { _ ->
-            respond(
-                """{"choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}""",
-                HttpStatusCode.OK,
-                headersOf("Content-Type", "application/json"),
-            )
-        }
+        val engine = ScriptedHttpClient().on(HttpClientMethod.Post, "") { _ ->
+            jsonResponse(200, """{"choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}""")}
         val ai = AiClient.create {
-            httpClient = HttpClient.createWithEngine(factoryOf(engine))
+            httpClient = engine
             providers {
                 openAiCompatible("openai") {
                     baseUrl = "https://api.example.com/v1"
@@ -72,7 +57,7 @@ class AiClientFactoryStandaloneTest {
     @Test fun missingProvidersFailsValidate() {
         val ex = assertFailsWith<AiException> {
             AiClient.create {
-                httpClient = HttpClient.create()
+                httpClient = ScriptedHttpClient()
                 routing { defaultModel = "x:y" }
             }
         }
@@ -82,7 +67,7 @@ class AiClientFactoryStandaloneTest {
     @Test fun routingReferencingUnknownProviderFails() {
         val ex = assertFailsWith<AiException> {
             AiClient.create {
-                httpClient = HttpClient.create()
+                httpClient = ScriptedHttpClient()
                 providers { openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" } }
                 routing { defaultModel = "missing:m" }
             }
@@ -93,7 +78,7 @@ class AiClientFactoryStandaloneTest {
 
     @Test fun dualProviderSetupBuilds() = runTest {
         val ai = AiClient.create {
-            httpClient = HttpClient.create()
+            httpClient = ScriptedHttpClient()
             providers {
                 openAiCompatible("openai") { baseUrl = "https://x"; apiKey = "k" }
                 anthropic("anthropic") { apiKey = "a" }

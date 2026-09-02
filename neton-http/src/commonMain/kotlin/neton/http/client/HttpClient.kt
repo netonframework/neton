@@ -25,8 +25,8 @@ typealias HttpClientFactory = (HttpClientConfig) -> HttpClient
  *  - cancellation propagation (Flow cancel → HTTP body close)
  *  - redaction of sensitive headers in any internal logging
  *
- * Downstream consumers (neton-ai, future neton-webhooks, etc.) consume this interface,
- * NEVER `io.ktor.client.*` directly.
+ * Downstream consumers (neton-ai, neton-storage, future neton-webhooks, etc.) consume
+ * this interface and never an engine's own client type; CI greps for it.
  */
 interface HttpClient {
     /**

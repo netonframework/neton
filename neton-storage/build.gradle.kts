@@ -41,16 +41,9 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.cryptography.core)
                 implementation(libs.cryptography.provider.optimal)
-                implementation(libs.ktor.client.core)
+                implementation(project(":neton-http"))
             }
         }
-
-        macosMain.dependencies { implementation(libs.ktor.client.darwin) }
-
-        linuxMain.dependencies { implementation(libs.ktor.client.cio) }
-
-        val mingwX64Main1 = mingwX64Main
-        mingwX64Main1.dependencies { implementation(libs.ktor.client.winhttp) }
 
         commonTest {
             dependencies {
