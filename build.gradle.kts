@@ -137,9 +137,18 @@ subprojects {
     }
 }
 
+// 各模块的 POM description。Maven Central 的制品页直接显示这段文字，
+// 所以入口坐标 neton 用完整的定位句，而不是「Neton Framework - neton」这种占位。
+val pomDescriptions = mapOf(
+    "neton" to "Neton - A modern Kotlin/Native web framework. The components a production " +
+        "service actually needs \u2014 routing, data access, caching, security, scheduled jobs, " +
+        "domain events \u2014 and nothing more. Compiled to a native binary: no JVM, no " +
+        "reflection, millisecond startup.",
+)
+
 fun configurePom(proj: org.gradle.api.Project, pom: org.gradle.api.publish.maven.MavenPom) {
     pom.name.set(proj.name)
-    pom.description.set("Neton Framework - ${proj.name}")
+    pom.description.set(pomDescriptions[proj.name] ?: "Neton Framework - ${proj.name}")
     pom.url.set("https://github.com/netonframework/neton")
     pom.licenses {
         license {
