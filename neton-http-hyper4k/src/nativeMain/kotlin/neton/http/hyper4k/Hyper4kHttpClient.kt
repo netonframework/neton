@@ -47,6 +47,7 @@ internal class Hyper4kHttpClient(config: HttpClientConfig) : HttpClient {
     override val capabilities: Set<HttpClientCapability> = setOf(
         HttpClientCapability.STREAMING_BODY,
         HttpClientCapability.CANCELLATION,
+        HttpClientCapability.PROXY,
     )
 
     private val defaults = config.toEffectiveTimeout()
@@ -55,6 +56,7 @@ internal class Hyper4kHttpClient(config: HttpClientConfig) : HttpClient {
             connectTimeoutMillis = defaults.connectMillis,
             requestTimeoutMillis = defaults.requestMillis,
             readIdleTimeoutMillis = defaults.socketMillis,
+            proxyUrl = config.proxyUrl,
         ),
     )
     private var closed = false
