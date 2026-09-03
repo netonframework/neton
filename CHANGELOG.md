@@ -2,6 +2,51 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta4
+
+### Added
+
+- **An outbound HTTP client on hyper4k.** `HttpClient.create { }` is served by
+  `neton-http-hyper4k`, so a single `com.netonstream:neton` dependency now covers both
+  directions: the server runs on hyper4k and so does the client. Server and client share one
+  engine, and nothing pulls Ktor into a minimal application any more.
+
+- **A shared client conformance suite** (`neton.http.conformance.HttpClientConformanceSuite`)
+  with a scripted origin, run against the hyper4k client and both Ktor clients — 13 cases each,
+  covering status/header/body fidelity, non-success handling, connection refusal, timeouts,
+  streaming, flow cancellation and proxying.
+
+- **A client capability model.** An engine declares what it supports; a capability whose
+  conformance case is not overridden fails rather than silently passing. The hyper4k client
+  declares `STREAMING_BODY`, `CANCELLATION` and `PROXY`.
+
+- **`HttpClientProvider`** for modules that must build one client per runtime configuration
+  (an AI gateway with per-channel proxies, for example) without depending on an engine
+  themselves.
+
+### Changed
+
+- The hyper4k engine moves to `com.netonstream:hyper4k:0.2.0`, which adds the outbound client
+  and HTTP proxy support (ABI 4.1).
+- S3 storage goes through the borrowed `HttpClient` instead of its own Ktor engine.
+- `neton-http-ktor` leaves the BOM. Choosing the maintenance engine is now a deliberate,
+  versioned decision.
+
+### Fixed
+
+- **A missing engine is a readable compile error instead of `Unresolved reference`.** Both
+  `http { }` and `HttpClient.create { }` have fallback overloads in the contract layer that
+  name the dependency to add.
+- **The startup banner and the `modules.loaded` log reported `1.0.0-beta1`** in every release
+  since. `Neton.VERSION` was a hand-written constant nobody bumped; it is generated from the
+  Gradle project version now, so it cannot drift again.
+- **`./gradlew build` failed on the shared `posixMain` metadata compilation.** The scripted
+  conformance origin referenced `sa_family_t` and `timeval` directly, and both differ in width
+  and layout between macOS and Linux. They move behind `expect`/`actual` like `disableSigpipe`.
+  Target-specific test tasks never compile that source set, which is why it passed locally.
+- `com.netonstream:neton`'s POM description on Maven Central is the real project description
+  rather than a placeholder.
+
 ## 1.0.0-beta3
 
 ### Added
