@@ -44,7 +44,9 @@ public class Hyper4kHttpAdapter(
             port = serverConfig.port,
             maxConcurrentRequests = serverConfig.maxConnections,
             requestTimeoutMillis = serverConfig.timeout,
-            shutdownGraceMillis = minOf(serverConfig.timeout, 5_000L),
+            // timeout = 0 表示关掉每请求超时，但停机仍要留出排空时间——直接取 min
+            // 会把优雅停机也一起归零。
+            shutdownGraceMillis = if (serverConfig.timeout > 0) minOf(serverConfig.timeout, 5_000L) else 5_000L,
             failureResponse = { status, message ->
                 dispatcher.transportFailureResponse(status, message).toHyper4k()
             },

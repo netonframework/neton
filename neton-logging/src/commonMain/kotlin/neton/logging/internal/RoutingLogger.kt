@@ -27,6 +27,8 @@ internal class RoutingLogger(
 
     private val json = Json { encodeDefaults = false }
 
+    override fun isEnabled(level: LogLevel): Boolean = level.ordinal >= config.minLevel.ordinal
+
     override fun trace(msg: String, fields: Fields) = log(LogLevel.TRACE, msg, fields, null)
     override fun debug(msg: String, fields: Fields) = log(LogLevel.DEBUG, msg, fields, null)
     override fun info(msg: String, fields: Fields) = log(LogLevel.INFO, msg, fields, null)
