@@ -158,7 +158,7 @@ private fun listenOnLoopback(): Pair<Int, Int> = memScoped {
     val one = alloc<IntVar>().apply { value = 1 }
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, one.ptr, sizeOf<IntVar>().convert())
     val addr = alloc<sockaddr_in>()
-    addr.sin_family = AF_INET.convert()
+    addr.setInetFamily()
     addr.sin_addr.s_addr = LOOPBACK
     addr.sin_port = 0u
     check(platform.posix.bind(fd, addr.ptr.reinterpret<sockaddr>(), sizeOf<sockaddr_in>().convert()) == 0) {
@@ -175,7 +175,7 @@ private fun wakeAccept(port: Int) = memScoped {
     val fd = socket(AF_INET, SOCK_STREAM, 0)
     if (fd < 0) return@memScoped
     val addr = alloc<sockaddr_in>()
-    addr.sin_family = AF_INET.convert()
+    addr.setInetFamily()
     addr.sin_addr.s_addr = LOOPBACK
     addr.sin_port = toNetworkOrder(port)
     connect(fd, addr.ptr.reinterpret<sockaddr>(), sizeOf<sockaddr_in>().convert())
@@ -189,10 +189,7 @@ private class PosixConnection(private val fd: Int) : OriginConnection {
     private var buffer = ByteArray(0)
 
     init {
-        memScoped {
-            val timeout = alloc<timeval>().apply { tv_sec = 5; tv_usec = 0 }
-            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, timeout.ptr, sizeOf<timeval>().convert())
-        }
+        setReceiveTimeout(fd, seconds = 5)
         disableSigpipe(fd)
     }
 
@@ -409,5 +406,13 @@ private class PosixConnection(private val fd: Int) : OriginConnection {
  * SIGPIPE 的处理是 macOS 与 Linux 唯一分叉的地方：前者用 socket 选项，后者用
  * send 标志。测试进程被一个已断开的对端用信号杀掉，是最难排查的一种红。
  */
+/**
+ * sa_family_t 与 timeval 在 macOS 与 Linux 上位宽/布局都不同（前者 UInt8 vs UInt16，
+ * 后者 tv_usec 是 Int vs Long），共享的 posixMain 里引用它们会让元数据编译报
+ * 「不同平台位宽不一致」。和 disableSigpipe 一样按平台落地。
+ */
+internal expect fun sockaddr_in.setInetFamily()
+internal expect fun setReceiveTimeout(fd: Int, seconds: Int)
+
 internal expect fun disableSigpipe(fd: Int)
 internal expect fun sendFlags(): Int
