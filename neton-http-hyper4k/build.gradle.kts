@@ -23,7 +23,7 @@ kotlin {
                 implementation(project(":neton-logging"))
                 // The Rust engine stays its own repository; settings.gradle.kts wires it
                 // in with includeBuild when it is checked out next to this one.
-                implementation("com.netonstream:hyper4k:0.2.0")
+                implementation("com.netonstream:hyper4k:0.3.0")
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
             }

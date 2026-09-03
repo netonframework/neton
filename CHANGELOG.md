@@ -2,6 +2,38 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta5
+
+### Changed
+
+- **Fewer allocations per request on the buffered dispatch path.** Measured on the HTTP Arena
+  entry (macOS/arm64, `wrk -t4 -c128`, medians of interleaved runs): 42.3k to 44.0k req/s, about
+  +4%. Nothing about the request contract changes.
+  - `BufferedHttpRequestView` used `by lazy(PUBLICATION)` for seven properties. Each one
+    allocates a `Lazy` wrapper per request and reads it atomically, on an object that lives for
+    one request and is touched by one coroutine. They are plain memoised fields now; the worst
+    case is repeating a cheap computation instead of paying an allocation every time.
+  - The access log built its eight-entry field map — and boxed four numbers — before calling
+    `info()`, where the level filter lives. Under `level = "WARN"` every request paid for a line
+    that was then discarded.
+  - The logger and the CORS config were looked up in `NetonContext` on every request; both are
+    resolved once in `bind()`.
+  - The exact-route index was keyed by `"GET /path"`, so every lookup allocated its own key. It
+    is keyed per method now.
+  - `pathParams` and `attributes` were built eagerly for every request, including the routes and
+    requests that never touch them.
+  - `requestTraceId()` read the clock a second time and allocated an `IntRange` per request to
+    draw a random number.
+
+- **`Logger` gained `isEnabled(level)`** with a default of `true`, so callers can skip building
+  fields for a line that will be filtered. Existing implementations are unaffected.
+
+- The hyper4k engine moves to `com.netonstream:hyper4k:0.3.0`, which allows a request timeout of
+  `0` to disable the per-request timeout wrapper. That wrapper costs two coroutine objects and
+  their `JobSupport` state transitions on every request — about 19% of throughput in the same
+  measurement. The default is unchanged at 30s; disabling it is a deployment choice for services
+  that already have a timeout in front of them.
+
 ## 1.0.0-beta4
 
 ### Added
