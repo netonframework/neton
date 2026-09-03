@@ -51,6 +51,11 @@ import neton.core.interfaces.SecurityConfiguration
 import neton.logging.CurrentLogContext
 import neton.logging.LogContext
 import neton.logging.LoggerFactory
+import neton.logging.Logger
+import neton.logging.LogLevel
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.incrementAndFetch
 import neton.http.runRateLimitPreHandle
 import neton.http.runSecurityPreHandle
 
@@ -91,6 +96,7 @@ public class BufferedHttpResponse(
  * rate limiting, CORS, response envelope, and in-memory HttpContext contract so every buffered
  * adapter has identical application behavior.
  */
+@OptIn(ExperimentalAtomicApi::class)
 public class BufferedHttpDispatcher(
     private val serverConfig: HttpServerConfig,
 ) {
@@ -99,8 +105,15 @@ public class BufferedHttpDispatcher(
     private var appContext: NetonContext? = null
     private var securityInstalled: Boolean = false
     private var compiledRoutes: List<CompiledRoute> = emptyList()
-    private var exactRoutes: Map<String, CompiledRoute> = emptyMap()
+    // 按 method 分层，键就是 path 本身：一层 Map 的话每个请求都要拼一个
+    // "GET /path" 的字符串键，那是纯粹为查表而做的分配。
+    private var exactRoutes: Map<HttpMethod, Map<String, CompiledRoute>> = emptyMap()
     private var logScope: CoroutineScope? = null
+    // bind() 时解析一次。这两个原本每请求都要走 NetonContext 查一遍（access log 一次、
+    // CORS 一次），而 context 在 bind 之后就不再变了。
+    private var cachedLogger: Logger? = null
+    private var cachedCors: CorsConfig? = null
+    private var accessLogEnabled: Boolean = false
 
     public fun bind(ctx: NetonContext) {
         appContext = ctx
@@ -111,8 +124,12 @@ public class BufferedHttpDispatcher(
         compiledRoutes = buildCompiledRoutes(ctx)
         exactRoutes = compiledRoutes
             .filter { it.parameterSegments.isEmpty() }
-            .associateBy { "${it.route.method.name} ${it.fullPattern}" }
+            .groupBy { it.route.method }
+            .mapValues { (_, routes) -> routes.associateBy { it.fullPattern } }
         logScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        cachedLogger = ctx.getOrNull(LoggerFactory::class)?.get("neton.http")
+        cachedCors = ctx.getOrNull(CorsConfig::class)
+        accessLogEnabled = cachedLogger?.isEnabled(LogLevel.INFO) ?: false
     }
 
     private fun buildCompiledRoutes(ctx: NetonContext): List<CompiledRoute> {
@@ -147,7 +164,7 @@ public class BufferedHttpDispatcher(
      */
     public suspend fun dispatch(request: BufferedHttpRequest, liveResponse: HttpResponse?): BufferedHttpResponse {
         val startMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
-        val traceId = request.header("X-Request-Id")?.takeIf { it.isNotBlank() } ?: requestTraceId()
+        val traceId = request.header("X-Request-Id")?.takeIf { it.isNotBlank() } ?: requestTraceId(startMs)
         CurrentLogContext.set(LogContext(traceId = traceId, requestId = traceId, spanId = null, userId = null))
         var status = 200
         var routePattern: String? = null
@@ -331,7 +348,9 @@ public class BufferedHttpDispatcher(
         val log = logger()
         val method = request.method
         val path = request.path
-        log?.info(
+        // fields 这个 map（8 个 Pair + 4 次数字装箱）在进入 info() 之前就已经付掉了，
+        // 而等级过滤在 info() 内部——WARN 下每个请求都在为一行不会输出的日志分配。
+        if (accessLogEnabled) log?.info(
             "http.access",
             mapOf(
                 "method" to method,
@@ -345,7 +364,7 @@ public class BufferedHttpDispatcher(
             ),
         )
         val accessLogWriter = appContext?.getOrNull(AccessLogWriter::class) ?: return
-        val identity = context?.attributes?.get("identity") as? Identity
+        val identity = context?.attributeOrNull("identity") as? Identity
         val entry = AccessLogEntry(
             userId = identity?.id?.toLongOrNull(),
             userType = if (identity != null) 2 else 0,
@@ -373,7 +392,7 @@ public class BufferedHttpDispatcher(
     /** 5xx 未捕获异常异步落库（[ErrorLogWriter]），与旧 Ktor 适配器行为一致。 */
     private fun writeErrorLog(request: BufferedHttpRequest, context: BufferedHttpContext?, e: Exception) {
         val errorLogWriter = appContext?.getOrNull(ErrorLogWriter::class) ?: return
-        val identity = context?.attributes?.get("identity") as? Identity
+        val identity = context?.attributeOrNull("identity") as? Identity
         val entry = ErrorLogEntry(
             userId = identity?.id?.toLongOrNull(),
             userType = if (identity != null) 2 else 0,
@@ -472,7 +491,7 @@ public class BufferedHttpDispatcher(
 
     private fun lookupRoute(method: HttpMethod, path: String): MatchedRoute? {
         if (isCanonicalPath(path)) {
-            exactRoutes["${method.name} $path"]?.let { return MatchedRoute(it.route, it.routeGroup, emptyMap()) }
+            exactRoutes[method]?.get(path)?.let { return MatchedRoute(it.route, it.routeGroup, emptyMap()) }
         }
         return matchRoute(method, path)
     }
@@ -556,10 +575,10 @@ public class BufferedHttpDispatcher(
         body = envelopeJson.encodeToString(ApiEnvelope.serializer(), envelope).encodeToByteArray(),
     )
 
-    private fun logger() = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
+    private fun logger(): Logger? = cachedLogger
 
     /** CORS is policy, not transport: it arrives via the context like the security config does. */
-    private fun corsConfig(): CorsConfig? = appContext?.getOrNull(CorsConfig::class)
+    private fun corsConfig(): CorsConfig? = cachedCors
 
     private data class MatchedRoute(
         val route: RouteDefinition,
@@ -582,8 +601,14 @@ public class BufferedHttpDispatcher(
             explicitNulls = true
         }
 
-        fun requestTraceId(): String =
-            "req-${kotlin.time.Clock.System.now().toEpochMilliseconds()}-${(0 until 100000).random()}"
+        private val traceCounter = AtomicLong(0)
+
+        /**
+         * 调用方已经为 access log 取过一次时钟，这里复用，省掉第二次 clock_gettime；
+         * 随机数换成单调计数器，省掉每请求一个 IntRange 对象。唯一性不变（同毫秒内靠计数器区分）。
+         */
+        fun requestTraceId(nowMs: Long): String =
+            "req-$nowMs-${traceCounter.incrementAndFetch()}"
 
         fun String.toHttpMethod(): HttpMethod? =
             try {
@@ -773,60 +798,81 @@ private fun neton.core.component.CorsConfig.allowsOrigin(origin: String): Boolea
     "*" in allowedOrigins || allowedOrigins.any { it.equals(origin, ignoreCase = true) }
 
 private class BufferedHttpContext(
-    request: BufferedHttpRequest,
-    method: HttpMethod,
-    pathParameters: Map<String, String>,
+    private val sourceRequest: BufferedHttpRequest,
+    private val method: HttpMethod,
+    private val pathParameters: Map<String, String>,
     private val appContext: NetonContext?,
     override val traceId: String,
     liveResponse: HttpResponse? = null,
 ) : HttpContext {
-    override val request: HttpRequest by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        BufferedHttpRequestView(request, method, pathParameters)
-    }
+    // 请求级对象上不用 `by lazy`：每个 lazy 属性都要额外分配一个 Lazy 包装对象并做原子读，
+    // 而这些对象每请求一个、只被一个协程用。重算最坏情况只是重复一次廉价计算，
+    // 而 Lazy 的分配是每请求必付的。下面 RequestView 同理。
+    private var requestView: HttpRequest? = null
+    override val request: HttpRequest
+        get() = requestView ?: BufferedHttpRequestView(sourceRequest, method, pathParameters).also { requestView = it }
 
     /** 无 live transport 时的内存缓冲响应；有 live transport 时仅为兼容占位，实际写 [response]。 */
     internal val bufferedResponse: BufferedMemoryResponse? = if (liveResponse == null) BufferedMemoryResponse() else null
     override val response: HttpResponse = liveResponse ?: bufferedResponse!!
-    override val session: HttpSession by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        MemoryHttpSession("buffered-http-$traceId")
-    }
-    override val attributes: MutableMap<String, Any> = mutableMapOf()
+    private var sessionOrNull: HttpSession? = null
+    override val session: HttpSession
+        get() = sessionOrNull ?: MemoryHttpSession("buffered-http-$traceId").also { sessionOrNull = it }
+    // 绝大多数请求从不写 attributes（只有安全层命中才写），急切建一个 LinkedHashMap 是白付。
+    private var attributesOrNull: MutableMap<String, Any>? = null
+    override val attributes: MutableMap<String, Any>
+        get() = attributesOrNull ?: mutableMapOf<String, Any>().also { attributesOrNull = it }
+
+    /** attributes 的只读探测：没建过就不建。 */
+    internal fun attributeOrNull(key: String): Any? = attributesOrNull?.get(key)
 
     override fun getApplicationContext(): NetonContext? = appContext
 }
 
+private val EMPTY_PARAMETERS: Parameters = BufferedParameters(emptyMap())
+
 private class BufferedHttpRequestView(
     private val source: BufferedHttpRequest,
     override val method: HttpMethod,
-    pathParameters: Map<String, String>,
+    private val pathParameters: Map<String, String>,
 ) : HttpRequest {
-    override val path: String by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        BufferedHttpDispatcher.normalizePath(source.path)
-    }
-    override val url: String by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        if (source.query.isEmpty()) path else "$path?${source.query}"
-    }
+    private var pathOrNull: String? = null
+    override val path: String
+        get() = pathOrNull ?: BufferedHttpDispatcher.normalizePath(source.path).also { pathOrNull = it }
+    private var urlOrNull: String? = null
+    override val url: String
+        get() = urlOrNull ?: (if (source.query.isEmpty()) path else "$path?${source.query}").also { urlOrNull = it }
     override val version: String = "HTTP/1.1"
-    override val headers: neton.core.http.Headers by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        MapHeaders(source.headers)
-    }
-    override val queryParams: Parameters by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        BufferedParameters(BufferedHttpDispatcher.parseParameters(source.query))
-    }
-    override val pathParams: Parameters = BufferedParameters(pathParameters.mapValues { listOf(it.value) })
-    override val cookies: Map<String, Cookie> by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        parseCookies(source.header("Cookie"))
-    }
-    override val remoteAddress: String by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        source.header("X-Forwarded-For")?.substringBefore(',')?.trim()?.takeIf { it.isNotEmpty() }
-            ?: source.remoteAddress
-    }
+    private var headersOrNull: neton.core.http.Headers? = null
+    override val headers: neton.core.http.Headers
+        get() = headersOrNull ?: MapHeaders(source.headers).also { headersOrNull = it }
+    private var queryParamsOrNull: Parameters? = null
+    override val queryParams: Parameters
+        get() = queryParamsOrNull
+            ?: BufferedParameters(BufferedHttpDispatcher.parseParameters(source.query)).also { queryParamsOrNull = it }
+    // 无路径参数的路由（跑分用的就是这种）不该为一个空 map 付两次分配。
+    private var pathParamsOrNull: Parameters? = null
+    override val pathParams: Parameters
+        get() = pathParamsOrNull ?: (
+            if (pathParameters.isEmpty()) EMPTY_PARAMETERS
+            else BufferedParameters(pathParameters.mapValues { listOf(it.value) })
+            ).also { pathParamsOrNull = it }
+    private var cookiesOrNull: Map<String, Cookie>? = null
+    override val cookies: Map<String, Cookie>
+        get() = cookiesOrNull ?: parseCookies(source.header("Cookie")).also { cookiesOrNull = it }
+    private var remoteAddressOrNull: String? = null
+    override val remoteAddress: String
+        get() = remoteAddressOrNull ?: (
+            source.header("X-Forwarded-For")?.substringBefore(',')?.trim()?.takeIf { it.isNotEmpty() }
+                ?: source.remoteAddress
+            ).also { remoteAddressOrNull = it }
 
     /** 真实 socket 对端（不受 XFF 影响）：IP 白名单/可信代理判定必须以此为起点。 */
     override val peerAddress: String get() = source.remoteAddress
-    override val isSecure: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        source.header("X-Forwarded-Proto")?.equals("https", ignoreCase = true) == true
-    }
+    private var isSecureOrNull: Boolean? = null
+    override val isSecure: Boolean
+        get() = isSecureOrNull
+            ?: (source.header("X-Forwarded-Proto")?.equals("https", ignoreCase = true) == true).also { isSecureOrNull = it }
 
     override suspend fun body(): ByteArray = source.body.copyOf()
     override suspend fun text(): String = source.body.decodeToString()
