@@ -2,6 +2,38 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta6
+
+### Changed
+
+- **A complete response is written on the thread that already has the request.**
+  `response.text()` / `response.json()` used to commit through hyper4k's response channel,
+  and every channel write crosses to the engine's blocking write pool — 32 threads, shared
+  by the whole process. A two-byte `"ok"` paid a thread hop and was capped at that pool's
+  width. Only `stream { }` needs the channel; a complete body now goes back as one buffered
+  response and the engine writes it inline.
+
+  Measured on the HTTP Arena entry (macOS/arm64, `wrk -t4 -c128`, interleaved runs, medians):
+  **50.1k to 102.7k req/s**, and the fixed build ran past a ceiling the previous one could
+  not reach at all.
+
+  Two things follow from the same change:
+
+  - Responses with a known length now carry `Content-Length` instead of being chunked.
+  - The engine's two cheap-request optimisations start working. `CoroutineStart.UNDISPATCHED`
+    and the timeout that is only armed once a handler suspends were both dead: the channel
+    write suspended on every request, so nothing ever completed inline. That is why disabling
+    the request timeout used to look like a large win on its own — it was paying for a timer
+    that only existed because of this hop.
+
+  A redirect is a complete response too, so it no longer opens the channel either.
+
+### Fixed
+
+- Nothing in the request contract changes. The buffered and live paths already had to agree,
+  and the conformance suites for both engines pass unchanged; the new
+  `aCompleteBodyNeverOpensTheChannel` test pins the contract this release depends on.
+
 ## 1.0.0-beta5
 
 ### Changed
