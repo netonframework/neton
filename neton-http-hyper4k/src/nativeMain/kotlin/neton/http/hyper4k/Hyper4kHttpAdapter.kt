@@ -90,7 +90,14 @@ public class Hyper4kHttpAdapter(
         // starts writing, no header can be added.
         val live = Hyper4kLiveResponse(channel, dispatcher.corsHeaders(buffered))
         val result = dispatcher.dispatch(buffered, live)
-        return if (live.isCommitted) Hyper4kResponse.streamed(live.status.code) else result.toHyper4k()
+        return when {
+            // Headers are already on the wire; the engine must only close the stream.
+            live.isStreaming -> Hyper4kResponse.streamed(live.status.code)
+            // A complete body: hand it back so the engine writes it inline instead
+            // of pushing it through the blocking write pool.
+            live.isCommitted -> live.completeResponse()
+            else -> result.toHyper4k()
+        }
     }
 
     internal fun transportFailureResponse(status: Int, message: String): Hyper4kResponse =

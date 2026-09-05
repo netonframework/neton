@@ -8,6 +8,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class Hyper4kLiveResponseTest {
@@ -91,10 +92,47 @@ class Hyper4kLiveResponseTest {
 
         response.redirect("https://example.com/next", HttpStatus.FOUND)
 
-        assertEquals(HttpStatus.FOUND.code, channel.status)
-        assertEquals(listOf("https://example.com/next"), channel.headers["Location"])
+        // A redirect has no body, so there is nothing to stream: it goes back as a
+        // complete response and the channel is never opened.
+        assertTrue(response.isCommitted)
+        assertFalse(response.isStreaming)
+        assertNull(channel.status)
+        assertFalse(channel.isFinished)
+
+        val complete = response.completeResponse()
+        assertEquals(HttpStatus.FOUND.code, complete.status)
+        assertEquals(listOf("https://example.com/next"), complete.headers["Location"])
+        assertEquals(0, complete.body.size)
+    }
+
+    /**
+     * The contract this class exists to keep: a complete body never touches the
+     * channel. A channel write crosses to hyper4k's blocking write pool, so
+     * sending short responses through it costs a thread hop per request and caps
+     * throughput at that pool's width.
+     */
+    @Test
+    fun aCompleteBodyNeverOpensTheChannel() = runBlocking {
+        val channel = RecordingChannel()
+        val response = Hyper4kLiveResponse(
+            channel,
+            corsHeaders = mapOf("Access-Control-Allow-Origin" to listOf("https://example.com")),
+        )
+        response.header("X-Trace", "abc")
+
+        response.write("hello".encodeToByteArray())
+
+        assertNull(channel.status)
         assertTrue(channel.chunks.isEmpty())
-        assertTrue(channel.isFinished)
+        assertFalse(channel.isFinished)
+        assertFalse(response.isStreaming)
+        assertEquals(5L, response.bytesOut)
+
+        val complete = response.completeResponse()
+        assertEquals("hello", complete.body.decodeToString())
+        assertEquals(listOf("abc"), complete.headers["X-Trace"])
+        // CORS still has to be on the complete answer, same as on a streamed one.
+        assertEquals(listOf("https://example.com"), complete.headers["Access-Control-Allow-Origin"])
     }
 
     /** Fake channel that records calls. Writes past [acceptWrites] act as a gone client. */

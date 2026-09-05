@@ -1,5 +1,6 @@
 package neton.http.hyper4k
 
+import hyper4k.Hyper4kResponse
 import hyper4k.Hyper4kResponseChannel
 import neton.core.http.Cookie
 import neton.core.http.HttpBodyWriter
@@ -37,6 +38,33 @@ internal class Hyper4kLiveResponse(
 
     private var committed = false
     override val isCommitted: Boolean get() = committed
+
+    /**
+     * True only when the handler actually streamed. A complete body is not
+     * streaming: it is held here and handed back as one [Hyper4kResponse], which
+     * the engine writes on the thread that already has the request.
+     *
+     * The distinction matters because a channel write crosses to hyper4k's
+     * blocking write pool — 32 threads, shared by the whole process. Sending
+     * every `response.text("ok")` through it put a thread hop and that pool's
+     * width in front of every request, and it also defeated the two things the
+     * engine does to keep short requests cheap: the UNDISPATCHED start, and the
+     * timeout that is only armed once a handler suspends.
+     */
+    private var streaming = false
+    val isStreaming: Boolean get() = streaming
+
+    private var completeBody: ByteArray? = null
+
+    /**
+     * The buffered answer for a handler that wrote a complete body, or null when
+     * it streamed. Valid once [isCommitted] is true.
+     */
+    fun completeResponse(): Hyper4kResponse = Hyper4kResponse(
+        status = status.code,
+        headers = outgoingHeaders(),
+        body = completeBody ?: ByteArray(0),
+    )
 
     private var writtenBytes: Long = 0L
     override val bytesOut: Long get() = writtenBytes
@@ -77,12 +105,8 @@ internal class Hyper4kLiveResponse(
     override suspend fun write(data: ByteArray) {
         ensureNotCommitted()
         committed = true
-        channel.begin(status.code, outgoingHeaders())
-        if (data.isNotEmpty() && !channel.write(data)) {
-            clientGone = true
-        }
-        writtenBytes = channel.bytesWritten
-        channel.finish()
+        completeBody = data
+        writtenBytes = data.size.toLong()
     }
 
     /**
@@ -95,6 +119,7 @@ internal class Hyper4kLiveResponse(
     override suspend fun stream(block: suspend HttpBodyWriter.() -> Unit) {
         ensureNotCommitted()
         committed = true
+        streaming = true
         channel.begin(status.code, outgoingHeaders())
         val writer = object : HttpBodyWriter {
             override suspend fun writeChunk(chunk: ByteArray) {
@@ -115,8 +140,7 @@ internal class Hyper4kLiveResponse(
         this.status = status
         header("Location", url)
         committed = true
-        channel.begin(status.code, outgoingHeaders())
-        channel.finish()
+        completeBody = ByteArray(0)
     }
 }
 
