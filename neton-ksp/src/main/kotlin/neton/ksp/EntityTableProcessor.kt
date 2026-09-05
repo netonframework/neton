@@ -278,7 +278,12 @@ internal object ${entityName}RowMapper : EntityMapper<$entityRef> {
                 "Int", "kotlin.Int", "Long", "kotlin.Long" -> "0"
                 else -> "false"
             }
-            "softDeleteConfig = neton.database.api.SoftDeleteConfig(deletedColumn = \"${softDeleteCol.columnName}\", notDeletedValue = $notDeletedValue),\n    "
+            // deletedAtColumn 只在实体真声明了 deletedAt 时才传：SoftDeleteConfig 默认 null，
+            // 拼一个表里不存在的列会让 destroy()/destroyMany() 被驱动打回 [42703]。
+            val deletedAtArg = columns.find { it.propName == "deletedAt" }
+                ?.let { ", deletedAtColumn = \"${it.columnName}\"" }
+                .orEmpty()
+            "softDeleteConfig = neton.database.api.SoftDeleteConfig(deletedColumn = \"${softDeleteCol.columnName}\", notDeletedValue = $notDeletedValue$deletedAtArg),\n    "
         } else ""
 
         val createdAtCol = columns.find { it.isCreatedAt }
