@@ -2,6 +2,29 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta7
+
+### Fixed
+
+- **Responses could be dropped, or delivered to the wrong request.** The engine has a fast path
+  that lets a handler finishing inside the callback hand its response straight back instead of
+  waking a channel, and it was gated on a thread-local *flag*. Any delivery that happened to run
+  on that thread while the flag was set took the slot, whoever it belonged to: a coroutine
+  resuming there for another request either lost its response — the caller discarded the failure
+  return — or had it collected as the answer to the request being served.
+
+  It went unnoticed because until 1.0.0-beta6 a normal response never used that path; it
+  committed through the streaming channel. Writing complete responses inline put every request
+  on it. The symptom in the HTTP Arena run was 78 client reconnects and a p99 of 27 ms on the
+  otherwise idle latency-10k profile, against 288 µs before.
+
+  The flag now carries the responder it belongs to, so the fast path is only taken for that
+  request and everything else goes through its own channel. A delivery that still cannot be
+  handed over is counted in `droppedResponses` rather than discarded — any value above zero is
+  a bug, and it is now visible as a number instead of as unexplained tail latency.
+
+  Requires `com.netonstream:hyper4k:0.4.0`.
+
 ## 1.0.0-beta6
 
 ### Changed
