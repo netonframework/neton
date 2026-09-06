@@ -2,6 +2,32 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta8
+
+### Changed
+
+- **Fewer allocations on the request path.** Two of them showed up in a flame graph of the
+  HTTP Arena baseline; both are on the path every request takes.
+
+  - `percentDecode` allocated an `ArrayList<Byte>` — one box per byte — and, for every
+    ordinary character, a one-character `String` and a `ByteArray` to append it. A query
+    like `?a=3&b=4` went through it four times, and nothing in it needs decoding. It now
+    scans for `%` or `+` first and returns the same string when there is neither, and
+    decodes over bytes rather than boxes when there is.
+
+  - The parsed request-header map was built for every request. Dispatch reads one header
+    on the way in (`X-Request-Id`), and the full map is only needed by the access log, the
+    security pipeline, and a handler that reads headers itself — none of which most
+    requests reach. `BufferedHttpRequest` now takes the block unparsed, with a
+    transport-supplied single-header lookup; the map is materialised on first real use.
+    On hyper4k that lookup scans the raw bytes and parses nothing.
+
+  Measured on the arena entry (macOS/arm64, `wrk -t4 -c128`, eight interleaved runs):
+  about +10% on baseline, winning five to seven rounds out of eight. The machine cannot
+  resolve smaller differences than that.
+
+  Requires `com.netonstream:hyper4k:0.5.0`.
+
 ## 1.0.0-beta7
 
 ### Fixed
