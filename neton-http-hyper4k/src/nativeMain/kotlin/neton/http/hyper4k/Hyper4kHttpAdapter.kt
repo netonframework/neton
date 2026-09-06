@@ -106,12 +106,22 @@ public class Hyper4kHttpAdapter(
     private fun logger() = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
 }
 
+/**
+ * Hand the dispatcher the header block unparsed.
+ *
+ * Passing `headers` here read the engine's lazily-parsed map, so every request
+ * built it — a map plus two strings and a list per header — even though dispatch
+ * only reads `X-Request-Id` on the way in and nothing else usually looks. The
+ * scan and the map are cross-checked in hyper4k's own tests.
+ */
 private fun Hyper4kRequest.toBuffered(): BufferedHttpRequest = BufferedHttpRequest(
     method = method,
     path = path,
     query = query,
-    headers = headers,
     body = body,
+    remoteAddress = "",
+    singleHeader = ::header,
+    headersProvider = ::headers,
 )
 
 private fun BufferedHttpResponse.toHyper4k(): Hyper4kResponse = Hyper4kResponse(

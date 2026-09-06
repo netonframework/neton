@@ -63,17 +63,57 @@ import neton.http.runSecurityPreHandle
  * Immutable request snapshot owned by Kotlin. Adapters must copy borrowed engine buffers before
  * returning from their native callback.
  */
-public class BufferedHttpRequest(
+public class BufferedHttpRequest private constructor(
     public val method: String,
     public val path: String,
     public val query: String,
-    public val headers: Map<String, List<String>>,
+    private val headersProvider: () -> Map<String, List<String>>,
+    /**
+     * Reads one header without building the whole map, when the transport can.
+     * Null falls back to scanning [headers].
+     */
+    private val singleHeader: ((String) -> String?)?,
     public val body: ByteArray,
     /** transport 层对端地址（无 X-Forwarded-For 时用于 remoteAddress / access log userIp）。 */
     public val remoteAddress: String = "",
 ) {
+    public constructor(
+        method: String,
+        path: String,
+        query: String,
+        headers: Map<String, List<String>>,
+        body: ByteArray,
+        remoteAddress: String = "",
+    ) : this(method, path, query, { headers }, null, body, remoteAddress)
+
+    /**
+     * The transport variant: the header block stays unparsed until something
+     * actually asks for the whole map.
+     *
+     * Dispatch reads exactly one header on the way in (`X-Request-Id`), and the
+     * full map is only needed by the access log, the security pipeline and a
+     * handler that reads headers itself — none of which most requests hit.
+     * Materialising it anyway cost a map, two strings and a list per header on
+     * every request, which was the largest single group of allocations in the
+     * profile.
+     */
+    public constructor(
+        method: String,
+        path: String,
+        query: String,
+        body: ByteArray,
+        remoteAddress: String,
+        singleHeader: (String) -> String?,
+        headersProvider: () -> Map<String, List<String>>,
+    ) : this(method, path, query, headersProvider, singleHeader, body, remoteAddress)
+
+    private var headersOrNull: Map<String, List<String>>? = null
+    public val headers: Map<String, List<String>>
+        get() = headersOrNull ?: headersProvider().also { headersOrNull = it }
+
     public fun header(name: String): String? =
-        headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
+        singleHeader?.invoke(name)
+            ?: headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
 }
 
 /**
@@ -764,32 +804,62 @@ public class BufferedHttpDispatcher(
             return result
         }
 
+        /**
+         * Percent-decoding on the request path, so the common shape — nothing to
+         * decode — has to cost nothing.
+         *
+         * The previous version allocated an `ArrayList<Byte>` (one box per byte)
+         * and, for every ordinary character, a one-character `String` and a
+         * `ByteArray` to append it. A query like `?a=3&b=4` went through it four
+         * times. It showed up in the allocation profile of the arena baseline,
+         * where no parameter contains an escape at all.
+         */
         fun percentDecode(value: String): String {
-            val bytes = ArrayList<Byte>(value.length)
-            var index = 0
-            while (index < value.length) {
+            var scan = 0
+            while (scan < value.length) {
+                val c = value[scan]
+                if (c == '%' || c == '+') break
+                scan++
+            }
+            // Nothing to decode: hand back the same string, no allocation.
+            if (scan == value.length) return value
+
+            val raw = value.encodeToByteArray()
+            val out = ByteArray(raw.size)
+            var read = 0
+            var write = 0
+            while (read < raw.size) {
+                val b = raw[read]
                 when {
-                    value[index] == '+' -> {
-                        bytes.add(' '.code.toByte())
-                        index++
+                    b == '+'.code.toByte() -> {
+                        out[write++] = ' '.code.toByte()
+                        read++
                     }
-                    value[index] == '%' && index + 2 < value.length -> {
-                        val decoded = value.substring(index + 1, index + 3).toIntOrNull(16)
-                        if (decoded != null) {
-                            bytes.add(decoded.toByte())
-                            index += 3
+                    b == '%'.code.toByte() && read + 2 < raw.size -> {
+                        val hi = hexDigit(raw[read + 1])
+                        val lo = hexDigit(raw[read + 2])
+                        if (hi >= 0 && lo >= 0) {
+                            out[write++] = ((hi shl 4) or lo).toByte()
+                            read += 3
                         } else {
-                            bytes.add(value[index].code.toByte())
-                            index++
+                            out[write++] = b
+                            read++
                         }
                     }
                     else -> {
-                        value[index].toString().encodeToByteArray().forEach(bytes::add)
-                        index++
+                        out[write++] = b
+                        read++
                     }
                 }
             }
-            return bytes.toByteArray().decodeToString()
+            return out.decodeToString(0, write)
+        }
+
+        private fun hexDigit(b: Byte): Int = when (b) {
+            in '0'.code.toByte()..'9'.code.toByte() -> b - '0'.code.toByte()
+            in 'a'.code.toByte()..'f'.code.toByte() -> b - 'a'.code.toByte() + 10
+            in 'A'.code.toByte()..'F'.code.toByte() -> b - 'A'.code.toByte() + 10
+            else -> -1
         }
     }
 }
