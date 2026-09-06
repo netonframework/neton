@@ -111,9 +111,15 @@ public class BufferedHttpRequest private constructor(
     public val headers: Map<String, List<String>>
         get() = headersOrNull ?: headersProvider().also { headersOrNull = it }
 
-    public fun header(name: String): String? =
-        singleHeader?.invoke(name)
-            ?: headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
+    public fun header(name: String): String? {
+        // Not `?:` — a fast path that finds nothing still answers the question.
+        // Treating its null as "no fast path" sent every absent-header lookup on
+        // to build the whole map, which is the cost this exists to avoid, and the
+        // header dispatch reads first is one most clients never send.
+        val fast = singleHeader
+        if (fast != null) return fast(name)
+        return headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
+    }
 }
 
 /**
