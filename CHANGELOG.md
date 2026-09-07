@@ -2,6 +2,35 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta9
+
+### Added
+
+- **The engine terminates TLS.** `hyper4k` gained a TLS listener with ALPN, built on the rustls
+  it already carried for the outbound client, so nothing new is linked in. The handshake runs on
+  the connection's own task rather than in the accept loop, where one slow peer would stall every
+  connection queued behind it. A certificate it cannot read is reported rather than started
+  around.
+
+### Changed
+
+- **The security pipeline no longer runs for applications that configure no security.**
+  `routing { }` binds a `RouteGroupSecurityConfigs` whenever an application.conf exists, with or
+  without any `[[groups]]` in it, and the dispatcher read that binding as "security is installed".
+  Every request of every application therefore went through the security path, which reads the
+  whole request-header map — the map beta8 had just made lazy. An empty group map now counts as
+  not installed, and the early exit no longer materialises the attribute map to remove a key
+  almost nothing sets.
+
+- **Response headers are built once instead of through a text round trip.** They were assembled
+  into a `StringBuilder`, encoded to UTF-8, and parsed back on the Rust side into a
+  `Vec<(String, String)>` whose only use was handing `&str`s to hyper — which copies them again.
+  Kotlin now writes bytes directly, and Rust builds the `HeaderMap` straight from the byte
+  slices. Header names and values are ASCII in practice, so the byte path is exact; anything
+  wider falls back to real UTF-8 encoding rather than being truncated.
+
+  Requires `com.netonstream:hyper4k:0.6.0`.
+
 ## 1.0.0-beta8
 
 ### Changed
