@@ -2,6 +2,30 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta10
+
+### Changed
+
+- **Restores the request-path throughput that beta8/beta9 had lost on the arena's 64-core
+  Linux runs.** On the arena hardware, per-request CPU on the persistent-connection `baseline`
+  profile had climbed from ~69 µs (beta7) to ~108 µs (beta9); a same-day control on that
+  hardware put the beta10 candidate back at ~68 µs. The regression only appeared under
+  many-core, long-lived-connection load — macOS and a 4-core Linux box could not reproduce it,
+  so the fix was validated on the arena machine itself rather than claimed from local numbers.
+
+  Three allocations were removed from the bridge every request takes, all engine-side
+  (`com.netonstream:hyper4k:0.6.1`):
+
+  - The response-header block was sized one byte too long (a newline counted per line rather
+    than between lines), so a correctly-sized copy ran on every response. It is now sized
+    exactly and the copy is gone.
+  - A single header lookup on an un-materialised header map allocated a temporary ByteArray for
+    the name on every call. ASCII names are now compared against the String directly.
+  - The Rust side owned the request by moving `method`/`uri` out of the parsed head and
+    borrowing from them, instead of allocating three owned Strings for Kotlin to copy again.
+
+  No change to routing, security, the header-map or percent-decode behaviour from beta9.
+
 ## 1.0.0-beta9
 
 ### Added
