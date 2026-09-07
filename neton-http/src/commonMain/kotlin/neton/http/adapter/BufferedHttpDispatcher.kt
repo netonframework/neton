@@ -165,8 +165,14 @@ public class BufferedHttpDispatcher(
         appContext = ctx
         requestEngine = ctx.get<RequestEngine>()
         rateLimitGate = ctx.getOrNull(RateLimitGate::class)
+        // An *empty* group-security map is not security being installed. `routing { }`
+        // binds one whenever an application.conf exists, even with no `[[groups]]`
+        // in it, so treating the binding itself as the signal put every request
+        // through the security path — which reads `request.headers` and so built
+        // the whole header map for applications that configured no auth at all.
+        val groupSecurity = ctx.getOrNull(RouteGroupSecurityConfigs::class)
         securityInstalled = ctx.getOrNull(SecurityConfiguration::class) != null ||
-            ctx.getOrNull(RouteGroupSecurityConfigs::class) != null
+            (groupSecurity != null && groupSecurity.configs.isNotEmpty())
         compiledRoutes = buildCompiledRoutes(ctx)
         exactRoutes = compiledRoutes
             .filter { it.parameterSegments.isEmpty() }
@@ -516,7 +522,9 @@ public class BufferedHttpDispatcher(
     ) {
         val route = matched.route
         if (!securityInstalled && !route.requireAuth && route.permission == null) {
-            context.removeAttribute(SecurityAttributes.IDENTITY)
+            // Not `removeAttribute`: that goes through `attributes`, which builds the
+            // map for every request just to delete a key almost none of them set.
+            context.removeAttributeIfPresent(SecurityAttributes.IDENTITY)
             return
         }
         val headers = request.headers.mapValues { it.value.firstOrNull().orEmpty() }
@@ -901,6 +909,11 @@ private class BufferedHttpContext(
 
     /** attributes 的只读探测：没建过就不建。 */
     internal fun attributeOrNull(key: String): Any? = attributesOrNull?.get(key)
+
+    /** Removing from a map that was never built is a no-op, not a reason to build it. */
+    internal fun removeAttributeIfPresent(key: String) {
+        attributesOrNull?.remove(key)
+    }
 
     override fun getApplicationContext(): NetonContext? = appContext
 }
