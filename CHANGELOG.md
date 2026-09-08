@@ -2,6 +2,35 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta13
+
+### Changed
+
+- **Request hot path: two confirmed reductions.** Both were found by sampling the
+  dispatcher on a dedicated box and confirmed with clean end-to-end A/B (per-
+  request CPU, interleaved rounds), with the gain matching the hotspot's sampled
+  share:
+  - HTTP method resolution no longer runs `uppercase()` + enum `valueOf` per
+    request (match upper-case verbatim, fall back for odd casing). ~1.2%.
+  - Query parameters are read by scanning the raw string; the full parameter map
+    is built lazily only when something iterates it, instead of eagerly per
+    request for `ArgsView`. ~5.7%. Cumulative ~7.6% on the 2-core bench; the
+    arena will show the 64-core figure.
+
+### Fixed
+
+- Static files: `Accept-Encoding` q-values are honoured (`gzip;q=0` is a refusal);
+  HEAD selects the same pre-compressed variant as GET; the read comes from the
+  realpath the escape check validated. Large files (>256 KiB) stream from disk in
+  bounded chunks instead of loading whole. Arena listeners are awaited to their
+  bind before READY.
+- The Ktor adapter fails to start when TLS is configured instead of silently
+  serving cleartext.
+- TLS can be configured through `http { tls { } }` and application.conf
+  `[http.tls]`, not only by constructing HttpServerConfig directly.
+
+Same `com.netonstream:hyper4k:0.7.0`.
+
 ## 1.0.0-beta12
 
 ### Added
