@@ -36,3 +36,13 @@ stay unchanged so the version under comparison is not disturbed.
 - **Cache identity is (size, mtime-ms).** A same-length, same-millisecond
   in-place overwrite is not detected. Atomic replace is safe. — *documented in
   static-files.md; replacement test added.*
+
+## Logging / usability
+
+- **Default (INFO) access logging writes a structured line to stdout synchronously
+  per request, and it dominates the request.** On a 2-core box the default-config
+  server fell to ~630 rps (~3 ms/request) purely from this; WARN removes it. The
+  benchmark runs WARN so its scores are unaffected, but this is a real
+  out-of-the-box experience problem: a user running at INFO pays it. The access
+  log should be off the request hot path (async/batched) or clearly gated. —
+  *registered; not yet fixed.*
