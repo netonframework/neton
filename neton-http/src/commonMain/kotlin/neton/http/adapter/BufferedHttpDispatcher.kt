@@ -315,7 +315,14 @@ public class BufferedHttpDispatcher(
 
             val result = matched.route.handler.invoke(
                 context,
-                ArgsView(matched.pathParameters, context.request.queryParams.toMap()),
+                // Scanning query lookups: a handler that reads params by name never
+                // forces the full parameter map to be built for this request.
+                ArgsView(
+                    matched.pathParameters,
+                    { name -> queryParamFirst(request.query, name) },
+                    { name -> queryParamAll(request.query, name) },
+                    Unit,
+                ),
             )
             val response = if (context.response.isCommitted) {
                 snapshotResponse(context)
@@ -904,6 +911,66 @@ public class BufferedHttpDispatcher(
         }
 
         /**
+         * First decoded value for [name] in a raw query string, scanning rather
+         * than building the whole parameter map. A keyed read is the common case
+         * (handlers ask for `a`, `b`), and it does not need the map, its per-key
+         * lists, or the decoded strings for keys nobody asked about.
+         */
+        fun queryParamFirst(raw: String, name: String): String? {
+            if (raw.isEmpty()) return null
+            var start = 0
+            while (start <= raw.length) {
+                var end = raw.indexOf('&', start)
+                if (end < 0) end = raw.length
+                if (end > start) {
+                    val eq = raw.indexOf('=', start)
+                    val keyEnd = if (eq in start until end) eq else end
+                    if (matchesDecodedKey(raw, start, keyEnd, name)) {
+                        return if (eq in start until end) percentDecode(raw.substring(eq + 1, end)) else ""
+                    }
+                }
+                start = end + 1
+            }
+            return null
+        }
+
+        /** All decoded values for [name], or null if absent. Allocates only for the match. */
+        fun queryParamAll(raw: String, name: String): List<String>? {
+            if (raw.isEmpty()) return null
+            var out: MutableList<String>? = null
+            var start = 0
+            while (start <= raw.length) {
+                var end = raw.indexOf('&', start)
+                if (end < 0) end = raw.length
+                if (end > start) {
+                    val eq = raw.indexOf('=', start)
+                    val keyEnd = if (eq in start until end) eq else end
+                    if (matchesDecodedKey(raw, start, keyEnd, name)) {
+                        val v = if (eq in start until end) percentDecode(raw.substring(eq + 1, end)) else ""
+                        (out ?: mutableListOf<String>().also { out = it }).add(v)
+                    }
+                }
+                start = end + 1
+            }
+            return out
+        }
+
+        /** True when the raw key span [start,keyEnd) decodes to [name]. Fast path: no `%`/`+`. */
+        private fun matchesDecodedKey(raw: String, start: Int, keyEnd: Int, name: String): Boolean {
+            var hasEncoding = false
+            for (i in start until keyEnd) {
+                val c = raw[i]
+                if (c == '%' || c == '+') { hasEncoding = true; break }
+            }
+            if (!hasEncoding) {
+                if (keyEnd - start != name.length) return false
+                for (i in 0 until name.length) if (raw[start + i] != name[i]) return false
+                return true
+            }
+            return percentDecode(raw.substring(start, keyEnd)) == name
+        }
+
+        /**
          * Percent-decoding on the request path, so the common shape — nothing to
          * decode — has to cost nothing.
          *
@@ -1024,6 +1091,15 @@ private class BufferedHttpRequestView(
     override val queryParams: Parameters
         get() = queryParamsOrNull
             ?: BufferedParameters(BufferedHttpDispatcher.parseParameters(source.query)).also { queryParamsOrNull = it }
+
+    // Keyed reads scan the raw query instead of forcing the full map — the common
+    // handler pattern (`queryParam("a")`) then allocates nothing but the decoded
+    // value. Once the whole map has been materialised (someone read queryParams),
+    // use it, so a mutation-free view stays consistent.
+    override fun queryParam(name: String): String? {
+        queryParamsOrNull?.let { return it[name] }
+        return BufferedHttpDispatcher.queryParamFirst(source.query, name)
+    }
     // 无路径参数的路由（跑分用的就是这种）不该为一个空 map 付两次分配。
     private var pathParamsOrNull: Parameters? = null
     override val pathParams: Parameters
