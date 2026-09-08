@@ -1,6 +1,7 @@
 package neton.http.hyper4k
 
 import neton.core.http.adapter.HttpServerConfig
+import hyper4k.Hyper4kTls
 
 import hyper4k.Hyper4kRequest
 import hyper4k.Hyper4kResponse
@@ -49,6 +50,9 @@ public class Hyper4kHttpAdapter(
             shutdownGraceMillis = if (serverConfig.timeout > 0) minOf(serverConfig.timeout, 5_000L) else 5_000L,
             failureResponse = { status, message ->
                 dispatcher.transportFailureResponse(status, message).toHyper4k()
+            },
+            tls = serverConfig.tls?.let {
+                Hyper4kTls(it.certificatePath, it.privateKeyPath, it.alpnProtocols)
             },
         )
         running.start { request, channel -> dispatch(request, channel) }
