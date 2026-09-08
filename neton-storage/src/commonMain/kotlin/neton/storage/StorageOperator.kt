@@ -15,6 +15,15 @@ interface StorageOperator {
     /** 当前源的配置名称（对应 [[sources]] 的 name） */
     val name: String
 
+    /**
+     * 该源的公开访问基址（`[[sources]].baseUrl`）；空 = 这个源没有公开地址。
+     *
+     * 下发给客户端的地址 = `baseUrl` + 对象路径。存储层只提供基址，**不负责拼**——
+     * 拼接是业务侧返回响应时的事，存储层不知道也不该知道哪些路径要对外。
+     */
+    val baseUrl: String
+        get() = ""
+
     /** 写入文件 */
     suspend fun write(path: String, data: ByteArray, options: WriteOptions = WriteOptions())
 

@@ -9,7 +9,8 @@ import kotlin.time.Duration
 internal class LocalStorageOperator(
     override val name: String,
     private val basePath: String,
-    private val logger: Logger?
+    private val logger: Logger?,
+    override val baseUrl: String = "",
 ) : StorageOperator {
 
     override val scheme: String = "local"

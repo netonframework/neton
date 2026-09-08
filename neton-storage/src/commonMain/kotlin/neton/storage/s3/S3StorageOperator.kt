@@ -34,7 +34,8 @@ internal class S3StorageOperator(
     private val secretKey: String,
     private val pathStyle: Boolean,
     private val httpClient: HttpClient,
-    private val logger: Logger?
+    private val logger: Logger?,
+    override val baseUrl: String = "",
 ) : StorageOperator, ManagedStorageOperator {
 
     override val scheme: String = "s3"

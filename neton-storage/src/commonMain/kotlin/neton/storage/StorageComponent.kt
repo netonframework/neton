@@ -65,7 +65,7 @@ object StorageComponent : NetonComponent<StorageConfig> {
 
     private fun createOperator(ctx: NetonContext, src: SourceConfig, logger: Logger?): StorageOperator {
         return when (src.type) {
-            "local" -> LocalStorageOperator(src.name, src.basePath, logger)
+            "local" -> LocalStorageOperator(src.name, src.basePath, logger, src.baseUrl)
             "s3" -> {
                 // Borrowed, never created here: the application builds one client,
                 // binds it, and closes it at shutdown. Same rule as neton-ai.
@@ -84,7 +84,8 @@ object StorageComponent : NetonComponent<StorageConfig> {
                     secretKey = src.secretKey,
                     pathStyle = src.pathStyle,
                     httpClient = httpClient,
-                    logger = logger
+                    logger = logger,
+                    baseUrl = src.baseUrl,
                 )
             }
 
