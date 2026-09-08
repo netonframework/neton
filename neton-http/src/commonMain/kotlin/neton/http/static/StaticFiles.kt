@@ -247,11 +247,36 @@ internal suspend fun respondWithFile(
         return
     }
 
+    // Small files: serve from the cache (or a single read) in one buffer — fast,
+    // and the working set is bounded by the cache. Large files: stream in bounded
+    // chunks so the whole file never sits in memory, and a client that goes away
+    // stops the read (the channel reports the peer is gone and the loop ends).
+    if (serveStat.size > STREAM_THRESHOLD_BYTES) {
+        // No Content-Length: a streamed body is framed chunked (h1) or as DATA
+        // frames (h2), and Content-Length alongside chunked is a protocol error.
+        // The trade is deliberate — bounded memory over a length header for large
+        // files; small files below keep their Content-Length.
+        context.response.stream {
+            var offset = 0L
+            while (offset < serveStat.size) {
+                val len = minOf(STREAM_CHUNK_BYTES, serveStat.size - offset)
+                val chunk = StaticFileSystem.readRange(servePath, offset, len)
+                if (chunk == null || chunk.isEmpty()) break
+                writeChunk(chunk)
+                offset += chunk.size
+            }
+        }
+        return
+    }
     val bytes = (cache?.get(servePath, serveStat) ?: StaticFileSystem.readAll(servePath))
         ?: run { notFound(context); return }
     context.response.header("Content-Length", bytes.size.toString())
     context.response.write(bytes)
 }
+
+/** Files larger than this stream from disk instead of buffering whole. */
+private const val STREAM_THRESHOLD_BYTES = 256L * 1024
+private const val STREAM_CHUNK_BYTES = 64L * 1024
 
 /**
  * Sends a single file the application chose, with the same conditional/Range/HEAD

@@ -265,3 +265,40 @@ class StaticFilesContractFixTest {
         kotlin.test.assertEquals("brand-new-content", d.dispatch(req("/s/c.txt")).body.decodeToString())
     }
 }
+
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+class StaticLargeFileTest {
+    private var nextId = 0L
+    private lateinit var dir: String
+    @kotlin.test.BeforeTest fun setUp() { dir = "/tmp/neton-static-big-" + platform.posix.getpid() + "-" + (nextId++); platform.posix.mkdir(dir, "0755".toUInt(8).convert()) }
+    @kotlin.test.AfterTest fun tearDown() { platform.posix.system("rm -rf " + dir) }
+
+    private fun writeFile(rel: String, content: ByteArray) {
+        val fd = platform.posix.open(dir + "/" + rel, platform.posix.O_WRONLY or platform.posix.O_CREAT or platform.posix.O_TRUNC, "0644".toUInt(8))
+        if (content.isNotEmpty()) content.usePinned { platform.posix.write(fd, it.addressOf(0), content.size.convert()) }
+        platform.posix.close(fd)
+    }
+    private fun dispatcher(): BufferedHttpDispatcher {
+        val engine = object : neton.core.interfaces.RequestEngine {
+            private val r = mutableListOf<neton.core.interfaces.RouteDefinition>()
+            override fun registerRoute(route: neton.core.interfaces.RouteDefinition) { r.add(route) }
+            override fun getRoutes() = r.toList()
+        }
+        engine.staticFiles("/s", dir)
+        val ctx = neton.core.component.NetonContext(emptyArray()).apply { bind(neton.core.interfaces.RequestEngine::class, engine) }
+        return BufferedHttpDispatcher(neton.core.http.adapter.HttpServerConfig(port = 0)).also { it.bind(ctx) }
+    }
+
+    @kotlin.test.Test
+    fun aFileOverTheStreamThresholdArrivesCompleteAndInOrder() = kotlinx.coroutines.runBlocking {
+        // 700 KB > 256 KB threshold: served through the chunked stream path.
+        val n = 700 * 1024
+        val content = ByteArray(n) { (it % 251).toByte() }
+        writeFile("big.bin", content)
+        val d = dispatcher()
+        val r = d.dispatch(BufferedHttpRequest("GET", "/s/big.bin", "", emptyMap(), ByteArray(0)))
+        kotlin.test.assertEquals(200, r.status)
+        kotlin.test.assertEquals(n, r.body.size, "every byte of the streamed file must arrive")
+        kotlin.test.assertTrue(r.body.contentEquals(content), "streamed chunks must reassemble in order")
+    }
+}

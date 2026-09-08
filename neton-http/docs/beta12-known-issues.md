@@ -25,9 +25,9 @@ stay unchanged so the version under comparison is not disturbed.
   accepted". — *fixed.*
 - **HEAD did not select the pre-compressed variant**, so HEAD metadata (ETag,
   Content-Encoding) disagreed with the matching GET. — *fixed.*
-- **Large files are read whole into memory**, not streamed; there is no bounded
-  streaming or disconnect cancellation. — *pending: needs an engine streaming
-  path; tracked separately.*
+- **Large files are read whole into memory.** — *fixed: files over 256 KiB stream
+  from disk in 64 KiB chunks through the engine streaming path (chunked / h2 DATA),
+  so memory is bounded and a disconnect stops the read. Verified over real TLS.*
 - **TOCTOU between realpath check and reopen.** The escape check realpath'd the
   target, then the read reopened by path. — *narrowed: read from the validated
   real path; residual symlink-swap race documented.*
