@@ -8,6 +8,7 @@ import neton.core.http.ParamConverterRegistry
 import neton.core.http.adapter.HttpAdapter
 import neton.core.http.adapter.HttpAdapterFactory
 import neton.core.http.adapter.HttpServerConfig
+import neton.core.http.adapter.TlsSettings
 import neton.core.config.ConfigLoader
 
 /**
@@ -36,11 +37,14 @@ class HttpComponent(
         val enableCompression = resolveBoolean(appConfig, "http.enableCompression") ?: true
         // CORS: application.conf [cors] 优先，fallback 到 DSL
         val corsConfig = resolveCorsConfig(appConfig) ?: config.corsConfig
+        // TLS: application.conf [http.tls] 优先，fallback 到 DSL（http { tls { } }）。
+        val tls = resolveTls(appConfig) ?: config.tls
         val serverConfig = HttpServerConfig(
             port = port,
             timeout = timeout,
             maxConnections = maxConnections,
             enableCompression = enableCompression,
+            tls = tls,
         )
         ctx.bind(serverConfig)
         // CORS is policy, not transport: the shared dispatcher reads it from the context
@@ -79,6 +83,22 @@ class HttpComponent(
 
             else -> null
         }
+    }
+
+    /**
+     * `[http.tls]` from application.conf: certificatePath, privateKeyPath, and an
+     * optional alpnProtocols list. Returns null when the section is absent or
+     * lacks a cert/key pair, so the DSL value (or cleartext) stands.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun resolveTls(appConfig: Map<String, Any?>?): TlsSettings? {
+        val section = appConfig?.let { ConfigLoader.getConfigValue(it, "http.tls") as? Map<String, Any?> }
+            ?: return null
+        val cert = section["certificatePath"] as? String ?: return null
+        val key = section["privateKeyPath"] as? String ?: return null
+        val alpn = (section["alpnProtocols"] as? List<*>)?.filterIsInstance<String>()
+            ?.takeIf { it.isNotEmpty() } ?: listOf("http/1.1")
+        return TlsSettings(cert, key, alpn)
     }
 
     @Suppress("UNCHECKED_CAST")
