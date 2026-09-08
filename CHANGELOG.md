@@ -2,6 +2,21 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta11
+
+### Changed
+
+- **The request path no longer pays for observability nothing consumes.** Every request built
+  two `kotlin.time.Clock.System.now()` instants and ran the access-log record, even with access
+  logging off and no `AccessLogWriter` bound — which is the arena's configuration. A pure-dispatch
+  microbenchmark (no socket, no engine) put this at ~15% of dispatch CPU, with the two `Instant`
+  allocations feeding the collector that dominates that path. The timestamps and the record are
+  now skipped unless access logging is enabled or a writer is bound.
+
+  Provably equivalent: when neither is present, `recordDispatch` already returned at its first
+  line, so the timestamps it consumed were never observed. The trace context is still set on
+  every request, so a handler that logs still carries its id. Same `com.netonstream:hyper4k:0.6.1`.
+
 ## 1.0.0-beta10
 
 ### Changed
