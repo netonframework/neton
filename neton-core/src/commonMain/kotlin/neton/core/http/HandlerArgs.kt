@@ -18,14 +18,33 @@ interface HandlerArgs {
 /**
  * Path + Query 分离视图，零 merge
  */
-class ArgsView(
+class ArgsView private constructor(
     private val path: Map<String, String>,
-    private val query: Map<String, List<String>>
+    private val queryFirst: (String) -> String?,
+    private val queryAll: (String) -> List<String>?,
 ) : HandlerArgs {
-    override fun first(name: String): Any? =
-        path[name] ?: query[name]?.firstOrNull()?.takeIf { it.isNotBlank() }
+    /** Eager map form (kept for callers that already hold a parsed map). */
+    constructor(path: Map<String, String>, query: Map<String, List<String>>) : this(
+        path,
+        { name -> query[name]?.firstOrNull() },
+        { name -> query[name] },
+    )
 
-    override fun all(name: String): List<String>? = query[name]
+    /**
+     * Lazy form: query values are looked up by scanning, so a handler that reads
+     * a few parameters by name never builds the full parameter map.
+     */
+    constructor(
+        path: Map<String, String>,
+        queryFirst: (String) -> String?,
+        queryAll: (String) -> List<String>?,
+        marker: Unit,
+    ) : this(path, queryFirst, queryAll)
+
+    override fun first(name: String): Any? =
+        path[name] ?: queryFirst(name)?.takeIf { it.isNotBlank() }
+
+    override fun all(name: String): List<String>? = queryAll(name)
 }
 
 /**
