@@ -22,6 +22,7 @@ internal object SourceConfigParser {
             SourceConfig(
                 name = name,
                 type = m["type"]?.toString() ?: "local",
+                baseUrl = m["baseUrl"]?.toString() ?: "",
                 basePath = m["basePath"]?.toString() ?: "./uploads",
                 endpoint = m["endpoint"]?.toString() ?: "",
                 region = m["region"]?.toString() ?: "",
@@ -62,6 +63,7 @@ internal object SourceConfigParser {
                 d != null && f != null -> SourceConfig(
                     name = name,
                     type = if (d.type != "local") d.type else f.type,
+                    baseUrl = d.baseUrl.ifBlank { f.baseUrl },
                     basePath = if (d.basePath != "./uploads") d.basePath else f.basePath,
                     endpoint = d.endpoint.ifBlank { f.endpoint },
                     region = d.region.ifBlank { f.region },
