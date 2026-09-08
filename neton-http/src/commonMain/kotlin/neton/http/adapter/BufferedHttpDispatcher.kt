@@ -736,10 +736,24 @@ public class BufferedHttpDispatcher(
             "req-$nowMs-${traceCounter.incrementAndFetch()}"
 
         fun String.toHttpMethod(): HttpMethod? =
-            try {
-                HttpMethod.valueOf(uppercase())
-            } catch (_: IllegalArgumentException) {
-                null
+            // HTTP methods arrive upper-case, so match them directly: this skips a
+            // per-request `uppercase()` allocation and the enum valueOf on the hot
+            // path (both showed up sampling the dispatcher). Non-standard casing
+            // still resolves through the fallback.
+            when (this) {
+                "GET" -> HttpMethod.GET
+                "POST" -> HttpMethod.POST
+                "PUT" -> HttpMethod.PUT
+                "DELETE" -> HttpMethod.DELETE
+                "PATCH" -> HttpMethod.PATCH
+                "HEAD" -> HttpMethod.HEAD
+                "OPTIONS" -> HttpMethod.OPTIONS
+                "TRACE" -> HttpMethod.TRACE
+                else -> try {
+                    HttpMethod.valueOf(uppercase())
+                } catch (_: IllegalArgumentException) {
+                    null
+                }
             }
 
         fun inferRouteGroup(controllerClass: String?, configuredGroups: Set<String>): String? {
