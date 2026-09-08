@@ -13,9 +13,11 @@ stay unchanged so the version under comparison is not disturbed.
   tear down the ones already up, in reverse; exit should stop and join all. —
   *pending. The benchmark harness runs the process to completion, so fire-and-
   forget functions there, but it is not a clean lifecycle.*
-- **`http {}` / application.conf → TLS not wired.** `HttpServerConfig.tls` exists
-  but the DSL block and the config loader do not populate it, so TLS is reachable
-  only by constructing the config directly (which the arena entry does). — *pending.*
+- **`http {}` / application.conf → TLS wiring.** — *fixed: `http { tls { } }`
+  populates HttpConfig.tls, and application.conf `[http.tls]` (certificatePath,
+  privateKeyPath, alpnProtocols) is resolved with precedence over the DSL. Verified
+  end to end on Linux: a config-file section alone brings up TLS 1.3 on the primary
+  listener with no code or env change.*
 - **Ktor adapter silently serves cleartext when TLS is configured.** It ignored
   `serverConfig.tls`. — *fixed: it now fails to start when TLS is set.*
 
