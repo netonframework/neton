@@ -2,6 +2,26 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta12
+
+### Added
+
+- **TLS termination and ALPN.** `HttpServerConfig` gained a `TlsSettings(certificatePath,
+  privateKeyPath, alpnProtocols)`; a listener with it set terminates TLS in the engine (rustls,
+  already linked). ALPN negotiates per connection, so one listener serves HTTP/2 to clients that
+  speak it and HTTP/1.1 to the rest. Verified end to end on Linux: real handshake, ALPN settling
+  on h2, HTTP/1.1-only when configured.
+
+- **Static file serving.** `staticFiles(urlPrefix, directory)` mounts a directory and
+  `HttpContext.sendFile(path)` sends one file, both through the framework's own file handling:
+  GET/HEAD, content type, ETag with `If-None-Match` → 304, single-range `206`/`416` with
+  `If-Range`, and pre-compressed `.br`/`.gz` selection off `Accept-Encoding`. Path traversal,
+  encoded `..`, symlink escape and dot files are refused; the cache is bounded and re-stats every
+  request so it follows the disk. See `neton-http/docs/static-files.md` for the consistency
+  boundary. Backed by a catch-all `{path...}` route; a more specific route still wins.
+
+  Requires `com.netonstream:hyper4k:0.7.0`.
+
 ## 1.0.0-beta11
 
 ### Changed
