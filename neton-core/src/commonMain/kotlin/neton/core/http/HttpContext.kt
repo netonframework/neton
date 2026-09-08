@@ -86,6 +86,7 @@ enum class HttpStatus(val code: Int, val message: String) {
     CREATED(201, "Created"),
     ACCEPTED(202, "Accepted"),
     NO_CONTENT(204, "No Content"),
+    PARTIAL_CONTENT(206, "Partial Content"),
 
     // 3xx Redirection
     MOVED_PERMANENTLY(301, "Moved Permanently"),
@@ -106,6 +107,7 @@ enum class HttpStatus(val code: Int, val message: String) {
     TOO_EARLY(425, "Too Early"),
     UNPROCESSABLE_ENTITY(422, "Unprocessable Entity"),
     TOO_MANY_REQUESTS(429, "Too Many Requests"),
+    RANGE_NOT_SATISFIABLE(416, "Range Not Satisfiable"),
 
     // 5xx Server Error
     INTERNAL_SERVER_ERROR(500, "Internal Server Error"),

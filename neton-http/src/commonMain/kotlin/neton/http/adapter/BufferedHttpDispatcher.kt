@@ -154,6 +154,7 @@ public class BufferedHttpDispatcher(
     // 按 method 分层，键就是 path 本身：一层 Map 的话每个请求都要拼一个
     // "GET /path" 的字符串键，那是纯粹为查表而做的分配。
     private var exactRoutes: Map<HttpMethod, Map<String, CompiledRoute>> = emptyMap()
+    private var tailRoutes: List<CompiledRoute> = emptyList()
     private var logScope: CoroutineScope? = null
     // bind() 时解析一次。这两个原本每请求都要走 NetonContext 查一遍（access log 一次、
     // CORS 一次），而 context 在 bind 之后就不再变了。
@@ -183,8 +184,11 @@ public class BufferedHttpDispatcher(
         securityInstalled = ctx.getOrNull(SecurityConfiguration::class) != null ||
             (groupSecurity != null && groupSecurity.configs.isNotEmpty())
         compiledRoutes = buildCompiledRoutes(ctx)
+        tailRoutes = compiledRoutes
+            .filter { it.tailParameter != null }
+            .sortedByDescending { it.prefixSegmentCount }
         exactRoutes = compiledRoutes
-            .filter { it.parameterSegments.isEmpty() }
+            .filter { it.parameterSegments.isEmpty() && it.tailParameter == null }
             .groupBy { it.route.method }
             .mapValues { (_, routes) -> routes.associateBy { it.fullPattern } }
         logScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -204,12 +208,21 @@ public class BufferedHttpDispatcher(
             val mount = group?.let { mounts[it] ?: "/$it" }.orEmpty()
             val fullPattern = joinPath(mount, route.pattern)
             val segments = fullPattern.split('/').filter(String::isNotEmpty)
+            val last = segments.lastOrNull()
+            val isTail = last != null && last.startsWith("{") && last.endsWith("...}")
             CompiledRoute(
                 route = route,
                 routeGroup = group,
                 fullPattern = fullPattern,
                 patternSegments = segments,
-                parameterSegments = segments.filter { it.startsWith("{") && it.endsWith("}") },
+                // 尾段不算普通参数段（它走单独的匹配分支）。
+                parameterSegments = if (isTail) {
+                    segments.dropLast(1).filter { it.startsWith("{") && it.endsWith("}") }
+                } else {
+                    segments.filter { it.startsWith("{") && it.endsWith("}") }
+                },
+                tailParameter = if (isTail) last!!.substring(1, last.length - 4) else null,
+                prefixSegmentCount = if (isTail) segments.size - 1 else 0,
             )
         }
     }
@@ -579,6 +592,7 @@ public class BufferedHttpDispatcher(
         val segments = normalizePath(path).split('/').filter(String::isNotEmpty)
         for (compiled in compiledRoutes) {
             if (compiled.route.method != method) continue
+            if (compiled.tailParameter != null) continue
             val patternSegments = compiled.patternSegments
             if (patternSegments.size != segments.size) continue
             if (compiled.parameterSegments.isEmpty()) {
@@ -605,6 +619,39 @@ public class BufferedHttpDispatcher(
                 }
                 if (matchedAll) return MatchedRoute(compiled.route, compiled.routeGroup, params)
             }
+        }
+        return matchTailRoute(method, segments)
+    }
+
+    /**
+     * Catch-all match, tried only after every exact and single-segment route has
+     * failed. The remainder past the fixed prefix is bound verbatim (percent-
+     * decoded per segment) to the tail parameter; an empty remainder is allowed
+     * so a mount can serve its own index.
+     */
+    private fun matchTailRoute(method: HttpMethod, segments: List<String>): MatchedRoute? {
+        for (compiled in tailRoutes) {
+            if (compiled.route.method != method) continue
+            val prefix = compiled.prefixSegmentCount
+            if (segments.size < prefix) continue
+            var matched = true
+            for (index in 0 until prefix) {
+                val expected = compiled.patternSegments[index]
+                if (expected.startsWith("{") && expected.endsWith("}")) continue
+                if (expected != segments[index]) { matched = false; break }
+            }
+            if (!matched) continue
+            val remainder = if (segments.size == prefix) "" else
+                segments.subList(prefix, segments.size).joinToString("/") { percentDecode(it) }
+            val params = HashMap<String, String>(compiled.parameterSegments.size + 1)
+            for (index in 0 until prefix) {
+                val expected = compiled.patternSegments[index]
+                if (expected.startsWith("{") && expected.endsWith("}")) {
+                    params[expected.substring(1, expected.lastIndex)] = percentDecode(segments[index])
+                }
+            }
+            params[compiled.tailParameter!!] = remainder
+            return MatchedRoute(compiled.route, compiled.routeGroup, params)
         }
         return null
     }
@@ -659,6 +706,17 @@ public class BufferedHttpDispatcher(
         val fullPattern: String,
         val patternSegments: List<String>,
         val parameterSegments: List<String>,
+        /**
+         * Set when the pattern ends in a catch-all `{name...}` segment: the name
+         * to bind the untouched remainder of the path to. Static mounts use this
+         * so `/assets` can serve `/assets/css/theme.css` at any depth. A tail
+         * route matches only after every exact and single-segment route has been
+         * tried, and among tail routes the longest fixed prefix wins, so a mount
+         * never shadows a more specific handler.
+         */
+        val tailParameter: String? = null,
+        /** Fixed segments before the catch-all; how specific this tail mount is. */
+        val prefixSegmentCount: Int = 0,
     )
 
     public companion object {
