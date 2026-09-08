@@ -66,7 +66,11 @@ internal class StaticFileServer(
             } else { notFound(context); return }
         }
 
-        // The resolved real path must sit inside the root.
+        // The resolved real path must sit inside the root. Read from the real
+        // path, not the original `target`, so the bytes served are the ones the
+        // escape check validated — the reopen-by-original-path window is gone.
+        // (A symlink swapped between this realpath and the open below is the
+        // residual race, documented in beta12-known-issues.md.)
         val real = StaticFileSystem.realPath(target)
         if (real == null || !isInsideRoot(real)) {
             notFound(context); return
@@ -74,20 +78,19 @@ internal class StaticFileServer(
         val fileStat = stat!!
 
         // Pre-compressed sibling selection off Accept-Encoding, when enabled.
-        var servePath = target
+        // HEAD selects the variant too, so its ETag / Content-Encoding match the
+        // GET a client would follow it with.
+        var servePath = real
         var serveStat = fileStat
         var contentEncoding: String? = null
         val baseContentType = MimeTypes.forPath(target)
-        if (config.precompressed && method != HttpMethod.HEAD) {
+        if (config.precompressed) {
             val enc = pickEncoding(context.request.header("Accept-Encoding"))
             if (enc != null) {
-                val variant = target + "." + enc.second
-                val vStat = StaticFileSystem.stat(variant)
-                if (vStat != null && !vStat.isDirectory) {
-                    val vReal = StaticFileSystem.realPath(variant)
-                    if (vReal != null && isInsideRoot(vReal)) {
-                        servePath = variant; serveStat = vStat; contentEncoding = enc.first
-                    }
+                val vReal = StaticFileSystem.realPath(real + "." + enc.second)
+                val vStat = vReal?.let { StaticFileSystem.stat(it) }
+                if (vStat != null && !vStat.isDirectory && isInsideRoot(vReal)) {
+                    servePath = vReal; serveStat = vStat; contentEncoding = enc.first
                 }
             }
         }
@@ -123,12 +126,25 @@ private suspend fun notFound(context: HttpContext) {
     context.response.write("Not Found".encodeToByteArray())
 }
 
-/** Returns (Content-Encoding value, file extension) for the best offered encoding. */
+/**
+ * Returns (Content-Encoding value, file extension) for the best offered encoding,
+ * honouring q-values: `gzip;q=0` means gzip is explicitly refused, not accepted.
+ * Brotli is preferred over gzip when both are acceptable.
+ */
 private fun pickEncoding(acceptEncoding: String?): Pair<String, String>? {
     if (acceptEncoding.isNullOrBlank()) return null
-    val accepted = acceptEncoding.split(',').map { it.trim().substringBefore(';').lowercase() }
-    if ("br" in accepted) return "br" to "br"
-    if ("gzip" in accepted) return "gzip" to "gz"
+    val q = HashMap<String, Double>()
+    for (part in acceptEncoding.split(',')) {
+        val token = part.trim()
+        if (token.isEmpty()) continue
+        val name = token.substringBefore(';').trim().lowercase()
+        val quality = token.substringAfter(';', "").trim()
+            .removePrefix("q=").toDoubleOrNull() ?: 1.0
+        q[name] = quality
+    }
+    fun accepted(name: String) = (q[name] ?: 0.0) > 0.0
+    if (accepted("br")) return "br" to "br"
+    if (accepted("gzip")) return "gzip" to "gz"
     return null
 }
 

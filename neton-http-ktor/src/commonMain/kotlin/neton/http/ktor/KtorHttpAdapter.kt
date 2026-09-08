@@ -73,6 +73,13 @@ class KtorHttpAdapter(
 
     override suspend fun start(ctx: NetonContext, onStarted: (suspend (coldStartMs: Long) -> Unit)?) {
         appContext = ctx
+        // This adapter does not terminate TLS. Refusing to start is the only safe
+        // response to a TLS config: silently serving cleartext on a listener the
+        // application believes is encrypted is a downgrade, not a fallback.
+        check(serverConfig.tls == null) {
+            "KtorHttpAdapter does not support TLS termination; a listener with " +
+                "HttpServerConfig.tls set cannot start on it. Use the hyper4k engine for TLS."
+        }
         dispatcher.bind(ctx)
         run(serverConfig.port, ctx.args, onStarted)
     }

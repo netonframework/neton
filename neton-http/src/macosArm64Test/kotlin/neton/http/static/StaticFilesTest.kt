@@ -201,3 +201,67 @@ class StaticFilesTest {
         assertEquals("HOME", d.dispatch(get("/assets/")).body.decodeToString())
     }
 }
+
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+class StaticFilesContractFixTest {
+    private var nextId = 0L
+    private lateinit var dir: String
+
+    @kotlin.test.BeforeTest fun setUp() { dir = "/tmp/neton-static-fix-" + platform.posix.getpid() + "-" + (nextId++); platform.posix.mkdir(dir, "0755".toUInt(8).convert()) }
+    @kotlin.test.AfterTest fun tearDown() { platform.posix.system("rm -rf " + dir) }
+
+    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+    private fun writeFile(rel: String, content: ByteArray) {
+        val full = dir + "/" + rel
+        val fd = platform.posix.open(full, platform.posix.O_WRONLY or platform.posix.O_CREAT or platform.posix.O_TRUNC, "0644".toUInt(8))
+        if (content.isNotEmpty()) content.usePinned { platform.posix.write(fd, it.addressOf(0), content.size.convert()) }
+        platform.posix.close(fd)
+    }
+
+    private fun dispatcher(): BufferedHttpDispatcher {
+        val engine = object : neton.core.interfaces.RequestEngine {
+            private val r = mutableListOf<neton.core.interfaces.RouteDefinition>()
+            override fun registerRoute(route: neton.core.interfaces.RouteDefinition) { r.add(route) }
+            override fun getRoutes() = r.toList()
+        }
+        engine.staticFiles("/s", dir) { precompressed = true }
+        val ctx = neton.core.component.NetonContext(emptyArray()).apply { bind(neton.core.interfaces.RequestEngine::class, engine) }
+        return BufferedHttpDispatcher(neton.core.http.adapter.HttpServerConfig(port = 0)).also { it.bind(ctx) }
+    }
+
+    private fun req(path: String, method: String = "GET", headers: Map<String, List<String>> = emptyMap()) =
+        BufferedHttpRequest(method, path, "", headers, ByteArray(0))
+
+    @kotlin.test.Test
+    fun gzipWithQZeroIsNotServedGzipped() = kotlinx.coroutines.runBlocking {
+        writeFile("a.js", "SOURCE".encodeToByteArray()); writeFile("a.js.gz", "GZ".encodeToByteArray())
+        val d = dispatcher()
+        val r = d.dispatch(req("/s/a.js", headers = mapOf("Accept-Encoding" to listOf("gzip;q=0"))))
+        kotlin.test.assertEquals("SOURCE", r.body.decodeToString(), "q=0 refuses gzip")
+        kotlin.test.assertNull(r.headers["Content-Encoding"])
+    }
+
+    @kotlin.test.Test
+    fun headSelectsTheSameVariantAsGet() = kotlinx.coroutines.runBlocking {
+        writeFile("b.js", "SOURCE".encodeToByteArray()); writeFile("b.js.gz", "GZ".encodeToByteArray())
+        val d = dispatcher()
+        val ae = mapOf("Accept-Encoding" to listOf("gzip"))
+        val get = d.dispatch(req("/s/b.js", headers = ae))
+        val head = d.dispatch(req("/s/b.js", method = "HEAD", headers = ae))
+        kotlin.test.assertEquals("gzip", get.headers["Content-Encoding"]?.first())
+        kotlin.test.assertEquals(get.headers["Content-Encoding"], head.headers["Content-Encoding"], "HEAD encoding must match GET")
+        kotlin.test.assertEquals(get.headers["ETag"], head.headers["ETag"], "HEAD ETag must match GET")
+        kotlin.test.assertEquals(0, head.body.size)
+    }
+
+    @kotlin.test.Test
+    fun anAtomicReplaceIsSeenOnTheNextRequest() = kotlinx.coroutines.runBlocking {
+        writeFile("c.txt", "old".encodeToByteArray())
+        val d = dispatcher()
+        kotlin.test.assertEquals("old", d.dispatch(req("/s/c.txt")).body.decodeToString())
+        // Atomic replace: write temp then rename (mtime always moves).
+        writeFile("c.txt.tmp", "brand-new-content".encodeToByteArray())
+        platform.posix.rename(dir + "/c.txt.tmp", dir + "/c.txt")
+        kotlin.test.assertEquals("brand-new-content", d.dispatch(req("/s/c.txt")).body.decodeToString())
+    }
+}
