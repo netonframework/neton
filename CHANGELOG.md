@@ -2,6 +2,25 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta15
+
+### Added
+
+- **Dynamic gzip response compression.** When a request sends `Accept-Encoding:
+  gzip` and the response is a compressible type (JSON, text, `+json`/`+xml`) over
+  256 bytes and not already encoded, the hyper4k adapter gzip-compresses the body
+  and sets `Content-Encoding: gzip` + `Vary: Accept-Encoding`. A request without
+  `Accept-Encoding` is served uncompressed, unchanged. Compression is off when
+  `http.enableCompression = false`. Encoding is done by the engine (Rust flate2,
+  miniz_oxide backend), exposed through a new `hyper4k_gzip` FFI; requires
+  `com.netonstream:hyper4k:0.8.0`. Validated end-to-end on Linux for both the
+  handler-returns-a-value and handler-writes-the-body paths: a 3.8 KB JSON body
+  compresses ~8.7× and round-trips byte-exact; no `Content-Encoding` without
+  `Accept-Encoding`; bodies under the threshold stay uncompressed. This is what
+  the arena's `json-comp` profile exercises.
+
+Uses `com.netonstream:hyper4k:0.8.0` (adds `hyper4k_gzip`).
+
 ## 1.0.0-beta14
 
 ### Changed

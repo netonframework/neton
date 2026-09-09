@@ -76,7 +76,43 @@ public class Hyper4kHttpAdapter(
     }
 
     internal suspend fun dispatch(request: Hyper4kRequest): Hyper4kResponse =
-        dispatcher.dispatch(request.toBuffered()).toHyper4k()
+        maybeCompress(request, dispatcher.dispatch(request.toBuffered()).toHyper4k())
+
+    /**
+     * gzip the response body when the client asked for it and the payload is
+     * worth it: Accept-Encoding offers gzip, the body is a compressible type and
+     * over [MIN_COMPRESS_BYTES], it is not already encoded, and it is a buffered
+     * (non-streamed) response. Otherwise the response is returned untouched, so a
+     * request without Accept-Encoding never gets a Content-Encoding header.
+     */
+    private fun maybeCompress(request: Hyper4kRequest, resp: Hyper4kResponse): Hyper4kResponse {
+        if (!serverConfig.enableCompression) return resp
+        if (resp.streamed || resp.body.size < MIN_COMPRESS_BYTES) return resp
+        if (resp.headers.keys.any { it.equals("Content-Encoding", ignoreCase = true) }) return resp
+        val acceptEncoding = request.header("accept-encoding") ?: return resp
+        if (!acceptEncoding.contains("gzip", ignoreCase = true)) return resp
+        val contentType = resp.headers.entries
+            .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.firstOrNull()
+        if (contentType == null || !isCompressibleType(contentType)) return resp
+        val gz = hyper4k.gzip(resp.body) ?: return resp
+        // Do not compress if it would not actually shrink the body.
+        if (gz.size >= resp.body.size) return resp
+        val headers = LinkedHashMap<String, List<String>>(resp.headers.size + 2)
+        headers.putAll(resp.headers)
+        headers["Content-Encoding"] = listOf("gzip")
+        headers["Vary"] = listOf("Accept-Encoding")
+        return Hyper4kResponse(resp.status, headers, gz, resp.streamed)
+    }
+
+    private fun isCompressibleType(contentType: String): Boolean {
+        val ct = contentType.substringBefore(';').trim().lowercase()
+        return ct.startsWith("application/json") ||
+            ct.startsWith("text/") ||
+            ct == "application/javascript" ||
+            ct == "application/xml" ||
+            ct.endsWith("+json") ||
+            ct.endsWith("+xml")
+    }
 
     /**
      * Dispatch with a live streaming channel.
@@ -98,9 +134,10 @@ public class Hyper4kHttpAdapter(
             // Headers are already on the wire; the engine must only close the stream.
             live.isStreaming -> Hyper4kResponse.streamed(live.status.code)
             // A complete body: hand it back so the engine writes it inline instead
-            // of pushing it through the blocking write pool.
-            live.isCommitted -> live.completeResponse()
-            else -> result.toHyper4k()
+            // of pushing it through the blocking write pool. Compress it if the
+            // client asked and it is worth it (json-comp).
+            live.isCommitted -> maybeCompress(request, live.completeResponse())
+            else -> maybeCompress(request, result.toHyper4k())
         }
     }
 
@@ -118,6 +155,9 @@ public class Hyper4kHttpAdapter(
  * only reads `X-Request-Id` on the way in and nothing else usually looks. The
  * scan and the map are cross-checked in hyper4k's own tests.
  */
+/** Bodies below this are not worth gzip's CPU + header overhead. */
+private const val MIN_COMPRESS_BYTES = 256
+
 private fun Hyper4kRequest.toBuffered(): BufferedHttpRequest = BufferedHttpRequest(
     method = method,
     path = path,
