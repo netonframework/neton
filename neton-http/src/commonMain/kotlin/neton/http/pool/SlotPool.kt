@@ -32,10 +32,10 @@ internal class SpinLock {
     fun unlock() { s.store(0) }
 }
 
-enum class SlotState { FREE, LEASED, CLOSING }
+internal enum class SlotState { FREE, LEASED, CLOSING }
 
 @OptIn(ExperimentalAtomicApi::class)
-class RequestSlot<T> internal constructor(
+internal class RequestSlot<T> internal constructor(
     val value: T,
     private val reset: (T) -> Unit,
     private val onReturn: (RequestSlot<T>) -> Unit,
@@ -136,7 +136,7 @@ class RequestSlot<T> internal constructor(
  * needs a separate admission limit.
  */
 @OptIn(ExperimentalAtomicApi::class)
-class SlotPool<T>(
+internal class SlotPool<T>(
     private val maxSlots: Int,
     private val create: () -> T,
     private val reset: (T) -> Unit,
