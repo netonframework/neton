@@ -22,6 +22,20 @@ fun main(args: Array<String>) {
             get("/json") {
                 mapOf("message" to "Hello, World!")
             }
+            // Large JSON body via response.write (application/json) — the same
+            // committed path the arena's /json/{count} uses, for validating
+            // response compression on that branch.
+            get("/jsonbig") {
+                val sb = StringBuilder("[")
+                for (i in 1..25) {
+                    if (i > 1) sb.append(',')
+                    sb.append("""{"id":$i,"name":"item-name-number-$i","category":"category-of-goods-$i",""")
+                    sb.append(""""description":"a reasonably long description string for row $i","active":${i % 2 == 0}}""")
+                }
+                sb.append(']')
+                it.response.contentType = "application/json; charset=utf-8"
+                it.response.write(sb.toString().encodeToByteArray())
+            }
         }
     }
 }
