@@ -2,6 +2,27 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta14
+
+### Changed
+
+- **JSON response encoding: bulk-append strings that need no escaping.** The
+  envelope encoder appended field names and string values character by character,
+  re-checking `StringBuilder` capacity on every character even when nothing needed
+  escaping — a hotspot in dispatcher sampling. It now scans once for the first
+  character that needs an escape and, when there is none (the overwhelming common
+  case for field names and ASCII payloads), appends the whole string in a single
+  bulk copy; only strings that actually contain an escape take the per-character
+  path. Output is byte-identical (covered by the existing byte-identity test
+  against kotlinx.serialization, including every escape character and non-ASCII).
+  Clean-box A/B, two binaries differing only in this path, pool off, 4 interleaved
+  rounds: on a 3.8 KB JSON payload, per-request CPU 239→199 µs (−17%) and
+  throughput 6.9k→8.2k rps (+18%), every "after" round below every "before" round.
+  Trivial bodies gain ~1% (their strings are a small fraction); the win scales
+  with string content, so the JSON profiles benefit most.
+
+Same `com.netonstream:hyper4k:0.7.0`.
+
 ## 1.0.0-beta13
 
 ### Changed
