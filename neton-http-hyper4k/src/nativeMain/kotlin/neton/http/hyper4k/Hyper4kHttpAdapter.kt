@@ -88,20 +88,54 @@ public class Hyper4kHttpAdapter(
     private fun maybeCompress(request: Hyper4kRequest, resp: Hyper4kResponse): Hyper4kResponse {
         if (!serverConfig.enableCompression) return resp
         if (resp.streamed || resp.body.size < MIN_COMPRESS_BYTES) return resp
-        if (resp.headers.keys.any { it.equals("Content-Encoding", ignoreCase = true) }) return resp
-        val acceptEncoding = request.header("accept-encoding") ?: return resp
-        if (!acceptEncoding.contains("gzip", ignoreCase = true)) return resp
-        val contentType = resp.headers.entries
-            .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.firstOrNull()
+        // Never re-encode, never touch a partial/range representation, and honour
+        // Cache-Control: no-transform (RFC 9110 §7.7 forbids transforming it).
+        if (resp.status == 206) return resp
+        val h = resp.headers
+        if (h.keys.any { it.equals("Content-Encoding", ignoreCase = true) }) return resp
+        if (headerValues(h, "Cache-Control").any { it.contains("no-transform", ignoreCase = true) }) return resp
+        // Client must actually accept gzip with a non-zero q-value ("gzip;q=0" is a
+        // refusal), so a bare contains() is wrong.
+        if (!acceptsGzip(request.header("accept-encoding"))) return resp
+        val contentType = headerValues(h, "Content-Type").firstOrNull()
         if (contentType == null || !isCompressibleType(contentType)) return resp
         val gz = hyper4k.gzip(resp.body) ?: return resp
-        // Do not compress if it would not actually shrink the body.
         if (gz.size >= resp.body.size) return resp
         val headers = LinkedHashMap<String, List<String>>(resp.headers.size + 2)
-        headers.putAll(resp.headers)
+        for ((k, v) in resp.headers) {
+            // Drop any Content-Length: the engine writes the compressed length, and
+            // a stale header would misframe the response.
+            if (k.equals("Content-Length", ignoreCase = true)) continue
+            if (k.equals("Vary", ignoreCase = true)) continue
+            headers[k] = v
+        }
         headers["Content-Encoding"] = listOf("gzip")
-        headers["Vary"] = listOf("Accept-Encoding")
+        // Merge into an existing Vary (e.g. Origin) rather than clobbering it.
+        val priorVary = headerValues(resp.headers, "Vary")
+        headers["Vary"] = if (priorVary.any { it.contains("Accept-Encoding", ignoreCase = true) }) {
+            priorVary
+        } else {
+            priorVary + "Accept-Encoding"
+        }
         return Hyper4kResponse(resp.status, headers, gz, resp.streamed)
+    }
+
+    private fun headerValues(h: Map<String, List<String>>, name: String): List<String> =
+        h.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value ?: emptyList()
+
+    /** True only if Accept-Encoding offers gzip with a q-value other than 0. */
+    private fun acceptsGzip(acceptEncoding: String?): Boolean {
+        if (acceptEncoding == null) return false
+        for (part in acceptEncoding.split(',')) {
+            val token = part.trim()
+            val coding = token.substringBefore(';').trim()
+            if (!coding.equals("gzip", ignoreCase = true) && coding != "*") continue
+            val q = token.substringAfter(";", "").split(';')
+                .firstOrNull { it.trim().startsWith("q=", ignoreCase = true) }
+                ?.substringAfter("=")?.trim()?.toDoubleOrNull()
+            if (q == null || q > 0.0) return true
+        }
+        return false
     }
 
     private fun isCompressibleType(contentType: String): Boolean {
