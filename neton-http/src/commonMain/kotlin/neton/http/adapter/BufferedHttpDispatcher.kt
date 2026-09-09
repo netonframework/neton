@@ -866,6 +866,15 @@ public class BufferedHttpDispatcher(
 
         private fun appendJsonString(sb: StringBuilder, value: String): Boolean {
             sb.append('"')
+            // Fast path: the vast majority of keys/values (field names, ASCII
+            // payloads) need no escaping. Append the whole string in one bulk copy
+            // instead of N single-char appends, each re-checking capacity — the
+            // ensureCapacity/append hotspot. Only fall to per-char on an escape.
+            if (firstEscapeIndex(value) < 0) {
+                sb.append(value)
+                sb.append('"')
+                return true
+            }
             for (char in value) {
                 when {
                     char == '"' -> sb.append("\\\"")
@@ -881,6 +890,15 @@ public class BufferedHttpDispatcher(
             }
             sb.append('"')
             return true
+        }
+
+        /** Index of the first character that needs JSON escaping, or -1 if none do. */
+        private fun firstEscapeIndex(value: String): Int {
+            for (i in value.indices) {
+                val c = value[i]
+                if (c == '"' || c == '\\' || c.code < 0x20) return i
+            }
+            return -1
         }
 
         fun valueToJsonElement(value: Any?): JsonElement = when (value) {
