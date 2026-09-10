@@ -327,7 +327,7 @@ public class BufferedHttpDispatcher(
             val response = if (context.response.isCommitted) {
                 snapshotResponse(context)
             } else {
-                successResponse(result)
+                successResponse(result, context)
             }
             DispatchOutcome(response, matched.route.pattern, context)
         } catch (e: ValidationException) {
@@ -663,10 +663,19 @@ public class BufferedHttpDispatcher(
         return null
     }
 
-    private fun successResponse(result: Any?): BufferedHttpResponse {
+    /**
+     * 成功响应。
+     *
+     * envelope 是新建的响应对象，但**必须把 handler 在 `ctx.response` 上设过的头带上**：
+     * 否则 JSON 接口根本没法设响应头 —— `Set-Cookie`（登录下发会话）、`Location`、
+     * 缓存控制全部静默丢失，而且没有任何报错，只能靠抓包才发现。
+     * envelope 自己的 `Content-Type` 优先，handler 覆盖不了它。
+     */
+    private fun successResponse(result: Any?, context: BufferedHttpContext?): BufferedHttpResponse {
+        val extra = handlerHeaders(context)
         if (result !is JsonContent) {
             fastEnvelopeBody(NetonErrorCode.OK, "OK", result)?.let { body ->
-                return BufferedHttpResponse(status = HttpStatus.OK.code, headers = jsonHeaders, body = body)
+                return BufferedHttpResponse(status = HttpStatus.OK.code, headers = jsonHeaders + extra, body = body)
             }
         }
         val data = when (result) {
@@ -674,7 +683,14 @@ public class BufferedHttpDispatcher(
             is JsonContent -> envelopeJson.parseToJsonElement(result.json)
             else -> valueToJsonElement(result)
         }
-        return envelopeResponse(HttpStatus.OK, ApiEnvelope.ok(data))
+        return envelopeResponse(HttpStatus.OK, ApiEnvelope.ok(data), extra)
+    }
+
+    /** handler 设过的响应头，去掉 envelope 自己负责的那些。 */
+    private fun handlerHeaders(context: BufferedHttpContext?): Map<String, List<String>> {
+        val set = context?.response?.headers?.toMap() ?: return emptyMap()
+        if (set.isEmpty()) return emptyMap()
+        return set.filterKeys { !it.equals("Content-Type", ignoreCase = true) && !it.equals("Content-Length", ignoreCase = true) }
     }
 
     private fun errorResponse(status: HttpStatus, code: Int, message: String): BufferedHttpResponse =
@@ -690,9 +706,13 @@ public class BufferedHttpDispatcher(
     private val jsonHeaders: Map<String, List<String>> =
         mapOf("Content-Type" to listOf("application/json; charset=utf-8"))
 
-    private fun envelopeResponse(status: HttpStatus, envelope: ApiEnvelope): BufferedHttpResponse = BufferedHttpResponse(
+    private fun envelopeResponse(
+        status: HttpStatus,
+        envelope: ApiEnvelope,
+        extraHeaders: Map<String, List<String>> = emptyMap(),
+    ): BufferedHttpResponse = BufferedHttpResponse(
         status = status.code,
-        headers = jsonHeaders,
+        headers = if (extraHeaders.isEmpty()) jsonHeaders else jsonHeaders + extraHeaders,
         body = envelopeJson.encodeToString(ApiEnvelope.serializer(), envelope).encodeToByteArray(),
     )
 
