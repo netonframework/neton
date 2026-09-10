@@ -1,15 +1,30 @@
 import neton.core.Neton
 import neton.http.http
 import neton.routing.*
+import kotlin.native.runtime.GC
+import kotlin.native.runtime.NativeRuntimeApi
 
 /**
  * Neton TechEmpower-style benchmark application (Hyper4k default engine).
  *
- * The bare http { } below resolves to Hyper4k. To benchmark Ktor instead, the only
- * change is passing the adapter explicitly: http(::KtorHttpAdapter).
+ * GC is tunable via CLI args for A/B without rebuilds (stripped before Neton.run):
+ *   gcmin=<MB> gctarget=<MB> gcauto=0
  */
+@OptIn(NativeRuntimeApi::class)
+private fun tuneGc(args: Array<String>) {
+    fun mb(name: String): Long? =
+        args.firstOrNull { it.startsWith("$name=") }?.substringAfter('=')?.toLongOrNull()
+    mb("gcmin")?.let { GC.minHeapBytes = it * 1024 * 1024 }
+    mb("gctarget")?.let { GC.targetHeapBytes = it * 1024 * 1024 }
+    if (args.any { it == "gcauto=0" }) GC.autotune = false
+}
+
 fun main(args: Array<String>) {
-    Neton.run(args) {
+    tuneGc(args)
+    val passthrough = args.filterNot {
+        it.startsWith("gcmin=") || it.startsWith("gctarget=") || it == "gcauto=0"
+    }.toTypedArray()
+    Neton.run(passthrough) {
 
         http {
             port = 8090
@@ -19,12 +34,19 @@ fun main(args: Array<String>) {
             get("/plaintext") {
                 "Hello, World!"
             }
+            get("/sum") {
+                val a = it.request.queryParam("a")?.toIntOrNull() ?: 0
+                val b = it.request.queryParam("b")?.toIntOrNull() ?: 0
+                it.response.text((a + b).toString())
+            }
             get("/json") {
                 mapOf("message" to "Hello, World!")
             }
-            // Large JSON body via response.write (application/json) — the same
-            // committed path the arena's /json/{count} uses, for validating
-            // response compression on that branch.
+            // End-to-end verification that a handler still reads request headers
+            // correctly under lazy/borrowed materialization.
+            get("/echo-header") {
+                it.response.text(it.request.header("X-Echo") ?: "<none>")
+            }
             get("/jsonbig") {
                 val sb = StringBuilder("[")
                 for (i in 1..25) {
