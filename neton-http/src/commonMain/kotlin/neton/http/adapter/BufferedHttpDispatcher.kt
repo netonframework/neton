@@ -244,15 +244,7 @@ public class BufferedHttpDispatcher(
      */
     public suspend fun dispatch(request: BufferedHttpRequest, liveResponse: HttpResponse?): BufferedHttpResponse {
         val startMs = if (accessObservabilityOn) kotlin.time.Clock.System.now().toEpochMilliseconds() else 0L
-        // Honour a client-supplied X-Request-Id only when observability is on. Reading
-        // it forces the engine to materialize the request headers on every request;
-        // the vast majority never look otherwise, so when nothing consumes trace
-        // propagation we skip the read and mint our own id.
-        val traceId = (if (accessObservabilityOn) {
-            request.header("X-Request-Id")?.takeIf { it.isNotBlank() }
-        } else {
-            null
-        }) ?: requestTraceId(startMs)
+        val traceId = request.header("X-Request-Id")?.takeIf { it.isNotBlank() } ?: requestTraceId(startMs)
         CurrentLogContext.set(LogContext(traceId = traceId, requestId = traceId, spanId = null, userId = null))
         var status = 200
         var routePattern: String? = null
