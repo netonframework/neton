@@ -197,7 +197,7 @@ private fun Hyper4kRequest.toBuffered(): BufferedHttpRequest = BufferedHttpReque
     path = path,
     query = query,
     body = body,
-    remoteAddress = "",
+    remoteAddress = peerAddress,
     singleHeader = ::header,
     headersProvider = ::headers,
 )
