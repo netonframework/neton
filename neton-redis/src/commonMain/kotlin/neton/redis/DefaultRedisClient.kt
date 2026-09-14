@@ -165,6 +165,21 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
     override suspend fun lrange(key: String, start: Int, end: Int): List<String> =
         rt.lRange(fullKey(key), start.toLong(), end.toLong())
 
+    @OptIn(ReThisInternal::class)
+    override suspend fun lmove(source: String, destination: String, from: String, to: String): String? {
+        require(from == "LEFT" || from == "RIGHT")
+        require(to == "LEFT" || to == "RIGHT")
+        return parseRespBulkString(rt.execute {
+            add("LMOVE"); add(fullKey(source)); add(fullKey(destination)); add(from); add(to)
+        })
+    }
+
+    @OptIn(ReThisInternal::class)
+    override suspend fun lrem(key: String, count: Long, value: String): Long =
+        parseRespInteger(rt.execute {
+            add("LREM"); add(fullKey(key)); add(count.toString()); add(value)
+        })
+
     override suspend fun sadd(key: String, value: Any) {
         rt.sAdd(fullKey(key), serialize(value))
     }

@@ -41,6 +41,12 @@ interface RedisClient {
     suspend fun rpush(key: String, value: Any)
     suspend fun lpop(key: String): String?
     suspend fun lrange(key: String, start: Int, end: Int): List<String>
+    /** Atomically move one list item. Used by reliable work queues to avoid pop-before-ack loss. */
+    suspend fun lmove(source: String, destination: String, from: String = "LEFT", to: String = "RIGHT"): String? =
+        throw RedisException("LMOVE is not supported by this RedisClient")
+    /** Remove up to [count] exact values and return the number removed. */
+    suspend fun lrem(key: String, count: Long, value: String): Long =
+        throw RedisException("LREM is not supported by this RedisClient")
 
     // ---------- Set ----------
     suspend fun sadd(key: String, value: Any)
