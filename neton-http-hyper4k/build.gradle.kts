@@ -4,6 +4,17 @@ plugins {
 }
 
 repositories {
+    // Explicit artifact verification, never an implicit mavenLocal fallback.
+    providers.gradleProperty("hyper4k.repository").orNull?.let { path ->
+        val repository = rootProject.file(path)
+        require(repository.isDirectory) { "Hyper4k artifact repository does not exist: $repository" }
+        exclusiveContent {
+            forRepository {
+                maven { url = repository.toURI() }
+            }
+            filter { includeModuleByRegex("com[.]netonstream", "hyper4k(-.*)?") }
+        }
+    }
     mavenCentral()
 }
 
@@ -21,9 +32,8 @@ kotlin {
                 api(project(":neton-http"))
                 api(project(":neton-core"))
                 implementation(project(":neton-logging"))
-                // The Rust engine stays its own repository; settings.gradle.kts wires it
-                // in with includeBuild when it is checked out next to this one.
-                implementation("com.netonstream:hyper4k:0.9.1")
+                // 0.9.2 includes peerAddress. Source substitution is explicit opt-in.
+                implementation("com.netonstream:hyper4k:0.9.2")
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
             }

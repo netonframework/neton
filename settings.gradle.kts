@@ -42,6 +42,11 @@ include(":examples:bench")
 // hyper4k 是独立发布的库（com.netonstream:hyper4k），默认按坐标从仓库解析——
 // 构建出的产物和使用者拿到的一致。本地联调 hyper4k 时用 -Phyper4k.local=true 打开源码替换；
 // 默认关闭是为了避免「本地改了 hyper4k、neton 构建通过、发布出去却依赖未含该改动的版本」。
-if (providers.gradleProperty("hyper4k.local").orNull == "true" && file("../hyper4k").isDirectory) {
+val useLocalHyper4k = providers.gradleProperty("hyper4k.local").orNull == "true"
+require(!useLocalHyper4k || !providers.gradleProperty("hyper4k.repository").isPresent) {
+    "Choose Hyper4k source substitution OR artifact verification, not both."
+}
+if (useLocalHyper4k) {
+    require(file("../hyper4k").isDirectory) { "-Phyper4k.local=true requires ../hyper4k" }
     includeBuild("../hyper4k")
 }

@@ -14,6 +14,40 @@ import kotlin.test.assertTrue
 class Hyper4kLiveResponseTest {
 
     @Test
+    fun completeHeadersRemainSnapshotsForEmptySingleAndMultipleNames() = runBlocking {
+        for (extraNames in 0..2) {
+            val response = Hyper4kLiveResponse(RecordingChannel(), emptyMap())
+            response.header("content-length", "999")
+            repeat(extraNames) { response.headers.add("X-$it", "before") }
+            response.write(byteArrayOf(7))
+            val snapshot = response.completeResponse().headers
+            assertEquals(extraNames, snapshot.size)
+            repeat(extraNames) {
+                response.headers.add("x-$it", "after")
+                assertEquals(listOf("before"), snapshot["X-$it"])
+            }
+            response.headers.clear()
+            assertEquals(extraNames, snapshot.size)
+        }
+    }
+
+    @Test
+    fun streamingHeadersRetainRepeatedValuesAfterHandlerMutatesHeaders() = runBlocking {
+        val channel = RecordingChannel()
+        val response = Hyper4kLiveResponse(channel, emptyMap())
+        response.contentType = "text/event-stream"
+        response.headers.add("Set-Cookie", "a=1")
+        response.headers.add("set-cookie", "b=2")
+        response.stream {
+            response.headers.add("SET-COOKIE", "c=3")
+            response.contentType = "text/plain"
+            writeChunk("data: ok\n\n")
+        }
+        assertEquals(listOf("a=1", "b=2"), channel.headers["Set-Cookie"])
+        assertEquals(listOf("text/event-stream"), channel.headers["Content-Type"])
+    }
+
+    @Test
     fun flushesEachChunkInsteadOfBufferingTheWholeBody() = runBlocking {
         val channel = RecordingChannel()
         val response = Hyper4kLiveResponse(channel, corsHeaders = emptyMap())
