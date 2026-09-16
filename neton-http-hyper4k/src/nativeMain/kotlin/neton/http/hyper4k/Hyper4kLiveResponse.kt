@@ -27,7 +27,8 @@ internal class Hyper4kLiveResponse(
     private val corsHeaders: Map<String, List<String>>,
 ) : HttpResponse {
 
-    override val headers: MutableHeaders = SimpleMutableHeaders()
+    private val responseHeaders = SimpleMutableHeaders()
+    override val headers: MutableHeaders get() = responseHeaders
 
     override var status: HttpStatus = HttpStatus.OK
 
@@ -87,18 +88,20 @@ internal class Hyper4kLiveResponse(
      * length per protocol, as HTTP/1.1 chunked or HTTP/2 DATA frames, so a
      * hand-written one can only contradict the real length.
      */
-    private fun outgoingHeaders(): Map<String, List<String>> = buildMap<String, MutableList<String>> {
-        for (name in headers.names()) {
-            if (name.equals("Content-Length", ignoreCase = true)) continue
-            getOrPut(name) { mutableListOf() }.addAll(headers.getAll(name))
-        }
-        // CORS headers have to go in before committing: once the body starts, no
-        // header can be added.
-        for ((name, values) in corsHeaders) {
-            getOrPut(name) { mutableListOf() }.addAll(values)
-        }
-        if (none { it.key.equals("Content-Type", ignoreCase = true) }) {
-            contentType?.let { put("Content-Type", mutableListOf(it)) }
+    private fun outgoingHeaders(): Map<String, List<String>> {
+        if (corsHeaders.isEmpty()) return responseHeaders.snapshotWithoutContentLength()
+        return buildMap<String, MutableList<String>> {
+            for (name in headers.names()) {
+                if (name.equals("Content-Length", ignoreCase = true)) continue
+                getOrPut(name) { mutableListOf() }.addAll(headers.getAll(name))
+            }
+            // CORS must be merged before committing the response.
+            for ((name, values) in corsHeaders) {
+                getOrPut(name) { mutableListOf() }.addAll(values)
+            }
+            if (none { it.key.equals("Content-Type", ignoreCase = true) }) {
+                contentType?.let { put("Content-Type", mutableListOf(it)) }
+            }
         }
     }
 
@@ -167,6 +170,20 @@ private class SimpleMutableHeaders : MutableHeaders {
     override fun contains(name: String): Boolean = actualName(name) != null
     override fun names(): Set<String> = map.keys
     override fun toMap(): Map<String, List<String>> = map.mapValues { it.value.toList() }
+
+    fun snapshotWithoutContentLength(): Map<String, List<String>> {
+        val count = map.size - if (contains("Content-Length")) 1 else 0
+        if (count == 0) return emptyMap()
+        if (count == 1) {
+            val entry = map.entries.first { !it.key.equals("Content-Length", ignoreCase = true) }
+            return mapOf(entry.key to entry.value.toList())
+        }
+        return buildMap(count) {
+            for ((name, values) in map) {
+                if (!name.equals("Content-Length", ignoreCase = true)) put(name, values.toList())
+            }
+        }
+    }
 
     override fun set(name: String, value: String) {
         actualName(name)?.let(map::remove)
