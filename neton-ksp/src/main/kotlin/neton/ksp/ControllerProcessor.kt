@@ -1149,7 +1149,14 @@ private fun String.toPascalCase(): String {
 }
 
 /** KSP 枚举注解参数提取：value 是 KSType，取 declaration.simpleName */
-private fun KSValueArgument.enumName(): String? {
-    val ksType = value as? KSType ?: return null
-    return ksType.declaration.simpleName.asString()
+/**
+ * 注解里枚举实参的项名。KSP 对枚举项的表示随版本变化：K1 时期是 [KSType]，
+ * Kotlin 2.x 起是枚举项自身的 [KSClassDeclaration]。只认前者会让 `scope = IP`
+ * 静默退化成默认的 USER —— 匿名路由上的限流因此形同虚设，而且不报任何错。
+ */
+private fun KSValueArgument.enumName(): String? = when (val v = value) {
+    is KSType -> v.declaration.simpleName.asString()
+    is KSClassDeclaration -> v.simpleName.asString()
+    is KSDeclaration -> v.simpleName.asString()
+    else -> null
 }
