@@ -148,6 +148,20 @@ Neton.run(args) {
 The default `http { }` overload selects Ktor. Adapter selection is compile-time application code,
 not an `application.conf` setting or a runtime registry.
 
+### Mail (SMTP transport)
+
+`neton-http` defines `neton.http.mail.SmtpTransport`; `neton-http-ktor` ships the implementations and
+`defaultSmtpTransport()` picks one per platform: POSIX targets talk to the **system libcurl** through
+cinterop (implicit TLS on 465, STARTTLS on 587, certificates checked against the OS trust store),
+Windows falls back to a plaintext Ktor-socket client. Applications bind it like the HTTP client:
+
+```kotlin
+bind(SmtpTransport::class, defaultSmtpTransport())
+```
+
+Linux build hosts need `libcurl4-openssl-dev`; runtime images need `libcurl4` (the `curl` package brings it).
+Ktor's own `Socket.tls()` is not available on Kotlin/Native, which is why SMTP does not use it.
+
 ---
 
 ### Logging
