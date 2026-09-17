@@ -31,6 +31,15 @@ def cpu_seconds(pid):
     return seconds
 
 
+def host_counters():
+    if platform.system() != 'Linux':
+        return {}
+    vm = dict(line.split() for line in Path('/proc/vmstat').read_text().splitlines())
+    cpu = Path('/proc/stat').read_text().splitlines()[0].split()[1:]
+    return dict(swap_in_pages=int(vm['pswpin']), swap_out_pages=int(vm['pswpout']),
+                cpu_ticks=sum(map(int, cpu[:8])), steal_ticks=int(cpu[7]))
+
+
 def measure(binary, label, workers, heap, round_id, args):
     prefix = args.out / f'{round_id:02}-{label}-w{workers}-g{heap}'
     env = os.environ.copy()
@@ -60,10 +69,12 @@ def measure(binary, label, workers, heap, round_id, args):
                            stdout=subprocess.DEVNULL, timeout=args.warmup + 15)
             prefix.with_suffix('.host-before.log').write_text(subprocess.check_output(
                 ['ps', '-Ao', 'pid,pcpu,comm'], text=True))
+            host_before = host_counters()
             before = cpu_seconds(process.pid)
             result = subprocess.run(base + [f'-d{args.duration}s', args.url], check=True,
                                     capture_output=True, text=True, timeout=args.duration + 15)
             after = cpu_seconds(process.pid)
+            host_after = host_counters()
             prefix.with_suffix('.host-after.log').write_text(subprocess.check_output(
                 ['ps', '-Ao', 'pid,pcpu,comm'], text=True))
             prefix.with_suffix('.wrk.log').write_text(result.stdout + result.stderr)
@@ -76,6 +87,8 @@ def measure(binary, label, workers, heap, round_id, args):
             row = dict(label=label, workers=workers, gc_min_mib=heap, gc_target_mib=heap * 2,
                        round=round_id, rps=rps, p99=p99, requests=count, rss_end_kib=rss,
                        cpu_us_per_request=(after-before)*1e6/count)
+            row['host_counter_delta'] = {key: host_after[key] - value
+                                         for key, value in host_before.items()}
             prefix.with_suffix('.json').write_text(json.dumps(row, indent=2) + '\n')
             print(json.dumps(row), flush=True)
         finally:
