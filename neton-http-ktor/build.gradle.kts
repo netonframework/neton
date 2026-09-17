@@ -15,7 +15,15 @@ kotlin {
     mingwX64()
 
     sourceSets {
-        val nativeMain by creating { dependsOn(commonMain.get()) }
+        val nativeMain by creating {
+            dependsOn(commonMain.get())
+            // SMTP 发信（KtorSmtpTransport）：裸 socket + TLS。这两个包 CIO 客户端本来就带着，
+            // 这里显式声明只是为了能直接用它们的 API。
+            dependencies {
+                implementation(libs.ktor.network)
+                implementation(libs.ktor.network.tls)
+            }
+        }
         val posixMain by creating { dependsOn(nativeMain) }
         // CIO on every POSIX target. Darwin failed the client conformance suite
         // (merged Set-Cookie, buffered chunked bodies, ignored cancellation).
