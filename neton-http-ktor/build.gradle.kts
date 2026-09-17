@@ -73,3 +73,14 @@ kotlin {
         }
     }
 }
+
+// libcurl cinterop：只给 POSIX 目标（SMTP 的 TLS 靠它；Windows 没有系统 libcurl，走纯明文兜底）
+kotlin {
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+        if (konanTarget.family != org.jetbrains.kotlin.konan.target.Family.MINGW) {
+            compilations.getByName("main").cinterops.create("libcurl") {
+                defFile(project.file("src/nativeInterop/cinterop/libcurl.def"))
+            }
+        }
+    }
+}
