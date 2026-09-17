@@ -2,6 +2,10 @@
 
 Status: experimental, not a release or a demonstrated HttpArena gain.
 
+Follow-up: isolated two-vCPU Linux measurements are documented in
+`performance-linux-2026-09-17.md`, with per-run JSON. They show a long-query gain,
+not a short-query baseline gain; the switch remains opt-in.
+
 ## Objective
 
 Prioritize sustained throughput and tail latency. Additional bounded memory is
