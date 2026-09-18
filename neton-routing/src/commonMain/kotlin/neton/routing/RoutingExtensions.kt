@@ -29,25 +29,33 @@ object RoutingComponent : NetonComponent<RequestEngine> {
         RoutingLog.log = ctx.getOrNull(LoggerFactory::class)?.get("neton.routing")
         val log = RoutingLog.log
 
-        // 初始化限流拦截器并注入到引擎
-        val store = createRateLimitStore(ctx)
-        val rlInterceptor = RateLimitInterceptor(
-            limiter = FixedWindowRateLimiter(store),
-            resolver = DefaultRateLimitKeyResolver()
-        )
-        // HTTP 适配器直接调用 RouteDefinition.handler（KSP 生成的 lambda），
-        // 所以限流必须以 RateLimitGate 的形式 bind 给适配器，由它在分发前执行。
-        ctx.bind(RateLimitGate::class, rlInterceptor)
-        log?.info("rateLimit.initialized", mapOf(
-            "store" to if (store is RedisRateLimitStore) "redis" else "local"
-        ))
-
         val rawConfig = ConfigLoader.loadModuleConfig(
             "routing",
             configPath = "config",
             environment = ConfigLoader.resolveEnvironment(ctx.args),
             args = ctx.args
         )
+
+        // 初始化限流拦截器并注入到引擎。
+        // 可信代理来自 routing.conf 的 `[ratelimit] trusted_proxies = "10.0.0.1,10.0.0.2"`
+        //（逗号分隔：本项目的 TOML 解析器不支持数组）。不配就按传输层对端计，安全默认值。
+        val trustedProxies = rawConfig
+            ?.let { ConfigLoader.getString(it, "ratelimit.trusted_proxies") }
+            ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
+            .orEmpty()
+        val store = createRateLimitStore(ctx)
+        val rlInterceptor = RateLimitInterceptor(
+            limiter = FixedWindowRateLimiter(store),
+            resolver = DefaultRateLimitKeyResolver(),
+            trustedProxies = trustedProxies,
+        )
+        // HTTP 适配器直接调用 RouteDefinition.handler（KSP 生成的 lambda），
+        // 所以限流必须以 RateLimitGate 的形式 bind 给适配器，由它在分发前执行。
+        ctx.bind(RateLimitGate::class, rlInterceptor)
+        log?.info("rateLimit.initialized", mapOf(
+            "store" to if (store is RedisRateLimitStore) "redis" else "local",
+            "trustedProxies" to trustedProxies.size,
+        ))
         val routingConfig = parseRoutingConfig(rawConfig)
         if (routingConfig != null) {
             val configuredGroups =
