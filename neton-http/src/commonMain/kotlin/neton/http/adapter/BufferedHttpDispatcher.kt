@@ -76,6 +76,7 @@ public class BufferedHttpRequest private constructor(
     public val body: ByteArray,
     /** transport 层对端地址（无 X-Forwarded-For 时用于 remoteAddress / access log userIp）。 */
     public val remoteAddress: String = "",
+    private val rawHeaders: ByteArray? = null,
 ) {
     public constructor(
         method: String,
@@ -85,6 +86,33 @@ public class BufferedHttpRequest private constructor(
         body: ByteArray,
         remoteAddress: String = "",
     ) : this(method, path, query, { headers }, null, body, remoteAddress)
+
+    /**
+     * Transport constructor for a borrowed header block. The common path only
+     * scans one header; materialising the full map is deferred until a handler
+     * or policy asks for [headers].
+     */
+    public constructor(
+        method: String,
+        path: String,
+        query: String,
+        rawHeaders: String,
+        body: ByteArray,
+        remoteAddress: String = "",
+    ) : this(method, path, query, { emptyMap() }, null, body, remoteAddress, rawHeaders.encodeToByteArray())
+
+    /**
+     * Transport constructor that keeps borrowed header bytes in their copied form.
+     * Decoding is deferred until a matching value or the complete map is requested.
+     */
+    public constructor(
+        method: String,
+        path: String,
+        query: String,
+        rawHeaders: ByteArray,
+        body: ByteArray,
+        remoteAddress: String = "",
+    ) : this(method, path, query, { emptyMap() }, null, body, remoteAddress, rawHeaders)
 
     /**
      * The transport variant: the header block stays unparsed until something
@@ -109,9 +137,12 @@ public class BufferedHttpRequest private constructor(
 
     private var headersOrNull: Map<String, List<String>>? = null
     public val headers: Map<String, List<String>>
-        get() = headersOrNull ?: headersProvider().also { headersOrNull = it }
+        get() = headersOrNull ?: (rawHeaders?.let(::parseHeaderBlock) ?: headersProvider()).also {
+            headersOrNull = it
+        }
 
     public fun header(name: String): String? {
+        rawHeaders?.let { return scanHeader(it, name) }
         // Not `?:` — a fast path that finds nothing still answers the question.
         // Treating its null as "no fast path" sent every absent-header lookup on
         // to build the whole map, which is the cost this exists to avoid, and the
@@ -119,6 +150,53 @@ public class BufferedHttpRequest private constructor(
         val fast = singleHeader
         if (fast != null) return fast(name)
         return headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
+    }
+
+    private fun scanHeader(block: ByteArray, wanted: String): String? {
+        var start = 0
+        while (start <= block.size) {
+            val end = block.indexOfByte('\n'.code.toByte(), start).let { if (it < 0) block.size else it }
+            val separator = block.indexOfByte(':'.code.toByte(), start).takeIf { it in start until end }
+            if (separator != null && block.regionMatchesAscii(start, wanted, separator - start)) {
+                return block.decodeToString(separator + 1, end).trimStart()
+            }
+            if (end == block.size) break
+            start = end + 1
+        }
+        return null
+    }
+
+    private fun parseHeaderBlock(block: ByteArray): Map<String, List<String>> {
+        if (block.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, MutableList<String>>()
+        var start = 0
+        while (start <= block.size) {
+            val end = block.indexOfByte('\n'.code.toByte(), start).let { if (it < 0) block.size else it }
+            val separator = block.indexOfByte(':'.code.toByte(), start).takeIf { it in start until end }
+            if (separator != null) {
+                val name = block.decodeToString(start, separator)
+                result.getOrPut(name) { ArrayList(1) }
+                    .add(block.decodeToString(separator + 1, end).trimStart())
+            }
+            if (end == block.size) break
+            start = end + 1
+        }
+        return result
+    }
+
+    private fun ByteArray.indexOfByte(value: Byte, from: Int): Int {
+        for (index in from until size) if (this[index] == value) return index
+        return -1
+    }
+
+    private fun ByteArray.regionMatchesAscii(start: Int, wanted: String, length: Int): Boolean {
+        if (length != wanted.length) return false
+        for (index in 0 until length) {
+            val actual = this[start + index].toInt().and(0xff)
+            val expected = wanted[index].code
+            if (actual != expected && actual.or(0x20) != expected.or(0x20)) return false
+        }
+        return true
     }
 }
 
