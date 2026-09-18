@@ -33,7 +33,7 @@ kotlin {
                 api(project(":neton-core"))
                 implementation(project(":neton-logging"))
                 // 0.9.2 includes peerAddress. Source substitution is explicit opt-in.
-                implementation("com.netonstream:hyper4k:0.9.3")
+                implementation("com.netonstream:hyper4k:0.9.4")
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
             }
