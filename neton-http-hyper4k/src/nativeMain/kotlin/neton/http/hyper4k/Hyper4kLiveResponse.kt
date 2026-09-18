@@ -161,17 +161,42 @@ private fun encodeCookie(cookie: Cookie): String = buildString {
 
 /** Small MutableHeaders: keeps the original casing, looks up case-insensitively. */
 private class SimpleMutableHeaders : MutableHeaders {
-    private val map = LinkedHashMap<String, MutableList<String>>()
+    private var firstName: String? = null
+    private var firstValues: MutableList<String>? = null
+    private var overflow: LinkedHashMap<String, MutableList<String>>? = null
+
+    private val map: LinkedHashMap<String, MutableList<String>>
+        get() = overflow ?: LinkedHashMap<String, MutableList<String>>().also {
+            firstName?.let { name -> it[name] = firstValues!! }
+            firstName = null
+            firstValues = null
+            overflow = it
+        }
 
     private fun actualName(name: String): String? = map.keys.firstOrNull { it.equals(name, ignoreCase = true) }
 
-    override fun get(name: String): String? = actualName(name)?.let { map[it]?.firstOrNull() }
-    override fun getAll(name: String): List<String> = actualName(name)?.let { map[it] } ?: emptyList()
-    override fun contains(name: String): Boolean = actualName(name) != null
+    override fun get(name: String): String? = getAll(name).firstOrNull()
+    override fun getAll(name: String): List<String> = if (overflow == null) {
+        if (firstName?.equals(name, ignoreCase = true) == true) firstValues!! else emptyList()
+    } else actualName(name)?.let { map[it] } ?: emptyList()
+    override fun contains(name: String): Boolean = if (overflow == null) {
+        firstName?.equals(name, ignoreCase = true) == true
+    } else actualName(name) != null
     override fun names(): Set<String> = map.keys
-    override fun toMap(): Map<String, List<String>> = map.mapValues { it.value.toList() }
+    override fun toMap(): Map<String, List<String>> {
+        if (overflow == null) {
+            val name = firstName ?: return emptyMap()
+            return mapOf(name to firstValues!!.toList())
+        }
+        return map.mapValues { it.value.toList() }
+    }
 
     fun snapshotWithoutContentLength(): Map<String, List<String>> {
+        if (overflow == null) {
+            val name = firstName ?: return emptyMap()
+            return if (name.equals("Content-Length", ignoreCase = true)) emptyMap()
+            else mapOf(name to firstValues!!.toList())
+        }
         val count = map.size - if (contains("Content-Length")) 1 else 0
         if (count == 0) return emptyMap()
         if (count == 1) {
@@ -186,17 +211,44 @@ private class SimpleMutableHeaders : MutableHeaders {
     }
 
     override fun set(name: String, value: String) {
+        if (overflow == null && (firstName == null || firstName.equals(name, ignoreCase = true))) {
+            firstName = name
+            firstValues = mutableListOf(value)
+            return
+        }
         actualName(name)?.let(map::remove)
         map[name] = mutableListOf(value)
     }
 
     override fun add(name: String, value: String) {
+        if (overflow == null) {
+            if (firstName == null) {
+                firstName = name
+                firstValues = mutableListOf(value)
+                return
+            }
+            if (firstName.equals(name, ignoreCase = true)) {
+                firstValues!!.add(value)
+                return
+            }
+        }
         map.getOrPut(actualName(name) ?: name) { mutableListOf() }.add(value)
     }
 
     override fun remove(name: String) {
+        if (overflow == null) {
+            if (firstName?.equals(name, ignoreCase = true) == true) {
+                firstName = null
+                firstValues = null
+            }
+            return
+        }
         actualName(name)?.let(map::remove)
     }
 
-    override fun clear() = map.clear()
+    override fun clear() {
+        firstName = null
+        firstValues = null
+        overflow?.clear()
+    }
 }
