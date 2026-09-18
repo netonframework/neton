@@ -1,0 +1,11 @@
+# libcurl：SMTP 发信（smtps:// 与 STARTTLS）。macOS 用 SDK 自带的 libcurl；Linux 构建机装 libcurl4-openssl-dev，
+# 运行镜像装 curl（带 libcurl4）。与 ktor-client-curl 的 def 同一套路径约定。
+headers = curl/curl.h
+headerFilter = curl/*
+package = neton.curl
+
+compilerOpts.linux_x64 = -I/usr/include -I/usr/include/x86_64-linux-gnu
+linkerOpts.linux_x64 = -L/usr/lib64 -L/usr/lib/x86_64-linux-gnu -lcurl
+compilerOpts.linux_arm64 = -I/usr/include -I/usr/include/aarch64-linux-gnu
+linkerOpts.linux_arm64 = -L/usr/lib/aarch64-linux-gnu -lcurl
+linkerOpts.osx = -lcurl
