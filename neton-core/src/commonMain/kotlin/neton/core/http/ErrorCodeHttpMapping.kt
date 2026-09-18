@@ -37,6 +37,12 @@ fun httpStatusForErrorCode(code: Int): HttpStatus = when (code) {
     // Rate limit (10300-10399) → 429
     in 10300..10399 -> HttpStatus.TOO_MANY_REQUESTS
 
-    // Business (20000+) → 默认 500（业务侧若希望特殊 status，自行用 ktor `respond(status, envelope)`）
+    // Business (20000-65535) → 400。业务规则拒绝（试用到期、名额用尽、状态不允许）是请求方的
+    // 问题，不是服务器故障：映射成 500 会让监控把每一次正常拒绝都记成事故，客户端也会把
+    // 「请重试」的兜底逻辑套在一个重试也不会变的结果上。需要更细的 status 时用具体的
+    // 通用码（10xxx 段已各自映射），或在 controller 里自行 respond。
+    in 20000..65535 -> HttpStatus.BAD_REQUEST
+
+    // 未登记的码：仍按服务器故障处理，让它在日志里显眼
     else -> HttpStatus.INTERNAL_SERVER_ERROR
 }
