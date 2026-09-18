@@ -80,6 +80,13 @@ kotlin {
         if (konanTarget.family != org.jetbrains.kotlin.konan.target.Family.MINGW) {
             compilations.getByName("main").cinterops.create("libcurl") {
                 defFile(project.file("src/nativeInterop/cinterop/libcurl.def"))
+                // Linux targets are cross-compiled on the macOS release host, which has no
+                // Linux curl headers. Generate their bindings from vendored upstream public
+                // headers (curl 7.88.1, Debian bookworm's); linking still uses the target's
+                // own -lcurl, so runtime behaviour is unchanged.
+                if (konanTarget.family == org.jetbrains.kotlin.konan.target.Family.LINUX) {
+                    includeDirs(project.file("src/nativeInterop/cinterop/include"))
+                }
             }
         }
     }
