@@ -1,6 +1,7 @@
 package neton.redis
 
 import eu.vendeli.rethis.ReThis
+import kotlinx.io.readByteArray
 import eu.vendeli.rethis.annotations.ReThisInternal
 import eu.vendeli.rethis.command.generic.del
 import eu.vendeli.rethis.command.generic.exists
@@ -202,24 +203,9 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
         return parseRespInteger(buf)
     }
 
-    /** 解析 RESP Bulk String 响应：$<len>\r\n<data>\r\n */
-    private fun parseRespBulkString(buf: kotlinx.io.Buffer): String? {
-        if (buf.exhausted()) return null
-        val text = buf.readString()
-        // RESP bulk string: $<len>\r\n<data>\r\n
-        if (text.startsWith("$")) {
-            val firstCrlf = text.indexOf("\r\n")
-            if (firstCrlf < 0) return null
-            val len = text.substring(1, firstCrlf).toIntOrNull() ?: return null
-            if (len < 0) return null
-            return text.substring(firstCrlf + 2, firstCrlf + 2 + len)
-        }
-        // 可能是 simple string: +<data>\r\n
-        if (text.startsWith("+")) {
-            return text.substring(1).trimEnd('\r', '\n')
-        }
-        return text.trimEnd('\r', '\n')
-    }
+    /** 解析 RESP Bulk String 响应；按字节解析，见 [RespReply]。 */
+    private fun parseRespBulkString(buf: kotlinx.io.Buffer): String? =
+        RespReply.bulkString(buf.readByteArray())
 
     /** 解析 RESP Integer 响应：:<number>\r\n */
     private fun parseRespInteger(buf: kotlinx.io.Buffer): Long {
