@@ -118,9 +118,13 @@ public abstract class HttpEngineConformanceSuite {
                 headers = mapOf("X-Multi" to listOf("one", "two")),
             ),
         )
-        val seen = response.echoed("headers")
-        expect(seen["X-Multi"] == listOf("one", "two")) {
-            "repeated request header collapsed: ${seen["X-Multi"]}"
+        // Looked up without regard to case: header names are case-insensitive, and an engine whose
+        // parser normalises them (HTTP/2 requires lowercase; hyper and the netonstream HTTP/1 parser
+        // lowercase too) passes the name on as `x-multi`. What this check is about is the values.
+        val seen = response.echoed("headers").entries
+            .firstOrNull { it.key.equals("X-Multi", ignoreCase = true) }?.value
+        expect(seen == listOf("one", "two")) {
+            "repeated request header collapsed: $seen"
         }
     }
 
