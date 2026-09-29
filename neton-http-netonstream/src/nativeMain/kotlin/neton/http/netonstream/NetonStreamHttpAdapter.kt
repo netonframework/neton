@@ -151,6 +151,9 @@ public class NetonStreamHttpAdapter(
 
     override suspend fun start(ctx: NetonContext, onStarted: (suspend (Long) -> Unit)?) {
         check(running == null) { "netonstream server already started" }
+        // Stopping cancels the handler scope and closes admission for good: a second start would
+        // answer every request with 503. One adapter serves one start/stop cycle.
+        check(!handlerJob.isCancelled) { "a stopped NetonStreamHttpAdapter cannot be started again" }
         bindContext(ctx)
         val startedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
         val tlsContext = serverConfig.tls?.let { tls ->

@@ -220,6 +220,15 @@ class NetonStreamServerTest {
     }
 
     @Test
+    fun aStoppedAdapterRefusesToStartAgain() = runBlocking {
+        val server = startServer(basicRoutes())
+        server.stop()
+        val error = runCatching { server.adapter.start(fixtureContext(emptyList())) }.exceptionOrNull()
+        assertNotNull(error)
+        assertTrue(error.message!!.contains("cannot be started again"), error.message)
+    }
+
+    @Test
     fun portInUseFailsStart() = runBlocking {
         val server = startServer(basicRoutes())
         try {
