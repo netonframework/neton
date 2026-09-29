@@ -452,6 +452,7 @@ class NetonStreamServerTest {
                 ctx.response.contentType = "text/event-stream"
                 ctx.response.stream {
                     var sent = 0
+                    try {
                     while (sent < 1_000) {
                         writeChunk("data: event-$sent\n\n")
                         sent++
@@ -461,6 +462,7 @@ class NetonStreamServerTest {
                         }
                         delay(10)
                     }
+                    } finally { gone.complete(sent) }
                 }
                 null
             },
@@ -512,6 +514,7 @@ class NetonStreamServerTest {
         val total = 256L * 1024 * 1024
         val routes = listOf(
             get("/big") { ctx ->
+                try {
                 ctx.response.stream {
                     var sent = 0L
                     while (sent < total) {
@@ -521,7 +524,7 @@ class NetonStreamServerTest {
                         if ((ctx.response as NetonStreamLiveResponse).clientGone) break
                     }
                 }
-                finished.store(true)
+                } finally { finished.store(true) }
                 null
             },
         )

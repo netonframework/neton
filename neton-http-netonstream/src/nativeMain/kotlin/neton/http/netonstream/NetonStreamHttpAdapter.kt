@@ -14,8 +14,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
@@ -39,6 +42,7 @@ import neton.openssl.TlsContext
 import neton.tls.tlsAccept
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.native.concurrent.ObsoleteWorkersApi
 import kotlin.native.concurrent.TransferMode
@@ -76,10 +80,15 @@ public class NetonStreamOptions(
     public val streamQueueCapacity: Int = DEFAULT_STREAM_QUEUE_CAPACITY,
     /** Time a client gets to complete the TLS handshake. */
     public val tlsHandshakeTimeoutMillis: Long = DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS,
+    public val maxOpenConnections: Int = 16_384,
+    public val maxBufferedRequestBytes: Long = 128L * 1024 * 1024,
+    public val requestBodyTimeoutMillis: Long = 30_000,
 ) {
     init {
         require(reactors >= 1) { "reactors must be >= 1" }
-        require(maxRequestBodyBytes > 0) { "maxRequestBodyBytes must be positive" }
+        require(maxRequestBodyBytes in 1..(Int.MAX_VALUE / 2).toLong()) { "invalid request body limit" }
+        require(maxOpenConnections > 0 && maxBufferedRequestBytes >= 2 * maxRequestBodyBytes)
+        require(requestBodyTimeoutMillis > 0)
         require(streamQueueCapacity >= 1) { "streamQueueCapacity must be >= 1" }
         require(tlsHandshakeTimeoutMillis > 0) { "tlsHandshakeTimeoutMillis must be positive" }
     }
@@ -104,7 +113,7 @@ public class NetonStreamOptions(
  *
  * Handlers start inline on the connection's reactor thread and continue on [Dispatchers.Default]
  * once they suspend (hyper4k starts them inline on the Tokio worker and continues on the same
- * dispatcher), so a slow handler never holds a reactor.
+ * dispatcher). Blocking/non-suspending work still occupies the reactor and must be moved off it.
  */
 @OptIn(ExperimentalAtomicApi::class, ObsoleteWorkersApi::class)
 public class NetonStreamHttpAdapter(
@@ -119,6 +128,9 @@ public class NetonStreamHttpAdapter(
     private val dispatcher = BufferedHttpDispatcher(serverConfig)
     private var appContext: NetonContext? = null
     private var running: ServerRun? = null
+    private val lifecycle = Mutex()
+    private val bufferedBytes = AtomicLong(0)
+    internal var afterWorkerStarted: (suspend () -> Unit)? = null
 
     /** Concurrent-request admission, hyper4k's semantics: a full house or a stopping server answers 503. */
     private val accepting = AtomicBoolean(true)
@@ -150,56 +162,54 @@ public class NetonStreamHttpAdapter(
     override fun adapterName(): String = "NetonStream"
 
     override suspend fun start(ctx: NetonContext, onStarted: (suspend (Long) -> Unit)?) {
-        check(running == null) { "netonstream server already started" }
-        // Stopping cancels the handler scope and closes admission for good: a second start would
-        // answer every request with 503. One adapter serves one start/stop cycle.
-        check(!handlerJob.isCancelled) { "a stopped NetonStreamHttpAdapter cannot be started again" }
-        bindContext(ctx)
-        val startedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
-        val tlsContext = serverConfig.tls?.let { tls ->
-            val certificate = runCatching { readFileBytes(tls.certificatePath) }
-            val key = runCatching { readFileBytes(tls.privateKeyPath) }
-            if (certificate.isFailure || key.isFailure) {
-                error(
-                    "netonstream server failed to start on ${options.host}:${serverConfig.port} " +
-                        "(certificate/key unreadable at ${tls.certificatePath} / ${tls.privateKeyPath})",
+        val run = lifecycle.withLock {
+            check(running == null) { "netonstream server already started" }
+            check(!handlerJob.isCancelled) { "a stopped NetonStreamHttpAdapter cannot be started again" }
+            bindContext(ctx)
+            GcTuning.fromEnvironment()
+            val tlsContext = serverConfig.tls?.let { tls ->
+                val certificate = runCatching { readFileBytes(tls.certificatePath) }
+                val key = runCatching { readFileBytes(tls.privateKeyPath) }
+                if (certificate.isFailure || key.isFailure) {
+                    error(
+                        "netonstream server failed to start on ${options.host}:${serverConfig.port} " +
+                            "(certificate/key unreadable at ${tls.certificatePath} / ${tls.privateKeyPath})",
+                    )
+                }
+                TlsContext(
+                    server = true,
+                    certificateChainPem = certificate.getOrThrow(),
+                    privateKeyPem = key.getOrThrow(),
+                    alpnProtocols = tls.alpnProtocols,
                 )
             }
-            TlsContext(
-                server = true,
-                certificateChainPem = certificate.getOrThrow(),
-                privateKeyPem = key.getOrThrow(),
-                alpnProtocols = tls.alpnProtocols,
-            )
+            try {
+                ServerRun(this, tlsContext).also { it.start(); running = it }
+            } catch (e: Throwable) {
+                tlsContext?.close()
+                appContext = null
+                if (e is CancellationException) throw e
+                throw IllegalStateException(
+                    "netonstream server failed to start on ${options.host}:${serverConfig.port} (${e.message ?: e})",
+                    e,
+                )
+            }
         }
-        // Opt-in GC settings from NETON_IO_GC_MIN_HEAP_MB / NETON_IO_GC_THREAD_NICE; nothing without them.
-        GcTuning.fromEnvironment()
-        val run = ServerRun(this, tlsContext)
         try {
-            run.start()
-        } catch (e: Throwable) {
-            tlsContext?.close()
-            throw IllegalStateException(
-                "netonstream server failed to start on ${options.host}:${serverConfig.port} (${e.message ?: e})",
-                e,
+            val coldStart = kotlin.time.Clock.System.now().toEpochMilliseconds() - run.startedAt
+            logger()?.info(
+                "neton.http.netonstream.started",
+                buildMap {
+                    put("port", serverConfig.port)
+                    put("reactors", options.reactors)
+                    serverConfig.tls?.let { put("alpn", it.alpnProtocols.joinToString(",").ifEmpty { "none" }) }
+                },
             )
-        }
-        running = run
-        val coldStart = kotlin.time.Clock.System.now().toEpochMilliseconds() - startedAt
-        logger()?.info(
-            "neton.http.netonstream.started",
-            buildMap {
-                put("port", serverConfig.port)
-                put("reactors", options.reactors)
-                serverConfig.tls?.let { put("alpn", it.alpnProtocols.joinToString(",").ifEmpty { "none" }) }
-            },
-        )
-        try {
             onStarted?.invoke(coldStart)
             run.stopped.await()
         } finally {
             // Leaving start() for any reason (stop, or the caller's cancellation) must not leave the server behind.
-            if (running === run) withContext(NonCancellable) { stop() }
+            stop()
         }
     }
 
@@ -209,15 +219,19 @@ public class NetonStreamHttpAdapter(
      * up to min(timeout, 5 s), then closes what is left and cancels the handlers still running.
      */
     override suspend fun stop() {
-        val run = running ?: return
-        running = null
-        accepting.store(false)
-        run.requestStop()
-        run.stopped.await()
-        handlerJob.cancel()
-        withTimeoutOrNull(shutdownGraceMillis) { handlerJob.join() }
-        run.tls?.close()
-        appContext = null
+        withContext(NonCancellable) {
+            lifecycle.withLock {
+                val run = running ?: return@withLock
+                accepting.store(false)
+                run.requestStop()
+                run.stopped.await()
+                handlerJob.cancel()
+                withTimeoutOrNull(shutdownGraceMillis) { handlerJob.join() }
+                run.tls?.close()
+                appContext = null
+                running = null
+            }
+        }
     }
 
     internal fun bindContext(ctx: NetonContext) {
@@ -278,7 +292,7 @@ public class NetonStreamHttpAdapter(
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * One request: read the body (413 over the limit), admit it (503 when stopping or full), run
+     * One request: admit it (503 when stopping or full), read the body (413 over the limit), run
      * the handler, answer with a complete or a streamed body.
      *
      * Takes any body so the conformance suite can call it in-process with the library's
@@ -287,47 +301,78 @@ public class NetonStreamHttpAdapter(
     @OptIn(ExperimentalCoroutinesApi::class)
     internal suspend fun handle(request: StreamRequest<out StreamBody>, peer: String = ""): StreamResponse<out StreamBody> {
         val connectionJob = currentCoroutineContext()[Job]
-        val body = readBody(request.body, options.maxRequestBodyBytes)
-            ?: return bodyTooLarge().toStreamResponse(connectionJob)
         if (!accepting.load() || !slots.tryAcquire()) {
-            return failure(503, "Service Unavailable").toStreamResponse(connectionJob)
+            return rejection(503, "Service Unavailable", !request.body.isEndStream).toStreamResponse(connectionJob)
         }
         activeRequests.addAndFetch(1)
-        if (!accepting.load()) {
-            release()
-            return failure(503, "Service Unavailable").toStreamResponse(connectionJob)
-        }
-        val acceptEncoding = headerString(request, "accept-encoding")
-        val buffered = request.toBuffered(body, peer)
-        val ready = CompletableDeferred<EngineResponse>()
-        val live = NetonStreamLiveResponse(
-            corsHeaders = dispatcher.corsHeaders(buffered),
-            channelCapacity = options.streamQueueCapacity,
-            onStreamStart = { ready.complete(it) },
-        )
-        // UNDISPATCHED: a handler that does not suspend completes right here, on the reactor, and
-        // `ready` is already complete below; one that suspends continues on Dispatchers.Default.
-        handlerScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            try {
-                val response = if (serverConfig.timeout > 0) {
-                    lazyTimeout(serverConfig.timeout) { respond(buffered, live, acceptEncoding) }
-                } else {
-                    respond(buffered, live, acceptEncoding)
-                }
-                if (response != null) ready.complete(response)
-            } catch (_: TimeoutCancellationException) {
-                // Once streaming, the head is out: nothing can be sent but the end of the body.
-                if (!live.isStreaming) ready.complete(failure(504, "Gateway Timeout"))
-            } catch (_: CancellationException) {
-                if (!live.isStreaming) ready.complete(failure(503, "Service Unavailable"))
-            } catch (_: Throwable) {
-                if (!live.isStreaming) ready.complete(failure(500, "Internal Server Error"))
-            } finally {
-                release()
+        var handedOff = false
+        var reservation = 0L
+        try {
+            if (!accepting.load()) return rejection(503, "Service Unavailable", !request.body.isEndStream).toStreamResponse(connectionJob)
+            if (!request.body.isEndStream) {
+                // Reserve the largest retained buffer plus a simultaneous resize/copy before reading.
+                val required = 2 * options.maxRequestBodyBytes
+                if (!reserveBody(required)) return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
+                reservation = required
             }
+            val body = try {
+                if (request.body.isEndStream) EMPTY
+                else withTimeout(options.requestBodyTimeoutMillis) { readBody(request.body, options.maxRequestBodyBytes) }
+            } catch (_: TimeoutCancellationException) {
+                return rejection(504, "Gateway Timeout").toStreamResponse(connectionJob)
+            } ?: return bodyTooLarge().toStreamResponse(connectionJob)
+            val acceptEncoding = headerString(request, "accept-encoding")
+            val buffered = request.toBuffered(body, peer)
+            val ready = CompletableDeferred<EngineResponse>()
+            val live = NetonStreamLiveResponse(
+                corsHeaders = dispatcher.corsHeaders(buffered),
+                channelCapacity = options.streamQueueCapacity,
+                onStreamStart = { ready.complete(it) },
+            )
+            // UNDISPATCHED: a handler that does not suspend completes right here, on the reactor, and
+            // `ready` is already complete below; one that suspends continues on Dispatchers.Default.
+            val reserved = reservation
+            val handler = handlerScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    currentCoroutineContext().ensureActive()
+                    val response = if (serverConfig.timeout > 0) {
+                        lazyTimeout(serverConfig.timeout) { respond(buffered, live, acceptEncoding) }
+                    } else {
+                        respond(buffered, live, acceptEncoding)
+                    }
+                    if (response != null) ready.complete(response)
+                } catch (_: TimeoutCancellationException) {
+                    // Once streaming, the head is out: nothing can be sent but the end of the body.
+                    if (!live.isStreaming) ready.complete(failure(504, "Gateway Timeout"))
+                } catch (_: CancellationException) {
+                    if (!live.isStreaming) ready.complete(failure(503, "Service Unavailable"))
+                } catch (_: Throwable) {
+                    if (!live.isStreaming) ready.complete(failure(500, "Internal Server Error"))
+                } finally {
+                    release(reserved)
+                }
+            }
+            handedOff = true
+            if (!handler.isCompleted) {
+                val watch = connectionJob?.invokeOnCompletion { handler.cancel() }
+                handler.invokeOnCompletion { watch?.dispose() }
+            }
+            val response = try {
+                if (ready.isCompleted) ready.getCompleted() else ready.await()
+            } catch (e: CancellationException) {
+                handler.cancel()
+                throw e
+            }
+            response.stream?.bindProducer(handler)
+            if (response.stream != null &&
+                (request.method.asStr() == "HEAD" || response.status in 100..199 || response.status == 204 || response.status == 304)) {
+                response.stream.markGone()
+                return EngineResponse(response.status, response.headers, EMPTY).toStreamResponse(connectionJob)
+            }
+            return response.toStreamResponse(connectionJob)
+        } finally {
+            if (!handedOff) release(reservation)
         }
-        val response = if (ready.isCompleted) ready.getCompleted() else ready.await()
-        return response.toStreamResponse(connectionJob)
     }
 
     /** The handler's answer; null when it streamed (its head already went through `onStreamStart`). */
@@ -344,13 +389,28 @@ public class NetonStreamHttpAdapter(
         }
     }
 
-    private fun release() {
+    private fun reserveBody(bytes: Long): Boolean {
+        while (true) {
+            val used = bufferedBytes.load()
+            if (bytes > options.maxBufferedRequestBytes - used) return false
+            if (bufferedBytes.compareAndSet(used, used + bytes)) return true
+        }
+    }
+
+    private fun release(reservation: Long = 0) {
+        if (reservation != 0L) bufferedBytes.addAndFetch(-reservation)
         activeRequests.addAndFetch(-1)
         slots.release()
     }
 
     /** Requests admitted and not yet finished (streams included). */
     internal val inFlightRequests: Int get() = activeRequests.load()
+    internal val reservedRequestBytes: Long get() = bufferedBytes.load()
+
+    private fun rejection(status: Int, message: String, close: Boolean = true): EngineResponse {
+        val response = failure(status, message)
+        return if (close) EngineResponse(response.status, response.headers + ("Connection" to listOf("close")), response.body) else response
+    }
 
     private fun failure(status: Int, message: String): EngineResponse =
         dispatcher.transportFailureResponse(status, message).toEngine()
@@ -362,6 +422,7 @@ public class NetonStreamHttpAdapter(
      * application's `runBlocking`, and neton-io's reactor 0 blocks the thread it runs on.
      */
     private class ServerRun(val adapter: NetonStreamHttpAdapter, val tls: TlsContext?) {
+        val startedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
         private val bound = CompletableDeferred<Unit>()
         private val stopRequested = CompletableDeferred<Unit>()
         private val shutdownSignal = CompletableDeferred<Unit>()
@@ -371,9 +432,13 @@ public class NetonStreamHttpAdapter(
         suspend fun start() {
             worker.execute(TransferMode.SAFE, { this }) { it.serveOnThisThread() }
             try {
+                adapter.afterWorkerStarted?.invoke()
                 bound.await()
             } catch (e: Throwable) {
-                stopped.await()
+                withContext(NonCancellable) {
+                    requestStop()
+                    stopped.await()
+                }
                 throw e
             }
         }
@@ -392,6 +457,7 @@ public class NetonStreamHttpAdapter(
                             port = adapter.serverConfig.port,
                             reactors = options.reactors,
                             acceptMode = options.acceptMode,
+                            maxConnections = options.maxOpenConnections,
                         )
                     } catch (e: Throwable) {
                         bound.completeExceptionally(e)
@@ -441,7 +507,7 @@ private suspend fun readBody(body: StreamBody, limit: Long): ByteArray? {
         if (frame !is StreamFrame.Data) continue
         val bytes = frame.bytes
         if (size.toLong() + bytes.size > limit) return null
-        if (size + bytes.size > out.size) out = out.copyOf(maxOf(out.size * 2, size + bytes.size, 1024))
+        if (size + bytes.size > out.size) out = out.copyOf(minOf(limit.toInt(), maxOf(out.size * 2, size + bytes.size, 1024)))
         bytes.copyInto(out, size)
         size += bytes.size
     }

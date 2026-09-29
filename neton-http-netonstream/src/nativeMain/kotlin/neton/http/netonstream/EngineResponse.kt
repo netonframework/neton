@@ -9,6 +9,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import neton.io.bytes.Bytes
 import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 // The library and the framework share the package name `neton.http` (see the module README): the
 // library's message types are imported under engine-specific names so no simple name is ambiguous.
@@ -87,9 +88,16 @@ internal fun EngineResponse.toStreamResponse(connectionJob: Job?): StreamRespons
 internal class LiveBody(capacity: Int) : StreamBody {
     private val channel = Channel<ByteArray>(capacity)
     private val gone = AtomicBoolean(false)
+    private val producer = AtomicReference<Job?>(null)
     private var watchHandle: DisposableHandle? = null
 
     val isGone: Boolean get() = gone.load()
+
+    fun bindProducer(job: Job) {
+        producer.store(job)
+        if (gone.load()) job.cancel()
+        job.invokeOnCompletion { producer.compareAndSet(job, null) }
+    }
 
     /** Ties the body to the exchange's lifetime; the handle is dropped once the body has ended. */
     fun watch(job: Job?) {
@@ -98,7 +106,10 @@ internal class LiveBody(capacity: Int) : StreamBody {
     }
 
     fun markGone() {
-        if (gone.compareAndSet(false, true)) channel.cancel()
+        if (gone.compareAndSet(false, true)) {
+            channel.cancel()
+            producer.load()?.cancel()
+        }
     }
 
     override suspend fun nextFrame(): StreamFrame? {

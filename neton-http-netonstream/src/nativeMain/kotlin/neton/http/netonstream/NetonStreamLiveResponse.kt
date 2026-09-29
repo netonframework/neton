@@ -17,8 +17,8 @@ import neton.core.http.NetonErrorCode
  * it is held here and handed back as one [EngineResponse], so a plain `response.text("ok")` costs
  * no channel and no coroutine switch.
  *
- * A client that goes away midway is not an error: `writeChunk` returns without writing and every
- * later chunk is dropped, as hyper4k's `write` returning false does. [clientGone] tells.
+ * A client that goes away cancels the producer task, including a blocked write. Handlers must
+ * release their resources in finally; [clientGone] also records the abandoned body.
  */
 internal class NetonStreamLiveResponse(
     private val corsHeaders: Map<String, List<String>>,
