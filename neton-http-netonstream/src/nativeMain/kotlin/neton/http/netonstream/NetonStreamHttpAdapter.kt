@@ -185,7 +185,11 @@ public class NetonStreamHttpAdapter(
         val coldStart = kotlin.time.Clock.System.now().toEpochMilliseconds() - startedAt
         logger()?.info(
             "neton.http.netonstream.started",
-            mapOf("port" to serverConfig.port, "reactors" to options.reactors, "tls" to (tlsContext != null)),
+            buildMap {
+                put("port", serverConfig.port)
+                put("reactors", options.reactors)
+                serverConfig.tls?.let { put("alpn", it.alpnProtocols.joinToString(",").ifEmpty { "none" }) }
+            },
         )
         try {
             onStarted?.invoke(coldStart)
