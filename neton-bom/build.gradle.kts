@@ -16,6 +16,9 @@ dependencies {
             // deliberate, versioned choice, never something a BOM quietly hands
             // out next to the default engine (spec http-engine.md §4.2, §九).
             .filter { it.name != "neton-http-ktor" }
+            // Not yet: the netonstream engine depends on SNAPSHOT libraries resolved from
+            // mavenLocal and is not part of a release until they are on Maven Central.
+            .filter { it.name != "neton-http-netonstream" }
             .forEach { api("${project.group}:${it.name}:${project.version}") }
     }
 }
