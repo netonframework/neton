@@ -11,6 +11,7 @@ import neton.http.Request
 import neton.http.h2.http2Handshake
 import neton.io.net.connect
 import neton.io.net.runReactor
+import neton.io.bytes.Bytes
 import kotlin.test.*
 
 class LifecycleSafetyTest {
@@ -102,9 +103,61 @@ class LifecycleSafetyTest {
         } finally { client.close(); server.stop() }
     }
 
-    private class WaitingBody : Body {
+    private class WaitingBody(override val exactLength: Long = -1) : Body {
         val reading = CompletableDeferred<Unit>()
         override suspend fun nextFrame(): Frame? { reading.complete(Unit); awaitCancellation() }
+    }
+
+    @Test
+    fun smallUploadsDoNotReserveTheirMaximumBodyLimit() = runBlocking {
+        val adapter = NetonStreamHttpAdapter(HttpServerConfig(port = 0, maxConnections = 16, timeout = 0))
+        adapter.bindContext(fixtureContext(emptyList()))
+        val bodies = List(8) { WaitingBody() }
+        val jobs = bodies.map { body -> launch { adapter.handle(Request.post("/upload").body(body)) } }
+        try {
+            withTimeout(5_000) { bodies.forEach { it.reading.await() } }
+            assertEquals(8, adapter.inFlightRequests)
+            assertEquals(8 * 2048L, adapter.reservedRequestBytes)
+        } finally { jobs.forEach { it.cancelAndJoin() } }
+        assertEquals(0L, adapter.reservedRequestBytes)
+    }
+
+    @Test
+    fun growthIsRejectedBeforeAllocationAndReleasesTheReservation() = runBlocking {
+        val adapter = NetonStreamHttpAdapter(HttpServerConfig(port = 0, maxConnections = 10, timeout = 0),
+            NetonStreamOptions(maxRequestBodyBytes = 4096, maxBufferedRequestBytes = 8192))
+        adapter.bindContext(fixtureContext(emptyList()))
+        val waiting = WaitingBody()
+        val first = launch { adapter.handle(Request.post("/upload").body(waiting)) }
+        waiting.reading.await()
+        try {
+            val growing = object : Body {
+                override suspend fun nextFrame(): Frame = Frame.Data(Bytes.copyOf(ByteArray(4096)))
+            }
+            assertEquals(503, adapter.handle(Request.post("/upload").body(growing)).status.asU16())
+            assertEquals(2048L, adapter.reservedRequestBytes)
+            assertEquals(1, adapter.inFlightRequests)
+        } finally { first.cancelAndJoin() }
+        assertEquals(0L, adapter.reservedRequestBytes)
+    }
+
+    @Test
+    fun declaredLengthReservesBeforeTheInitialAllocation() = runBlocking {
+        val adapter = NetonStreamHttpAdapter(HttpServerConfig(port = 0, maxConnections = 10, timeout = 0),
+            NetonStreamOptions(maxRequestBodyBytes = 4096, maxBufferedRequestBytes = 8192))
+        adapter.bindContext(fixtureContext(emptyList()))
+        val waiting = WaitingBody()
+        val first = launch { adapter.handle(Request.post("/upload").body(waiting)) }
+        withTimeout(5_000) { waiting.reading.await() }
+        try {
+            val declared = WaitingBody(exactLength = 4096)
+            assertEquals(503, withTimeout(5_000) {
+                adapter.handle(Request.post("/upload").body(declared)).status.asU16()
+            })
+            assertFalse(declared.reading.isCompleted)
+            assertEquals(2048L, adapter.reservedRequestBytes)
+        } finally { first.cancelAndJoin() }
+        assertEquals(0L, adapter.reservedRequestBytes)
     }
 
     @Test

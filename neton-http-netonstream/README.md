@@ -5,9 +5,9 @@ or Ktor:
 
 | Library | Coordinates | Role |
 |---|---|---|
-| neton-io | `com.netonstream:io:0.2.0-SNAPSHOT` | reactors (epoll / io_uring / kqueue / IOCP), multi-reactor TCP server |
-| http | `com.netonstream:http:0.1.0-SNAPSHOT` | HTTP/1.1 (hyper 1.11.1), HTTP/2 (h2 0.4.19), both on one port (hyper-util `server::conn::auto`) |
-| tls | `com.netonstream:tls:0.1.0-SNAPSHOT` | TLS as an `IoStream` over OpenSSL 4.0.2 (`com.netonstream:openssl:4.0.2`), ALPN |
+| neton-io | `com.netonstream:io:0.1.0` | reactors (epoll / io_uring / kqueue / IOCP), multi-reactor TCP server |
+| http | `com.netonstream:http:0.1.0` | HTTP/1.1 (hyper 1.11.1), HTTP/2 (h2 0.4.19), both on one port (hyper-util `server::conn::auto`) |
+| tls | `com.netonstream:tls:0.1.0` | TLS as an `IoStream` over OpenSSL 4.0.2 (`com.netonstream:openssl:0.1.0`), ALPN |
 
 Like every Neton engine it only moves bytes: routing, security, rate limiting, CORS, the response
 envelope and logging are the framework's shared `BufferedHttpDispatcher`.
@@ -101,9 +101,9 @@ ALPN until the config parser reads arrays.
 ### Differences in detail
 
 - **Admission precedes upload**: a request must acquire a handler slot before its body is read.
-  Nonempty/unknown bodies also reserve twice `maxRequestBodyBytes` (buffer plus resize/copy headroom)
-  from `maxBufferedRequestBytes`, until the handler exits. With defaults, at most four such uploads/
-  handlers coexist; empty baseline GETs consume no body reservation and arm no upload timer.
+  Nonempty/unknown bodies reserve twice their buffering capacity (buffer plus resize/copy headroom)
+  from `maxBufferedRequestBytes`, until the handler exits. Reservations start at 2 KiB and grow
+  before allocating larger arrays; empty GETs consume no body reservation and arm no upload timer.
   This bounds this adapter's active request-buffer reservations, not socket buffers, GC garbage,
   application-retained arrays or response buffers. The chunk queue is bounded by count, not bytes.
   Rejection is 503 before reading; HTTP/1 with unread body closes rather than draining it indefinitely.
@@ -142,21 +142,14 @@ ALPN until the config parser reads arrays.
 - **Performance**: no comparison with hyper4k yet (phase 3). The library's own figures are in its
   SPEC §11.
 - **Windows**: mingwX64 compiles; its tests have not been run (no Windows host in this round).
-- **Distribution**: the netonstream libraries are SNAPSHOTs in mavenLocal; this module is not in the
-  BOM or the `neton` aggregate until they are on Maven Central.
+- **Distribution**: released dependencies use Maven Central. This adapter is in the BOM,
+  but the `neton` aggregate still selects Hyper4k; select this adapter explicitly.
 
 ## Build wiring
 
-`build.gradle.kts` adds mavenLocal inside an `exclusiveContent` block that matches only
-`com.netonstream:io`, `http`, `tls` and their per-target artifacts: those resolve only from
-mavenLocal, and everything else (including `com.netonstream:openssl` and `hyper4k`) keeps resolving
-from Maven Central. No other module's repositories change. An application using this engine needs
-the same block (see `examples/netonstream-hello/build.gradle.kts`).
-`-Pnetonstream.repository=<dir>` points the filter at a staged Maven directory instead.
-
-Publish the libraries first: `./gradlew publishToMavenLocal` in `neton-io`, `http` and `tls` (on
-Linux, publish the `linuxX64` publications and copy the multiplatform root modules from a machine
-that built all targets).
+Dependencies resolve from Maven Central. `-Pnetonstream.repository=<dir>` explicitly redirects
+`io`, `http`, `tls` and their target artifacts to a staged Maven directory for release verification.
+There is no implicit local Maven fallback or sibling source checkout.
 
 ## Package rule: `neton.http`
 

@@ -4,35 +4,26 @@ plugins {
 }
 
 /*
- * The netonstream libraries (com.netonstream:io / http / tls) are SNAPSHOTs published to the
- * local Maven repository until they reach Maven Central. mavenLocal is added for exactly those
- * modules and nothing else: `exclusiveContent` makes them resolve only from mavenLocal, and every
- * other dependency of this module (and every other module of the build, which does not declare
- * mavenLocal at all) keeps resolving from Maven Central as before.
- *
- * `-Pnetonstream.repository=<dir>` points the same filter at a directory instead of ~/.m2, for
- * verifying a staged set of artifacts.
+ * Published dependencies resolve from Maven Central by default. An explicit staging repository
+ * can be used for release verification, never an implicit mavenLocal fallback.
  */
 repositories {
-    exclusiveContent {
+    providers.gradleProperty("netonstream.repository").orNull?.let { staged ->
+      exclusiveContent {
         forRepository {
-            val staged = providers.gradleProperty("netonstream.repository").orNull
-            if (staged != null) {
                 val dir = rootProject.file(staged)
                 require(dir.isDirectory) { "netonstream artifact repository does not exist: $dir" }
                 maven { url = dir.toURI() }
-            } else {
-                mavenLocal()
-            }
         }
         filter { includeModuleByRegex("com[.]netonstream", "(io|http|tls)(-(linux|macos|mingw|ios|android).*)?") }
+      }
     }
     mavenCentral()
 }
 
-val netonstreamIo = "com.netonstream:io:0.2.0-SNAPSHOT"
-val netonstreamHttp = "com.netonstream:http:0.1.0-SNAPSHOT"
-val netonstreamTls = "com.netonstream:tls:0.1.0-SNAPSHOT"
+val netonstreamIo = "com.netonstream:io:0.1.0"
+val netonstreamHttp = "com.netonstream:http:0.1.0"
+val netonstreamTls = "com.netonstream:tls:0.1.0"
 
 kotlin {
     macosArm64()

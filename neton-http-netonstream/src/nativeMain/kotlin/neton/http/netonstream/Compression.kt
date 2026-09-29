@@ -3,6 +3,7 @@
 package neton.http.netonstream
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.UnsafeNumber
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.convert
@@ -32,6 +33,7 @@ internal const val MIN_COMPRESS_BYTES = 256
  * [src] is empty or zlib fails. The output buffer is `deflateBound`, so one `deflate(Z_FINISH)`
  * always completes.
  */
+@OptIn(UnsafeNumber::class)
 internal fun gzip(src: ByteArray): ByteArray? {
     if (src.isEmpty()) return null
     return memScoped {
@@ -44,7 +46,10 @@ internal fun gzip(src: ByteArray): ByteArray? {
         if (init != Z_OK) return@memScoped null
         try {
             // deflateBound covers the zlib wrapper; the gzip header and trailer are 18 bytes, add them.
-            val capacity = deflateBound(stream.ptr, src.size.convert()).toInt() + 18
+            // zlib's uLong has platform-dependent width; check before narrowing to array size.
+            val bound = deflateBound(stream.ptr, src.size.convert()).convert<Long>() + 18
+            if (bound > Int.MAX_VALUE || bound <= 0) return@memScoped null
+            val capacity = bound.toInt()
             val dst = ByteArray(capacity)
             val rc = src.usePinned { s ->
                 dst.usePinned { d ->
@@ -56,7 +61,7 @@ internal fun gzip(src: ByteArray): ByteArray? {
                 }
             }
             if (rc != Z_STREAM_END) return@memScoped null
-            dst.copyOf(stream.total_out.toInt())
+            dst.copyOf(stream.total_out.convert<Int>())
         } finally {
             deflateEnd(stream.ptr)
         }

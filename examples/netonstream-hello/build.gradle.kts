@@ -2,13 +2,8 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
-// The engine's libraries (com.netonstream:io / http / tls) are SNAPSHOTs in mavenLocal; only they
-// resolve from there (see neton-http-netonstream/README.md, "Build wiring").
+// Consume the same published protocol libraries as an external application.
 repositories {
-    exclusiveContent {
-        forRepository { mavenLocal() }
-        filter { includeModuleByRegex("com[.]netonstream", "(io|http|tls)(-(linux|macos|mingw|ios|android).*)?") }
-    }
     mavenCentral()
 }
 

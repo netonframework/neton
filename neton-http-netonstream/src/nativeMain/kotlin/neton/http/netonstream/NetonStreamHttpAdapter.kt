@@ -310,16 +310,27 @@ public class NetonStreamHttpAdapter(
         try {
             if (!accepting.load()) return rejection(503, "Service Unavailable", !request.body.isEndStream).toStreamResponse(connectionJob)
             if (!request.body.isEndStream) {
-                // Reserve the largest retained buffer plus a simultaneous resize/copy before reading.
-                val required = 2 * options.maxRequestBodyBytes
+                // Reserve a small initial buffer, then grow admission before growing the array.
+                val required = 2 * minOf(options.maxRequestBodyBytes, 1024)
                 if (!reserveBody(required)) return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
                 reservation = required
             }
             val body = try {
                 if (request.body.isEndStream) EMPTY
-                else withTimeout(options.requestBodyTimeoutMillis) { readBody(request.body, options.maxRequestBodyBytes) }
+                else withTimeout(options.requestBodyTimeoutMillis) {
+                    readBody(request.body, options.maxRequestBodyBytes) { capacity ->
+                        val required = 2L * capacity
+                        val extra = required - reservation
+                        if (extra > 0) {
+                            if (!reserveBody(extra)) throw BodyBudgetExceeded()
+                            reservation = required
+                        }
+                    }
+                }
             } catch (_: TimeoutCancellationException) {
                 return rejection(504, "Gateway Timeout").toStreamResponse(connectionJob)
+            } catch (_: BodyBudgetExceeded) {
+                return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
             } ?: return bodyTooLarge().toStreamResponse(connectionJob)
             val acceptEncoding = headerString(request, "accept-encoding")
             val buffered = request.toBuffered(body, peer)
@@ -493,12 +504,16 @@ public class NetonStreamHttpAdapter(
     }
 }
 
+private class BodyBudgetExceeded : Exception()
+
 /** Reads the whole request body; null when it is over [limit] (HTTP/2, or a body without the h1 limit). */
-private suspend fun readBody(body: StreamBody, limit: Long): ByteArray? {
+private suspend fun readBody(body: StreamBody, limit: Long, reserveCapacity: (Int) -> Unit): ByteArray? {
     if (body.isEndStream) return EMPTY
     val declared = body.exactLength
     if (declared > limit) return null
-    var out = ByteArray(if (declared in 1..limit) declared.toInt() else 0)
+    val initialCapacity = if (declared in 1..limit) declared.toInt() else 0
+    reserveCapacity(initialCapacity)
+    var out = ByteArray(initialCapacity)
     var size = 0
     while (true) {
         // An HTTP/1 body over Http1ServerConfig.maxRequestBodySize throws the library's
@@ -507,7 +522,11 @@ private suspend fun readBody(body: StreamBody, limit: Long): ByteArray? {
         if (frame !is StreamFrame.Data) continue
         val bytes = frame.bytes
         if (size.toLong() + bytes.size > limit) return null
-        if (size + bytes.size > out.size) out = out.copyOf(minOf(limit.toInt(), maxOf(out.size * 2, size + bytes.size, 1024)))
+        if (size + bytes.size > out.size) {
+            val capacity = minOf(limit.toInt(), maxOf(out.size * 2, size + bytes.size, 1024))
+            reserveCapacity(capacity)
+            out = out.copyOf(capacity)
+        }
         bytes.copyInto(out, size)
         size += bytes.size
     }

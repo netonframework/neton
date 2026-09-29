@@ -179,6 +179,7 @@ internal class RawClient(val port: Int, receiveTimeoutSeconds: Int = 10) {
             var sent = 0
             while (sent < bytes.size) {
                 val n = send(fd, pinned.addressOf(sent), (bytes.size - sent).convert(), 0).toInt()
+                if (n < 0 && platform.posix.errno == platform.posix.EINTR) continue
                 check(n > 0) { "send() failed" }
                 sent += n
             }
@@ -188,7 +189,7 @@ internal class RawClient(val port: Int, receiveTimeoutSeconds: Int = 10) {
     /** One read into the buffer; false once the peer closed or the read timed out. */
     private fun fill(): Boolean {
         val chunk = ByteArray(16 * 1024)
-        val n = chunk.usePinned { recv(fd, it.addressOf(0), chunk.size.convert(), 0).toInt() }
+        val n = receive(chunk)
         if (n <= 0) return false
         buffer += chunk.copyOfRange(0, n)
         return true
@@ -273,7 +274,7 @@ internal class RawClient(val port: Int, receiveTimeoutSeconds: Int = 10) {
     fun serverClosed(): Boolean {
         if (buffer.isNotEmpty()) return false
         val chunk = ByteArray(1024)
-        val n = chunk.usePinned { recv(fd, it.addressOf(0), chunk.size.convert(), 0).toInt() }
+        val n = receive(chunk)
         if (n > 0) buffer += chunk.copyOfRange(0, n)
         return n == 0
     }
@@ -283,6 +284,15 @@ internal class RawClient(val port: Int, receiveTimeoutSeconds: Int = 10) {
             closed = true
             platform.posix.close(fd)
         }
+    }
+
+    // A runtime signal can interrupt blocking recv; EINTR is not EOF or a peer failure.
+    private fun receive(chunk: ByteArray): Int = chunk.usePinned { pinned ->
+        var n: Int
+        do {
+            n = recv(fd, pinned.addressOf(0), chunk.size.convert(), 0).toInt()
+        } while (n < 0 && platform.posix.errno == platform.posix.EINTR)
+        n
     }
 }
 
