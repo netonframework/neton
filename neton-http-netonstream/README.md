@@ -109,14 +109,13 @@ ALPN until the config parser reads arrays.
 - **Header names** arrive lowercase (as with hyper over the wire). The framework's header lookups
   are case-insensitive.
 - Each streamed chunk is copied once (the caller may reuse its array after `writeChunk` returns).
+- **Peer address**: taken from the socket with neton-io's `IoStream.peerAddress` right after
+  accept, before TLS wraps it, as the IP alone (`::ffff:a.b.c.d` from a dual-stack listener becomes
+  `a.b.c.d`; IPv6 in RFC 5952 form). `HttpRequest.peerAddress` is always the socket peer;
+  `remoteAddress` prefers `X-Forwarded-For` as with every engine.
 
 ## Known gaps
 
-- **Peer address**: `com.netonstream:io` does not expose a TCP stream's peer address, so
-  `HttpRequest.peerAddress` / `remoteAddress` are empty. Consequence: IP-keyed rate limits
-  (`ClientIpResolver`) see every client as `unknown` and share one bucket, and access logs have no
-  client IP unless `X-Forwarded-For` is present. Needs a peer-address API on neton-io's streams;
-  until then do not use this engine where per-IP rate limiting matters.
 - **WebSocket**: the library exists (`com.netonstream:websocket`) but the framework has no WebSocket
   API; nothing is wired here.
 - **Request streaming**: the framework's dispatcher takes a complete `ByteArray` body, so request

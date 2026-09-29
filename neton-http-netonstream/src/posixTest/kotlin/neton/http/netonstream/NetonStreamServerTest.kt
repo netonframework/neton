@@ -46,6 +46,7 @@ class NetonStreamServerTest {
         get("/n") { ctx -> ctx.response.text("n=" + ctx.request.queryParams["n"]); null },
         get("/json") { ctx -> ctx.response.contentType = "application/json"; ctx.response.write(json.encodeToByteArray()); null },
         post("/size") { ctx -> ctx.response.text("size=" + ctx.request.body().size); null },
+        get("/peer") { ctx -> ctx.response.text(ctx.request.peerAddress + "|" + ctx.request.remoteAddress); null },
     )
 
     // --- HTTP/1.1 ---------------------------------------------------------------------------
@@ -128,6 +129,39 @@ class NetonStreamServerTest {
         }
     }
 
+    /** The socket peer reaches the framework: `peerAddress` always, `remoteAddress` unless X-Forwarded-For says otherwise. */
+    @Test
+    fun peerAddressIsTheSocketPeer() = runBlocking {
+        val server = startServer(basicRoutes())
+        val client = RawClient(server.port)
+        try {
+            client.send(getRequest("/peer"))
+            assertEquals("127.0.0.1|127.0.0.1", client.readResponse().text)
+            client.send(getRequest("/peer", extra = "X-Forwarded-For: 203.0.113.9, 10.0.0.1\r\n"))
+            assertEquals("127.0.0.1|203.0.113.9", client.readResponse().text)
+            withContext(Dispatchers.Default) {
+                assertEquals("127.0.0.1|127.0.0.1", clientRequest(server.port, "/peer", h2 = true).text)
+            }
+        } finally {
+            client.close()
+            server.stop()
+        }
+    }
+
+    /** A dual-stack listener sees an IPv4 client as v4-mapped; the framework gets the plain IPv4 address. */
+    @Test
+    fun peerAddressOfAnIpv4ClientOnADualStackListenerIsIpv4() = runBlocking {
+        val server = startServer(basicRoutes(), NetonStreamOptions(host = "::", reactors = 1))
+        val client = RawClient(server.port)
+        try {
+            client.send(getRequest("/peer"))
+            assertEquals("127.0.0.1|127.0.0.1", client.readResponse().text)
+        } finally {
+            client.close()
+            server.stop()
+        }
+    }
+
     // --- HTTP/2 on the same port --------------------------------------------------------------
 
     @Test
@@ -171,6 +205,9 @@ class NetonStreamServerTest {
                 assertEquals("h2", r.alpn)
                 assertEquals("HTTP/2.0", r.version)
                 assertEquals("hello", r.text)
+                // Taken from the socket before TLS wrapped it.
+                val peer = clientRequest(server.port, "/peer", h2 = true, tls = clientTls(identity, listOf("h2")))
+                assertEquals("127.0.0.1|127.0.0.1", peer.text)
             }
         } finally {
             server.stop()

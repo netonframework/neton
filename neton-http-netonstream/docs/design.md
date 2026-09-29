@@ -80,5 +80,5 @@ name (`checkNetonHttpPackageClash`). See the README.
 ## Not in this phase
 
 WebSocket (no framework API), streamed request bodies (the dispatcher takes a `ByteArray`),
-trailers, the peer address (no neton-io API yet), the HTTP client adapter (phase 2), performance
+trailers, the HTTP client adapter (phase 2), performance
 comparison with hyper4k (phase 3).

@@ -32,6 +32,7 @@ import neton.io.net.GcTuning
 import neton.io.net.TcpServerGroup
 import neton.io.net.cpuCount
 import neton.io.net.listenGroup
+import neton.io.net.peerAddress
 import neton.io.net.runReactor
 import neton.logging.LoggerFactory
 import neton.openssl.TlsContext
@@ -135,7 +136,6 @@ public class NetonStreamHttpAdapter(
         Http2ServerConfig(),
     )
 
-    private val service = HttpService { request -> handle(request) }
 
     override val capabilities: Set<HttpCapability> = setOf(
         HttpCapability.ASYNC_HANDOFF,
@@ -231,6 +231,8 @@ public class NetonStreamHttpAdapter(
 
     /** One accepted connection, on its reactor: TLS if configured, then HTTP/1 or HTTP/2 until it ends. */
     private suspend fun serveConnection(stream: IoStream, tls: TlsContext?, shutdown: CompletableDeferred<Unit>) {
+        // The socket's peer, taken before TLS wraps it; an IPv4 client of a dual-stack listener as IPv4.
+        val peer = stream.peerAddress?.toCanonical()?.ipString() ?: ""
         val io: IoStream
         val alpn: String?
         if (tls != null) {
@@ -251,7 +253,7 @@ public class NetonStreamHttpAdapter(
             io = stream
             alpn = null
         }
-        val connection = autoConfig.serveConnection(io, alpn, service)
+        val connection = autoConfig.serveConnection(io, alpn, HttpService { request -> handle(request, peer) })
         coroutineScope {
             // Resumes on this connection's reactor, where gracefulShutdown must be called.
             val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -283,7 +285,7 @@ public class NetonStreamHttpAdapter(
      * `FullBody`; the connection hands it its own `Incoming`.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    internal suspend fun handle(request: StreamRequest<out StreamBody>): StreamResponse<out StreamBody> {
+    internal suspend fun handle(request: StreamRequest<out StreamBody>, peer: String = ""): StreamResponse<out StreamBody> {
         val connectionJob = currentCoroutineContext()[Job]
         val body = readBody(request.body, options.maxRequestBodyBytes)
             ?: return bodyTooLarge().toStreamResponse(connectionJob)
@@ -296,7 +298,7 @@ public class NetonStreamHttpAdapter(
             return failure(503, "Service Unavailable").toStreamResponse(connectionJob)
         }
         val acceptEncoding = headerString(request, "accept-encoding")
-        val buffered = request.toBuffered(body)
+        val buffered = request.toBuffered(body, peer)
         val ready = CompletableDeferred<EngineResponse>()
         val live = NetonStreamLiveResponse(
             corsHeaders = dispatcher.corsHeaders(buffered),
@@ -460,9 +462,10 @@ private fun bodyTooLarge() = EngineResponse(
  * library's [neton.http.header.HeaderMap] (case-insensitive); the full map is only built when
  * something asks for all headers, as the hyper4k adapter does.
  *
- * The peer address is empty: com.netonstream:io does not expose a TCP stream's peer (README, gaps).
+ * [peer] is the socket's peer IP (empty in-process); the framework prefers X-Forwarded-For for
+ * `remoteAddress` and keeps the socket peer as `peerAddress`.
  */
-private fun StreamRequest<*>.toBuffered(body: ByteArray): BufferedHttpRequest {
+private fun StreamRequest<*>.toBuffered(body: ByteArray, peer: String): BufferedHttpRequest {
     val headers = this.headers
     val uri = this.uri
     return BufferedHttpRequest(
@@ -470,7 +473,7 @@ private fun StreamRequest<*>.toBuffered(body: ByteArray): BufferedHttpRequest {
         path = uri.path.ifEmpty { "/" },
         query = uri.query ?: "",
         body = body,
-        remoteAddress = "",
+        remoteAddress = peer,
         singleHeader = { name -> headers[name]?.let(::headerText) },
         headersProvider = {
             val map = LinkedHashMap<String, MutableList<String>>()
