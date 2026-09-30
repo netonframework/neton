@@ -346,6 +346,25 @@ class NetonStreamServerTest {
         }
     }
 
+    /** The connection times an HTTP/1 body that stops arriving; the adapter answers 408 and the connection closes. */
+    @Test
+    fun bodyThatStopsArrivingIs408OnHttp1() = runBlocking {
+        val server = startServer(basicRoutes(), NetonStreamOptions(host = "127.0.0.1", reactors = 1, requestBodyTimeoutMillis = 300))
+        val client = RawClient(server.port)
+        try {
+            val started = kotlin.time.TimeSource.Monotonic.markNow()
+            client.send("POST /size HTTP/1.1\r\nHost: x\r\nContent-Length: 10\r\n\r\nabc")
+            val r = client.readResponse()
+            assertEquals(408, r.status)
+            assertEquals("close", r.header("connection"))
+            assertTrue(client.serverClosed(), "the connection closes after the 408")
+            assertTrue(started.elapsedNow().inWholeMilliseconds < 5_000, "answered within the deadline, not the test timeout")
+        } finally {
+            client.close()
+            server.stop()
+        }
+    }
+
     @Test
     fun chunkedBodyOverTheLimitIs413OnHttp1() = runBlocking {
         val server = startServer(basicRoutes(), NetonStreamOptions(host = "127.0.0.1", reactors = 1, maxRequestBodyBytes = 1024))

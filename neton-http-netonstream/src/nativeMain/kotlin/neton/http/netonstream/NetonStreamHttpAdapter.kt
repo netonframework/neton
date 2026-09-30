@@ -54,6 +54,7 @@ import neton.http.Body as StreamBody
 import neton.http.Frame as StreamFrame
 import neton.http.Request as StreamRequest
 import neton.http.Response as StreamResponse
+import neton.http.Version as StreamVersion
 import neton.http.auto.AutoServerConfig
 import neton.http.h1.Http1ServerConfig
 import neton.http.h1.HttpService
@@ -147,7 +148,9 @@ public class NetonStreamHttpAdapter(
         if (serverConfig.timeout > 0) minOf(serverConfig.timeout, 5_000L) else 5_000L
 
     private val autoConfig = AutoServerConfig(
-        Http1ServerConfig(maxRequestBodySize = options.maxRequestBodyBytes),
+        // HTTP/1 request bodies are timed by the connection itself (armed only once it has to wait for body bytes);
+        // HTTP/2 streams are timed around the read in handle().
+        Http1ServerConfig(maxRequestBodySize = options.maxRequestBodyBytes, bodyReadTimeoutMillis = options.requestBodyTimeoutMillis),
         Http2ServerConfig(),
     )
 
@@ -320,8 +323,8 @@ public class NetonStreamHttpAdapter(
             }
             val body = try {
                 if (request.body.isEndStream) EMPTY
-                else withTimeout(options.requestBodyTimeoutMillis) {
-                    readBody(request.body, options.maxRequestBodyBytes) { capacity ->
+                else {
+                    val grow: (Int) -> Unit = { capacity ->
                         val required = 2L * capacity
                         val extra = required - reservation
                         if (extra > 0) {
@@ -329,8 +332,18 @@ public class NetonStreamHttpAdapter(
                             reservation = required
                         }
                     }
+                    // HTTP/1: the connection enforces requestBodyTimeoutMillis (Http1ServerConfig.bodyReadTimeoutMillis) and
+                    // a buffered body never arms it; a kotlinx withTimeout here cost about 6,000 instructions per POST.
+                    if (request.version === StreamVersion.HTTP_2) {
+                        withTimeout(options.requestBodyTimeoutMillis) { readBody(request.body, options.maxRequestBodyBytes, grow) }
+                    } else {
+                        readBody(request.body, options.maxRequestBodyBytes, grow)
+                    }
                 }
             } catch (_: TimeoutCancellationException) {
+                return bodyTimeout().toStreamResponse(connectionJob)
+            } catch (e: neton.http.HttpError) {
+                if (!e.isTimeout()) throw e
                 return bodyTimeout().toStreamResponse(connectionJob)
             } catch (_: BodyBudgetExceeded) {
                 return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)

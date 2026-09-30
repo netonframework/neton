@@ -233,7 +233,8 @@ class LifecycleSafetyTest {
             NetonStreamOptions(maxRequestBodyBytes = 1024, maxBufferedRequestBytes = 2048, requestBodyTimeoutMillis = 200))
         adapter.bindContext(fixtureContext(emptyList()))
         val body = WaitingBody()
-        val first = async { adapter.handle(Request.post("/upload").body(body)) }
+        // HTTP/2: timed by the adapter (HTTP/1 bodies are timed by the connection, NetonStreamServerTest).
+        val first = async { adapter.handle(Request.post("/upload").version(neton.http.Version.HTTP_2).body(body)) }
         body.reading.await()
         val unread = WaitingBody()
         assertEquals(503, adapter.handle(Request.post("/upload").body(unread)).status.asU16())
