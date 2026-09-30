@@ -45,7 +45,7 @@ http({ NetonStreamHttpAdapter(it, NetonStreamOptions(reactors = 2)) }) { port = 
 | `tlsHandshakeTimeoutMillis` | 10 000 | |
 | `maxOpenConnections` | 16 384 | accepted TCP connections, separate from handler concurrency |
 | `maxBufferedRequestBytes` | 128 MiB | active upload/handler buffer reservations; not a process RSS limit |
-| `requestBodyTimeoutMillis` | 30 000 | whole-body upload deadline (408), also active when handler timeout is disabled |
+| `requestBodyTimeoutMillis` | 30 000 | upload deadline (408): HTTP/1 from the first wait for body bytes, HTTP/2 for the whole read; also active when handler timeout is disabled |
 
 GC tuning is opt-in through neton-io's environment variables (`NETON_IO_GC_MIN_HEAP_MB`,
 `NETON_IO_GC_THREAD_NICE`), applied when the engine starts. On Linux, `NETON_IO_DRIVER=epoll|iouring`
@@ -107,9 +107,11 @@ ALPN until the config parser reads arrays.
   This bounds this adapter's active request-buffer reservations, not socket buffers, GC garbage,
   application-retained arrays or response buffers. The chunk queue is bounded by count, not bytes.
   Rejection is 503 before reading; HTTP/1 with unread body closes rather than draining it indefinitely.
-  A body not received within `requestBodyTimeoutMillis` (30 s for the whole body by default; hyper4k has
-  no such limit, so slow large uploads need a larger value) is answered with 408 and the connection
-  closes; both reservations are released. A bodyless 503 retains keep-alive.
+  A body not received within `requestBodyTimeoutMillis` is answered with 408 and the connection closes;
+  both reservations are released (hyper4k has no such limit, so slow large uploads need a larger value).
+  On HTTP/1 the connection times it (http `Http1ServerConfig.bodyReadTimeoutMillis`) from the first time it
+  has to wait for body bytes, so a body that arrived with its head costs no timer; on HTTP/2 the adapter
+  times the whole read.
 - **Cancellation**: disconnect/reset cancels the associated handler; HEAD and bodyless status
   responses abandon their streaming producers without waiting for the keep-alive connection to end.
   Handlers must use `finally` for cleanup, not rely on a subsequent successful `writeChunk`.
