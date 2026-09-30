@@ -16,7 +16,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
@@ -139,7 +138,6 @@ public class NetonStreamHttpAdapter(
     /** Concurrent-request admission, hyper4k's semantics: a full house or a stopping server answers 503. */
     private val accepting = AtomicBoolean(true)
     private val activeRequests = AtomicInt(0)
-    private val slots = Semaphore(serverConfig.maxConnections)
     private val handlerJob = SupervisorJob()
     private val handlerScope = CoroutineScope(handlerJob + Dispatchers.Default)
 
@@ -273,7 +271,21 @@ public class NetonStreamHttpAdapter(
             io = stream
             alpn = null
         }
-        val connection = autoConfig.serveConnection(io, alpn, HttpService { request -> handle(request, peer) })
+        // Handlers of this connection are children of its own job, attached to the adapter's once per connection. A
+        // handler per request attached to one job shared by every reactor made all cores contend on that job's child
+        // list (measured: 180 ns per request on one thread, 3.7 us on each of eight).
+        val connectionHandlers = SupervisorJob(handlerJob)
+        val handlerScope = CoroutineScope(connectionHandlers + Dispatchers.Default)
+        val connection = autoConfig.serveConnection(io, alpn, HttpService { request -> handle(request, peer, handlerScope) })
+        try {
+            serve(connection, shutdown)
+        } finally {
+            // The connection is over: whatever its handlers still do has no one to answer (as a client that goes away).
+            connectionHandlers.cancel()
+        }
+    }
+
+    private suspend fun serve(connection: neton.http.auto.AutoConnection, shutdown: CompletableDeferred<Unit>) {
         coroutineScope {
             // Resumes on this connection's reactor, where gracefulShutdown must be called.
             val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -305,12 +317,15 @@ public class NetonStreamHttpAdapter(
      * `FullBody`; the connection hands it its own `Incoming`.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    internal suspend fun handle(request: StreamRequest<out StreamBody>, peer: String = ""): StreamResponse<out StreamBody> {
+    internal suspend fun handle(
+        request: StreamRequest<out StreamBody>,
+        peer: String = "",
+        handlerScope: CoroutineScope = this.handlerScope,
+    ): StreamResponse<out StreamBody> {
         val connectionJob = currentCoroutineContext()[Job]
-        if (!accepting.load() || !slots.tryAcquire()) {
+        if (!accepting.load() || !admit()) {
             return rejection(503, "Service Unavailable", !request.body.isEndStream).toStreamResponse(connectionJob)
         }
-        activeRequests.addAndFetch(1)
         var handedOff = false
         var reservation = 0L
         try {
@@ -424,14 +439,26 @@ public class NetonStreamHttpAdapter(
         }
     }
 
+    /** One more request in flight, unless [HttpServerConfig.maxConnections] are (hyper4k: 503 when full). */
+    private fun admit(): Boolean {
+        val max = serverConfig.maxConnections
+        while (true) {
+            val n = activeRequests.load()
+            if (n >= max) return false
+            if (activeRequests.compareAndSet(n, n + 1)) return true
+        }
+    }
+
     private fun release(reservation: Long = 0) {
         if (reservation != 0L) bufferedBytes.addAndFetch(-reservation)
         activeRequests.addAndFetch(-1)
-        slots.release()
     }
 
     /** Requests admitted and not yet finished (streams included). */
     internal val inFlightRequests: Int get() = activeRequests.load()
+
+    /** Tests: per-connection handler jobs still attached (each one leaves when its connection ends). */
+    internal val connectionHandlerJobs: Int get() = handlerJob.children.count()
     internal val reservedRequestBytes: Long get() = bufferedBytes.load()
 
     private fun rejection(status: Int, message: String, close: Boolean = true): EngineResponse {

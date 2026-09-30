@@ -346,6 +346,26 @@ class NetonStreamServerTest {
         }
     }
 
+    /** Every connection's handler job is detached when the connection ends: none are left behind. */
+    @Test
+    fun connectionHandlerJobsAreReleasedWithTheirConnections() = runBlocking {
+        val server = startServer(basicRoutes())
+        try {
+            repeat(20) {
+                val client = RawClient(server.port)
+                client.send(getRequest("/hello"))
+                assertEquals(200, client.readResponse().status)
+                client.close()
+            }
+            val deadline = TimeSource.Monotonic.markNow()
+            while (server.adapter.connectionHandlerJobs > 0 && deadline.elapsedNow().inWholeMilliseconds < 5_000) delay(20)
+            assertEquals(0, server.adapter.connectionHandlerJobs)
+            assertEquals(0, server.adapter.inFlightRequests)
+        } finally {
+            server.stop()
+        }
+    }
+
     /** The connection times an HTTP/1 body that stops arriving; the adapter answers 408 and the connection closes. */
     @Test
     fun bodyThatStopsArrivingIs408OnHttp1() = runBlocking {
