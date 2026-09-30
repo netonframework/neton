@@ -111,7 +111,7 @@ ALPN until the config parser reads arrays.
   both reservations are released (hyper4k has no such limit, so slow large uploads need a larger value).
   On HTTP/1 the connection times it (http `Http1ServerConfig.bodyReadTimeoutMillis`) from the first time it
   has to wait for body bytes, so a body that arrived with its head costs no timer; on HTTP/2 the adapter
-  times the whole read.
+  times the whole read. A bodyless 503 retains keep-alive.
 - **Cancellation**: disconnect/reset cancels the associated handler; HEAD and bodyless status
   responses abandon their streaming producers without waiting for the keep-alive connection to end.
   Handlers must use `finally` for cleanup, not rely on a subsequent successful `writeChunk`.
