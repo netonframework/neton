@@ -21,8 +21,8 @@ repositories {
     mavenCentral()
 }
 
-val netonstreamIo = "com.netonstream:io:0.1.0"
-val netonstreamHttp = "com.netonstream:http:0.1.0"
+val netonstreamIo = "com.netonstream:io:0.1.1"
+val netonstreamHttp = "com.netonstream:http:0.1.1"
 val netonstreamTls = "com.netonstream:tls:0.1.0"
 
 kotlin {
