@@ -145,20 +145,34 @@ internal fun encodeCookie(cookie: Cookie): String = buildString {
     }
 }
 
-/** Small MutableHeaders: keeps the original casing, looks up case-insensitively. */
+/**
+ * Small MutableHeaders: keeps the original casing, looks up case-insensitively.
+ *
+ * [toMap] is a read-only snapshot kept until the next change: the framework takes one after every
+ * dispatch, and the head the connection sends is usually that same snapshot, so one copy serves both.
+ */
 private class SimpleMutableHeaders : MutableHeaders {
     private val map = LinkedHashMap<String, MutableList<String>>()
+    private var snapshot: Map<String, List<String>>? = null
+    private var hasContentLength = false
 
     private fun actualName(name: String): String? = map.keys.firstOrNull { it.equals(name, ignoreCase = true) }
+
+    private fun changed() {
+        snapshot = null
+        hasContentLength = map.keys.any { it.equals("Content-Length", ignoreCase = true) }
+    }
 
     override fun get(name: String): String? = getAll(name).firstOrNull()
     override fun getAll(name: String): List<String> = actualName(name)?.let { map[it] } ?: emptyList()
     override fun contains(name: String): Boolean = actualName(name) != null
     override fun names(): Set<String> = map.keys
-    override fun toMap(): Map<String, List<String>> = map.mapValues { it.value.toList() }
+    override fun toMap(): Map<String, List<String>> =
+        snapshot ?: (if (map.isEmpty()) emptyMap() else map.mapValues { it.value.toList() }).also { snapshot = it }
 
+    /** The snapshot without Content-Length (the connection frames the body); the [toMap] snapshot itself when there is none. */
     fun snapshotWithoutContentLength(): Map<String, List<String>> {
-        if (map.isEmpty()) return emptyMap()
+        if (!hasContentLength) return toMap()
         return buildMap(map.size) {
             for ((name, values) in map) {
                 if (!name.equals("Content-Length", ignoreCase = true)) put(name, values.toList())
@@ -169,17 +183,21 @@ private class SimpleMutableHeaders : MutableHeaders {
     override fun set(name: String, value: String) {
         actualName(name)?.let(map::remove)
         map[name] = mutableListOf(value)
+        changed()
     }
 
     override fun add(name: String, value: String) {
         map.getOrPut(actualName(name) ?: name) { mutableListOf() }.add(value)
+        changed()
     }
 
     override fun remove(name: String) {
         actualName(name)?.let(map::remove)
+        changed()
     }
 
     override fun clear() {
         map.clear()
+        changed()
     }
 }
