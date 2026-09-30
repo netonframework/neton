@@ -87,8 +87,11 @@ public class NetonStreamOptions(
     init {
         require(reactors >= 1) { "reactors must be >= 1" }
         require(maxRequestBodyBytes in 1..(Int.MAX_VALUE / 2).toLong()) { "invalid request body limit" }
-        require(maxOpenConnections > 0 && maxBufferedRequestBytes >= 2 * maxRequestBodyBytes)
-        require(requestBodyTimeoutMillis > 0)
+        require(maxOpenConnections > 0) { "maxOpenConnections must be positive" }
+        require(maxBufferedRequestBytes >= 2 * maxRequestBodyBytes) {
+            "maxBufferedRequestBytes must be at least twice maxRequestBodyBytes (one body plus its resize copy)"
+        }
+        require(requestBodyTimeoutMillis > 0) { "requestBodyTimeoutMillis must be positive" }
         require(streamQueueCapacity >= 1) { "streamQueueCapacity must be >= 1" }
         require(tlsHandshakeTimeoutMillis > 0) { "tlsHandshakeTimeoutMillis must be positive" }
     }
@@ -328,7 +331,7 @@ public class NetonStreamHttpAdapter(
                     }
                 }
             } catch (_: TimeoutCancellationException) {
-                return rejection(504, "Gateway Timeout").toStreamResponse(connectionJob)
+                return bodyTimeout().toStreamResponse(connectionJob)
             } catch (_: BodyBudgetExceeded) {
                 return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
             } ?: return bodyTooLarge().toStreamResponse(connectionJob)
@@ -534,6 +537,17 @@ private suspend fun readBody(body: StreamBody, limit: Long, reserveCapacity: (In
 }
 
 private val EMPTY = ByteArray(0)
+
+/**
+ * A client that does not finish sending its body within `requestBodyTimeoutMillis`: 408 (RFC 9110
+ * §15.5.9, the client was too slow), not 504, which names a timeout of the server's own upstream.
+ * The body is left unread, so the connection closes.
+ */
+private fun bodyTimeout() = EngineResponse(
+    status = 408,
+    headers = mapOf("Content-Type" to listOf("text/plain; charset=utf-8"), "Connection" to listOf("close")),
+    body = "request body timeout".encodeToByteArray(),
+)
 
 /** hyper4k answers an oversized body with 413 and this text, before the handler is involved. */
 private fun bodyTooLarge() = EngineResponse(

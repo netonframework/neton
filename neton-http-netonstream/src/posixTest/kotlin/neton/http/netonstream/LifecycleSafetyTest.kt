@@ -238,7 +238,7 @@ class LifecycleSafetyTest {
         val unread = WaitingBody()
         assertEquals(503, adapter.handle(Request.post("/upload").body(unread)).status.asU16())
         assertFalse(unread.reading.isCompleted)
-        assertEquals(504, withTimeout(5_000) { first.await() }.status.asU16())
+        assertEquals(408, withTimeout(5_000) { first.await() }.status.asU16())
         assertEquals(0L, adapter.reservedRequestBytes)
         assertEquals(0, adapter.inFlightRequests)
     }
