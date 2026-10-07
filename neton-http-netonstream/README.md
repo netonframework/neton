@@ -5,8 +5,8 @@ or Ktor:
 
 | Library | Coordinates | Role |
 |---|---|---|
-| neton-io | `com.netonstream:io:0.1.1` | reactors (epoll / io_uring / kqueue / IOCP), multi-reactor TCP server |
-| http | `com.netonstream:http:0.1.1` | HTTP/1.1 (hyper 1.11.1), HTTP/2 (h2 0.4.19), both on one port (hyper-util `server::conn::auto`) |
+| neton-io | `com.netonstream:io:0.3.0` | reactors (epoll / io_uring / kqueue / IOCP), multi-reactor TCP server |
+| http | `com.netonstream:http:0.1.2` | HTTP/1.1 (hyper 1.11.1), HTTP/2 (h2 0.4.19), both on one port (hyper-util `server::conn::auto`) |
 | tls | `com.netonstream:tls:0.1.0` | TLS as an `IoStream` over OpenSSL 4.0.2 (`com.netonstream:openssl:0.1.0`), ALPN |
 
 Like every Neton engine it only moves bytes: routing, security, rate limiting, CORS, the response
