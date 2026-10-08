@@ -149,4 +149,32 @@ class RedisConfigMergeTest {
     fun fromMapRejectsNonBooleanDebug() {
         assertFailsWith<RedisException> { RedisSettings.fromMap(mapOf("debug" to "yes")) }
     }
+
+    // ---- ENV 覆盖：值一律是字符串，路径一律小写 ----
+
+    @Test
+    fun fromMapAcceptsNumericStringsFromEnv() {
+        // NETON_REDIS__PORT=6379 进来就是 "6379"；docker-compose 默认就这么写，拒绝它等于启动即崩
+        val s = RedisSettings.fromMap(
+            mapOf("port" to "6379", "database" to " 3 ", "poolSize" to "16", "timeout" to "2500", "debug" to "false")
+        )
+        assertEquals(6379, s.port)
+        assertEquals(3, s.database)
+        assertEquals(16, s.poolSize)
+        assertEquals(2500L, s.timeoutMs)
+        assertEquals(false, s.debug)
+    }
+
+    @Test
+    fun fromMapReadsLowercasedEnvKeys() {
+        // NETON_REDIS__KEYPREFIX / NETON_REDIS__POOLSIZE 被 ConfigOverrides 转成小写路径
+        val s = RedisSettings.fromMap(mapOf("keyprefix" to "nanogate", "poolsize" to "8"))
+        assertEquals("nanogate", s.keyPrefix)
+        assertEquals(8, s.poolSize)
+    }
+
+    @Test
+    fun fromMapRejectsFractionalStringPort() {
+        assertFailsWith<RedisException> { RedisSettings.fromMap(mapOf("port" to "6379.5")) }
+    }
 }
