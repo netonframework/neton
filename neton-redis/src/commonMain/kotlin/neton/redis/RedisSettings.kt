@@ -51,24 +51,31 @@ class RedisSettings {
          * 类型不对时直接报错，不回退默认值——静默丢配置正是这个模块此前的老毛病。
          */
         fun fromMap(m: Map<String, Any>): RedisSettings = RedisSettings().apply {
-            m["host"]?.let { host = it.toString() }
-            m["port"]?.let { port = it.intOrFail("port") }
+            // ENV 覆盖把路径转成小写（NETON_REDIS__KEYPREFIX → keyprefix），而文件里写驼峰 keyPrefix。
+            // 两者并存时小写那支来自 ENV，按 ENV > 文件 先取它。
+            fun v(key: String): Any? = m[key.lowercase()] ?: m[key]
+            v("host")?.let { host = it.toString() }
+            v("port")?.let { port = it.intOrFail("port") }
             // maxConnections 是 poolSize 的历史别名
-            (m["poolSize"] ?: m["maxConnections"])?.let { poolSize = it.intOrFail("poolSize") }
-            m["database"]?.let { database = it.intOrFail("database") }
-            m["password"]?.let { password = it.toString() }
-            m["timeout"]?.let { timeoutMs = it.longOrFail("timeout") }
-            m["debug"]?.let {
-                debug = it as? Boolean
+            (v("poolSize") ?: v("maxConnections"))?.let { poolSize = it.intOrFail("poolSize") }
+            v("database")?.let { database = it.intOrFail("database") }
+            v("password")?.let { password = it.toString() }
+            v("timeout")?.let { timeoutMs = it.longOrFail("timeout") }
+            v("debug")?.let {
+                debug = it as? Boolean ?: it.toString().trim().toBooleanStrictOrNull()
                     ?: throw RedisException("redis.conf: 'debug' must be a boolean, got '$it'")
             }
-            m["keyPrefix"]?.let { keyPrefix = it.toString() }
+            v("keyPrefix")?.let { keyPrefix = it.toString() }
         }
 
+        // ENV 覆盖的值一律是字符串（NETON_REDIS__PORT=6379 → "6379"），整数串照收；
+        // 其余（"abc"、"6379.5"）仍然报错，不静默回退默认值。
         private fun Any.intOrFail(key: String): Int = (this as? Number)?.toInt()
+            ?: toString().trim().toIntOrNull()
             ?: throw RedisException("redis.conf: '$key' must be a number, got '$this'")
 
         private fun Any.longOrFail(key: String): Long = (this as? Number)?.toLong()
+            ?: toString().trim().toLongOrNull()
             ?: throw RedisException("redis.conf: '$key' must be a number, got '$this'")
     }
 }
