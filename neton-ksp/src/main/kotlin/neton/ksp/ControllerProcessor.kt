@@ -393,6 +393,11 @@ ${
     ) {
         val controllerName = controller.qualifiedName!!.asString()
         val methodName = function.simpleName.asString()
+        if (function.annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocket" } &&
+            function.annotations.count { httpAnnotations.containsKey(it.shortName.asString()) } != 1) {
+            logger.error("Neton @WebSocket cannot be combined with an HTTP method annotation", function)
+            return
+        }
 
         // 获取 HTTP 注解信息
         val httpAnnotation = function.annotations.first { annotation ->
@@ -400,6 +405,25 @@ ${
         }
 
         val httpMethod = httpAnnotations[httpAnnotation.shortName.asString()]!!
+        val websocket = httpAnnotation.annotationType.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocket"
+        if (websocket) {
+            if (function.annotations.count { httpAnnotations.containsKey(it.shortName.asString()) } != 1) {
+                logger.error("Neton @WebSocket cannot be combined with an HTTP method annotation", function)
+                return
+            }
+            val sessions = function.parameters.filter { it.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession" }
+            if (Modifier.SUSPEND !in function.modifiers || sessions.size != 1 || sessions.single().type.resolve().isMarkedNullable ||
+                function.returnType?.resolve()?.declaration?.qualifiedName?.asString() != "kotlin.Unit") {
+                logger.error("Neton @WebSocket requires suspend fun, Unit return and exactly one non-null WebSocketSession", function)
+                return
+            }
+            if (function.annotations.any { it.shortName.asString() in setOf("Lock", "Cacheable", "CachePut", "CacheEvict") } ||
+                function.parameters.any { it.annotations.any { a -> a.shortName.asString() in setOf("Body", "FormParam") } ||
+                    it.type.resolve().declaration.qualifiedName?.asString() in setOf("neton.core.http.HttpResponse", "neton.core.http.UploadFile", "neton.core.http.UploadFiles") }) {
+                logger.error("Neton @WebSocket does not support HTTP response/body bindings, caching or locks around the session", function)
+                return
+            }
+        }
         val functionPath = httpAnnotation.arguments.firstOrNull()?.value as? String ?: ""
         // 规范化路径：去掉多余尾斜杠，使 GET /api/products 可匹配（列表接口无尾斜杠）
         val base = controllerBasePath.trimEnd('/').ifEmpty { "" }
@@ -498,6 +522,37 @@ ${
             (ann.annotationType.resolve().declaration as? KSClassDeclaration)?.qualifiedName?.asString() == "neton.cache.CacheEvict"
         }
 
+        if (websocket) {
+            val protocols = (httpAnnotation.arguments.firstOrNull { it.name?.asString() == "subprotocols" }?.value as? List<*>)
+                .orEmpty().filterIsInstance<String>()
+            fun quote(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
+            val bindings = function.parameters.mapIndexedNotNull { i, p ->
+                if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession") null
+                else "val wsArg$i = ${generateMethodCallParameters(function, fullPath, httpMethod, p)}"
+            }.joinToString("\n                    ")
+            val arguments = function.parameters.mapIndexed { i, p ->
+                if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession") "session" else "wsArg$i"
+            }.joinToString(", ")
+            writer.write("""
+        engine.registerRoute(RouteDefinition(
+            pattern = ${quote(fullPath)}, method = HttpMethod.GET,
+            handler = object : RouteHandler {
+                override suspend fun invoke(context: HttpContext, args: HandlerArgs): Any? = error("Upgrade required")
+            },
+            upgrade = neton.ws.preparedWebSocketEndpoint(listOf(${protocols.joinToString(", ") { quote(it) }})) { context, args ->
+                val ctrl = $controllerInstantiation
+                $bindings
+                val runSession: suspend (neton.ws.WebSocketSession) -> Unit = { session -> ctrl.$methodName($arguments) }
+                runSession
+            },
+            controllerClass = ${quote(controllerName)}, methodName = ${quote(methodName)},
+            routeGroup = ${routeGroupFromPackage(controller)?.let(::quote) ?: "null"},
+            allowAnonymous = $allowAnonymous, requireAuth = $requireAuth,
+            permission = ${permission?.let(::quote) ?: "null"}, rateLimit = $rateLimitCode, freshAuth = $freshAuth
+        ))
+""")
+            return
+        }
         val innerInvoke = "ctrl.$methodName(${generateMethodCallParameters(function, fullPath, httpMethod)})"
         // 检查返回类型是否为 @Serializable，如果是则在编译期生成 JSON 序列化代码
         val returnType = function.returnType?.resolve()
@@ -582,13 +637,14 @@ ${
     private fun generateMethodCallParameters(
         function: KSFunctionDeclaration,
         fullPath: String,
-        httpMethod: String
+        httpMethod: String,
+        only: KSValueParameter? = null,
     ): String {
         val pathParamNames = Regex("\\{([^}]+)\\}").findAll(fullPath).map { it.groupValues[1] }.toSet()
         val bodyMethods = setOf("POST", "PUT", "PATCH")
         val queryMethods = setOf("GET", "HEAD", "DELETE") + bodyMethods // POST 简单类型也走 query
 
-        return function.parameters.joinToString(", ") { param ->
+        return function.parameters.filter { only == null || it == only }.joinToString(", ") { param ->
             val paramName = param.name!!.asString()
             val paramType = param.type.resolve().declaration.qualifiedName?.asString() ?: "kotlin.Any"
             val isNullable = param.type.resolve().isMarkedNullable
@@ -1131,7 +1187,8 @@ ${
         "Delete" to "DELETE",
         "Patch" to "PATCH",
         "Head" to "HEAD",
-        "Options" to "OPTIONS"
+        "Options" to "OPTIONS",
+        "WebSocket" to "GET",
     )
 }
 

@@ -75,6 +75,14 @@ class RouteGroupScope(
     private val prefix: String,
     private val routeGroup: String
 ) {
+    fun upgrade(path: String, endpoint: neton.core.http.upgrade.UpgradeEndpoint) {
+        engine.registerRoute(RouteDefinition(
+            pattern = joinPath(path), method = HttpMethod.GET, routeGroup = routeGroup,
+            handler = object : RouteHandler {
+                override suspend fun invoke(context: HttpContext, args: HandlerArgs): Any? = error("Upgrade endpoint required")
+            }, upgrade = endpoint,
+        ))
+    }
     private fun joinPath(path: String): String {
         val p = if (path.startsWith("/")) path else "/$path"
         val pre = prefix.trimEnd('/')

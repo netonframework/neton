@@ -33,6 +33,7 @@ include(":neton")            // 使用方入口：core + logging + http + routin
 include(":examples:helloworld")
 include(":examples:sse-demo")
 include(":examples:netonstream-hello")
+include(":examples:websocket-echo")
 include(":examples:cache-demo")
 include(":examples:multigroup")
 include(":examples:mvc")

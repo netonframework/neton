@@ -64,8 +64,8 @@ interface WebSocketEngineProvider {
 }
 
 sealed interface WebSocketEngineEvent {
-    class Text(val text: String) : WebSocketEngineEvent
-    class Binary(val bytes: ByteArray) : WebSocketEngineEvent
+    class Text(val text: String, val lease: BudgetLease = BudgetLease(UnlimitedByteBudget, 0)) : WebSocketEngineEvent
+    class Binary(val bytes: ByteArray, val lease: BudgetLease = BudgetLease(UnlimitedByteBudget, 0)) : WebSocketEngineEvent
     class Pong(val bytes: ByteArray) : WebSocketEngineEvent
     class CloseReceived(val code: Int?, val reason: String) : WebSocketEngineEvent
 }
@@ -79,6 +79,8 @@ sealed interface WebSocketEngineEvent {
 interface WebSocketEngineConnection {
     val executor: CoroutineDispatcher
     suspend fun receive(): WebSocketEngineEvent?
+    suspend fun receive(budget: ByteBudget): WebSocketEngineEvent? = error("Preallocation budget unsupported")
+    fun discardData() = Unit
     suspend fun writeText(text: String)
     suspend fun writeBinary(bytes: ByteArray)
     suspend fun writePing(bytes: ByteArray)

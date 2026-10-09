@@ -154,8 +154,8 @@ includes Hyper4k; applications using its HTTP client must add `neton-http-hyper4
 ### Optional WebSocket Engine Integration
 
 `neton-websocket` includes its own default provider and allows an explicit third-party provider.
-It is not included by the umbrella dependency. This is currently an experimental engine bridge,
-not a completed route/session feature; see [implementation status](neton-websocket/README.md).
+It is not included by the umbrella dependency. DSL and annotated routes, managed sessions,
+heartbeat and bounded queues are implemented; see [usage and validation status](neton-websocket/README.md).
 
 ### Mail (SMTP transport)
 

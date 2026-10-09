@@ -35,6 +35,7 @@ internal class EngineResponse(
     val headers: Map<String, List<String>>,
     val body: ByteArray,
     val stream: LiveBody? = null,
+    val upgrade: neton.core.http.upgrade.UpgradeDecision.Accept? = null,
 ) {
     val isStreamed: Boolean get() = stream != null
 }

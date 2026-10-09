@@ -46,7 +46,7 @@ class DefaultProviderTest {
     @Test fun explicitProviderWinsAndStateIsPerApplication() = runBlocking {
         val custom = object : WebSocketEngineProvider {
             override val name = "custom"
-            override val capabilities = setOf(WebSocketEngineCapability.MESSAGE_LIMITS)
+            override val capabilities = WebSocketEngineCapability.entries.toSet()
             override fun supports(adapter: HttpAdapter) = true
             override fun handshake(request: HandshakeRequest, offer: HandshakeOffer) = HandshakeResult.Rejected(403, "test")
             override suspend fun open(connection: UpgradedConnection, negotiated: Negotiated, limits: EngineLimits): WebSocketEngineConnection = error("not used")
@@ -79,7 +79,9 @@ class DefaultProviderTest {
     @Test fun unsupportedBudgetContractCannotSilentlyPass(): Unit = runBlocking {
         val ctx = NetonContext(emptyArray())
         ctx.bind(HttpAdapter::class, DefaultHttpAdapter(HttpServerConfig(port = 0)))
-        val component = WebSocketComponent()
+        val component = WebSocketComponent { object : WebSocketEngineProvider by DefaultWebSocketEngineProvider() {
+            override val capabilities = setOf(WebSocketEngineCapability.MESSAGE_LIMITS)
+        } }
         component.init(ctx, WebSocketConfig().apply {
             requiredCapabilities = setOf(WebSocketEngineCapability.PREALLOCATION_BUDGET)
         })
@@ -193,6 +195,24 @@ class DefaultProviderTest {
             val engine = provider.open(DefaultUpgradedConnection(prefixed, executor), negotiated, EngineLimits())
             try { assertEquals("x", assertIs<WebSocketEngineEvent.Text>(engine.receive()).text) }
             finally { engine.abort(); b.close() }
+        }
+    }
+
+    @Test fun payloadReservationRefusedBeforeWaitingForPayload() = runReactor {
+        withTimeout(3000) {
+            val provider = DefaultWebSocketEngineProvider()
+            val negotiated = assertIs<HandshakeResult.Accepted>(provider.handshake(request())).negotiated
+            val (server, peer) = memoryStreamPair()
+            val executor = currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher
+            val engine = provider.open(DefaultUpgradedConnection(server, executor), negotiated, EngineLimits())
+            val budget = RuntimeBudget(1024)
+            try {
+                val header = neton.io.bytes.Buffer()
+                header.writeBytes(byteArrayOf(0x82.toByte(), 0xfe.toByte(), 0x10, 0, 0, 0, 0, 0))
+                while (!header.isEmpty) peer.write(header)
+                assertFailsWith<WebSocketCapacityException> { engine.receive(budget) }
+                assertEquals(0L, budget.usage)
+            } finally { engine.abort(); peer.close() }
         }
     }
 }

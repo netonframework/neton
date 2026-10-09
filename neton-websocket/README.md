@@ -6,27 +6,55 @@ Optional framework module with a built-in `DefaultWebSocketEngineProvider` wrapp
 ```kotlin
 import neton.http.http
 import neton.ws.websocket
+import neton.ws.webSocket
+import neton.routing.routing
+import kotlinx.coroutines.flow.collect
 
 Neton.run(args) {
     http { port = 8080 }
     websocket { } // installs the built-in provider
     // websocket(::MyProvider) { } // explicit replacement, not an additional installation
+    routing {
+        webSocket("/echo") { session ->
+            session.incoming.collect { session.send(it) }
+        }
+    }
 }
 ```
 
 ## Current implementation boundary
 
-This is the engine integration foundation, NOT a completed WebSocket server feature.
-Provider installation, compatibility validation, protocol handshake and executor-confined
-engine connections are implemented. The built-in provider does not yet implement shared
-preallocation budgets and deliberately does not advertise `PREALLOCATION_BUDGET`.
-Requiring that capability fails validation instead of silently dropping the limit.
+HTTP/1.1 upgrade, DSL routes, `@WebSocket` controller generation, managed sessions,
+heartbeat, bounded queues and shutdown are implemented. Handshakes pass through the HTTP
+security/rate-limit path; parameter binding and Origin checks happen before 101. The HTTP
+request permit is released at handoff, while TCP and WebSocket connection limits remain.
+See `examples/websocket-echo` for both entry points. The default HTTP adapter supports upgrade;
+other adapters must explicitly implement `PROTOCOL_UPGRADE` and a compatible provider.
 
-HTTP route upgrade dispatch, the business `WebSocketSession`, annotation/KSP generation,
-managed heartbeat, shared budgets and graceful server shutdown are NOT implemented here.
-`websocket { }` installs a provider only; it does not register or serve an endpoint. The HTTP
-adapter does not declare protocol-upgrade capability until the route handoff is implemented.
-Do not publish this module as a completed implementation of the WebSocket SPEC.
+Control and protocol operations stay on the connection executor; business handlers run on
+`Dispatchers.Default`. Only one collector may consume `incoming`. `send` means accepted, not
+delivered. Binary arrays are borrowed until send returns and copied after budget reservation;
+do not mutate them during send. Quiet connections that answer Pong remain connected. Ping is
+sent every 30 seconds by default, with a 10-second Pong deadline starting after write completion.
+Consumer stalls and blocked writes have separate deadlines. Business-message idle timeout is off.
+
+The default queue budget is 512 MiB globally and 8 MiB per connection per direction. Admission
+conservatively charges eight times payload size (inbound: at least 1024 bytes per fragment) to
+cover reassembly and conversion copies. It is NOT an RSS ceiling: codec/TLS buffers, object
+overhead and business-owned messages are separate. Waiting sends also have count and retained-byte
+limits. Resource exhaustion closes the growing inbound connection with 1013; control/close
+frames do not wait for application queue budget. Shutdown rejects new tickets and closes active
+or pending upgrades with 1001. Uncooperative business code cannot block transport cleanup forever.
+
+Missing Origin is allowed for non-browser clients; otherwise the default is same-origin.
+Use explicit `allowedOrigins` for cross-origin browser access. Compression, HTTP/2/3 extended
+CONNECT, Hub and typed-message APIs are outside this release. `compression=true` is rejected.
+
+Validation includes macOS runtime/protocol tests, real TCP and verified TLS upgrade/echo, pre-read frames,
+HTTP quota release, early Pong, budget rejection and shutdown; Linux x64/arm64 compile checks.
+Linux runtime, Windows and controlled performance acceptance remain
+release gates. No throughput or production-readiness claim follows from unit-test counts.
+Development currently requires the sibling WebSocket library source admission changes.
 
 ## Boundaries
 
@@ -37,6 +65,6 @@ Do not publish this module as a completed implementation of the WebSocket SPEC.
 
 The protocol engine alone answers peer Ping and Close frames. Applications must not call the
 low-level connection concurrently from arbitrary threads. Its owner keeps reading during the
-closing handshake and always calls `abort()` in `finally`; managed sessions will enforce this.
+closing handshake and always calls `abort()` in `finally`; managed sessions enforce this.
 The module is optional and is not added to the `neton` umbrella. Its built-in protocol dependency
 is present even when selecting a third-party provider, matching the default HTTP engine model.

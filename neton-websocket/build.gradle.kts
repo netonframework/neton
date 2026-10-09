@@ -10,7 +10,9 @@ kotlin {
         commonMain.dependencies {
             api(project(":neton-core"))
             api(project(":neton-http"))
+            api(project(":neton-routing"))
             implementation(libs.kotlinx.coroutines.core)
+            implementation(project(":neton-logging"))
         }
         commonTest.dependencies { implementation(kotlin("test")) }
         val nativeMain by creating {
@@ -19,7 +21,11 @@ kotlin {
         }
         val nativeTest by creating {
             dependsOn(commonTest.get())
-            dependencies { implementation("com.netonstream:websocket:0.2.0") }
+            dependencies {
+                implementation("com.netonstream:websocket:0.2.0")
+                implementation("com.netonstream:tls:0.2.0")
+                implementation("com.netonstream:openssl:4.0.2")
+            }
         }
         macosArm64Main.get().dependsOn(nativeMain)
         macosX64Main.get().dependsOn(nativeMain)

@@ -20,6 +20,17 @@ class HttpComponent(
 
     override fun defaultConfig(): HttpConfig = HttpConfig()
 
+    override suspend fun prepare(ctx: NetonContext) {
+        val routes = ctx.getOrNull<neton.core.interfaces.RequestEngine>()?.getRoutes().orEmpty()
+        val upgrades = routes.filter { it.upgrade != null }
+        if (upgrades.isNotEmpty()) {
+            check(neton.core.http.adapter.HttpCapability.PROTOCOL_UPGRADE in ctx.get<HttpAdapter>().capabilities) {
+                "HTTP adapter cannot upgrade routes: ${upgrades.joinToString { it.pattern }}"
+            }
+            upgrades.forEach { it.upgrade!!.validate(ctx) }
+        }
+    }
+
     override suspend fun init(ctx: NetonContext, config: HttpConfig) {
         val registry = ctx.getOrNull(neton.core.http.ParamConverterRegistry::class)
             ?: config.converterRegistry

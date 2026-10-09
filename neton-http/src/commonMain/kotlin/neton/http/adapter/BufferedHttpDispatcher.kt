@@ -77,6 +77,9 @@ public class BufferedHttpRequest private constructor(
     /** transport 层对端地址（无 X-Forwarded-For 时用于 remoteAddress / access log userIp）。 */
     public val remoteAddress: String = "",
     private val rawHeaders: ByteArray? = null,
+    public val protocolVersion: String = "HTTP/1.1",
+    public val secure: Boolean? = null,
+    public val canUpgrade: Boolean = false,
 ) {
     public constructor(
         method: String,
@@ -133,7 +136,11 @@ public class BufferedHttpRequest private constructor(
         remoteAddress: String,
         singleHeader: (String) -> String?,
         headersProvider: () -> Map<String, List<String>>,
-    ) : this(method, path, query, headersProvider, singleHeader, body, remoteAddress)
+        protocolVersion: String = "HTTP/1.1",
+        secure: Boolean? = null,
+        canUpgrade: Boolean = false,
+    ) : this(method, path, query, headersProvider, singleHeader, body, remoteAddress,
+        protocolVersion = protocolVersion, secure = secure, canUpgrade = canUpgrade)
 
     private var headersOrNull: Map<String, List<String>>? = null
     public val headers: Map<String, List<String>>
@@ -211,6 +218,7 @@ public class BufferedHttpResponse(
     public val headers: Map<String, List<String>> = emptyMap(),
     public val body: ByteArray = ByteArray(0),
     public val streamed: Boolean = false,
+    public val upgrade: neton.core.http.upgrade.UpgradeDecision.Accept? = null,
 )
 
 /**
@@ -224,6 +232,8 @@ public class BufferedHttpResponse(
 public class BufferedHttpDispatcher(
     private val serverConfig: HttpServerConfig,
 ) {
+    public var hasUpgrades: Boolean = false
+        private set
     private var requestEngine: RequestEngine? = null
     private var rateLimitGate: RateLimitGate? = null
     private var appContext: NetonContext? = null
@@ -266,6 +276,7 @@ public class BufferedHttpDispatcher(
         securityInstalled = (ctx.getOrNull(SecurityConfiguration::class)?.isEnabled == true) ||
             (groupSecurity != null && groupSecurity.configs.isNotEmpty())
         compiledRoutes = buildCompiledRoutes(ctx)
+        hasUpgrades = compiledRoutes.any { it.route.upgrade != null }
         tailRoutes = compiledRoutes
             .filter { it.tailParameter != null }
             .sortedByDescending { it.prefixSegmentCount }
@@ -393,6 +404,21 @@ public class BufferedHttpDispatcher(
             if (!allowed) {
                 // gate 已把 429（含 X-RateLimit-* / Retry-After）写入 response，直接快照返回。
                 return DispatchOutcome(snapshotResponse(context), matched.route.pattern, context)
+            }
+
+            matched.route.upgrade?.let { endpoint ->
+                if (!request.canUpgrade || request.protocolVersion != "HTTP/1.1") {
+                    return DispatchOutcome(BufferedHttpResponse(426), matched.route.pattern, context)
+                }
+                val args = ArgsView(matched.pathParameters,
+                    { name -> queryParamFirst(request.query, name) },
+                    { name -> queryParamAll(request.query, name) }, Unit)
+                val decision = endpoint.decide(context, args)
+                val response = when (decision) {
+                    is neton.core.http.upgrade.UpgradeDecision.Reject -> BufferedHttpResponse(decision.status, decision.headers)
+                    is neton.core.http.upgrade.UpgradeDecision.Accept -> BufferedHttpResponse(101, decision.headers, upgrade = decision)
+                }
+                return DispatchOutcome(response, matched.route.pattern, context)
             }
 
             val result = matched.route.handler.invoke(
@@ -607,6 +633,7 @@ public class BufferedHttpDispatcher(
     }
 
     private fun applyCors(request: BufferedHttpRequest, response: BufferedHttpResponse): BufferedHttpResponse {
+        if (response.upgrade != null) return response
         val extra = corsHeaders(request)
         if (extra.isEmpty()) return response
         val headers = response.headers.toMutableMap().apply { putAll(extra) }
@@ -1203,7 +1230,7 @@ private class BufferedHttpRequestView(
     private var urlOrNull: String? = null
     override val url: String
         get() = urlOrNull ?: (if (source.query.isEmpty()) path else "$path?${source.query}").also { urlOrNull = it }
-    override val version: String = "HTTP/1.1"
+    override val version: String get() = source.protocolVersion
     private var headersOrNull: neton.core.http.Headers? = null
     override val headers: neton.core.http.Headers
         get() = headersOrNull ?: MapHeaders(source.headers).also { headersOrNull = it }
@@ -1239,10 +1266,8 @@ private class BufferedHttpRequestView(
 
     /** 真实 socket 对端（不受 XFF 影响）：IP 白名单/可信代理判定必须以此为起点。 */
     override val peerAddress: String get() = source.remoteAddress
-    private var isSecureOrNull: Boolean? = null
     override val isSecure: Boolean
-        get() = isSecureOrNull
-            ?: (source.header("X-Forwarded-Proto")?.equals("https", ignoreCase = true) == true).also { isSecureOrNull = it }
+        get() = source.secure ?: (source.header("X-Forwarded-Proto")?.equals("https", ignoreCase = true) == true)
 
     override suspend fun body(): ByteArray = source.body.copyOf()
     override suspend fun text(): String = source.body.decodeToString()

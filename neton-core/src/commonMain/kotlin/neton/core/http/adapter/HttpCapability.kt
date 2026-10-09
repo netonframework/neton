@@ -17,6 +17,8 @@ package neton.core.http.adapter
  * 枚举一旦泛化成 feature flag 列表，启动期校验就变成噪音，没人再认真看。
  */
 enum class HttpCapability {
+    /** HTTP/1.1 upgrade with unread bytes and connection lifetime transferred intact. */
+    PROTOCOL_UPGRADE,
     /** HTTP/2（h2c 或 h2）。声明它意味着引擎能协商并服务 HTTP/2 连接。 */
     HTTP_2,
 

@@ -23,7 +23,7 @@ import kotlin.coroutines.ContinuationInterceptor
 /** Built in, not discovered by classpath scanning. Protocol policy remains outside this bridge. */
 class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
     override val name = "NetonStream"
-    override val capabilities = setOf(WebSocketEngineCapability.MESSAGE_LIMITS)
+    override val capabilities = setOf(WebSocketEngineCapability.MESSAGE_LIMITS, WebSocketEngineCapability.PREALLOCATION_BUDGET)
     override fun supports(adapter: HttpAdapter) = adapter is DefaultHttpAdapter
 
     private class State(val owner: DefaultWebSocketEngineProvider) : Negotiated
@@ -88,17 +88,43 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
     ) : WebSocketEngineConnection {
         override val executor get() = transport.executor
         private var aborted = false
+        private var budget: ByteBudget = UnlimitedByteBudget
+        private var reserved = 0L
+
+        init {
+            socket.setInboundAdmission { bytes ->
+                // Conservative payload charge covers frame storage, reassembly growth and
+                // the framework's byte/string copy. Codec/TLS fixed buffers are separate.
+                val charge = maxOf(bytes, 128).toLong() * 8
+                if (!budget.tryReserve(charge)) throw WebSocketCapacityException()
+                reserved += charge
+            }
+        }
+
+        private fun lease(): BudgetLease = BudgetLease(budget, reserved).also { reserved = 0 }
+
+        override fun discardData() {
+            socket.discardData()
+            budget.release(reserved)
+            reserved = 0
+        }
 
         private suspend fun checkExecutor() {
             check(currentCoroutineContext()[ContinuationInterceptor] === executor) { "WebSocket engine access on wrong executor" }
         }
 
         override suspend fun receive(): WebSocketEngineEvent? {
+            return receive(UnlimitedByteBudget)
+        }
+
+        override suspend fun receive(budget: ByteBudget): WebSocketEngineEvent? {
             checkExecutor()
+            check(reserved == 0L || this.budget === budget) { "Cannot change an in-progress message budget" }
+            this.budget = budget
             while (true) {
                 when (val message = socket.receive() ?: return null) {
-                    is Message.Text -> return WebSocketEngineEvent.Text(message.text.asString())
-                    is Message.Binary -> return WebSocketEngineEvent.Binary(message.data.toByteArray())
+                    is Message.Text -> return WebSocketEngineEvent.Text(message.text.asString(), lease())
+                    is Message.Binary -> return WebSocketEngineEvent.Binary(message.data.toByteArray(), lease())
                     is Message.Pong -> return WebSocketEngineEvent.Pong(message.data.toByteArray())
                     is Message.Close -> return WebSocketEngineEvent.CloseReceived(message.frame?.code?.code, message.frame?.reason?.asString() ?: "")
                     is Message.Ping -> Unit // The protocol engine, not the framework, supplies the Pong.
@@ -130,7 +156,11 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
         override fun abort() {
             if (aborted) return
             aborted = true
-            try { socket.abort() } finally { transport.close() }
+            try { socket.abort() } finally {
+                budget.release(reserved)
+                reserved = 0
+                transport.close()
+            }
         }
     }
 }

@@ -42,7 +42,7 @@ class NetonStreamAdapterTest {
         assertEquals("NetonStream", adapter.adapterName())
         assertEquals(8123, adapter.port())
         assertEquals(
-            setOf(HttpCapability.ASYNC_HANDOFF, HttpCapability.STREAMING_RESPONSE, HttpCapability.HTTP_2),
+            setOf(HttpCapability.ASYNC_HANDOFF, HttpCapability.STREAMING_RESPONSE, HttpCapability.HTTP_2, HttpCapability.PROTOCOL_UPGRADE),
             adapter.capabilities,
         )
     }

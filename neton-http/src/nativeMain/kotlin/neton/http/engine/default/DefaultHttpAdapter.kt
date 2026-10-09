@@ -154,6 +154,7 @@ public class DefaultHttpAdapter(
 
 
     override val capabilities: Set<HttpCapability> = setOf(
+        HttpCapability.PROTOCOL_UPGRADE,
         HttpCapability.ASYNC_HANDOFF,
         // Earned by tests, not asserted: the conformance suite's streaming checks and the
         // adapter's h2c / TLS-ALPN tests fail the build if either stops holding.
@@ -276,10 +277,27 @@ public class DefaultHttpAdapter(
         // list (measured: 180 ns per request on one thread, 3.7 us on each of eight).
         val connectionHandlers = SupervisorJob(handlerJob)
         val handlerScope = CoroutineScope(connectionHandlers + Dispatchers.Default)
-        val connection = autoConfig.serveConnection(io, alpn, HttpService { request -> handle(request, peer, handlerScope) })
+        var pending: Pair<neton.http.Extensions, neton.core.http.upgrade.UpgradeDecision.Accept>? = null
+        val upgrades = dispatcher.hasUpgrades
+        val service = HttpService { request ->
+            handle(request, peer, handlerScope, tls != null,
+                if (upgrades) { decision ->
+                    check(pending == null) { "Multiple upgrades on one connection" }
+                    pending = request.extensions to decision
+                } else null)
+        }
+        val connection = if (upgrades) autoConfig.serveConnectionWithUpgrades(io, alpn, service)
+            else autoConfig.serveConnection(io, alpn, service)
         try {
             serve(connection, shutdown)
+            pending?.let { (extensions, decision) ->
+                val upgraded = neton.http.upgradeOn(extensions)
+                val executor = currentCoroutineContext()[kotlin.coroutines.ContinuationInterceptor] as kotlinx.coroutines.CoroutineDispatcher
+                val transport = DefaultUpgradedConnection(upgraded, executor)
+                try { decision.run(transport, shutdown) } finally { transport.close() }
+            }
         } finally {
+            pending?.second?.release()
             // The connection is over: whatever its handlers still do has no one to answer (as a client that goes away).
             connectionHandlers.cancel()
         }
@@ -321,6 +339,8 @@ public class DefaultHttpAdapter(
         request: StreamRequest<out StreamBody>,
         peer: String = "",
         handlerScope: CoroutineScope = this.handlerScope,
+        secure: Boolean = false,
+        onUpgrade: ((neton.core.http.upgrade.UpgradeDecision.Accept) -> Unit)? = null,
     ): StreamResponse<out StreamBody> {
         val connectionJob = currentCoroutineContext()[Job]
         if (!accepting.load() || !admit()) {
@@ -364,7 +384,18 @@ public class DefaultHttpAdapter(
                 return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
             } ?: return bodyTooLarge().toStreamResponse(connectionJob)
             val acceptEncoding = headerString(request, "accept-encoding")
-            val buffered = request.toBuffered(body, peer)
+            val buffered = request.toBuffered(body, peer, secure,
+                onUpgrade != null && request.extensions.get<neton.http.OnUpgrade>() != null)
+            if (buffered.canUpgrade) {
+                // Keep reservation and handoff on the connection executor. No detached handler can
+                // produce an accepted ticket after the HTTP connection has already been cancelled.
+                val result = if (serverConfig.timeout > 0) withTimeout(serverConfig.timeout) { dispatcher.dispatch(buffered) }
+                    else dispatcher.dispatch(buffered)
+                result.upgrade?.let { decision ->
+                    try { requireNotNull(onUpgrade)(decision) } catch (e: Throwable) { decision.release(); throw e }
+                }
+                return result.toEngine().toStreamResponse(connectionJob)
+            }
             val ready = CompletableDeferred<EngineResponse>()
             val live = NetonStreamLiveResponse(
                 corsHeaders = dispatcher.corsHeaders(buffered),
@@ -406,6 +437,9 @@ public class DefaultHttpAdapter(
                 throw e
             }
             response.stream?.bindProducer(handler)
+            response.upgrade?.let { decision ->
+                try { requireNotNull(onUpgrade)(decision) } catch (e: Throwable) { decision.release(); throw e }
+            }
             if (response.stream != null &&
                 (request.method.asStr() == "HEAD" || response.status in 100..199 || response.status == 204 || response.status == 304)) {
                 response.stream.markGone()
@@ -425,6 +459,7 @@ public class DefaultHttpAdapter(
     ): EngineResponse? {
         val result = dispatcher.dispatch(buffered, live)
         return when {
+            result.upgrade != null -> result.toEngine()
             live.isStreaming -> null
             live.isCommitted -> maybeCompress(serverConfig.enableCompression, acceptEncoding, live.completeResponse())
             else -> maybeCompress(serverConfig.enableCompression, acceptEncoding, result.toEngine())
@@ -604,7 +639,7 @@ private fun bodyTooLarge() = EngineResponse(
  * [peer] is the socket's peer IP (empty in-process); the framework prefers X-Forwarded-For for
  * `remoteAddress` and keeps the socket peer as `peerAddress`.
  */
-private fun StreamRequest<*>.toBuffered(body: ByteArray, peer: String): BufferedHttpRequest {
+private fun StreamRequest<*>.toBuffered(body: ByteArray, peer: String, secure: Boolean, canUpgrade: Boolean): BufferedHttpRequest {
     val headers = this.headers
     val uri = this.uri
     return BufferedHttpRequest(
@@ -613,6 +648,13 @@ private fun StreamRequest<*>.toBuffered(body: ByteArray, peer: String): Buffered
         query = uri.query ?: "",
         body = body,
         remoteAddress = peer,
+        protocolVersion = when (version) {
+            StreamVersion.HTTP_10 -> "HTTP/1.0"
+            StreamVersion.HTTP_11 -> "HTTP/1.1"
+            else -> "HTTP/2"
+        },
+        secure = secure,
+        canUpgrade = canUpgrade,
         singleHeader = { name -> headers[name]?.let(::headerText) },
         headersProvider = {
             val map = LinkedHashMap<String, MutableList<String>>()
@@ -627,7 +669,7 @@ private fun headerString(request: StreamRequest<*>, name: String): String? = req
 /** Header bytes as text; values outside visible ASCII are decoded as UTF-8 rather than dropped. */
 private fun headerText(value: StreamHeaderValue): String = value.tryToStr() ?: value.asBytes().decodeToString()
 
-private fun BufferedHttpResponse.toEngine(): EngineResponse = EngineResponse(status, headers, body)
+private fun BufferedHttpResponse.toEngine(): EngineResponse = EngineResponse(status, headers, body, upgrade = upgrade)
 
 /**
  * Runs [block] without arming a timer unless it actually suspends (hyper4k's `lazyTimeout`):
