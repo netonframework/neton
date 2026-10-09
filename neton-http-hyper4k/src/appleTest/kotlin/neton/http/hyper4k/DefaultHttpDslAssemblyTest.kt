@@ -17,7 +17,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * 装配契约：不具名的 `http { }` 必须解析到 [Hyper4kHttpAdapter]。
+ * 装配契约：即使依赖 Hyper4k，不具名的 `http { }` 仍选择框架内置适配器。
  *
  * 这条走完整的 Neton.run，测的是重载解析的结果而不是源码长相 —— 默认引擎是靠
  * `neton.http` 包下的一个无参重载建立的，任何人在该包里再加一个 `http` 重载都可能
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 class DefaultHttpDslAssemblyTest {
 
     @Test
-    fun bareHttpDslResolvesToHyper4kAdapter() {
+    fun bareHttpDslResolvesToBuiltInAdapter() {
         var resolved: HttpAdapter? = null
 
         Neton.run(emptyArray()) {
@@ -40,7 +40,7 @@ class DefaultHttpDslAssemblyTest {
         }
 
         assertTrue(resolved != null, "onReady 未执行，装配没有走到 READY")
-        assertIs<Hyper4kHttpAdapter>(resolved)
+        assertIs<neton.http.engine.default.DefaultHttpAdapter>(resolved)
     }
 
     private object RequestEngineComponent : NetonComponent<Unit> {

@@ -12,10 +12,10 @@ rootProject.name = "neton"
 // 🚀 Neton Framework - 现代化平铺模块结构
 include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ 实现（neton.logging.internal，单模块内分层）
 include(":neton-core")       // 主框架模块
-include(":neton-http")       // HTTP 组件模块：纯 API / 模型 / Dispatcher / 能力契约
+include(":neton-http")       // HTTP 集成与内置 DefaultHttpAdapter
+include(":neton-websocket")  // 可选 WebSocket 模块，包含默认 provider
 include(":neton-http-hyper4k") // Hyper4k 适配层（Rust 引擎本体是独立仓库）
 include(":neton-http-ktor")    // Ktor 兼容适配层
-include(":neton-http-netonstream") // Kotlin/Native 引擎适配层（com.netonstream:io / http / tls）
 include(":neton-ai")         // AI 抽象层（generateText/streamText/tool loop/router/usage, OpenAi-compat + Anthropic v0.1）
 include(":neton-routing")    // 路由组件模块
 include(":neton-security")   // 安全组件模块

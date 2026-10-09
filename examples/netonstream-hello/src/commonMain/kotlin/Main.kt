@@ -3,7 +3,6 @@ import neton.core.Neton
 import neton.core.http.sse
 import neton.core.component.tls
 import neton.http.http
-import neton.http.netonstream.NetonStreamHttpAdapter
 import neton.routing.*
 
 /**
@@ -12,7 +11,7 @@ import neton.routing.*
  */
 fun main(args: Array<String>) {
     Neton.run(args) {
-        http(::NetonStreamHttpAdapter) {
+        http {
             port = 8080
             // `--tls`: terminate TLS with certs/cert.pem + certs/key.pem, HTTP/2 or HTTP/1.1 by ALPN.
             // (The DSL, not `[http.tls]` in application.conf: the framework's config parser does

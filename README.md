@@ -136,8 +136,9 @@ levels = "ALL"
 
 ### HTTP Engines
 
-`neton-http` uses Ktor by default and does not know about Hyper. Applications that need Hyper add
-the external `neton-http-hyper4k` adapter and pass its constructor to the HTTP component:
+`neton-http` includes `neton.http.engine.default.DefaultHttpAdapter`, backed by the Kotlin/Native
+io/http/tls libraries. `http { port = 8080 }` always selects this built-in server.
+Applications that need Hyper4k add `neton-http-hyper4k` and pass its constructor explicitly:
 
 ```kotlin
 Neton.run(args) {
@@ -145,8 +146,16 @@ Neton.run(args) {
 }
 ```
 
-The default `http { }` overload selects Ktor. Adapter selection is compile-time application code,
-not an `application.conf` setting or a runtime registry.
+Adding another adapter dependency does not change the default. Adapter selection is compile-time
+application code, not an `application.conf` setting or a runtime registry.
+See [default engine and migration](neton-http/DEFAULT_ENGINE.md). The `neton` umbrella no longer
+includes Hyper4k; applications using its HTTP client must add `neton-http-hyper4k` explicitly.
+
+### Optional WebSocket Engine Integration
+
+`neton-websocket` includes its own default provider and allows an explicit third-party provider.
+It is not included by the umbrella dependency. This is currently an experimental engine bridge,
+not a completed route/session feature; see [implementation status](neton-websocket/README.md).
 
 ### Mail (SMTP transport)
 

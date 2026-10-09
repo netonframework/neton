@@ -1,10 +1,10 @@
 # netonstream-hello
 
-A minimal application on the netonstream engine (`neton-http-netonstream`): HTTP/1.1 and h2c on
+A minimal application on the netonstream engine (`neton-http`): HTTP/1.1 and h2c on
 one port, gzip, SSE and cookies, optionally TLS with ALPN.
 
 The engine uses `com.netonstream:io`, `http` and `tls` version 0.1.0 from Maven Central
-(see `neton-http-netonstream/README.md`).
+(see `neton-http/README.md`).
 
 ```bash
 ./gradlew :examples:netonstream-hello:linkDebugExecutableMacosArm64

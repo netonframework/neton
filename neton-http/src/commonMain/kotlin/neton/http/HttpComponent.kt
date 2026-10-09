@@ -15,7 +15,7 @@ import neton.core.config.ConfigLoader
  * HTTP 组件 - 无内部状态，port/config 在 Component，Adapter 内部持有
  */
 class HttpComponent(
-    private val adapterFactory: HttpAdapterFactory,
+    private val adapterFactory: HttpAdapterFactory = ::createDefaultHttpAdapter,
 ) : NetonComponent<HttpConfig> {
 
     override fun defaultConfig(): HttpConfig = HttpConfig()
@@ -116,9 +116,11 @@ class HttpComponent(
 }
 
 
-/** Installs an application-selected server adapter using a Native-safe constructor reference. */
+internal expect fun createDefaultHttpAdapter(config: HttpServerConfig): HttpAdapter
+
+/** Uses the built-in engine unless an explicit adapter factory is supplied. */
 fun neton.core.Neton.LaunchBuilder.http(
-    adapterFactory: HttpAdapterFactory,
+    adapterFactory: HttpAdapterFactory = ::createDefaultHttpAdapter,
     block: HttpConfig.() -> Unit = {},
 ) {
     install(HttpComponent(adapterFactory), block)

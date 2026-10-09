@@ -17,7 +17,7 @@ object MissingHttpEngine
  */
 @Deprecated(
     message = "No HTTP engine on the classpath. HttpClient.create { } is provided by an engine module: " +
-        "add com.netonstream:neton-http-hyper4k, or depend on com.netonstream:neton which includes it.",
+        "add com.netonstream:neton-http-hyper4k explicitly (the neton umbrella includes only the default server).",
     level = DeprecationLevel.ERROR,
 )
 @Suppress("UNUSED_PARAMETER")
