@@ -1,9 +1,9 @@
 [versions]
-kotlin = "2.4.0"
+kotlin = "2.4.20"
 cryptography-kotlin = "0.6.0"
 kotlinx-io = "0.9.1"  # kotlinx-io-bytestring，与 cryptography-kotlin 的 kotlinx-io-core 对齐
 ksp = "2.3.10"
-kctfork = "0.13.0"  # Kotlin Compile Testing，跑 KSP 编译契约测试；对齐 Kotlin 2.4.0
+kctfork = "0.14.0"  # Kotlin Compile Testing，跑 KSP 编译契约测试；对齐 Kotlin 2.4.20
 ktor = "3.5.1"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"

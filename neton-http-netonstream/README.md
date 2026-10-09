@@ -12,7 +12,7 @@ or Ktor:
 Like every Neton engine it only moves bytes: routing, security, rate limiting, CORS, the response
 envelope and logging are the framework's shared `BufferedHttpDispatcher`.
 
-Targets: macosArm64, macosX64, linuxX64, linuxArm64, mingwX64 (Kotlin 2.4.0).
+Targets: macosArm64, macosX64, linuxX64, linuxArm64, mingwX64 (Kotlin 2.4.20).
 
 ## Selecting it
 
