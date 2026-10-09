@@ -52,3 +52,25 @@ if (useLocalHyper4k) {
     require(file("../hyper4k").isDirectory) { "-Phyper4k.local=true requires ../hyper4k" }
     includeBuild("../hyper4k")
 }
+
+// netonstream 协议栈（io / http / tls / openssl / websocket）。WebSocket 集成阶段全部依赖兄弟目录的源码，
+// 不发布版本（neton-docs spec/websocket.md §3）。开关显式写在 gradle.properties，不做隐式探测；
+// 与发布验证用的 netonstream.repository 互斥。恢复发布前按 spec §3.4 关闭。
+val useLocalNetonstream = providers.gradleProperty("netonstream.local").orNull == "true"
+require(!useLocalNetonstream || !providers.gradleProperty("netonstream.repository").isPresent) {
+    "Choose netonstream source substitution OR artifact verification, not both."
+}
+if (useLocalNetonstream) {
+    for (dir in listOf("../io", "../http", "../tls", "../websocket")) {
+        require(file(dir).isDirectory) { "netonstream.local=true requires $dir" }
+        includeBuild(dir)
+    }
+    // openssl-kotlin builds only the host target unless run with -PnativeTargets=all, while tls declares all
+    // ten, so substituting it breaks tls's other targets; building all ten means compiling OpenSSL with the
+    // NDK, iOS SDK and MinGW toolchains. It only binds upstream OpenSSL and is not developed in this round:
+    // the published com.netonstream:openssl that tls pins is used unless asked for explicitly.
+    if (providers.gradleProperty("netonstream.local.openssl").orNull == "true") {
+        require(file("../openssl-kotlin").isDirectory) { "netonstream.local.openssl=true requires ../openssl-kotlin" }
+        includeBuild("../openssl-kotlin")
+    }
+}

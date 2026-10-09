@@ -21,9 +21,9 @@ repositories {
     mavenCentral()
 }
 
-val netonstreamIo = "com.netonstream:io:0.3.0"
-val netonstreamHttp = "com.netonstream:http:0.1.2"
-val netonstreamTls = "com.netonstream:tls:0.1.0"
+val netonstreamIo = "com.netonstream:io:0.3.2"
+val netonstreamHttp = "com.netonstream:http:0.2.0"
+val netonstreamTls = "com.netonstream:tls:0.2.0"
 
 kotlin {
     macosArm64()
@@ -85,14 +85,21 @@ val netonstreamSources: Configuration by configurations.creating {
     isTransitive = false
 }
 
-dependencies {
-    netonstreamSources("$netonstreamHttp:sources@jar")
+// With netonstream.local the library is a source build (settings.gradle.kts) and has no published
+// sources jar: the check reads ../http's main source sets instead, the same files the jar carries.
+val netonstreamLocal = providers.gradleProperty("netonstream.local").orNull == "true"
+if (!netonstreamLocal) {
+    dependencies {
+        netonstreamSources("$netonstreamHttp:sources@jar")
+    }
 }
+val localHttpMainSources = rootProject.file("../http/http/src").listFiles()
+    .orEmpty().filter { it.isDirectory && it.name.endsWith("Main") }
 
 val checkNetonHttpPackageClash by tasks.registering {
     group = "verification"
     description = "Fails if the framework and com.netonstream:http declare the same top-level name in package neton.http."
-    val sources = netonstreamSources
+    val sources: FileCollection = if (netonstreamLocal) files(localHttpMainSources) else netonstreamSources
     val frameworkDirs = rootProject.subprojects
         .filter { !it.path.startsWith(":examples") }
         .map { it.file("src") }
@@ -132,9 +139,10 @@ val checkNetonHttpPackageClash by tasks.registering {
         }
 
         val library = mutableMapOf<String, String>()
-        for (jar in sources.files) {
-            zipTree(jar).matching { include("**/*.kt") }.forEach { f ->
-                for (n in topLevelNames(f.readText())) library.putIfAbsent(n, "${jar.name}!${f.name}")
+        for (root in sources.files) {
+            val tree = if (root.isDirectory) fileTree(root) else zipTree(root)
+            tree.matching { include("**/*.kt") }.forEach { f ->
+                for (n in topLevelNames(f.readText())) library.putIfAbsent(n, "${root.name}!${f.name}")
             }
         }
         check(library.isNotEmpty()) { "no neton.http declarations found in ${sources.files}; the check would pass vacuously" }
