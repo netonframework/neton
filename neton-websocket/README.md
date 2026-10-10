@@ -64,7 +64,52 @@ Linux runtime, Windows and controlled performance acceptance remain
 release gates. No throughput or production-readiness claim follows from unit-test counts.
 Development currently requires the sibling WebSocket library source admission changes.
 
-## Boundaries
+## Session contract migration
+
+Sessions expose `handshake: HandshakeInfo`, not the mutable HTTP context or its response.
+Identity implements the existing `Identity` interface but is a detached snapshot, not a
+live authorization check. Headers are omitted unless explicitly allowed by
+`handshakeHeaderNames`; retained UTF-8 snapshot content is limited by
+`maxHandshakeSnapshotBytes` (default 64 KiB). This payload limit is not an RSS limit.
+
+Use `awaitClosed()` instead of a publicly cancellable deferred. Cancelling one observer
+does not cancel other observers or the transport. `CloseResult` distinguishes the original
+trigger, requested/sent/received Close frames, and final termination. An empty peer Close
+has a null code, not 1000. Closure is published after transport/queue cleanup and before
+waiting for business cleanup, so business `finally` may await it without a cyclic wait.
+
+`incoming` permits one collector at a time and can be collected again after `first()` or
+`take()` finishes; unread messages continue without replay. Handler child coroutines must
+finish before normal handler completion closes the connection. Shared handler fields are
+not connection-local. Register an injectable `WebSocketHandler` directly with
+`webSocket("/chat", handler)` or keep using a trailing lambda.
+
+Each connection has a unique `sessionId`, unrelated to its authenticated user ID or login
+session/token ID. Multiple connections for one user have different IDs. It is not a credential.
+Application user/session registries, authorization-domain separation and subscriptions remain
+application concerns. They are not automatically installed by the WebSocket component.
+
+## Inbound policies and engine verification
+
+`webSocket("/push", inboundPolicy = InboundPolicy.REJECT_DATA) { ... }` rejects data with
+1008 before allocating its payload. `DISCARD_DATA` validates framing, masking, message size
+and incremental UTF-8 without assembling messages. Controls still work. The default is
+`BACKPRESSURE`. Controller annotations and Handler-object overloads accept the same policy.
+Unsupported policies fail route validation before the server starts. Non-delivery policies
+currently require uncompressed connections; the framework does not negotiate compression.
+
+The protocol driver yields after at most 32 discard processing turns, each consuming at most
+16 KiB. Empty frames also consume a turn. This bounds individual work batches, not tail
+latency under arbitrary load. Large-scale mixed-load performance acceptance remains pending.
+
+Third-party providers can run `neton.ws.conformance.WebSocketEngineConformanceSuite` with
+an independent peer fixture. Its checks cover text/empty Close, automatic Pong, preallocation
+refusal, frame limits, rejection, validated discard and abort waking a read. Declared capabilities
+must not skip their checks. `RuntimeTest` separately exercises common session policy against
+controllable fake engines. These tests supplement, not replace, full protocol interoperability
+and platform validation. API/SPI stability is not declared yet.
+
+## Module boundaries
 
 - `neton.ws.spi`: experimental, engine-neutral provider and connection contracts.
 - `neton.ws.engine.default`: the built-in library bridge; third parties implement the SPI.

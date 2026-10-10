@@ -525,6 +525,7 @@ ${
         if (websocket) {
             val protocols = (httpAnnotation.arguments.firstOrNull { it.name?.asString() == "subprotocols" }?.value as? List<*>)
                 .orEmpty().filterIsInstance<String>()
+            val policy = httpAnnotation.arguments.firstOrNull { it.name?.asString() == "inboundPolicy" }?.enumName() ?: "BACKPRESSURE"
             fun quote(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
             val bindings = function.parameters.mapIndexedNotNull { i, p ->
                 if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession") null
@@ -539,7 +540,7 @@ ${
             handler = object : RouteHandler {
                 override suspend fun invoke(context: HttpContext, args: HandlerArgs): Any? = error("Upgrade required")
             },
-            upgrade = neton.ws.preparedWebSocketEndpoint(listOf(${protocols.joinToString(", ") { quote(it) }})) { context, args ->
+            upgrade = neton.ws.preparedWebSocketEndpoint(listOf(${protocols.joinToString(", ") { quote(it) }}), inboundPolicy = neton.ws.InboundPolicy.$policy) { context, args ->
                 val ctrl = $controllerInstantiation
                 $bindings
                 val runSession: suspend (neton.ws.WebSocketSession) -> Unit = { session -> ctrl.$methodName($arguments) }

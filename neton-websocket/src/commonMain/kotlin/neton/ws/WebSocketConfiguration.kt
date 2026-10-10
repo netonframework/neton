@@ -35,6 +35,11 @@ internal fun WebSocketConfig.loadApplicationConfig(ctx: NetonContext) {
     long("writeTimeoutMillis")?.let { writeTimeoutMillis = it }
     long("closeTimeoutMillis")?.let { closeTimeoutMillis = it }
     long("handlerShutdownMillis")?.let { handlerShutdownMillis = it }
+    long("maxHandshakeSnapshotBytes")?.let { maxHandshakeSnapshotBytes = it }
+    section["handshakeHeaderNames"]?.let { names ->
+        require(names is List<*> && names.all { it is String }) { "websocket.handshakeHeaderNames must be a list of strings" }
+        handshakeHeaderNames = names.filterIsInstance<String>().toSet()
+    }
     bool("allowMissingOrigin")?.let { allowMissingOrigin = it }
     require(bool("compression") != true) { "Managed WebSocket compression is not supported yet" }
     section["allowedOrigins"]?.let { origins ->

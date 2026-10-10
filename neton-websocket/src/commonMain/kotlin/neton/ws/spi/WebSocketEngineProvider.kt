@@ -13,6 +13,8 @@ enum class WebSocketEngineCapability {
     MESSAGE_LIMITS,
     /** Reserve payload bytes before allocating/reassembling data; not an RSS or copy-overhead limit. */
     PREALLOCATION_BUDGET,
+    REJECT_DATA,
+    VALIDATED_DISCARD,
 }
 
 data class EngineLimits(
@@ -64,6 +66,7 @@ interface WebSocketEngineProvider {
 }
 
 sealed interface WebSocketEngineEvent {
+    data object DataRejected : WebSocketEngineEvent
     class Text(val text: String, val lease: BudgetLease = BudgetLease(UnlimitedByteBudget, 0)) : WebSocketEngineEvent
     class Binary(val bytes: ByteArray, val lease: BudgetLease = BudgetLease(UnlimitedByteBudget, 0)) : WebSocketEngineEvent
     class Pong(val bytes: ByteArray) : WebSocketEngineEvent
@@ -78,6 +81,10 @@ sealed interface WebSocketEngineEvent {
 @ExperimentalWebSocketEngineApi
 interface WebSocketEngineConnection {
     val executor: CoroutineDispatcher
+    /** Select before receiving. Unsupported policies must fail, never silently degrade. */
+    fun configureInbound(policy: neton.ws.InboundPolicy) {
+        require(policy == neton.ws.InboundPolicy.BACKPRESSURE) { "Inbound policy unsupported" }
+    }
     suspend fun receive(): WebSocketEngineEvent?
     suspend fun receive(budget: ByteBudget): WebSocketEngineEvent? = error("Preallocation budget unsupported")
     fun discardData() = Unit
@@ -85,6 +92,6 @@ interface WebSocketEngineConnection {
     suspend fun writeBinary(bytes: ByteArray)
     suspend fun writePing(bytes: ByteArray)
     /** Initiate the handshake; the owner must keep receiving and enforce a close deadline. */
-    suspend fun writeClose(code: Int = 1000, reason: String = "")
+    suspend fun writeClose(code: Int? = 1000, reason: String = "")
     fun abort()
 }

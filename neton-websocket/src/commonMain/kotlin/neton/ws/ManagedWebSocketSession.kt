@@ -9,8 +9,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.selects.onTimeout
-import neton.core.http.HttpContext
-import neton.logging.LoggerFactory
 import neton.ws.spi.*
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.random.Random
@@ -19,14 +17,16 @@ import kotlin.time.TimeSource
 internal class ManagedWebSocketSession(
     private val runtime: WebSocketRuntime,
     private val engine: WebSocketEngineConnection,
-    override val context: HttpContext,
-    override val subprotocol: String?,
+    override val handshake: HandshakeInfo,
+    private val warning: (String) -> Unit = {},
 ) : WebSocketSession {
+    @OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+    override val sessionId: String = kotlin.uuid.Uuid.random().toString()
     private val config = runtime.config
     private val start = TimeSource.Monotonic.markNow()
     private fun now() = start.elapsedNow().inWholeMilliseconds
     private fun warn(event: String) {
-        runCatching { context.getApplicationContext()?.getOrNull(LoggerFactory::class)?.get("neton.websocket")?.warn(event) }
+        runCatching { warning(event) }
     }
     private val inLocal = RuntimeBudget(config.maxQueuedBytesPerConnection)
     private val outLocal = RuntimeBudget(config.maxQueuedBytesPerConnection)
@@ -46,15 +46,19 @@ internal class ManagedWebSocketSession(
     private class Entry(val message: WebSocketMessage, val lease: BudgetLease)
     private val inbound = Channel<Entry>(config.queueCapacity, onUndeliveredElement = { it.lease.release() })
     private val outbound = Channel<Entry>(config.queueCapacity, onUndeliveredElement = { it.lease.release() })
-    private val closing = CompletableDeferred<WebSocketClose>()
-    private val finished = CompletableDeferred<WebSocketClose>()
-    private val closedResult = CompletableDeferred<WebSocketClose>()
-    override val closed: Deferred<WebSocketClose> get() = closedResult
+    private val closing = CompletableDeferred<CloseFrameInfo>()
+    private val finished = CompletableDeferred<CloseTermination>()
+    private val closedResult = CompletableDeferred<CloseResult>()
+    override suspend fun awaitClosed(): CloseResult = closedResult.await()
+    private var trigger = CloseTrigger.TRANSPORT_FAILURE
+    private var localRequest: CloseFrameInfo? = null
+    private var sentClose: CloseFrameInfo? = null
+    private var receivedClose: CloseFrameInfo? = null
     private val collecting = AtomicBoolean(false)
     private var peerClosed = false
     private var closeWritten = false
     private var drainOutbound = false
-    private var closeReason: WebSocketClose? = null
+    private var closeReason: CloseFrameInfo? = null
     private var readPaused = false
     private var lastInbound = 0L
     private var pendingPing: ByteArray? = null
@@ -80,7 +84,7 @@ internal class ManagedWebSocketSession(
         }
         require(bytes <= config.engineLimits.maxMessageBytes) { "Message exceeds maxMessageBytes" }
         withContext(engine.executor) {
-            val retained = bytes * 2
+            val retained = bytes
             var localCount = false
             var globalCount = false
             var held = false
@@ -129,25 +133,27 @@ internal class ManagedWebSocketSession(
     override suspend fun close(code: Int, reason: String) {
         require(code in setOf(1000, 1001, 1002, 1003, 1007, 1008, 1009, 1011, 1012, 1013, 1014) || code in 3000..4999)
         require(utf8Bytes(reason) <= 123)
-        withContext(engine.executor) { requestClose(WebSocketClose(code, reason), drain = code == 1000) }
+        withContext(engine.executor) { requestClose(CloseFrameInfo(code, reason), drain = code == 1000) }
     }
 
-    private fun requestClose(reason: WebSocketClose, drain: Boolean = false) {
+    private fun requestClose(reason: CloseFrameInfo, drain: Boolean = false, cause: CloseTrigger = CloseTrigger.APPLICATION) {
         if (closing.complete(reason)) {
+            trigger = cause
+            if (cause != CloseTrigger.PEER) localRequest = reason
             closeReason = reason
             drainOutbound = drain
             pendingPing = null
             pingFlushedAt = null
             if (runCatching { engine.discardData() }.isFailure) {
                 warn("websocket.engine.discard.failed")
-                finished.complete(WebSocketClose(1006, "Engine cleanup failed"))
+                finished.complete(CloseTermination.TRANSPORT_FAILURE)
             }
             inbound.cancel()
             if (drain) outbound.close() else outbound.cancel()
             heartbeatWake.trySend(Unit)
         } else if (!drain) {
             // Peer close, shutdown or failure can interrupt an earlier normal drain.
-            if (drainOutbound) closeReason = reason
+            if (drainOutbound && !closeWritten) closeReason = reason
             drainOutbound = false
             outbound.cancel()
         }
@@ -156,14 +162,15 @@ internal class ManagedWebSocketSession(
     suspend fun run(serverShutdown: Deferred<Unit>, handler: suspend (WebSocketSession) -> Unit) {
         var business: Job? = null
         val businessParent = SupervisorJob()
-        var result = WebSocketClose(1006, "Transport closed")
+        var termination = CloseTermination.FORCED_ABORT
         try {
             coroutineScope {
                 val reader = launch {
-                    while (true) {
-                        try {
+                    try {
+                        while (true) {
                             when (val event = engine.receive(inboundBudget)) {
-                                null -> { finished.complete(WebSocketClose(1006, "Transport EOF")); return@launch }
+                                WebSocketEngineEvent.DataRejected -> requestClose(CloseFrameInfo(1008, "Inbound data forbidden"))
+                                null -> { finished.complete(CloseTermination.PEER_EOF); return@launch }
                                 is WebSocketEngineEvent.Text -> deliver(Entry(WebSocketMessage.Text(event.text), event.lease))
                                 is WebSocketEngineEvent.Binary -> deliver(Entry(WebSocketMessage.Binary(event.bytes), event.lease))
                                 is WebSocketEngineEvent.Pong -> {
@@ -173,20 +180,21 @@ internal class ManagedWebSocketSession(
                                 }
                                 is WebSocketEngineEvent.CloseReceived -> {
                                     peerClosed = true
-                                    val close = WebSocketClose(event.code ?: 1000, event.reason)
-                                    requestClose(close)
-                                    if (closeWritten) finished.complete(close)
+                                    receivedClose = CloseFrameInfo(event.code, event.reason)
+                                    requestClose(receivedClose!!, cause = CloseTrigger.PEER)
+                                    if (closeWritten) finished.complete(CloseTermination.HANDSHAKE_COMPLETE)
                                     return@launch
                                 }
                             }
-                        } catch (e: CancellationException) {
-                            if (!closing.isCompleted || !currentCoroutineContext().isActive) throw e
-                        } catch (_: WebSocketCapacityException) {
-                            requestClose(WebSocketClose(1013, "Resource pressure"))
-                        } catch (_: Exception) {
-                            finished.complete(WebSocketClose(1006, "Read failed"))
-                            return@launch
                         }
+                    } catch (e: CancellationException) {
+                        if (!currentCoroutineContext().isActive) throw e
+                        finished.complete(CloseTermination.TRANSPORT_FAILURE)
+                    } catch (_: WebSocketCapacityException) {
+                        requestClose(CloseFrameInfo(1013, "Resource pressure"), cause = CloseTrigger.RESOURCE_PRESSURE)
+                        // The failed read cannot be resumed safely; bound cleanup with the close deadline.
+                    } catch (_: Exception) {
+                        finished.complete(CloseTermination.TRANSPORT_FAILURE)
                     }
                 }
                 val writer = launch {
@@ -200,8 +208,9 @@ internal class ManagedWebSocketSession(
                                     }
                                     val effectiveReason = closeReason ?: reason
                                     withTimeout(config.writeTimeoutMillis) { engine.writeClose(effectiveReason.code, effectiveReason.reason) }
+                                    sentClose = effectiveReason
                                     closeWritten = true
-                                    if (peerClosed) finished.complete(effectiveReason)
+                                    if (peerClosed) finished.complete(CloseTermination.HANDSHAKE_COMPLETE)
                                 }
                                 pingReady.onReceive { payload ->
                                     withTimeout(config.writeTimeoutMillis) { engine.writePing(payload) }
@@ -215,32 +224,53 @@ internal class ManagedWebSocketSession(
                             }
                             if (closeWritten) return@launch
                         }
+                    } catch (_: TimeoutCancellationException) {
+                        finished.complete(CloseTermination.WRITE_TIMEOUT)
+                    } catch (e: CancellationException) {
+                        if (!currentCoroutineContext().isActive) throw e
+                        finished.complete(CloseTermination.TRANSPORT_FAILURE)
                     } catch (_: Exception) {
-                        finished.complete(if (peerClosed) closing.await() else WebSocketClose(1006, "Write blocked or failed"))
+                        finished.complete(CloseTermination.TRANSPORT_FAILURE)
                     }
                 }
                 val closingDeadline = launch {
-                    val reason = closing.await()
+                    closing.await()
                     delay(config.closeTimeoutMillis)
-                    finished.complete(if (closeWritten) closeReason ?: reason else WebSocketClose(1006, "Close drain timed out"))
+                    finished.complete(CloseTermination.CLOSE_TIMEOUT)
                 }
                 val stop = launch {
                     select<Unit> { serverShutdown.onAwait { }; runtime.shutdown.onAwait { } }
-                    requestClose(WebSocketClose(1001, "Server stopping"))
+                    requestClose(CloseFrameInfo(1001, "Server stopping"), cause = CloseTrigger.SERVER_SHUTDOWN)
                 }
                 val heartbeat = launch { heartbeat() }
-                // Business code never runs on the I/O executor. Its cancellation cannot prevent transport cleanup.
-                if (serverShutdown.isCompleted || runtime.shutdown.isCompleted) requestClose(WebSocketClose(1001, "Server stopping"))
-                business = if (closing.isCompleted) null else CoroutineScope(businessParent + Dispatchers.Default).launch {
-                    try { handler(this@ManagedWebSocketSession); close() }
-                    catch (_: TimeoutCancellationException) { runCatching { close(1001, "Handler timed out") } }
-                    catch (_: WebSocketCapacityException) { runCatching { close(1013, "Resource pressure") } }
-                    catch (_: CancellationException) { }
-                    catch (_: Exception) { runCatching { close(1011, "Handler failed") } }
+                if (serverShutdown.isCompleted || runtime.shutdown.isCompleted) {
+                    requestClose(CloseFrameInfo(1001, "Server stopping"), cause = CloseTrigger.SERVER_SHUTDOWN)
                 }
-                try { result = finished.await() }
+                business = if (closing.isCompleted) null else CoroutineScope(businessParent + Dispatchers.Default).launch {
+                    try {
+                        // A handler's structured children finish before normal close is requested.
+                        coroutineScope { handler(this@ManagedWebSocketSession) }
+                        withContext(engine.executor) {
+                            requestClose(CloseFrameInfo(1000), drain = true, cause = CloseTrigger.LOCAL_NORMAL)
+                        }
+                    } catch (_: WebSocketCapacityException) {
+                        withContext(NonCancellable + engine.executor) {
+                            requestClose(CloseFrameInfo(1013, "Resource pressure"), cause = CloseTrigger.RESOURCE_PRESSURE)
+                        }
+                    } catch (_: CancellationException) {
+                        withContext(NonCancellable + engine.executor) {
+                            if (!finished.isCompleted && !closing.isCompleted)
+                                requestClose(CloseFrameInfo(1001, "Handler cancelled"))
+                        }
+                    } catch (_: Exception) {
+                        withContext(NonCancellable + engine.executor) {
+                            requestClose(CloseFrameInfo(1011, "Handler failed"), cause = CloseTrigger.HANDLER_FAILURE)
+                        }
+                    }
+                }
+                try { termination = finished.await() }
                 finally {
-                    requestClose(result)
+                    closing.complete(CloseFrameInfo(null))
                     runCatching { engine.abort() }.onFailure { warn("websocket.engine.abort.failed") }
                     reader.cancel(); writer.cancel(); heartbeat.cancel(); stop.cancel(); closingDeadline.cancel()
                     business?.cancel()
@@ -250,12 +280,12 @@ internal class ManagedWebSocketSession(
             runCatching { engine.abort() }.onFailure { warn("websocket.engine.abort.failed") }
             inbound.cancel(); outbound.cancel()
             businessParent.cancel()
-            try {
-                val complete = withContext(NonCancellable) {
-                    withTimeoutOrNull(config.handlerShutdownMillis) { business?.join(); true } ?: false
-                }
-                if (!complete) warn("websocket.handler.shutdown.timeout")
-            } finally { closedResult.complete(result) }
+            // Publish after transport/queue cleanup, before joining business finally blocks.
+            closedResult.complete(CloseResult(trigger, localRequest, sentClose, receivedClose, termination))
+            val complete = withContext(NonCancellable) {
+                withTimeoutOrNull(config.handlerShutdownMillis) { business?.join(); true } ?: false
+            }
+            if (!complete) warn("websocket.handler.shutdown.timeout")
         }
     }
 
@@ -269,7 +299,9 @@ internal class ManagedWebSocketSession(
         try {
             withTimeout(config.consumerTimeoutMillis) { inbound.send(entry); accepted = true }
         } catch (_: TimeoutCancellationException) {
-            requestClose(WebSocketClose(1011, "Consumer stalled"))
+            requestClose(CloseFrameInfo(1011, "Consumer stalled"), cause = CloseTrigger.CONSUMER_STALL)
+        } catch (e: CancellationException) {
+            if (!closing.isCompleted || !currentCoroutineContext().isActive) throw e
         } finally {
             readPaused = false
             // Pause in observing Pong is local backpressure, not evidence of peer failure.
@@ -297,11 +329,11 @@ internal class ManagedWebSocketSession(
             val time = now()
             if (!readPaused) {
                 if (config.idleTimeoutMillis > 0 && time - lastInbound >= config.idleTimeoutMillis) {
-                    requestClose(WebSocketClose(1001, "Inbound idle")); return
+                    requestClose(CloseFrameInfo(1001, "Inbound idle"), cause = CloseTrigger.IDLE_TIMEOUT); return
                 }
                 val flushed = pingFlushedAt
                 if (flushed != null && config.pongTimeoutMillis > 0 && time - flushed >= config.pongTimeoutMillis) {
-                    requestClose(WebSocketClose(1001, "Pong timeout")); return
+                    requestClose(CloseFrameInfo(1001, "Pong timeout"), cause = CloseTrigger.PONG_TIMEOUT); return
                 }
                 if (time >= nextPing && (pendingPing == null || config.pongTimeoutMillis == 0L)) {
                     val value = ++sequence

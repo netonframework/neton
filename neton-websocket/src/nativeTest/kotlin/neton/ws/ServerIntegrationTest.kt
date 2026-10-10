@@ -24,14 +24,14 @@ class ServerIntegrationTest {
         override fun registerRoute(route: RouteDefinition) { routes += route }
         override fun getRoutes() = routes.toList()
     }
-    private suspend fun start(scope: CoroutineScope, config: WebSocketConfig, tls: TlsSettings? = null, handler: suspend (WebSocketSession) -> Unit): Server {
+    private suspend fun start(scope: CoroutineScope, config: WebSocketConfig, tls: TlsSettings? = null, inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE, handler: suspend (WebSocketSession) -> Unit): Server {
         val temporary = listen("127.0.0.1", 0)
         val port = temporary.localAddress.port
         temporary.close()
         val adapter = DefaultHttpAdapter(HttpServerConfig(port, timeout = 1000, maxConnections = 1, tls = tls),
             DefaultHttpOptions(host = "127.0.0.1", reactors = 1))
         val ctx = NetonContext(emptyArray())
-        val routes = Routes().apply { webSocket("/echo/{room}", handler = handler) }
+        val routes = Routes().apply { webSocket("/echo/{room}", inboundPolicy = inboundPolicy, handler = handler) }
         ctx.bind(HttpAdapter::class, adapter)
         ctx.bind(RequestEngine::class, routes)
         ctx.bind(ConfiguredRouteGroups(emptySet()))
@@ -50,6 +50,14 @@ class ServerIntegrationTest {
     }
     private fun config() = WebSocketConfig().apply {
         pingIntervalMillis = 0; closeTimeoutMillis = 200; handlerShutdownMillis = 200
+    }
+
+    @Test fun lambdaAndHandlerObjectOverloadsRegisterRoutes() {
+        val routes = Routes()
+        routes.webSocket("/lambda") { it.close() }
+        routes.webSocket("/object", WebSocketHandler { it.close() })
+        routes.webSocket("/protocol", listOf("chat")) { it.close() }
+        assertEquals(3, routes.getRoutes().size)
     }
 
     @Test fun verifiedTlsUpgradeEcho() = runReactor {
@@ -75,12 +83,41 @@ class ServerIntegrationTest {
         }
     }
 
+    @Test fun pushOnlyRejectsDataWithPolicyClose() = runReactor {
+        withTimeout(10000) {
+            val server = start(this, config(), inboundPolicy = InboundPolicy.REJECT_DATA) { awaitCancellation() }
+            try {
+                val (socket, _) = client("ws://127.0.0.1:${server.port}/echo/push", connect("127.0.0.1", server.port))
+                try {
+                    socket.send(Message.Text("not allowed"))
+                    assertEquals(1008, assertIs<Message.Close>(socket.receive()).frame?.code?.code)
+                } finally { socket.abort() }
+            } finally { server.stop() }
+        }
+    }
+
+    @Test fun discardPolicyStillAnswersControlFrames() = runReactor {
+        withTimeout(10000) {
+            val server = start(this, config(), inboundPolicy = InboundPolicy.DISCARD_DATA) { awaitCancellation() }
+            try {
+                val (socket, _) = client("ws://127.0.0.1:${server.port}/echo/push", connect("127.0.0.1", server.port))
+                try {
+                    repeat(100) { socket.send(Message.Text("discard me")) }
+                    socket.send(Message.Ping(neton.io.bytes.Bytes.wrap(byteArrayOf(3))))
+                    assertContentEquals(byteArrayOf(3), assertIs<Message.Pong>(socket.receive()).data.toByteArray())
+                    socket.close()
+                    assertIs<Message.Close>(socket.receive())
+                } finally { socket.abort() }
+            } finally { server.stop() }
+        }
+    }
+
     @Test fun realUpgradeEchoAndHttpQuotaReleased() = runReactor {
         withTimeout(15000) {
             val server = start(this, config()) { session ->
                 session.incoming.collect { message ->
                     when (message) {
-                        is WebSocketMessage.Text -> session.send(session.context.request.pathParam("room") + ":" + message.value)
+                        is WebSocketMessage.Text -> session.send(session.handshake.pathParam("room") + ":" + message.value)
                         is WebSocketMessage.Binary -> session.send(message)
                     }
                 }

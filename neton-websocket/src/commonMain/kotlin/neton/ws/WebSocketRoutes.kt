@@ -15,27 +15,33 @@ import neton.ws.spi.*
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicInt
 
-fun RequestEngine.webSocket(path: String, subprotocols: List<String> = emptyList(), handler: suspend (WebSocketSession) -> Unit) {
+fun RequestEngine.webSocket(path: String, subprotocols: List<String> = emptyList(), inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE, handler: suspend (WebSocketSession) -> Unit) {
     registerRoute(RouteDefinition(path, HttpMethod.GET, object : RouteHandler {
         override suspend fun invoke(context: HttpContext, args: HandlerArgs): Any? = error("Upgrade endpoint required")
-    }, upgrade = webSocketEndpoint(subprotocols) { session, _, _ -> handler(session) }))
+    }, upgrade = webSocketEndpoint(subprotocols, inboundPolicy, handler)))
 }
 
-fun neton.routing.RouteGroupScope.webSocket(path: String, subprotocols: List<String> = emptyList(), handler: suspend (WebSocketSession) -> Unit) {
-    upgrade(path, webSocketEndpoint(subprotocols) { session, _, _ -> handler(session) })
+fun neton.routing.RouteGroupScope.webSocket(path: String, subprotocols: List<String> = emptyList(), inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE, handler: suspend (WebSocketSession) -> Unit) {
+    upgrade(path, webSocketEndpoint(subprotocols, inboundPolicy, handler))
 }
+
+fun RequestEngine.webSocket(path: String, handler: WebSocketHandler, subprotocols: List<String> = emptyList(), inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE) =
+    webSocket(path, subprotocols, inboundPolicy, handler::handle)
+
+fun neton.routing.RouteGroupScope.webSocket(path: String, handler: WebSocketHandler, subprotocols: List<String> = emptyList(), inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE) =
+    webSocket(path, subprotocols, inboundPolicy, handler::handle)
 
 /** Shared by DSL and generated controller routes; authentication is performed by HTTP first. */
 fun webSocketEndpoint(
     subprotocols: List<String> = emptyList(),
-    handler: suspend (WebSocketSession, HttpContext, HandlerArgs) -> Unit,
-): UpgradeEndpoint = preparedWebSocketEndpoint(subprotocols) { context, args ->
-    { session -> handler(session, context, args) }
-}
+    inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE,
+    handler: suspend (WebSocketSession) -> Unit,
+): UpgradeEndpoint = preparedWebSocketEndpoint(subprotocols, inboundPolicy) { _, _ -> handler }
 
 /** Parameter binding runs during HTTP, before accepting 101, not inside the upgraded session. */
 fun preparedWebSocketEndpoint(
     subprotocols: List<String> = emptyList(),
+    inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE,
     prepare: suspend (HttpContext, HandlerArgs) -> suspend (WebSocketSession) -> Unit,
 ): UpgradeEndpoint = object : UpgradeEndpoint {
     private val protocols = subprotocols.toList().also { values ->
@@ -44,6 +50,12 @@ fun preparedWebSocketEndpoint(
     override fun validate(context: NetonContext) {
         val runtime = context.getOrNull<WebSocketRuntime>() ?: error("WebSocket route requires websocket { }")
         check(runtime.provider.supports(context.get<HttpAdapter>())) { "Incompatible WebSocket/HTTP engines" }
+        val required = when (inboundPolicy) {
+            InboundPolicy.BACKPRESSURE -> null
+            InboundPolicy.REJECT_DATA -> WebSocketEngineCapability.REJECT_DATA
+            InboundPolicy.DISCARD_DATA -> WebSocketEngineCapability.VALIDATED_DISCARD
+        }
+        check(required == null || required in runtime.provider.capabilities) { "WebSocket provider lacks $inboundPolicy" }
     }
     override suspend fun decide(context: HttpContext, args: HandlerArgs): UpgradeDecision {
         val runtime = context.getApplicationContext()?.getOrNull<WebSocketRuntime>()
@@ -59,8 +71,10 @@ fun preparedWebSocketEndpoint(
         val result = runtime.provider.handshake(HandshakeRequest("GET", request.url, headers, request.version), HandshakeOffer(selected))
         if (result is HandshakeResult.Rejected) return UpgradeDecision.Reject(result.status, result.headers)
         result as HandshakeResult.Accepted
+        val snapshot = try { snapshotHandshake(context, selected, runtime.config) }
+            catch (_: HandshakeSnapshotTooLarge) { return UpgradeDecision.Reject(503) }
         val handler = prepare(context, args)
-        return runtime.ticket(result, context, selected, handler)
+        return runtime.ticket(result, snapshot, handler, inboundPolicy)
             ?: UpgradeDecision.Reject(503)
     }
 }
@@ -74,7 +88,11 @@ internal fun normalizeOrigin(value: String): String? {
     return "$scheme://$host:$port"
 }
 
-internal class WebSocketRuntime(val config: WebSocketConfig, val provider: WebSocketEngineProvider) {
+internal class WebSocketRuntime(
+    val config: WebSocketConfig,
+    val provider: WebSocketEngineProvider,
+    private val warning: (String) -> Unit = {},
+) {
     val buffered = RuntimeBudget(config.maxBufferedBytes)
     val pendingBytes = RuntimeBudget(config.maxSuspendedSendBytes)
     val pendingCount = RuntimeBudget(config.maxSuspendedSendsTotal.toLong())
@@ -93,7 +111,7 @@ internal class WebSocketRuntime(val config: WebSocketConfig, val provider: WebSo
         return normalizeOrigin("${if (request.isSecure) "https" else "http"}://${hosts.single()}") == origin
     }
 
-    fun ticket(result: HandshakeResult.Accepted, context: HttpContext, selected: String?, handler: suspend (WebSocketSession) -> Unit): UpgradeDecision.Accept? {
+    fun ticket(result: HandshakeResult.Accepted, snapshot: HandshakeInfo, handler: suspend (WebSocketSession) -> Unit, inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE): UpgradeDecision.Accept? {
         if (draining.load() || !connections.tryReserve(1)) return null
         if (draining.load()) { connections.release(1); return null }
         return object : UpgradeDecision.Accept {
@@ -104,7 +122,10 @@ internal class WebSocketRuntime(val config: WebSocketConfig, val provider: WebSo
                 check(started.compareAndSet(false, true)) { "Upgrade ticket consumed twice" }
                 check(!released.load()) { "Released upgrade ticket" }
                 val engine = provider.open(connection, result.negotiated, config.engineLimits)
-                ManagedWebSocketSession(this@WebSocketRuntime, engine, context, selected).run(shutdown, handler)
+                try {
+                    engine.configureInbound(inboundPolicy)
+                    ManagedWebSocketSession(this@WebSocketRuntime, engine, snapshot, warning).run(shutdown, handler)
+                } finally { engine.abort() }
             }
             override fun release() { if (released.compareAndSet(false, true)) connections.release(1) }
         }

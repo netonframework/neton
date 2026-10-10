@@ -23,7 +23,7 @@ import kotlin.coroutines.ContinuationInterceptor
 /** Built in, not discovered by classpath scanning. Protocol policy remains outside this bridge. */
 class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
     override val name = "NetonStream"
-    override val capabilities = setOf(WebSocketEngineCapability.MESSAGE_LIMITS, WebSocketEngineCapability.PREALLOCATION_BUDGET)
+    override val capabilities = WebSocketEngineCapability.entries.toSet()
     override fun supports(adapter: HttpAdapter) = adapter is DefaultHttpAdapter
 
     private class State(val owner: DefaultWebSocketEngineProvider) : Negotiated
@@ -91,6 +91,14 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
         private var budget: ByteBudget = UnlimitedByteBudget
         private var reserved = 0L
 
+        override fun configureInbound(policy: neton.ws.InboundPolicy) {
+            socket.setInboundDataPolicy(when (policy) {
+                neton.ws.InboundPolicy.BACKPRESSURE -> neton.websocket.InboundDataPolicy.DELIVER
+                neton.ws.InboundPolicy.REJECT_DATA -> neton.websocket.InboundDataPolicy.REJECT
+                neton.ws.InboundPolicy.DISCARD_DATA -> neton.websocket.InboundDataPolicy.DISCARD
+            })
+        }
+
         init {
             socket.setInboundAdmission { bytes ->
                 // Count payload once across fragments. Copies, representation and capacity
@@ -121,8 +129,14 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
             checkExecutor()
             check(reserved == 0L || this.budget === budget) { "Cannot change an in-progress message budget" }
             this.budget = budget
+            var controls = 0
             while (true) {
-                when (val message = socket.receive() ?: return null) {
+                val message = try { socket.receive() ?: return null }
+                    catch (_: neton.websocket.InboundDataRejectedException) {
+                        discardData()
+                        return WebSocketEngineEvent.DataRejected
+                    }
+                when (message) {
                     is Message.Text -> return WebSocketEngineEvent.Text(message.text.asString(), lease())
                     is Message.Binary -> return WebSocketEngineEvent.Binary(message.data.toByteArray(), lease())
                     is Message.Pong -> return WebSocketEngineEvent.Pong(message.data.toByteArray())
@@ -130,6 +144,7 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
                     is Message.Ping -> Unit // The protocol engine, not the framework, supplies the Pong.
                     is Message.Frame -> error("The protocol engine returned a raw frame")
                 }
+                if (++controls % 32 == 0) kotlinx.coroutines.yield()
             }
         }
 
@@ -146,8 +161,13 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
             require(bytes.size <= 125) { "Ping payload exceeds 125 bytes" }
             socket.send(Message.Ping(Bytes.wrap(bytes)))
         }
-        override suspend fun writeClose(code: Int, reason: String) {
+        override suspend fun writeClose(code: Int?, reason: String) {
             checkExecutor()
+            if (code == null) {
+                require(reason.isEmpty()) { "An empty Close cannot have a reason" }
+                socket.close(null)
+                return
+            }
             val closeCode = CloseCode.from(code)
             require(closeCode.isAllowed) { "Invalid wire close code: $code" }
             require(reason.encodeToByteArray().size <= 123) { "Close reason exceeds 123 bytes" }

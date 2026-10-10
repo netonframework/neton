@@ -13,7 +13,7 @@ import neton.ws.spi.WebSocketEngineProvider
 class WebSocketConfig {
     var engineLimits: EngineLimits = EngineLimits()
     /** Must be explicit: an unsupported contract cannot silently degrade. */
-    var requiredCapabilities: Set<WebSocketEngineCapability> = WebSocketEngineCapability.entries.toSet()
+    var requiredCapabilities: Set<WebSocketEngineCapability> = setOf(WebSocketEngineCapability.MESSAGE_LIMITS, WebSocketEngineCapability.PREALLOCATION_BUDGET)
     var maxConnections: Int = 16384
     var maxBufferedBytes: Long = 512L * 1024 * 1024
     var maxQueuedBytesPerConnection: Long = 8L * 1024 * 1024
@@ -31,6 +31,8 @@ class WebSocketConfig {
     /** Empty means same-origin. Absent Origin is allowed for non-browser clients. */
     var allowedOrigins: Set<String> = emptySet()
     var allowMissingOrigin: Boolean = true
+    var handshakeHeaderNames: Set<String> = emptySet()
+    var maxHandshakeSnapshotBytes: Long = 65536
 
     internal fun snapshot() = WebSocketConfig().also {
         it.engineLimits = engineLimits; it.requiredCapabilities = requiredCapabilities.toSet()
@@ -43,6 +45,7 @@ class WebSocketConfig {
         it.writeTimeoutMillis = writeTimeoutMillis; it.closeTimeoutMillis = closeTimeoutMillis
         it.handlerShutdownMillis = handlerShutdownMillis
         it.allowedOrigins = allowedOrigins.toSet(); it.allowMissingOrigin = allowMissingOrigin
+        it.handshakeHeaderNames = handshakeHeaderNames.toSet(); it.maxHandshakeSnapshotBytes = maxHandshakeSnapshotBytes
     }
 
     internal fun validate() {
@@ -52,7 +55,9 @@ class WebSocketConfig {
             "maxQueuedBytesPerConnection must fit maxMessageBytes"
         }
         require(maxBufferedBytes >= maxQueuedBytesPerConnection)
-        require(maxSuspendedSendBytes >= engineLimits.maxMessageBytes.toLong() * 2)
+        require(maxSuspendedSendBytes >= engineLimits.maxMessageBytes.toLong())
+        require(maxHandshakeSnapshotBytes > 0)
+        require(handshakeHeaderNames.all { name -> name.isNotEmpty() && name.all { it.code in 33..126 && it !in "()<>@,;:\\\"/[]?={} " } })
         require(pingIntervalMillis >= 0 && pongTimeoutMillis >= 0 && idleTimeoutMillis >= 0)
         require(consumerTimeoutMillis > 0 && writeTimeoutMillis > 0 && closeTimeoutMillis > 0 && handlerShutdownMillis > 0)
         require(listOf(pingIntervalMillis, pongTimeoutMillis, idleTimeoutMillis, consumerTimeoutMillis,
@@ -75,14 +80,18 @@ class WebSocketComponent(
         check(ctx.getOrNull<WebSocketEngineProvider>() == null) { "WebSocket is already installed" }
         ctx.bind(WebSocketEngineProvider::class, providerFactory())
         ctx.bind(WebSocketConfig::class, effective.snapshot())
-        ctx.bind(WebSocketRuntime::class, WebSocketRuntime(effective, ctx.get<WebSocketEngineProvider>()))
+        val logger = ctx.getOrNull<neton.logging.LoggerFactory>()?.get("neton.websocket")
+        ctx.bind(WebSocketRuntime::class, WebSocketRuntime(effective, ctx.get<WebSocketEngineProvider>()) {
+            logger?.warn(it)
+        })
     }
 
     override suspend fun prepare(ctx: NetonContext) {
         val adapter = ctx.getOrNull<HttpAdapter>() ?: error("WebSocket requires an installed HTTP adapter")
         val provider = ctx.get<WebSocketEngineProvider>()
         check(provider.supports(adapter)) { "WebSocket provider ${provider.name} is incompatible with ${adapter.adapterName()}" }
-        val missing = (ctx.get<WebSocketConfig>().requiredCapabilities + WebSocketEngineCapability.entries) - provider.capabilities
+        val missing = (ctx.get<WebSocketConfig>().requiredCapabilities + setOf(WebSocketEngineCapability.MESSAGE_LIMITS,
+            WebSocketEngineCapability.PREALLOCATION_BUDGET)) - provider.capabilities
         check(missing.isEmpty()) { "WebSocket provider ${provider.name} lacks required capabilities: $missing" }
     }
 

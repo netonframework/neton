@@ -101,6 +101,19 @@ class DefaultProviderTest {
         assertEquals(426, assertIs<HandshakeResult.Rejected>(provider.handshake(request(mapOf("Sec-WebSocket-Version" to listOf("12"))))).status)
     }
 
+    @Test fun optionalInboundPolicyMustBeSupportedAtRouteValidation(): Unit = runBlocking {
+        val ctx = NetonContext(emptyArray())
+        ctx.bind(HttpAdapter::class, DefaultHttpAdapter(HttpServerConfig(port = 0)))
+        val component = WebSocketComponent { object : WebSocketEngineProvider by DefaultWebSocketEngineProvider() {
+            override val capabilities = setOf(WebSocketEngineCapability.MESSAGE_LIMITS, WebSocketEngineCapability.PREALLOCATION_BUDGET)
+        } }
+        component.init(ctx, WebSocketConfig())
+        component.prepare(ctx)
+        webSocketEndpoint { }.validate(ctx)
+        assertFailsWith<IllegalStateException> { webSocketEndpoint(inboundPolicy = InboundPolicy.DISCARD_DATA) { }.validate(ctx) }
+        assertFailsWith<IllegalStateException> { webSocketEndpoint(inboundPolicy = InboundPolicy.REJECT_DATA) { }.validate(ctx) }
+    }
+
     @Test fun realProtocolTextBinaryPingAndClose() = runReactor {
         withTimeout(5_000) {
             val (clientStream, serverStream) = memoryStreamPair(4096)
