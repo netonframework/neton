@@ -21,7 +21,7 @@ internal class ManagedWebSocketSession(
     private val warning: (String) -> Unit = {},
 ) : WebSocketSession {
     @OptIn(kotlin.uuid.ExperimentalUuidApi::class)
-    override val sessionId: String = kotlin.uuid.Uuid.random().toString()
+    override val connectionId: String = kotlin.uuid.Uuid.random().toString()
     private val config = runtime.config
     private val start = TimeSource.Monotonic.markNow()
     private fun now() = start.elapsedNow().inWholeMilliseconds

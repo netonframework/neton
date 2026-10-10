@@ -84,8 +84,10 @@ finish before normal handler completion closes the connection. Shared handler fi
 not connection-local. Register an injectable `WebSocketHandler` directly with
 `webSocket("/chat", handler)` or keep using a trailing lambda.
 
-Each connection has a unique `sessionId`, unrelated to its authenticated user ID or login
-session/token ID. Multiple connections for one user have different IDs. It is not a credential.
+Each connection has a unique `connectionId`, unrelated to its authenticated user ID or login
+session/token ID. Reconnecting creates a new connection ID; the existing login session can
+remain valid. Multiple connections sharing that login session have distinct connection IDs
+and may have different business subscriptions. The connection ID is not a credential.
 Application user/session registries, authorization-domain separation and subscriptions remain
 application concerns. They are not automatically installed by the WebSocket component.
 

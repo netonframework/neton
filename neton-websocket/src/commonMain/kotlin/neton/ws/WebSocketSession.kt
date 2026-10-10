@@ -46,8 +46,8 @@ enum class InboundPolicy { BACKPRESSURE, REJECT_DATA, DISCARD_DATA }
 class WebSocketClosedException : IllegalStateException("WebSocket is closing or closed")
 
 interface WebSocketSession {
-    /** Unique connection identifier, not a credential or a user identifier. */
-    val sessionId: String
+    /** Unique per connection, including reconnects; not a login session ID or credential. */
+    val connectionId: String
     val handshake: HandshakeInfo
     val subprotocol: String? get() = handshake.subprotocol
     /** One collector at a time; subsequent collection resumes unread messages, without replay. */

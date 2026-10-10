@@ -15,14 +15,14 @@ import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.*
 
 class RuntimeTest {
-    @Test fun sessionIdsArePerConnectionNotPerIdentity() = runReactor {
+    @Test fun connectionIdsArePerConnectionNotPerIdentity() = runReactor {
         val executor = currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher
         val runtime = WebSocketRuntime(config(), provider)
         val one = ManagedWebSocketSession(runtime, Engine(executor), handshake)
         val two = ManagedWebSocketSession(runtime, Engine(executor), handshake)
-        assertNotEquals(one.sessionId, two.sessionId)
-        assertEquals(one.sessionId, one.sessionId)
-        assertEquals(36, one.sessionId.length)
+        assertNotEquals(one.connectionId, two.connectionId)
+        assertEquals(one.connectionId, one.connectionId)
+        assertEquals(36, one.connectionId.length)
     }
     private val handshake = HandshakeSnapshot("/", "127.0.0.1", false, null, null, emptyMap(), emptyMap(), emptyMap())
     private val provider = object : WebSocketEngineProvider {
