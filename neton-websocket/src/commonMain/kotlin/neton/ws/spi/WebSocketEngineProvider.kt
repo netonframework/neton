@@ -11,7 +11,7 @@ annotation class ExperimentalWebSocketEngineApi
 /** This is NOT a declaration that the HTTP adapter already supports WebSocket routes. */
 enum class WebSocketEngineCapability {
     MESSAGE_LIMITS,
-    /** Reserve shared memory before allocating/reassembling data, including compressed data. */
+    /** Reserve payload bytes before allocating/reassembling data; not an RSS or copy-overhead limit. */
     PREALLOCATION_BUDGET,
 }
 

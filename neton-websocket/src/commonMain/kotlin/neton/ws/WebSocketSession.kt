@@ -12,15 +12,19 @@ sealed interface WebSocketMessage {
 
 data class WebSocketClose(val code: Int, val reason: String = "")
 
+/** A closed connection is an operation failure, not cancellation of the caller's coroutine. */
+class WebSocketClosedException : IllegalStateException("WebSocket is closing or closed")
+
 interface WebSocketSession {
     val context: HttpContext
     val subprotocol: String?
     /** Single collector; protocol control frames are handled independently. */
     val incoming: Flow<WebSocketMessage>
     val closed: Deferred<WebSocketClose>
-    /** Returns after acceptance into the bounded FIFO, not network delivery. */
+    /** Waits for payload capacity; returns after FIFO acceptance, not network delivery. */
     suspend fun send(message: WebSocketMessage)
     suspend fun send(text: String) = send(WebSocketMessage.Text(text))
+    /** Normal local close drains accepted messages before Close; transport failures may abort. */
     suspend fun close(code: Int = 1000, reason: String = "")
 }
 

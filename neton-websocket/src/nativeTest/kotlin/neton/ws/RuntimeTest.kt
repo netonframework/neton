@@ -37,9 +37,10 @@ class RuntimeTest {
         var aborted = false
         var failCleanup = false
         var writeGate: CompletableDeferred<Unit>? = null
+        val writeEntered = CompletableDeferred<Unit>()
         override suspend fun receive(): WebSocketEngineEvent? = events.receiveCatching().getOrNull()
         override suspend fun receive(budget: ByteBudget) = receive()
-        override suspend fun writeText(text: String) { writeGate?.await(); writes += text }
+        override suspend fun writeText(text: String) { writeEntered.complete(Unit); writeGate?.await(); writes += text }
         override suspend fun writeBinary(bytes: ByteArray) { writeGate?.await(); writes += bytes.joinToString() }
         override suspend fun writePing(bytes: ByteArray) {
             pings++
@@ -176,6 +177,101 @@ class RuntimeTest {
         config.maxConnections = 1
         context.get<WebSocketConfig>().maxConnections = 2
         assertEquals(16384, context.get<WebSocketRuntime>().config.maxConnections)
+    }
+
+    @Test fun normalReturnDrainsAcceptedMessagesBeforeClose() = runReactor {
+        withTimeout(3000) {
+            val gate = CompletableDeferred<Unit>()
+            val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher).apply { writeGate = gate }
+            val runtime = WebSocketRuntime(config().apply { writeTimeoutMillis = 1000; closeTimeoutMillis = 1000 }, provider)
+            val session = ManagedWebSocketSession(runtime, engine, context, null)
+            val accepted = CompletableDeferred<Unit>()
+            val job = launch { session.run(CompletableDeferred()) {
+                it.send("a"); engine.writeEntered.await(); it.send("b"); it.send("c")
+                it.close()
+                accepted.complete(Unit)
+            } }
+            accepted.await(); engine.writeEntered.await()
+            gate.complete(Unit)
+            job.join()
+            assertEquals(listOf("a", "b", "c"), engine.writes)
+            assertEquals(listOf(1000), engine.closes)
+            assertEquals(0L, runtime.buffered.usage)
+        }
+    }
+
+    @Test fun twoMiBMessageFitsPayloadBudget() = runReactor {
+        withTimeout(3000) {
+            val settings = config().apply { engineLimits = EngineLimits(maxMessageBytes = 2 * 1024 * 1024) }
+            settings.validate()
+            val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher)
+            val runtime = WebSocketRuntime(settings, provider)
+            val session = ManagedWebSocketSession(runtime, engine, context, null)
+            session.run(CompletableDeferred()) { it.send("x".repeat(2 * 1024 * 1024)) }
+            assertEquals(2 * 1024 * 1024, engine.writes.single().length)
+            assertEquals(0L, runtime.buffered.usage)
+        }
+    }
+
+    @Test fun budgetWaitDoesNotBecomeWriteTimeoutAndCloseIsNotCancellation() = runReactor {
+        withTimeout(3000) {
+            val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher)
+            val runtime = WebSocketRuntime(config().apply { writeTimeoutMillis = 20 }, provider)
+            assertTrue(runtime.buffered.tryReserve(runtime.buffered.limit))
+            val session = ManagedWebSocketSession(runtime, engine, context, null)
+            val job = launch { session.run(CompletableDeferred()) { awaitCancellation() } }
+            // An independent caller must see closure, not inherit handler shutdown cancellation.
+            val outcome = async(Dispatchers.Default) { runCatching { session.send("waiting") }.exceptionOrNull() }
+            while (runtime.pendingCount.usage == 0L) yield()
+            delay(60) // Beyond the write deadline, but no network write has started.
+            assertFalse(outcome.isCompleted)
+            session.close(1001)
+            assertIs<WebSocketClosedException>(outcome.await())
+            job.join()
+            assertEquals(0L, runtime.pendingCount.usage)
+            assertEquals(0L, runtime.pendingBytes.usage)
+            runtime.buffered.release(runtime.buffered.limit)
+        }
+    }
+
+    @Test fun failedNormalDrainIsAbnormalAndReleasesAcceptedPayloads() = runReactor {
+        withTimeout(3000) {
+            val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher).apply { writeGate = CompletableDeferred() }
+            val runtime = WebSocketRuntime(config(), provider)
+            val session = ManagedWebSocketSession(runtime, engine, context, null)
+            session.run(CompletableDeferred()) { it.send("a"); it.send("b") }
+            assertEquals(1006, session.closed.await().code)
+            assertTrue(engine.closes.isEmpty())
+            assertEquals(0L, runtime.buffered.usage)
+        }
+    }
+
+    @Test fun impossiblePayloadBudgetRejectedAtStartup() {
+        assertFailsWith<IllegalArgumentException> {
+            config().apply { engineLimits = EngineLimits(maxMessageBytes = 9 * 1024 * 1024) }.validate()
+        }
+    }
+
+    @Test fun forcedCloseInterruptsNormalDrainWithoutReportingNormalClose() = runReactor {
+        withTimeout(3000) {
+            val gate = CompletableDeferred<Unit>()
+            val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher).apply { writeGate = gate }
+            val runtime = WebSocketRuntime(config().apply { writeTimeoutMillis = 1000; closeTimeoutMillis = 1000 }, provider)
+            val session = ManagedWebSocketSession(runtime, engine, context, null)
+            val accepted = CompletableDeferred<Unit>()
+            val job = launch { session.run(CompletableDeferred()) {
+                it.send("a"); engine.writeEntered.await(); it.send("b"); it.close()
+                accepted.complete(Unit)
+            } }
+            accepted.await()
+            session.close(1001, "Server stopping")
+            gate.complete(Unit)
+            job.join()
+            assertEquals(listOf("a"), engine.writes)
+            assertEquals(listOf(1001), engine.closes)
+            assertEquals(1001, session.closed.await().code)
+            assertEquals(0L, runtime.buffered.usage)
+        }
     }
 
     @Test fun throwingEngineCleanupStillCompletesAndReleasesQueues() = runReactor {

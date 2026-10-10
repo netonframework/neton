@@ -215,4 +215,27 @@ class DefaultProviderTest {
             } finally { engine.abort(); peer.close() }
         }
     }
+
+    @Test fun fragmentedPayloadIsChargedOnceAtExactLimit() = runReactor {
+        withTimeout(3000) {
+            val provider = DefaultWebSocketEngineProvider()
+            val negotiated = assertIs<HandshakeResult.Accepted>(provider.handshake(request())).negotiated
+            val (server, peer) = memoryStreamPair()
+            val executor = currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher
+            val engine = provider.open(DefaultUpgradedConnection(server, executor), negotiated, EngineLimits())
+            val budget = RuntimeBudget(2)
+            try {
+                val frames = neton.io.bytes.Buffer()
+                frames.writeBytes(byteArrayOf(0x01, 0x81.toByte(), 0, 0, 0, 0, 97,
+                    0x80.toByte(), 0x81.toByte(), 0, 0, 0, 0, 98))
+                while (!frames.isEmpty) peer.write(frames)
+                val message = assertIs<WebSocketEngineEvent.Text>(engine.receive(budget))
+                assertEquals("ab", message.text)
+                assertEquals(2L, budget.usage)
+                assertEquals(2L, message.lease.bytes)
+                message.lease.release()
+                assertEquals(0L, budget.usage)
+            } finally { engine.abort(); peer.close() }
+        }
+    }
 }

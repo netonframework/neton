@@ -33,18 +33,26 @@ other adapters must explicitly implement `PROTOCOL_UPGRADE` and a compatible pro
 
 Control and protocol operations stay on the connection executor; business handlers run on
 `Dispatchers.Default`. Only one collector may consume `incoming`. `send` means accepted, not
-delivered. Binary arrays are borrowed until send returns and copied after budget reservation;
+delivered. A normal local close drains accepted messages before writing Close; shutdown, peer
+close or failure may discard queued messages. A timed-out drain is reported as abnormal, not 1000.
+Binary arrays are borrowed until send returns and copied after budget reservation;
 do not mutate them during send. Quiet connections that answer Pong remain connected. Ping is
 sent every 30 seconds by default, with a 10-second Pong deadline starting after write completion.
 Consumer stalls and blocked writes have separate deadlines. Business-message idle timeout is off.
 
 The default queue budget is 512 MiB globally and 8 MiB per connection per direction. Admission
-conservatively charges eight times payload size (inbound: at least 1024 bytes per fragment) to
-cover reassembly and conversion copies. It is NOT an RSS ceiling: codec/TLS buffers, object
-overhead and business-owned messages are separate. Waiting sends also have count and retained-byte
+counts payload bytes once, including in-progress inbound fragments. It is NOT an RSS ceiling:
+copies, string representation, spare buffer capacity, codec/TLS buffers, object overhead and
+business-owned messages are separate. Waiting sends also have count and retained-byte
 limits. Resource exhaustion closes the growing inbound connection with 1013; control/close
 frames do not wait for application queue budget. Shutdown rejects new tickets and closes active
 or pending upgrades with 1001. Uncooperative business code cannot block transport cleanup forever.
+
+Budget waiting has no network-write timeout: it ends on capacity, caller cancellation or closure.
+Closure throws `WebSocketClosedException`, not a coroutine cancellation exception. Waiting-send
+counters are only acquired after immediate enqueue fails. Actual network writes remain timed.
+Consumer stalls use 1011; the healthy inbound enqueue path does not allocate a timeout.
+Global budget wakeup contention and handler-executor performance still need measured follow-up.
 
 Missing Origin is allowed for non-browser clients; otherwise the default is same-origin.
 Use explicit `allowedOrigins` for cross-origin browser access. Compression, HTTP/2/3 extended

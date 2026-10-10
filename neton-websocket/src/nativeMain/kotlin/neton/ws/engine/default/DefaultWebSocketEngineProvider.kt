@@ -93,9 +93,9 @@ class DefaultWebSocketEngineProvider : WebSocketEngineProvider {
 
         init {
             socket.setInboundAdmission { bytes ->
-                // Conservative payload charge covers frame storage, reassembly growth and
-                // the framework's byte/string copy. Codec/TLS fixed buffers are separate.
-                val charge = maxOf(bytes, 128).toLong() * 8
+                // Count payload once across fragments. Copies, representation and capacity
+                // overhead are not a second message and are outside this payload budget.
+                val charge = bytes.toLong()
                 if (!budget.tryReserve(charge)) throw WebSocketCapacityException()
                 reserved += charge
             }

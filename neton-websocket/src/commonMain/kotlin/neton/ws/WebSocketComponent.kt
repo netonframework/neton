@@ -48,7 +48,9 @@ class WebSocketConfig {
     internal fun validate() {
         require(maxConnections > 0 && queueCapacity > 0)
         require(maxSuspendedSends > 0 && maxSuspendedSendsTotal > 0 && maxSuspendedSendBytes > 0)
-        require(maxQueuedBytesPerConnection >= engineLimits.maxMessageBytes.toLong() * 8)
+        require(maxQueuedBytesPerConnection >= engineLimits.maxMessageBytes.toLong()) {
+            "maxQueuedBytesPerConnection must fit maxMessageBytes"
+        }
         require(maxBufferedBytes >= maxQueuedBytesPerConnection)
         require(maxSuspendedSendBytes >= engineLimits.maxMessageBytes.toLong() * 2)
         require(pingIntervalMillis >= 0 && pongTimeoutMillis >= 0 && idleTimeoutMillis >= 0)
