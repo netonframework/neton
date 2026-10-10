@@ -44,10 +44,14 @@ object RoutingComponent : NetonComponent<RequestEngine> {
             ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet()
             .orEmpty()
         val store = createRateLimitStore(ctx)
+        ctx.bind(neton.core.http.ClientAddressResolver::class, neton.core.http.ClientAddressResolver { request ->
+            neton.routing.ratelimit.ClientIpResolver.resolve(
+                request.peerAddress, request.header("X-Forwarded-For"), null, trustedProxies,
+            )
+        })
         val rlInterceptor = RateLimitInterceptor(
             limiter = FixedWindowRateLimiter(store),
             resolver = DefaultRateLimitKeyResolver(),
-            trustedProxies = trustedProxies,
         )
         // HTTP 适配器直接调用 RouteDefinition.handler（KSP 生成的 lambda），
         // 所以限流必须以 RateLimitGate 的形式 bind 给适配器，由它在分发前执行。

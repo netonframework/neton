@@ -63,6 +63,9 @@ interface HttpRequest {
      */
     val peerAddress: String get() = remoteAddress
 
+    /** Trusted client origin, resolved by the installed routing policy. Never use remoteAddress for admission. */
+    val clientAddress: String get() = peerAddress
+
     /**
      * 用户代理
      */
