@@ -226,6 +226,7 @@ public class BufferedHttpDispatcher(
 ) {
     private var requestEngine: RequestEngine? = null
     private var rateLimitGate: RateLimitGate? = null
+    private var admissionGate: neton.core.interfaces.RequestAdmissionGate? = null
     private var appContext: NetonContext? = null
     private var securityInstalled: Boolean = false
     private var compiledRoutes: List<CompiledRoute> = emptyList()
@@ -253,6 +254,7 @@ public class BufferedHttpDispatcher(
         appContext = ctx
         requestEngine = ctx.get<RequestEngine>()
         rateLimitGate = ctx.getOrNull(RateLimitGate::class)
+        admissionGate = ctx.getOrNull(neton.core.interfaces.RequestAdmissionGate::class)
         // An *empty* group-security map is not security being installed. `routing { }`
         // binds one whenever an application.conf exists, even with no `[[groups]]`
         // in it, so treating the binding itself as the signal put every request
@@ -388,6 +390,9 @@ public class BufferedHttpDispatcher(
 
         val context = BufferedHttpContext(request, method, matched.pathParameters, appContext, traceId, liveResponse)
         return try {
+            if (admissionGate?.allow(context, matched.routeGroup) == false) {
+                return DispatchOutcome(snapshotResponse(context), matched.route.pattern, context)
+            }
             runSecurity(matched, context, request)
             val allowed = runRateLimitPreHandle(matched.route, context, rateLimitGate)
             if (!allowed) {
@@ -1166,7 +1171,8 @@ private class BufferedHttpContext(
     // 而 Lazy 的分配是每请求必付的。下面 RequestView 同理。
     private var requestView: HttpRequest? = null
     override val request: HttpRequest
-        get() = requestView ?: BufferedHttpRequestView(sourceRequest, method, pathParameters).also { requestView = it }
+        get() = requestView ?: BufferedHttpRequestView(sourceRequest, method, pathParameters,
+            appContext?.getOrNull(neton.core.http.ClientAddressResolver::class)).also { requestView = it }
 
     /** 无 live transport 时的内存缓冲响应；有 live transport 时仅为兼容占位，实际写 [response]。 */
     internal val bufferedResponse: BufferedMemoryResponse? = if (liveResponse == null) BufferedMemoryResponse() else null
@@ -1196,6 +1202,7 @@ private class BufferedHttpRequestView(
     private val source: BufferedHttpRequest,
     override val method: HttpMethod,
     private val pathParameters: Map<String, String>,
+    private val addressResolver: neton.core.http.ClientAddressResolver?,
 ) : HttpRequest {
     private var pathOrNull: String? = null
     override val path: String
@@ -1239,6 +1246,7 @@ private class BufferedHttpRequestView(
 
     /** 真实 socket 对端（不受 XFF 影响）：IP 白名单/可信代理判定必须以此为起点。 */
     override val peerAddress: String get() = source.remoteAddress
+    override val clientAddress: String by lazy { addressResolver?.resolve(this) ?: peerAddress }
     private var isSecureOrNull: Boolean? = null
     override val isSecure: Boolean
         get() = isSecureOrNull

@@ -17,8 +17,6 @@ import neton.core.interfaces.RateLimiter
 class RateLimitInterceptor(
     private val limiter: RateLimiter,
     private val resolver: RateLimitKeyResolver,
-    /** 可信反向代理的对端地址；只有来自它们的请求才采信 X-Forwarded-For（见 [ClientIpResolver]） */
-    private val trustedProxies: Set<String> = emptySet(),
 ) : RateLimitGate {
 
     /**
@@ -34,7 +32,7 @@ class RateLimitInterceptor(
             routeId = routeId,
             scope = config.scope,
             key = config.key,
-            context = HttpContextRateLimitContext(context, identity, trustedProxies)
+            context = HttpContextRateLimitContext(context, identity)
         )
 
         if (key == null) {
@@ -70,20 +68,13 @@ class RateLimitInterceptor(
     private class HttpContextRateLimitContext(
         private val context: HttpContext,
         private val identity: Identity?,
-        private val trustedProxies: Set<String>,
     ) : RateLimitRequestContext {
         override val userId: String? get() = identity?.id?.toString()
 
         /**
-         * 从传输层对端出发，而不是从请求头出发。旧实现直接读 X-Forwarded-For 并在缺头时
-         * 退回常量 "127.0.0.1"：直连时人人可伪造来源，且所有无头请求共用一个桶。
+         * 请求视图按照 routing 注册的策略解析并缓存，和前置网络准入使用相同来源。
          */
-        override val remoteIp: String get() = ClientIpResolver.resolve(
-            peerAddress = context.request.peerAddress,
-            forwardedFor = context.request.header("X-Forwarded-For"),
-            realIp = context.request.header("X-Real-IP"),
-            trustedProxies = trustedProxies,
-        )
+        override val remoteIp: String get() = context.request.clientAddress
 
         override fun queryParam(name: String): String? = context.request.queryParam(name)
         override fun header(name: String): String? = context.request.header(name)
