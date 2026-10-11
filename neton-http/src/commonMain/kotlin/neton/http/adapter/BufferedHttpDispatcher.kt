@@ -48,7 +48,6 @@ import neton.core.interfaces.RouteGroupMounts
 import neton.core.interfaces.RouteGroupSecurityConfigs
 import neton.core.interfaces.SecurityAttributes
 import neton.core.interfaces.SecurityConfiguration
-import neton.logging.CurrentLogContext
 import neton.logging.LogContext
 import neton.logging.LoggerFactory
 import neton.logging.Logger
@@ -336,7 +335,17 @@ public class BufferedHttpDispatcher(
     public suspend fun dispatch(request: BufferedHttpRequest, liveResponse: HttpResponse?): BufferedHttpResponse {
         val startMs = if (accessObservabilityOn) kotlin.time.Clock.System.now().toEpochMilliseconds() else 0L
         val traceId = request.header("X-Request-Id")?.takeIf { it.isNotBlank() } ?: requestTraceId(startMs)
-        CurrentLogContext.set(LogContext(traceId = traceId, requestId = traceId, spanId = null, userId = null))
+        return kotlinx.coroutines.withContext(LogContext(traceId = traceId, requestId = traceId)) {
+            dispatchWithLogContext(request, liveResponse, startMs, traceId)
+        }
+    }
+
+    private suspend fun dispatchWithLogContext(
+        request: BufferedHttpRequest,
+        liveResponse: HttpResponse?,
+        startMs: Long,
+        traceId: String,
+    ): BufferedHttpResponse {
         var status = 200
         var routePattern: String? = null
         var bytesOut = 0L
@@ -359,7 +368,6 @@ public class BufferedHttpDispatcher(
                 val endMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
                 recordDispatch(request, context, traceId, routePattern, status, startMs, endMs, bytesOut)
             }
-            CurrentLogContext.clear()
         }
     }
 

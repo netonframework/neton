@@ -17,11 +17,14 @@ internal class StdoutJsonLoggerFactory(
     private val defaultContextProvider: () -> LogContext? = contextProvider
         ?: { CurrentLogContext.get() }
 
-    private val loggerCache = mutableMapOf<String, Logger>()
+    private val loggerCache = kotlinx.coroutines.flow.MutableStateFlow<Map<String, Logger>>(emptyMap())
 
     override fun get(name: String): Logger {
-        return loggerCache.getOrPut(name) {
-            JsonLogger(contextProvider = defaultContextProvider, minLevel = minLevel)
+        while (true) {
+            val current = loggerCache.value
+            current[name]?.let { return it }
+            val logger = JsonLogger(contextProvider = defaultContextProvider, minLevel = minLevel)
+            if (loggerCache.compareAndSet(current, current + (name to logger))) return logger
         }
     }
 }

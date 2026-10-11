@@ -3,6 +3,7 @@ package neton.http.adapter
 import neton.core.http.adapter.HttpServerConfig
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
 import neton.core.component.NetonContext
 import neton.core.http.ApiEnvelope
 import neton.core.http.Cookie
@@ -21,6 +22,48 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BufferedHttpDispatcherContractTest {
+    @Test
+    fun requestLogContextsSurviveInterleavingAndDispatcherChanges() = runBlocking {
+        val firstEntered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val secondEntered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val route = RouteDefinition("/trace", HttpMethod.GET, allowAnonymous = true,
+            handler = object : RouteHandler {
+                override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs): Any {
+                    val expected = context.request.queryParam("id")!!
+                    if (expected == "first") {
+                        firstEntered.complete(Unit)
+                        secondEntered.await()
+                    } else {
+                        firstEntered.await()
+                        secondEntered.complete(Unit)
+                    }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        assertEquals(expected, kotlinx.coroutines.currentCoroutineContext()[neton.logging.LogContext]?.traceId)
+                    }
+                    context.response.text(expected)
+                    return Unit
+                }
+            })
+        val context = NetonContext(emptyArray()).apply {
+            bind(RequestEngine::class, FixedRequestEngine(listOf(route)))
+        }
+        val dispatcher = BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(context) }
+        kotlinx.coroutines.withTimeout(5000) {
+            kotlinx.coroutines.coroutineScope {
+                val requests = listOf("first", "second").map { id ->
+                    async {
+                        val response = dispatcher.dispatch(BufferedHttpRequest("GET", "/trace", "id=$id",
+                            mapOf("X-Request-Id" to listOf(id)), ByteArray(0)))
+                        assertEquals(200, response.status)
+                        assertEquals(id, response.body.decodeToString())
+                    }
+                }
+                requests.forEach { it.await() }
+            }
+        }
+        kotlin.test.assertNull(kotlinx.coroutines.currentCoroutineContext()[neton.logging.LogContext])
+    }
+
     @Test
     fun preservesRepeatedRequestAndResponseHeaders() = runBlocking {
         val route = RouteDefinition(

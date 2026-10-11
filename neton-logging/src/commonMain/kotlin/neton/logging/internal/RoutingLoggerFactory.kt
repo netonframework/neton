@@ -15,11 +15,14 @@ internal class RoutingLoggerFactory(
 ) : LoggerFactory {
 
     private val defaultContextProvider: () -> LogContext? = contextProvider ?: { CurrentLogContext.get() }
-    private val loggerCache = mutableMapOf<String, Logger>()
+    private val loggerCache = kotlinx.coroutines.flow.MutableStateFlow<Map<String, Logger>>(emptyMap())
 
     override fun get(name: String): Logger {
-        return loggerCache.getOrPut(name) {
-            RoutingLogger(name, config, defaultContextProvider, dispatcher)
+        while (true) {
+            val current = loggerCache.value
+            current[name]?.let { return it }
+            val logger = RoutingLogger(name, config, defaultContextProvider, dispatcher)
+            if (loggerCache.compareAndSet(current, current + (name to logger))) return logger
         }
     }
 

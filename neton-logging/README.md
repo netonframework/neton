@@ -7,7 +7,25 @@ Neton 地基模块：**唯一 Logger API**、结构化日志、Trace/Request Con
 - **业务层**：使用 `@Log` + 构造参数 `log: Logger`，由 KSP 在 Controller/Service 实例化时注入；**禁止**直接调用 `LoggerFactory.get()`。
 - **约束**：其他模块只能依赖 `neton.logging` 公共 API，禁止 import `neton.logging.internal`。
 
-## Multi-Sink（Phase 1 + Phase 2）
+## 协程中的链路日志
+
+HTTP dispatcher 将 `LogContext` 放入协程上下文，不再跨挂起点设置线程变量。
+注入的共享 Logger 不自动读取当前协程；在请求函数内绑定一次，再用于该请求的子任务：
+
+```kotlin
+import neton.logging.withCurrentContext
+
+suspend fun handleRequest() {
+    val requestLog = log.withCurrentContext()
+    requestLog.info("request.started")
+}
+```
+
+绑定后的 Logger 可以跨线程、跨挂起使用。不要把它存进单例成员；后台任务应显式
+使用 `log.withContext(LogContext(...))` 或无请求上下文的 Logger。
+旧 `CurrentLogContext` 只供不挂起的同步代码使用，不是 Kotlin/Native 协程 MDC。
+
+## Sink 配置
 
 - **配置**：仅从 `application.conf` 的 `[logging]` + `[[logging.sinks]]` 读取；v1.1 无 `logging.conf`。
 - **stdout 规则**：有 sinks 配置时默认关闭（避免双写）；无配置时默认开启；需 stdout 时显式加 `name=stdout` sink。

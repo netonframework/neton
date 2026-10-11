@@ -30,6 +30,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(libs.kotlin.stdlib.common)
+                implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
             }
         }
