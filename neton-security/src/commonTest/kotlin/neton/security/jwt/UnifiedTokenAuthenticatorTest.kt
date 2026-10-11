@@ -19,6 +19,43 @@ import kotlinx.coroutines.test.runTest
  */
 class UnifiedTokenAuthenticatorTest {
 
+    @Test
+    fun jwksCancellationPropagatesThroughVerifierAndAuthenticator() = runTest {
+        val cancelled = kotlinx.coroutines.CancellationException("jwks")
+        val provider = JwksHttpProvider(object : JwksFetcher {
+            override suspend fun fetch(): List<JwkRsaMaterial> = throw cancelled
+        })
+        val auth = UnifiedTokenAuthenticator(RsaJwtVerifier(provider),
+            CountingIntrospector { error("must not introspect") }, NoopSessionVersionCache)
+        kotlin.test.assertSame(cancelled, kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+            auth.authenticate(UnifiedTokenTestFixtures.TOKEN_VALID)
+        })
+    }
+
+    @Test
+    fun cancellationIsNotAuthenticationFailureOrCacheMiss() = runTest {
+        for (stage in listOf("get", "introspect", "set")) {
+            val cancellation = kotlinx.coroutines.CancellationException(stage)
+            val cache = object : SessionVersionCache {
+                override suspend fun get(uid: Long, deviceId: String): Long? {
+                    if (stage == "get") throw cancellation
+                    return null
+                }
+                override suspend fun set(uid: Long, deviceId: String, version: Long, ttlSeconds: Long) {
+                    if (stage == "set") throw cancellation
+                }
+            }
+            val auth = UnifiedTokenAuthenticator(newVerifier(), CountingIntrospector {
+                if (stage == "introspect") throw cancellation
+                IntrospectionResult(active = true)
+            }, cache)
+            val thrown = kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+                auth.authenticate(UnifiedTokenTestFixtures.TOKEN_VALID)
+            }
+            kotlin.test.assertSame(cancellation, thrown)
+        }
+    }
+
     private fun newVerifier(): RsaJwtVerifier = RsaJwtVerifier(
         keyProvider = StaticJwksKeyProvider(
             mapOf(UnifiedTokenTestFixtures.KID_V1 to UnifiedTokenTestFixtures.DEFAULT_JWK),

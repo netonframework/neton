@@ -1,5 +1,7 @@
 package neton.security.jwt
 
+import kotlinx.coroutines.CancellationException
+
 /**
  * Unified token Authenticator（spec TOKEN_UNIFICATION_SPEC v1.3 §7.3）。
  *
@@ -20,8 +22,8 @@ package neton.security.jwt
  * - 不接 SecurityConfig / Ktor middleware（Step 4 wiring）
  * - 不接 `@SensitiveEndpoint` bypass（Step 5）
  *
- * 实现细节：所有 IO 异常都被吃掉，转成 [AuthOutcome.Failure]；上层只需要分辨成功 / 失败，
- * 不要解 throwable。
+ * IO failures are mapped to authentication outcomes. CancellationException always
+ * propagates: cancellation is not an authentication failure or a cache miss.
  */
 public class UnifiedTokenAuthenticator(
     private val verifier: RsaJwtVerifier,
@@ -39,6 +41,8 @@ public class UnifiedTokenAuthenticator(
         // Step 1: 本地验签
         val verifyResult = try {
             verifier.verify(token)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Throwable) {
             return AuthOutcome.Failure(AuthFailureReason.IntrospectFailed)
         }
@@ -50,6 +54,8 @@ public class UnifiedTokenAuthenticator(
         // Step 2: cache 查 session_version
         val cachedVersion = try {
             sessionVersionCache.get(claims.userId, claims.deviceId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Throwable) {
             null
         }
@@ -62,6 +68,8 @@ public class UnifiedTokenAuthenticator(
         // Step 3: introspect 兜底
         val intro = try {
             introspector.introspect(token)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Throwable) {
             return AuthOutcome.Failure(AuthFailureReason.IntrospectFailed)
         }
@@ -81,6 +89,8 @@ public class UnifiedTokenAuthenticator(
                 version = authoritativeVersion,
                 ttlSeconds = sessionCacheTtlSeconds,
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Throwable) {
             // 写不进 cache 不阻塞鉴权；下次请求再来一次 introspect 兜底
         }

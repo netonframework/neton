@@ -87,6 +87,8 @@ public class JwksHttpProvider(
     private suspend fun refreshUnsafe(nowMillis: Long, isForced: Boolean) {
         val keys = try {
             fetcher.fetch()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (_: Throwable) {
             // 拉不到时不破坏既有 cache；记 forced 时间防止循环重试
             if (isForced) {

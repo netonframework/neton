@@ -13,6 +13,7 @@ public interface JwksKeyProvider {
      *
      * 实现里**不**应该把 IO 异常吐给 caller —— [RsaJwtVerifier] 收到 null 会
      * 把整次验签判定为 [VerifyError.UnknownKid]，再让上层做 fail-closed 处理。
+     * CancellationException must propagate instead of being mapped to an unknown key.
      */
     public suspend fun resolve(kid: String): JwkRsaMaterial?
 }

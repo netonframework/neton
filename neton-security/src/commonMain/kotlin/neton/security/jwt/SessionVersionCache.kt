@@ -19,6 +19,7 @@ import kotlin.time.Clock
  * 实现**必须**：
  * - cache 不可用时 [get] 返回 null（不抛异常）；让 caller fallback 到 introspect
  * - [set] 异常应被吞掉；写不进去就当无 cache
+ * - CancellationException is not an IO failure and must always propagate.
  */
 public interface SessionVersionCache {
     public suspend fun get(uid: Long, deviceId: String): Long?

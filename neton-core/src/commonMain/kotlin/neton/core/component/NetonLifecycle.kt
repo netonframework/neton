@@ -1,6 +1,10 @@
 package neton.core.component
 
-/** Runtime resource with deterministic application-owned activation and shutdown. */
+/**
+ * Runtime resource with application-owned activation and shutdown.
+ * Each stop has a 30-second cooperative deadline during application cleanup.
+ * Implementations must not block threads indefinitely or swallow cancellation.
+ */
 interface NetonLifecycle {
     suspend fun start()
     suspend fun stop()
@@ -33,7 +37,7 @@ class LifecycleRegistry internal constructor(
     internal suspend fun stopStarted(onFailure: (String, Throwable) -> Unit) {
         for (entry in started.asReversed()) {
             try {
-                entry.lifecycle.stop()
+                kotlinx.coroutines.withTimeout(30_000) { entry.lifecycle.stop() }
             } catch (error: Throwable) {
                 onFailure(entry.name, error)
             }

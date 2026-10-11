@@ -1,6 +1,9 @@
 package neton.jobs.internal
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
 import neton.core.component.NetonContext
 import neton.jobs.ExecutionMode
 import neton.jobs.JobContext
@@ -31,19 +34,19 @@ internal class CoroutineJobScheduler(
     private val listener: JobExecutionListener? = ctx.getOrNull(JobExecutionListener::class)
     private val loggerFactory: LoggerFactory = ctx.get(LoggerFactory::class)
     private val logger: Logger = loggerFactory.get("neton.jobs")
+    private val started = MutableStateFlow(false)
 
     private val statuses = mutableMapOf<String, MutableJobStatus>()
 
     private class MutableJobStatus(
         val definition: JobDefinition,
-        var lastFireTime: Long? = null,
-        var lastDuration: Long? = null,
-        var lastResult: JobResult? = null,
-        var nextFireTime: Long? = null,
-        var runCount: Long = 0,
-        var failCount: Long = 0,
-        var running: Boolean = false
-    )
+    ) {
+        val execution = Mutex()
+        val snapshot = MutableStateFlow(JobStatus(
+            definition.id, definition.enabled, definition.schedule, definition.mode,
+            null, null, null, null, 0, 0,
+        ))
+    }
 
     init {
         definitions.forEach { def ->
@@ -52,6 +55,8 @@ internal class CoroutineJobScheduler(
     }
 
     override suspend fun start() {
+        check(scope.isActive) { "Job scheduler has been shut down" }
+        if (!started.compareAndSet(false, true)) return
         val enabledJobs = definitions.filter { it.enabled }
         logger.info(
             "job.scheduler.start", mapOf(
@@ -79,6 +84,7 @@ internal class CoroutineJobScheduler(
     }
 
     override suspend fun trigger(jobId: String) {
+        check(scope.isActive) { "Job scheduler has been shut down" }
         val def = definitions.find { it.id == jobId }
             ?: throw IllegalArgumentException("Job not found: $jobId")
         val jobLogger = loggerFactory.get("neton.jobs.${def.id}")
@@ -88,20 +94,7 @@ internal class CoroutineJobScheduler(
     }
 
     override fun snapshot(): List<JobStatus> {
-        return statuses.values.map { s ->
-            JobStatus(
-                id = s.definition.id,
-                enabled = s.definition.enabled,
-                schedule = s.definition.schedule,
-                mode = s.definition.mode,
-                lastFireTime = s.lastFireTime,
-                lastDuration = s.lastDuration,
-                lastResult = s.lastResult,
-                nextFireTime = s.nextFireTime,
-                runCount = s.runCount,
-                failCount = s.failCount
-            )
-        }
+        return statuses.values.map { it.snapshot.value }
     }
 
     // --- 内部调度 ---
@@ -128,7 +121,7 @@ internal class CoroutineJobScheduler(
                         break
                     }
                     val status = statuses[def.id]
-                    status?.nextFireTime = next
+                    status?.snapshot?.update { it.copy(nextFireTime = next) }
 
                     val delayMs = next - currentTimeMillis()
                     if (delayMs > 0) {
@@ -142,7 +135,7 @@ internal class CoroutineJobScheduler(
 
     private fun updateNextFireTime(def: JobDefinition, schedule: JobSchedule.FixedRate) {
         val status = statuses[def.id] ?: return
-        status.nextFireTime = currentTimeMillis() + schedule.intervalMs
+        status.snapshot.update { it.copy(nextFireTime = currentTimeMillis() + schedule.intervalMs) }
     }
 
     private suspend fun executeJob(def: JobDefinition, jobLogger: Logger, skipEnabledCheck: Boolean) {
@@ -154,8 +147,7 @@ internal class CoroutineJobScheduler(
 
         // 3. 检查串行（如果已在运行，跳过）
         val status = statuses[def.id] ?: return
-        if (status.running) return
-        status.running = true
+        if (!status.execution.tryLock()) return
 
         val fireTime = currentTimeMillis()
 
@@ -167,16 +159,18 @@ internal class CoroutineJobScheduler(
                     val lock = lm.tryLock("job:${def.id}", def.lockTtlMs.milliseconds)
                     if (lock == null) {
                         // SKIPPED
-                        status.lastFireTime = fireTime
-                        status.lastResult = JobResult.SKIPPED
+                        status.snapshot.update { it.copy(lastFireTime = fireTime, lastResult = JobResult.SKIPPED) }
                         jobLogger.info("job.skipped", mapOf("jobId" to def.id, "fireTime" to fireTime))
-                        listener?.onSkipped(def.id, fireTime)
+                        notifyListener { listener?.onSkipped(def.id, fireTime) }
                         return
                     }
                     try {
                         doRun(def, jobLogger, fireTime, status)
                     } finally {
-                        lock.release()
+                        withContext(NonCancellable) {
+                            val released = withTimeoutOrNull(5_000) { lock.release(); true } ?: false
+                            if (!released) jobLogger.warn("job.lock.release.timeout", mapOf("jobId" to def.id))
+                        }
                     }
                 }
 
@@ -184,8 +178,12 @@ internal class CoroutineJobScheduler(
                     doRun(def, jobLogger, fireTime, status)
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            jobLogger.error("job.infrastructure.failed", mapOf("jobId" to def.id), error)
         } finally {
-            status.running = false
+            status.execution.unlock()
         }
     }
 
@@ -198,31 +196,26 @@ internal class CoroutineJobScheduler(
         )
 
         jobLogger.info("job.started", mapOf("jobId" to def.id, "fireTime" to fireTime))
-        listener?.onStart(def.id, fireTime)
+        notifyListener { listener?.onStart(def.id, fireTime) }
 
-        val startTime = currentTimeMillis()
+        val startTime = kotlin.time.TimeSource.Monotonic.markNow()
         try {
             val executor = def.factory(ctx)
             executor.run(jobContext)
-            val duration = currentTimeMillis() - startTime
+            val duration = startTime.elapsedNow().inWholeMilliseconds
 
-            status.lastFireTime = fireTime
-            status.lastDuration = duration
-            status.lastResult = JobResult.SUCCESS
-            status.runCount++
+            status.snapshot.update { it.copy(lastFireTime = fireTime, lastDuration = duration,
+                lastResult = JobResult.SUCCESS, runCount = it.runCount + 1) }
 
             jobLogger.info("job.done", mapOf("jobId" to def.id, "fireTime" to fireTime, "duration" to duration))
-            listener?.onSuccess(def.id, fireTime, duration)
+            notifyListener { listener?.onSuccess(def.id, fireTime, duration) }
         } catch (e: CancellationException) {
             throw e // 不捕获取消异常
         } catch (e: Throwable) {
-            val duration = currentTimeMillis() - startTime
+            val duration = startTime.elapsedNow().inWholeMilliseconds
 
-            status.lastFireTime = fireTime
-            status.lastDuration = duration
-            status.lastResult = JobResult.FAILED
-            status.runCount++
-            status.failCount++
+            status.snapshot.update { it.copy(lastFireTime = fireTime, lastDuration = duration,
+                lastResult = JobResult.FAILED, runCount = it.runCount + 1, failCount = it.failCount + 1) }
 
             jobLogger.error(
                 "job.failed",
@@ -233,7 +226,17 @@ internal class CoroutineJobScheduler(
                     "error" to (e.message ?: e.toString())
                 )
             )
-            listener?.onFailure(def.id, fireTime, duration, e)
+            notifyListener { listener?.onFailure(def.id, fireTime, duration, e) }
+        }
+    }
+
+    private suspend fun notifyListener(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            logger.error("job.listener.failed", cause = error)
         }
     }
 }

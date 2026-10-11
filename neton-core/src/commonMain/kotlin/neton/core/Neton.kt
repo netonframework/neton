@@ -365,33 +365,39 @@ class Neton private constructor() {
                     "HTTP adapter stopped before reporting READY"
                 }
             } finally {
-                ctx.markStopping()
-                shutdownMonitor?.cancelAndJoin()
-                ProcessShutdownSignals.reset()
-                httpAdapter?.let { adapter ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    ctx.markStopping()
                     try {
-                        adapter.stop()
+                        kotlinx.coroutines.withTimeout(5_000) { shutdownMonitor?.cancelAndJoin() }
                     } catch (error: Throwable) {
-                        logLifecycleStopFailure(log, "http:${adapter.adapterName()}", error)
+                        logLifecycleStopFailure(log, "shutdown-monitor", error)
                     }
-                }
-                ctx.lifecycle.stopStarted { name, error ->
-                    logLifecycleStopFailure(log, "lifecycle:$name", error)
-                }
-                for (component in initialized.asReversed()) {
+                    ProcessShutdownSignals.reset()
+                    httpAdapter?.let { adapter ->
+                        try {
+                            kotlinx.coroutines.withTimeout(30_000) { adapter.stop() }
+                        } catch (error: Throwable) {
+                            logLifecycleStopFailure(log, "http:${adapter.adapterName()}", error)
+                        }
+                    }
+                    ctx.lifecycle.stopStarted { name, error ->
+                        logLifecycleStopFailure(log, "lifecycle:$name", error)
+                    }
+                    for (component in initialized.asReversed()) {
+                        try {
+                            kotlinx.coroutines.withTimeout(30_000) { component.stop(ctx) }
+                        } catch (error: Throwable) {
+                            logLifecycleStopFailure(log, "component:${component::class.simpleName}", error)
+                        }
+                    }
                     try {
-                        component.stop(ctx)
+                        ctx.getOrNull(LoggerFactory::class)?.close()
                     } catch (error: Throwable) {
-                        logLifecycleStopFailure(log, "component:${component::class.simpleName}", error)
+                        kotlin.io.println("Logger shutdown failed: ${error.message ?: error}")
                     }
+                    CoreLog.log = null
+                    ctx.markStopped()
                 }
-                try {
-                    ctx.getOrNull(LoggerFactory::class)?.close()
-                } catch (error: Throwable) {
-                    kotlin.io.println("Logger shutdown failed: ${error.message ?: error}")
-                }
-                CoreLog.log = null
-                ctx.markStopped()
             }
         }
 
@@ -401,11 +407,15 @@ class Neton private constructor() {
         }
 
         private fun logLifecycleStopFailure(log: Logger?, owner: String, error: Throwable) {
-            (log ?: CoreLog.logOrBootstrap()).error(
-                "lifecycle.stop.failed",
-                mapOf("owner" to owner, "error" to (error.message ?: error.toString())),
-                cause = error,
-            )
+            try {
+                (log ?: CoreLog.logOrBootstrap()).error(
+                    "lifecycle.stop.failed",
+                    mapOf("owner" to owner, "error" to (error.message ?: error.toString())),
+                    cause = error,
+                )
+            } catch (_: Throwable) {
+                kotlin.io.println("Lifecycle shutdown failed for $owner: ${error.message ?: error}")
+            }
         }
 
         /**

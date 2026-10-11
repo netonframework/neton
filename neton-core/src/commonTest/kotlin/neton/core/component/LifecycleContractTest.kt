@@ -14,6 +14,24 @@ import kotlin.test.assertTrue
 class LifecycleContractTest {
 
     @Test
+    fun cancellationAtReadyStillStopsEveryOwner() {
+        val events = mutableListOf<String>()
+        assertFailsWith<kotlinx.coroutines.CancellationException> {
+            Neton.run(emptyArray()) {
+                install(RecordingComponent(events)) {}
+                modules(RecordingModule(events))
+                onReady {
+                    kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]!!.cancel()
+                    kotlinx.coroutines.yield()
+                }
+            }
+        }
+        assertTrue("http.stop" in events)
+        assertTrue("owner.stop" in events)
+        assertTrue("component.stop" in events)
+    }
+
+    @Test
     fun frozenContextRemainsReadableButRejectsRegistration() {
         val ctx = NetonContext(emptyArray())
         ctx.bind(String::class, "ready")

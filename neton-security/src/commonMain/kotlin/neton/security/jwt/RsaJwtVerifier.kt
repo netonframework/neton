@@ -59,6 +59,8 @@ public class RsaJwtVerifier(
         // 3) 查 JWKS 公钥；resolve 已经处理过 unknown-kid 的同步 refresh + throttle
         val jwk = try {
             keyProvider.resolve(kid)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (_: Throwable) {
             null
         } ?: return fail(VerifyError.UnknownKid)
