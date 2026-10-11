@@ -1,7 +1,8 @@
 package neton.cache.internal
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
@@ -22,29 +23,32 @@ internal class TwoLevelCache<V : Any>(
     private val singleflight = mutableMapOf<String, kotlinx.coroutines.Deferred<V?>>()
     private val singleflightMutex = Mutex()
 
-    override suspend fun get(key: String): V? {
+    private data class Lookup<T>(val value: T?)
+
+    override suspend fun get(key: String): V? = lookup(key)?.value
+
+    private suspend fun lookup(key: String): Lookup<V>? {
         val fullKey = key
         if (config.enableL1) {
-            l1.get(fullKey)?.let { return it }
+            l1.get(fullKey)?.let { return Lookup(it) }
         }
         val raw = l2.get(fullKey) ?: return null
-        val value = when {
-            CacheValueHeader.isNull(raw) -> null
-            else -> CacheValueHeader.unwrap(raw)?.let { (payload, kind) -> CacheCodec.decode(serializer, payload, kind) }
+        if (CacheValueHeader.isNull(raw)) return Lookup(null)
+        val value = CacheValueHeader.unwrap(raw)?.let { (payload, kind) ->
+            CacheCodec.decode(serializer, payload, kind)
         } ?: return null
-        if (config.enableL1) {
-            val ttl = config.nullTtl ?: config.ttl
-            if (value != null) l1.put(fullKey, value, ttl)
-        }
-        return value
+        // Redis GET does not expose remaining TTL. Refilling with the configured
+        // TTL would extend the lifetime of an almost-expired value.
+        return Lookup(value)
     }
 
     override suspend fun put(key: String, value: V, ttl: Duration?) {
         val effectiveTtl = ttl ?: config.ttl
         val payload = CacheCodec.encode(serializer, value, config.codec)
         val wrapped = CacheValueHeader.wrapValue(payload, config.codec)
+        val started = kotlin.time.TimeSource.Monotonic.markNow()
         l2.set(key, wrapped, effectiveTtl)
-        if (config.enableL1) l1.put(key, value, effectiveTtl)
+        if (config.enableL1) l1.put(key, value, effectiveTtl - started.elapsedNow())
     }
 
     override suspend fun delete(key: String) {
@@ -72,30 +76,29 @@ internal class TwoLevelCache<V : Any>(
         if (config.enableL1) l1.clear()
     }
 
-    override suspend fun getOrPut(key: String, ttl: Duration?, loader: suspend () -> V?): V? = coroutineScope {
-        get(key)?.let { return@coroutineScope it }
-        val effectiveTtl = ttl ?: config.ttl
+    override suspend fun getOrPut(key: String, ttl: Duration?, loader: suspend () -> V?): V? {
+        lookup(key)?.let { return it.value }
+        val candidate = CompletableDeferred<V?>()
         val deferred = singleflightMutex.withLock {
-            singleflight.getOrPut(key) {
-                async {
-                    try {
-                        val loaded = loader()
-                        if (loaded != null) {
-                            val payload = CacheCodec.encode(serializer, loaded, config.codec)
-                            l2.set(key, CacheValueHeader.wrapValue(payload, config.codec), effectiveTtl)
-                            if (config.enableL1) l1.put(key, loaded, effectiveTtl)
-                        } else if (config.nullTtl != null) {
-                            l2.set(key, CacheValueHeader.wrapNull(), config.nullTtl)
-                        }
-                        loaded
-                    } catch (e: Throwable) {
-                        throw e
-                    } finally {
-                        singleflightMutex.withLock { singleflight.remove(key) }
-                    }
-                }
+            singleflight.getOrPut(key) { candidate }
+        }
+        if (deferred !== candidate) return deferred.await()
+        try {
+            // Another flight may have filled the cache between lookup and registration.
+            val cached = lookup(key)
+            val loaded = if (cached != null) cached.value else loader().also { value ->
+                if (value != null) put(key, value, ttl)
+                else config.nullTtl?.let { l2.set(key, CacheValueHeader.wrapNull(), it) }
+            }
+            candidate.complete(loaded)
+            return loaded
+        } catch (error: Throwable) {
+            candidate.completeExceptionally(error)
+            throw error
+        } finally {
+            withContext(NonCancellable) {
+                singleflightMutex.withLock { singleflight.remove(key) }
             }
         }
-        deferred.await()
     }
 }

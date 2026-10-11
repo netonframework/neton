@@ -28,9 +28,17 @@ internal class RedisCacheBacking(
     /** 优先 SCAN；仅当 allowKeysClear=true 时允许 KEYS 降级（WARN 由 redis 侧打印） */
     suspend fun clear() {
         val keys = mutableListOf<String>()
-        redis.collectScanKeys("$keyPrefix:*", allowKeysFallback = allowKeysClear) { k -> keys.add(k) }
-        if (keys.isEmpty()) return
         val prefix = "$keyPrefix:"
-        redis.pipeline { keys.forEach { full -> delete(full.removePrefix(prefix)) } }
+        val pattern = prefix.flatMap { if (it in "\\*?[]") listOf('\\', it) else listOf(it) }.joinToString("") + "*"
+        suspend fun flush() {
+            if (keys.isEmpty()) return
+            redis.pipeline { keys.forEach { delete(it) } }
+            keys.clear()
+        }
+        redis.collectScanKeys(pattern, allowKeysFallback = allowKeysClear) { key ->
+            if (key.startsWith(prefix)) keys.add(key)
+            if (keys.size >= 256) flush()
+        }
+        flush()
     }
 }

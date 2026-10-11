@@ -10,32 +10,38 @@ import kotlinx.coroutines.sync.withLock
 internal class L1Cache<K, V>(
     private val maxSize: Int,
     private val defaultTtl: Duration,
+    private val nowMs: () -> Long = run {
+        val origin = kotlin.time.TimeSource.Monotonic.markNow()
+        val clock: () -> Long = { origin.elapsedNow().inWholeMilliseconds }
+        clock
+    },
 ) {
+    init { require(maxSize > 0) }
     private val mutex = Mutex()
-    private val map = mutableMapOf<K, L1Entry<V>>()
-    private val order = ArrayDeque<K>(maxSize.coerceAtLeast(16))
+    private val map = linkedMapOf<K, L1Entry<V>>()
 
     private class L1Entry<V>(val value: V, val expiresAt: Long)
 
     suspend fun get(key: K): V? = mutex.withLock {
-        val e = map[key] ?: return null
-        if (e.expiresAt >= nowMs()) e.value else { map.remove(key); order.remove(key); null }
+        val e = map.remove(key) ?: return null
+        if (e.expiresAt <= nowMs()) return null
+        map[key] = e
+        e.value
     }
 
     suspend fun put(key: K, value: V, ttl: Duration) = mutex.withLock {
-        while (map.size >= maxSize && order.isNotEmpty()) {
-            val oldest = order.removeFirst()
-            map.remove(oldest)
+        map.remove(key)
+        if (ttl <= Duration.ZERO) return@withLock
+        while (map.size >= maxSize) {
+            map.remove(map.keys.first())
         }
-        val expiresAt = nowMs() + ttl.inWholeMilliseconds
+        val now = nowMs()
+        val millis = ttl.inWholeMilliseconds
+        val expiresAt = if (millis > Long.MAX_VALUE - now) Long.MAX_VALUE else now + millis
         map[key] = L1Entry(value, expiresAt)
-        order.remove(key)
-        order.addLast(key)
     }
 
-    suspend fun delete(key: K) = mutex.withLock { map.remove(key); order.remove(key) }
+    suspend fun delete(key: K) = mutex.withLock { map.remove(key); Unit }
 
-    suspend fun clear() = mutex.withLock { map.clear(); order.clear() }
-
-    private fun nowMs(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
+    suspend fun clear() = mutex.withLock { map.clear() }
 }

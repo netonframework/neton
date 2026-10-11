@@ -30,7 +30,7 @@ class DefaultCacheManager(
             var cache = caches[key] as? TwoLevelCache<V>
             if (cache == null) {
                 val l1 = L1Cache<String, V>(
-                    maxSize = config.maxSize ?: 1000,
+                    maxSize = config.maxSize ?: Int.MAX_VALUE,
                     defaultTtl = config.ttl,
                 )
                 val l2 = RedisCacheBacking(redis, "cache:${config.name}", config.allowKeysClear)

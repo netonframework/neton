@@ -39,7 +39,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import neton.logging.Logger
 
 /**
- * Redis 客户端实现，后端仅支持 re.this（eu.vendeli:rethis:0.3.9）。
+ * Redis 客户端实现，后端为 re.this（版本统一在 version catalog）。
  * 业务层不感知底层驱动。可选 logger 用于 WARN（如 KEYS fallback）。
  */
 class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null) : RedisClient {
@@ -122,6 +122,8 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
                 for (k in keyList) emitLogical(k)
                 cur = result.cursor.toLongOrNull() ?: 0L
             } while (cur != 0L)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Throwable) {
             if (!allowKeysFallback) throw IllegalStateException(
                 "neton-redis: SCAN failed or unavailable; allowKeysFallback=false. " +
@@ -129,7 +131,7 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
                 e
             )
             logger?.warn("Using KEYS for collectScanKeys (dangerous, avoid in production)", mapOf("pattern" to fullPattern))
-            val list = runCatching { rt.rethisKeys(fullPattern) }.getOrNull() ?: emptyList()
+            val list = rt.rethisKeys(fullPattern)
             for (k in list) emitLogical(k)
         }
     }
@@ -221,7 +223,13 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
     override suspend fun pipeline(block: RedisPipeline.() -> Unit) {
         val runner = PipelineRunner(this)
         block(runner)
-        runner.execute()
+        if (runner.isEmpty) return
+        val replies = rt.pipeline { runner.execute() }
+        replies.forEachIndexed { index, reply ->
+            if (reply is eu.vendeli.rethis.shared.types.RType.Error) {
+                throw RedisException("Redis pipeline command $index failed", reply.exception)
+            }
+        }
     }
 
     override suspend fun setIfAbsent(key: String, value: String, pxMillis: Long): Boolean {
@@ -242,6 +250,8 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
             val prefixed = keys.map { fullKey(it) }
             val result = rt.evalSha(sha, *prefixed.toTypedArray(), arg = args)
             (result.value as? Number)?.toLong()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             null
         }
@@ -249,6 +259,7 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
 
     private class PipelineRunner(private val client: RedisClient) : RedisPipeline {
         private val ops = mutableListOf<suspend () -> Unit>()
+        val isEmpty: Boolean get() = ops.isEmpty()
 
         override fun set(key: String, value: Any, ttl: Duration?) {
             ops.add { client.set(key, value, ttl) }

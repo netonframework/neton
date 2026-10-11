@@ -55,6 +55,7 @@ interface RedisClient {
     // ---------- Cache 风格（Laravel remember 由扩展提供：redis.remember<User>(key, ttl) { ... }）----------
 
     // ---------- Pipeline（减少 RTT）----------
+    /** Batch commands in order. Not a transaction: errors do not roll back earlier writes. */
     suspend fun pipeline(block: RedisPipeline.() -> Unit)
 
     /**

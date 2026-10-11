@@ -22,3 +22,14 @@ cache.clear()
 ## L2 clear()
 
 优先 **SCAN**（MATCH prefix:* COUNT N + pipeline DEL）。仅当 **allowKeysClear=true** 时允许降级 KEYS（危险，生产禁用）；实现会 WARN。
+
+清理保留 `cache:<name>:` 命名空间，每批最多删除 256 个键。SCAN 不是原子快照，
+与清理并发写入的新值不保证被删除。
+
+L1 读取会更新 LRU 次序，TTL 使用单调时钟。`nullTtl` 会阻止缓存空值时重复调用 loader。
+当前 Redis GET 接口不返回剩余 TTL，因此 L2 命中不回填 L1；只有本地 put/loader
+产生的值写入 L1，并扣除 L2 写入所耗时间，不能用一个完整的新 TTL 延长旧值寿命。
+这是一项正确性取舍，后续可通过原子读取 value + 剩余 TTL 恢复安全回填。
+
+同键 loader 的发起者被取消时，本次等待者也收到取消；singleflight 登记必定移除，
+后续请求可以重新加载。独立等待者取消不会取消发起者。
