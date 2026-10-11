@@ -38,6 +38,7 @@ class RuntimeTest {
         val closes = mutableListOf<Int?>()
         var earlyPong = true
         var pings = 0
+        val secondPingWritten = CompletableDeferred<Unit>()
         var aborted = false
         var failCleanup = false
         var writeGate: CompletableDeferred<Unit>? = null
@@ -49,6 +50,7 @@ class RuntimeTest {
         override suspend fun writePing(bytes: ByteArray) {
             pings++
             if (earlyPong) { events.send(WebSocketEngineEvent.Pong(bytes.copyOf())); yield() }
+            if (pings >= 2) secondPingWritten.complete(Unit)
         }
         override suspend fun writeClose(code: Int?, reason: String) {
             closes += code
@@ -69,7 +71,7 @@ class RuntimeTest {
             val session = ManagedWebSocketSession(runtime, engine, handshake)
             val shutdown = CompletableDeferred<Unit>()
             val job = launch { session.run(shutdown) { awaitCancellation() } }
-            delay(100)
+            engine.secondPingWritten.await()
             assertTrue(engine.pings >= 2)
             assertFalse(engine.aborted)
             shutdown.complete(Unit)
