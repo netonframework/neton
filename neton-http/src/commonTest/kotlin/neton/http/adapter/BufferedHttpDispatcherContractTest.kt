@@ -285,6 +285,32 @@ class BufferedHttpDispatcherContractTest {
         assertFalse(result.streamed)
         assertEquals("""{"code":0,"message":"OK","data":{"message":"Hello, World!"}}""", result.body.decodeToString())
     }
+
+    @Test
+    fun httpExceptionHeadersReachTheErrorResponse() = runBlocking {
+        val route = RouteDefinition(
+            pattern = "/locked",
+            method = HttpMethod.POST,
+            allowAnonymous = true,
+            handler = object : RouteHandler {
+                override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs): Any =
+                    throw neton.core.http.HttpException(
+                        neton.core.http.NetonErrorCode.RATE_LIMIT_EXCEEDED,
+                        "Too many failed attempts",
+                        headers = mapOf("Retry-After" to "120"),
+                    )
+            },
+        )
+        val context = NetonContext(emptyArray()).apply {
+            bind(RequestEngine::class, FixedRequestEngine(listOf(route)))
+        }
+        val dispatcher = BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(context) }
+
+        val result = dispatcher.dispatch(BufferedHttpRequest("POST", "/locked", "", emptyMap(), ByteArray(0)))
+        assertEquals(429, result.status)
+        assertEquals(listOf("120"), result.headers["Retry-After"])
+        assertTrue(result.headers["Content-Type"]!!.single().startsWith("application/json"))
+    }
 }
 
 private class FixedRequestEngine(

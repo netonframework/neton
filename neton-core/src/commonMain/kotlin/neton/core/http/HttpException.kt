@@ -13,12 +13,16 @@ package neton.core.http
  * throw HttpException(MemberErrorCode.MOBILE_ALREADY_BOUND, "mobile already bound")
  * ```
  *
+ * 需要随错误一起下发的响应头（如冷却的 `Retry-After`、质询的 `WWW-Authenticate`）放进 [headers]：
+ * 错误响应是框架重新生成的，处理器此前写到 `context.response` 上的头不会带出去。
+ *
  * 旧的 `HttpException(HttpStatus.X, message)` 构造器已废弃；HttpStatus 不再作为业务错误的入口。
  */
 open class HttpException(
     val code: Int,
     override val message: String,
     val errors: List<ValidationError> = emptyList(),
+    val headers: Map<String, String> = emptyMap(),
 ) : RuntimeException(message) {
 
     /**

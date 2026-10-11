@@ -478,7 +478,11 @@ public class BufferedHttpDispatcher(
                 cause = if (isClientError) null else e,
             )
             DispatchOutcome(
-                errorResponse(httpStatus, e.code, e.message),
+                envelopeResponse(
+                    httpStatus,
+                    ApiEnvelope.error(e.code, e.message),
+                    e.headers.mapValues { (_, value) -> listOf(value) },
+                ),
                 matched.route.pattern,
                 context,
             )
