@@ -9,6 +9,7 @@ import kotlinx.serialization.KSerializer
 import neton.cache.Cache
 import neton.cache.CacheConfig
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * L1 + L2 两级缓存；getOrPut 进程内 per-key singleflight；loader 异常不缓存，等待方共享异常。
@@ -48,7 +49,7 @@ internal class TwoLevelCache<V : Any>(
         val wrapped = CacheValueHeader.wrapValue(payload, config.codec)
         val started = kotlin.time.TimeSource.Monotonic.markNow()
         l2.set(key, wrapped, effectiveTtl)
-        if (config.enableL1) l1.put(key, value, effectiveTtl - started.elapsedNow())
+        if (config.enableL1) l1.put(key, value, effectiveTtl.inWholeMilliseconds.milliseconds - started.elapsedNow())
     }
 
     override suspend fun delete(key: String) {

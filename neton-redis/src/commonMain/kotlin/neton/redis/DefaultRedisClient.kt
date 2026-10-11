@@ -82,7 +82,7 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
         val str = serialize(value)
         val k = fullKey(key)
         if (ttl != null) {
-            rt.set(k, str, SetExpire.Ex(ttl))
+            rt.set(k, str, SetExpire.Px(ttl))
         } else {
             rt.set(k, str)
         }
@@ -97,7 +97,7 @@ class DefaultRedisClient(config: RedisConfig, private val logger: Logger? = null
         val str = bytesToString(value)
         val k = fullKey(key)
         if (ttl != null) {
-            rt.set(k, str, SetExpire.Ex(ttl))
+            rt.set(k, str, SetExpire.Px(ttl))
         } else {
             rt.set(k, str)
         }

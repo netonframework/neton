@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import neton.core.config.getEnv
 import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Run against an isolated Redis with NETON_TEST_REDIS_PORT set. */
 class RedisPipelineIntegrationTest {
@@ -13,6 +14,9 @@ class RedisPipelineIntegrationTest {
         val client = DefaultRedisClient(RedisConfig(port = port, keyPrefix = "pipeline-regression"))
         try {
             client.pipeline {}
+            // EX would truncate this to zero seconds and Redis would reject it.
+            client.set("subsecond-text", "value", 500.milliseconds)
+            client.setBytes("subsecond-bytes", byteArrayOf(1), 500.milliseconds)
             client.pipeline {
                 set("counter", 1, 60.seconds)
                 incr("counter")
@@ -33,7 +37,7 @@ class RedisPipelineIntegrationTest {
             assertFails { client.pipeline { set("bad", "not-a-number"); incr("bad") } }
             assertEquals("2", client.getValue("counter"))
         } finally {
-            for (key in listOf("counter", "hash", "list", "set", "remove", "bad")) client.delete(key)
+            for (key in listOf("counter", "hash", "list", "set", "remove", "bad", "subsecond-text", "subsecond-bytes")) client.delete(key)
             client.close()
         }
     }
