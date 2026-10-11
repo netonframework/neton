@@ -6,6 +6,24 @@ Native-first, zero reflection, compile-time code generation, structured logging,
 
 [中文文档](README.zh-CN.md)
 
+## Building This Development Branch
+
+The source-integration build uses sibling protocol repositories, not Maven Local.
+For a fresh checkout, fetch the exact CI revisions first (existing sibling checkouts
+are verified, never reset):
+
+```bash
+bash tools/ci/checkout-protocols.sh
+./gradlew -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all \
+  :neton-core:macosArm64Test :neton-http:macosArm64Test :neton-websocket:macosArm64Test
+```
+
+Use `linuxX64Test` instead on an x64 Linux host. To avoid existing sibling checkouts,
+set `NETON_PROTOCOL_SOURCES_DIR` for the checkout script and pass the same absolute
+directory as `-Pnetonstream.sourcesDir=...` to Gradle. Foundation-only checks can use
+`-Pnetonstream.local=false`. Releases must use published dependencies, not these
+source substitutions; see [RELEASING.md](RELEASING.md).
+
 ---
 
 ## Features

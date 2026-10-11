@@ -78,6 +78,15 @@ subprojects {
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
 
+    tasks.withType<org.gradle.api.publish.maven.tasks.AbstractPublishToMaven>().configureEach {
+        doFirst {
+            require(rootProject.providers.gradleProperty("netonstream.local").orNull != "true" &&
+                rootProject.providers.gradleProperty("hyper4k.local").orNull != "true") {
+                "Publishing requires released dependencies. Disable netonstream.local and hyper4k.local, then validate the artifact build."
+            }
+        }
+    }
+
     afterEvaluate {
         val sub = this@subprojects
         val publishing = sub.extensions.findByType<org.gradle.api.publish.PublishingExtension>() ?: return@afterEvaluate
@@ -180,4 +189,4 @@ fun configurePom(proj: org.gradle.api.Project, pom: org.gradle.api.publish.maven
         connection.set("scm:git:git://github.com/netonframework/neton.git")
         developerConnection.set("scm:git:ssh://git@github.com/netonframework/neton.git")
     }
-} 
+}

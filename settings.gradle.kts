@@ -62,16 +62,17 @@ require(!useLocalNetonstream || !providers.gradleProperty("netonstream.repositor
     "Choose netonstream source substitution OR artifact verification, not both."
 }
 if (useLocalNetonstream) {
-    for (dir in listOf("../io", "../http", "../tls", "../websocket")) {
+    val sourceRoot = providers.gradleProperty("netonstream.sourcesDir").orNull ?: ".."
+    for (name in listOf("io", "http", "tls", "websocket")) {
+        val dir = "$sourceRoot/$name"
         require(file(dir).isDirectory) { "netonstream.local=true requires $dir" }
         includeBuild(dir)
     }
-    // openssl-kotlin builds only the host target unless run with -PnativeTargets=all, while tls declares all
-    // ten, so substituting it breaks tls's other targets; building all ten means compiling OpenSSL with the
-    // NDK, iOS SDK and MinGW toolchains. It only binds upstream OpenSSL and is not developed in this round:
-    // the published com.netonstream:openssl that tls pins is used unless asked for explicitly.
+    // Declare all variants with -PnativeTargets=all, then request only host test tasks.
+    // Compiling a foreign target still requires its SDK/toolchain.
     if (providers.gradleProperty("netonstream.local.openssl").orNull == "true") {
-        require(file("../openssl-kotlin").isDirectory) { "netonstream.local.openssl=true requires ../openssl-kotlin" }
-        includeBuild("../openssl-kotlin")
+        val dir = "$sourceRoot/openssl-kotlin"
+        require(file(dir).isDirectory) { "netonstream.local.openssl=true requires $dir" }
+        includeBuild(dir)
     }
 }

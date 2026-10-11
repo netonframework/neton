@@ -18,6 +18,18 @@ The signing public key must be on a keyserver (`keyserver.ubuntu.com` or `keys.o
 
 ## Publish
 
+Before release, disable source substitution and run the same tests against the exact
+published dependencies: `-Pnetonstream.local=false -Phyper4k.local=false`.
+Publishing tasks reject source substitution, including Maven Local and staging output.
+Do not substitute a sibling checkout to hide an unavailable dependency version.
+
+Development CI checks out revisions from `tools/ci/protocol-sources.lock` using
+`bash tools/ci/checkout-protocols.sh`. The script never resets existing checkouts.
+Run source integration tests with `-Pnetonstream.local=true
+-Pnetonstream.local.openssl=true -PnativeTargets=all`; declaring all OpenSSL target
+variants does not require compiling all targets when only host test tasks are requested.
+Source-stack test success is not evidence that a Central-only consumer can build.
+
 Use the Central Portal bundle upload. Do **not** use the OSSRH staging endpoint
 (`publishAllPublicationsToSonatypeCentralRepository`): that API keys its implicit staging
 repository by client IP, and an exit-IP change during the seven-minute upload (a TUN-mode
@@ -27,7 +39,7 @@ upload is a single request and cannot split.
 
 ```bash
 # 1. Build, sign and lay out every publication under build/staging-repo
-./gradlew publishAllPublicationsToStagingLocalRepository
+./gradlew -Pnetonstream.local=false -Phyper4k.local=false publishAllPublicationsToStagingLocalRepository
 
 # 2. Bundle it (repository-level metadata is not part of a bundle)
 cd build/staging-repo

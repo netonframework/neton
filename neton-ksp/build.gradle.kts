@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.google.devtools.ksp:symbol-processing-api:2.3.5")
+    implementation("com.google.devtools.ksp:symbol-processing-api:${libs.versions.ksp.get()}")
     
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
 
@@ -31,4 +31,4 @@ kotlin {
     sourceSets.main {
         kotlin.srcDir("build/generated/ksp/main/kotlin")
     }
-} 
+}
