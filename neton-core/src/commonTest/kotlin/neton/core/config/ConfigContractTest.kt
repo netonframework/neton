@@ -273,4 +273,23 @@ class ConfigContractTest {
         assertTrue(e.lineNumber > 0)
         assertTrue(e.message.contains("application.conf") || e.content.contains("[broken"))
     }
+
+    /** 环境变量只能大写，路径被转成小写；必须仍能覆盖配置里的驼峰键，而不是在旁边新增一个小写键。 */
+    @Test
+    fun envOverridesCamelCaseKeysCaseInsensitively() {
+        val base = mutableMapOf<String, Any?>(
+            "security" to mapOf("jwt" to mapOf("secretKey" to "from-file", "headerName" to "Authorization")),
+        )
+        val merged = ConfigOverrides.applyOverrides(base, mapOf("NETON_SECURITY__JWT__SECRETKEY" to "from-env"), emptyArray())
+        assertEquals("from-env", get(merged, "security.jwt.secretKey"))
+        assertEquals(null, get(merged, "security.jwt.secretkey"))
+        assertEquals("Authorization", get(merged, "security.jwt.headerName"))
+    }
+
+    @Test
+    fun envOverrideOfUnknownKeyIsStillAdded() {
+        val merged = ConfigOverrides.applyOverrides(mutableMapOf("server" to mapOf("port" to 8080)), mapOf("NETON_SERVER__HOST" to "0.0.0.0"), emptyArray())
+        assertEquals("0.0.0.0", get(merged, "server.host"))
+        assertEquals(8080, get(merged, "server.port"))
+    }
 }

@@ -2,7 +2,7 @@ package neton.core.config
 
 /**
  * ENV/CLI 覆盖（Neton-Core-Spec 5.4）。
- * ENV：NETON_ 前缀，__ 表示点，路径小写。
+ * ENV：NETON_ 前缀，__ 表示点，路径小写；合并时按忽略大小写对齐到配置里已有的键（见 [alignKeys]）。
  * CLI：--key=value，key 为点分路径。
  */
 object ConfigOverrides {
@@ -55,8 +55,32 @@ object ConfigOverrides {
         env: Map<String, String>,
         args: Array<String>
     ): Map<String, Any?> {
-        val withEnv = ConfigMerge.merge(base, envToOverrides(env))
-        return ConfigMerge.merge(withEnv, cliToOverrides(args))
+        val withEnv = ConfigMerge.merge(base, alignKeys(base, envToOverrides(env)))
+        return ConfigMerge.merge(withEnv, alignKeys(withEnv, cliToOverrides(args)))
+    }
+
+    /**
+     * 把覆盖项的键名对齐到配置里已有的写法（忽略大小写）。
+     *
+     * 环境变量名只能是大写，[envToOverrides] 因此把路径统一转成小写；配置文件里却有驼峰键
+     * （`[security.jwt] secretKey`）。不对齐的话，`NETON_SECURITY__JWT__SECRETKEY` 生成的是
+     * `secretkey`，与 `secretKey` 并存，读取方拿到的仍是文件里的原值 —— 覆盖静默失效。
+     * 配置里不存在的键保持原样（覆盖可以新增键）。
+     */
+    @Suppress("UNCHECKED_CAST")
+    internal fun alignKeys(base: Map<String, Any?>, override: Map<String, Any?>): Map<String, Any?> {
+        val result = LinkedHashMap<String, Any?>()
+        for ((key, value) in override) {
+            val existing = base.keys.firstOrNull { it == key } ?: base.keys.firstOrNull { it.equals(key, ignoreCase = true) }
+            val target = existing ?: key
+            val baseChild = existing?.let { base[it] }
+            result[target] = if (value is Map<*, *> && baseChild is Map<*, *>) {
+                alignKeys(baseChild as Map<String, Any?>, value as Map<String, Any?>)
+            } else {
+                value
+            }
+        }
+        return result
     }
 
     /**
@@ -84,6 +108,6 @@ object ConfigOverrides {
         val all = ConfigMerge.merge(envToOverrides(env), cliToOverrides(args))
         @Suppress("UNCHECKED_CAST")
         val scoped = all[namespace.lowercase()] as? Map<String, Any?> ?: return base
-        return ConfigMerge.merge(base, scoped)
+        return ConfigMerge.merge(base, alignKeys(base, scoped))
     }
 }
