@@ -56,6 +56,9 @@ subprojects {
     group = netonGroup
     version = netonVersion
 
+    // This prototype has not passed engine conformance and must not be published.
+    if (path == ":neton-http-geario4k") return@subprojects
+
     // Apple 目标链接 Swift 互操作库所需的搜索路径。
     //
     // cryptography-kotlin 在 Apple 上把 AES-GCM 解析到 CryptoKit，其实现是 Swift；链接时需要

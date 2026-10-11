@@ -1,0 +1,4 @@
+package = neton.http.geario.cinterop
+headers = geario_http.h
+headerFilter = geario_http.h
+staticLibraries = libgeario_http_ffi.a
