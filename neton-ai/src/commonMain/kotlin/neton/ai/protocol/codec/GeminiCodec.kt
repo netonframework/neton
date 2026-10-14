@@ -48,11 +48,13 @@ object GeminiCodec : ProtocolCodec {
     /** Google 官方占位值之一（spec §4.5.2，官方强烈不鼓励）。 */
     const val SIGNATURE_BYPASS_VALUE = "context_engineering_is_the_way_to_go"
     private const val HAS_ID = "hasId"
+    /** 本编解码器按顺序生成的 ID（Gemini 没给），只在内部回配用，不写出。 */
+    private const val SYNTHETIC_ID = "syntheticId"
     /** 标记推理块来自 Gemini 的 thought 部分（只有这种才写回 Gemini）。 */
     private const val THOUGHT = "thought"
 
     private val REQUEST_KEYS = setOf(
-        "contents", "systemInstruction", "system_instruction", "tools", "toolConfig", "tool_config",
+        "model", "contents", "systemInstruction", "system_instruction", "tools", "toolConfig", "tool_config",
         "generationConfig", "generation_config",
     )
     private val GEN_KEYS = setOf(
@@ -88,7 +90,8 @@ object GeminiCodec : ProtocolCodec {
         val toolChoice = fcc?.let(::decodeToolChoice)
         if (body.g("toolConfig") != null && toolChoice == null) meta = meta.with(NS, "toolConfig", body.g("toolConfig"))
         return ChatRequest(
-            model = null,
+            // 官方报文里没有 model（在 URL 上）；网关等宿主会把它放进 body，读出来
+            model = body.str("model"),
             instructions = instructions,
             messages = messages,
             tools = body.arr("tools")?.objects()?.flatMap(::decodeTools) ?: emptyList(),
@@ -148,7 +151,7 @@ object GeminiCodec : ProtocolCodec {
         p.gObj("functionCall")?.let { fc ->
             val name = fc.str("name") ?: ""
             val given = fc.str("id")
-            if (given != null) meta = meta.with(NS, HAS_ID, JsonPrimitive(true))
+            meta = meta.with(NS, if (given != null) HAS_ID else SYNTHETIC_ID, JsonPrimitive(true))
             return ToolCallBlock(ids.forCall(name, given), name, (fc["args"] ?: JsonObject(emptyMap())).toString(), ToolKind.Function, meta)
         }
         p.gObj("functionResponse")?.let { fr ->
@@ -360,7 +363,9 @@ object GeminiCodec : ProtocolCodec {
             is FileBlock -> mediaPart(b.source, b.metadata, path, d)
             is ToolCallBlock -> tracking {
                 put("functionCall", tracking {
-                    if (b.metadata[NS, HAS_ID] != null) put("id", b.id)
+                    // 发给客户端时带上调用 ID，客户端可在 functionResponse.id 回传，同名并行调用也能对应；
+                    // 发给上游时只写来自 Gemini 的 ID，不把其他协议的 ID 塞给它
+                    if (b.metadata[NS, HAS_ID] != null || (forResponse && b.id.isNotEmpty() && b.metadata[NS, SYNTHETIC_ID] == null)) put("id", b.id)
                     put("name", b.name)
                     put("args", J.parseOrString(b.arguments.ifBlank { "{}" }).let { it as? JsonObject ?: buildJsonObject { put("input", b.arguments) } })
                 })
@@ -624,7 +629,7 @@ object GeminiCodec : ProtocolCodec {
                 val name = fc.str("name") ?: ""
                 var meta = ProviderMetadata.EMPTY
                 sig?.let { meta = meta.with(NS, SIG, it) }
-                fc.str("id")?.let { meta = meta.with(NS, HAS_ID, JsonPrimitive(true)) }
+                meta = meta.with(NS, if (fc.str("id") != null) HAS_ID else SYNTHETIC_ID, JsonPrimitive(true))
                 val block = ToolCallBlock(ids.forCall(name, fc.str("id")), name, (fc["args"] ?: JsonObject(emptyMap())).toString(), ToolKind.Function, meta)
                 val key = "tool:${toolCount++}"
                 seq.ensure(key, out) { block }
@@ -712,7 +717,7 @@ object GeminiCodec : ProtocolCodec {
                         // functionCall 在 Gemini 里一次给出完整参数：收齐后整体输出
                         is ToolCallBlock -> part(sb, buildJsonObject {
                             put("functionCall", buildJsonObject {
-                                if (b.metadata[NS, HAS_ID] != null) put("id", b.id)
+                                if (b.id.isNotEmpty() && b.metadata[NS, SYNTHETIC_ID] == null) put("id", b.id)
                                 put("name", b.name)
                                 val a = args[event.index]?.toString().orEmpty().ifBlank { "{}" }
                                 put("args", J.parseOrString(a) as? JsonObject ?: buildJsonObject { put("input", a) })

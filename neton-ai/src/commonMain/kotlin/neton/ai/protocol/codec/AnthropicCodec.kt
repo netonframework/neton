@@ -54,7 +54,8 @@ object AnthropicCodec : ProtocolCodec {
             else -> emptyList()
         }
         val messages = (body.arr("messages") ?: JsonArray(emptyList())).objects().mapIndexed { i, m ->
-            val role = if (m.str("role") == "assistant") Role.Assistant else Role.User
+            // Claude Code 会在对话中途发 role=system 的消息，按 system 保留
+            val role = when (m.str("role")) { "assistant" -> Role.Assistant; "system" -> Role.System; else -> Role.User }
             Message(role, decodeContent(m["content"], "messages[$i].content", diagnostics),
                 metadata = ProviderMetadata.EMPTY.withExtra(F, m, setOf("role", "content")))
         }
@@ -160,7 +161,11 @@ object AnthropicCodec : ProtocolCodec {
         val o = request.options
         val d = diagnostics
         put("model", request.model)
-        val maxTokens = o.maxOutputTokens ?: DEFAULT_MAX_TOKENS
+        val thinking = encodeThinking(o.reasoning)
+        val budget = thinking?.int("budget_tokens")
+        // 预算必须小于 max_tokens：不够时把 max_tokens 抬到「预算 + 1024」，而不是放弃推理（与主流网关一致）
+        val requested = o.maxOutputTokens ?: DEFAULT_MAX_TOKENS
+        val maxTokens = if (budget != null && requested <= budget) budget + MIN_THINKING_BUDGET else requested
         put("max_tokens", maxTokens)
         encodeSystem(request, d)?.let { put("system", it) }
         put("messages", JsonArray(encodeMessages(request.messages, d)))
@@ -168,11 +173,16 @@ object AnthropicCodec : ProtocolCodec {
         val toolsActive = tools.isNotEmpty()
         if (toolsActive) put("tools", JsonArray(tools))
         if (toolsActive || o.toolChoice == ToolChoice.None) encodeToolChoice(o.toolChoice, o.parallelToolCalls)?.let { put("tool_choice", it) }
-        put("temperature", o.temperature)
+        val thinkingOn = thinking?.str("type").let { it == "enabled" || it == "adaptive" }
+        if (thinkingOn && (o.temperature != null || o.topK != null)) {
+            // 开启 thinking 时 Anthropic 不接受修改 temperature / top_k
+            d.warn(DiagnosticCodes.UNSUPPORTED_OPTION, "temperature", "temperature/top_k are not sent while thinking is enabled")
+        }
+        if (!thinkingOn) put("temperature", o.temperature)
         put("top_p", o.topP)
-        put("top_k", o.topK)
+        if (!thinkingOn) put("top_k", o.topK)
         if (o.stop.isNotEmpty()) put("stop_sequences", JsonArray(o.stop.map(::JsonPrimitive)))
-        encodeThinking(o.reasoning, maxTokens, d)?.let { put("thinking", it) }
+        thinking?.let { put("thinking", it) }
         val outputConfigKept = request.metadata.wireExtra(F).containsKey("output_config")
         if (!outputConfigKept && o.reasoning?.effort != null && o.reasoning.mode == ReasoningMode.Adaptive) {
             put("output_config", buildJsonObject { put("effort", o.reasoning.effort) })
@@ -380,7 +390,7 @@ object AnthropicCodec : ProtocolCodec {
         }
     }
 
-    private fun encodeThinking(r: ReasoningOptions?, maxTokens: Int, d: Diagnostics): JsonObject? {
+    private fun encodeThinking(r: ReasoningOptions?): JsonObject? {
         if (r == null) return null
         return when (r.mode) {
             ReasoningMode.Disabled -> buildJsonObject { put("type", "disabled") }
@@ -388,13 +398,7 @@ object AnthropicCodec : ProtocolCodec {
             else -> {
                 if (r.mode == null && r.budgetTokens == null && (r.effort == null || r.effort == "none")) return null
                 val wanted = r.budgetTokens ?: Reasoning.budgetForEffort(r.effort) ?: return null
-                // 预算必须 ≥ 1024 且 < max_tokens
-                val budget = maxOf(MIN_THINKING_BUDGET, minOf(wanted, maxTokens - 1))
-                if (budget >= maxTokens) {
-                    d.warn(DiagnosticCodes.THINKING_DISABLED, "reasoning", "max_tokens $maxTokens leaves no room for thinking; thinking not enabled")
-                    return null
-                }
-                buildJsonObject { put("type", "enabled"); put("budget_tokens", budget) }
+                buildJsonObject { put("type", "enabled"); put("budget_tokens", maxOf(MIN_THINKING_BUDGET, wanted)) }
             }
         }
     }

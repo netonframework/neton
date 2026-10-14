@@ -95,11 +95,13 @@ object ProtocolConverter {
 
     fun renderError(error: ProtocolError, to: WireFormat): String = ProtocolCodecs.of(to).encodeError(error).toString()
 
+    /** @param defaultModel 上游流里没有模型名时，输出用这个名字。 */
     fun streamConverter(
         from: WireFormat,
         to: WireFormat,
         transform: ((StreamEvent) -> List<StreamEvent>)? = null,
-    ): StreamConverter = StreamConverter(from, to, transform)
+        defaultModel: String? = null,
+    ): StreamConverter = StreamConverter(from, to, transform, defaultModel)
 }
 
 /**
@@ -111,7 +113,9 @@ class StreamConverter internal constructor(
     val from: WireFormat,
     val to: WireFormat,
     private val transform: ((StreamEvent) -> List<StreamEvent>)?,
+    private val defaultModel: String? = null,
 ) {
+    private var startSeen = false
     private val diagnostics = Diagnostics(from, to)
     private val framer = SseFramer()
     private val decoder = ProtocolCodecs.of(from).streamDecoder(diagnostics)
@@ -139,18 +143,27 @@ class StreamConverter internal constructor(
         return if (encoder == null) chunk else sb.toString()
     }
 
-    fun finish(): String {
+    /**
+     * 上游结束。[truncated] 为 null 时按是否见到上游终止标记判断；宿主已经自行判定（如只在确认完整时
+     * 才调用本方法）时显式传入。截断时不输出正常结束事件，客户端据此知道结果不完整。
+     */
+    fun finish(truncated: Boolean? = null): String {
         if (finished) return ""
         val sb = StringBuilder()
         for (ev in framer.finish()) handle(decoder.decode(ev), sb)
         handle(decoder.finish(), sb)
         finished = true
-        encoder?.let { sb.append(it.finish(truncated = !decoder.completed)) }
+        encoder?.let { sb.append(it.finish(truncated = truncated ?: !decoder.completed)) }
         return if (encoder == null) "" else sb.toString()
     }
 
     private fun handle(events: List<StreamEvent>, sb: StringBuilder) {
-        for (e0 in events) {
+        for (e1 in events) {
+            val e0 = if (e1 is StreamEvent.MessageStart && e1.model == null && defaultModel != null) e1.copy(model = defaultModel) else e1
+            if (!startSeen && encoder != null) {
+                startSeen = true
+                if (e0 !is StreamEvent.MessageStart) encoder.encode(StreamEvent.MessageStart(model = defaultModel)).let(sb::append)
+            }
             val list = if (transform != null && encoder != null) transform.invoke(e0) else listOf(e0)
             for (e in list) {
                 if (e is StreamEvent.UsageUpdate) accumulated = accumulated?.mergedWith(e.usage) ?: e.usage
