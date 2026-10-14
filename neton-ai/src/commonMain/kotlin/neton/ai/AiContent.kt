@@ -30,5 +30,8 @@ sealed interface AiContent {
         val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
     ) : AiContent
 
+    /** 模型拒绝回答（OpenAI refusal）。不计入 [AiMessage.text]。 */
+    data class Refusal(val text: String, val metadata: ProviderMetadata = ProviderMetadata.EMPTY) : AiContent
+
     data class ToolCall(val call: AiToolCall, val metadata: ProviderMetadata = ProviderMetadata.EMPTY) : AiContent
 }

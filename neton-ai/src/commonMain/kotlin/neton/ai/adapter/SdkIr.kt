@@ -71,6 +71,7 @@ internal object SdkIr {
         is AiContent.File -> FileBlock(c.source, c.filename, c.metadata)
         is AiContent.Reasoning -> ReasoningBlock(c.text, c.signature, c.redactedData, c.encryptedContent, metadata = c.metadata)
         is AiContent.ToolCall -> ToolCallBlock(c.call.id, c.call.name, c.call.argumentsJson, metadata = c.metadata)
+        is AiContent.Refusal -> RefusalBlock(c.text, c.metadata)
     }
 
     /** IR 块 → SDK 内容；SDK 表达不了的块（托管工具、原样块）保留不了，丢弃。 */
@@ -80,7 +81,7 @@ internal object SdkIr {
         is FileBlock -> AiContent.File(b.source, b.filename, b.metadata)
         is ReasoningBlock -> AiContent.Reasoning(b.text.ifEmpty { b.summary.joinToString("\n") }, b.signature, b.redactedData, b.encryptedContent, b.metadata)
         is ToolCallBlock -> AiContent.ToolCall(AiToolCall(b.id, b.name, b.arguments.ifBlank { "{}" }), b.metadata)
-        is RefusalBlock -> AiContent.Text(b.text, b.metadata)
+        is RefusalBlock -> AiContent.Refusal(b.text, b.metadata)
         is ToolResultBlock, is HostedToolBlock, is RawBlock -> null
     }
 
@@ -220,7 +221,7 @@ internal class SdkStreamAdapter(private val modelName: String) {
         val meta = mergeMeta(b.start.metadata, b.stopMetadata)
         return when (val s = b.start) {
             is TextBlock -> AiContent.Text(b.text.toString(), meta)
-            is RefusalBlock -> AiContent.Text(b.text.toString(), meta)
+            is RefusalBlock -> AiContent.Refusal(b.text.toString(), meta)
             is ReasoningBlock -> AiContent.Reasoning(b.text.toString(), b.signature?.takeIf { it.isNotEmpty() }, s.redactedData,
                 meta.string(ProviderMetadata.OPENAI, "encryptedContent") ?: s.encryptedContent, meta)
             is ToolCallBlock -> AiContent.ToolCall(AiToolCall(s.id, s.name, b.args.toString().ifBlank { "{}" }), meta)
