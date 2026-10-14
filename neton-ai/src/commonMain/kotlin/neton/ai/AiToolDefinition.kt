@@ -12,6 +12,11 @@ data class AiToolDefinition(
     val name: String,
     val description: String,
     val inputSchemaJson: String,
+    /** 可以与相邻的其他 parallelSafe 调用并行执行（见 [AiAgentOptions.maxParallelTools]）。 */
+    val parallelSafe: Boolean = false,
+    /** 需要上下文的实现；与 [executor] 二选一，同时给出时优先用它。 */
+    val handler: AiToolHandler? = null,
+    /** 放在最后，便于写成尾随 lambda。 */
     val executor: AiToolExecutor? = null,
 )
 

@@ -72,18 +72,32 @@ internal fun runStreamingToolLoop(
             return@channelFlow
         }
 
-        var workingMessages = request.messages.toMutableList()
+        val agent = request.agent
+        val workingMessages = request.messages.toMutableList()
         var lastCompleted: AiStreamEvent.Completed? = null
         var brokeForFallback = false
+        val steps = mutableListOf<neton.ai.AiStep>()
 
         for (round in 1..request.maxToolRounds) {
+            // prepareStep 是控制逻辑：异常照常抛出
+            val stepCtx = neton.ai.AiStepContext(round, steps.toList(), workingMessages.toList(), modelId)
+            val overrides = agent.prepareStep?.prepare(stepCtx)
+            overrides?.messages?.let { workingMessages.clear(); workingMessages += it }
+            val stepTools = overrides?.tools ?: request.tools
+            val stepModelId = overrides?.model ?: modelId
+            val stepModel = if (stepModelId == modelId) model else registry.get(stepModelId.providerId)?.streamingTextModel(stepModelId.modelName)
+            if (stepModel == null) {
+                send(AiStreamEvent.Failed(AiError.ModelNotFound(stepModelId.toString(), "prepareStep selected unknown model '$stepModelId'")))
+                return@channelFlow
+            }
+            observe(logSink, "onStepStart") { agent.callbacks?.onStepStart(stepCtx.copy(messages = workingMessages.toList(), model = stepModelId)) }
             val startMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
             var firstEventRead = false
             var roundCompleted: AiStreamEvent.Completed? = null
             var roundFailed: AiStreamEvent.Failed? = null
             val roundCalls = mutableListOf<AiToolCall>()
 
-            val providerFlow = model.stream(buildSpiRequest(request, workingMessages))
+            val providerFlow = stepModel.stream(buildSpiRequest(request, workingMessages, stepTools, overrides?.toolChoice))
 
             try {
                 providerFlow.collect { event ->
@@ -99,6 +113,8 @@ internal fun runStreamingToolLoop(
                             error("Provider MUST NOT emit Started; AiClient owns this event")
                         is AiStreamEvent.ToolResultReady ->
                             error("Provider MUST NOT emit ToolResultReady; AiClient owns local executor lifecycle")
+                        is AiStreamEvent.StepFinished ->
+                            error("Provider MUST NOT emit StepFinished; AiClient owns step lifecycle")
                         is AiStreamEvent.Completed -> roundCompleted = event
                         is AiStreamEvent.Failed -> roundFailed = event
                         is AiStreamEvent.ToolCallReady -> {
@@ -197,36 +213,40 @@ internal fun runStreamingToolLoop(
 
             lastCompleted = completedSnap
 
+            suspend fun finishStep(calls: List<AiToolCall>, results: List<neton.ai.AiToolResult>, finish: AiFinishReason) {
+                val step = neton.ai.AiStep(round, stepModelId.providerId, stepModelId.modelName, completedSnap.message, calls, results, completedSnap.usage, finish)
+                steps += step
+                observe(logSink, "onStepFinish") { agent.callbacks?.onStepFinish(step) }
+                send(AiStreamEvent.StepFinished(step))
+            }
+
             if (roundCalls.isEmpty()) {
                 // Final response — no tool calls this round
-                send(completedSnap)
+                finishStep(emptyList(), emptyList(), completedSnap.finishReason)
+                send(completedSnap.copy(steps = steps.toList()))
                 return@channelFlow
             }
 
             // Tool round: execute locally
             workingMessages += completedSnap.message
-
-            for (call in roundCalls) {
-                val def = request.tools.firstOrNull { it.name == call.name }
-                if (def?.executor == null) {
-                    // No executor: caller handles tool calls; emit Completed with ToolCalls finish reason
-                    send(completedSnap.copy(finishReason = AiFinishReason.ToolCalls))
+            val outcome = executeStepTools(roundCalls.toList(), stepTools, agent, round, request.metadata, workingMessages.toList(), logSink) {
+                send(AiStreamEvent.ToolResultReady(it))
+            }
+            when (outcome) {
+                is StepTools.HandedBack -> {
+                    // No executor or approval pending: caller handles tool calls
+                    finishStep(roundCalls.toList(), emptyList(), AiFinishReason.ToolCalls)
+                    send(completedSnap.copy(finishReason = AiFinishReason.ToolCalls, steps = steps.toList(), pendingToolCalls = outcome.calls))
                     return@channelFlow
                 }
-                val result = try {
-                    AiToolResult(call.id, def.executor.execute(call.argumentsJson), isError = false)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Throwable) {
-                    AiToolResult(call.id, neton.ai.AiToolFailure.contentFor(call.name, e, logSink), isError = true)
+                is StepTools.Executed -> {
+                    outcome.results.forEach { workingMessages += toolResultMessage(it) }
+                    finishStep(roundCalls.toList(), outcome.results, completedSnap.finishReason)
                 }
-                send(AiStreamEvent.ToolResultReady(result))
-                workingMessages += AiMessage(
-                    role = AiRole.Tool,
-                    content = listOf(AiContent.Text(result.content)),
-                    toolCallId = call.id,
-                    toolResultIsError = result.isError,
-                )
+            }
+            if (agent.stopWhen.any { it.shouldStop(steps) }) {
+                send(completedSnap.copy(finishReason = AiFinishReason.ToolCalls, steps = steps.toList()))
+                return@channelFlow
             }
             // Continue to next round
         }
@@ -235,7 +255,7 @@ internal fun runStreamingToolLoop(
 
         // maxToolRounds exhausted — last response had tool calls
         if (lastCompleted != null) {
-            send(lastCompleted.copy(finishReason = AiFinishReason.ToolCalls))
+            send(lastCompleted.copy(finishReason = AiFinishReason.ToolCalls, steps = steps.toList()))
             return@channelFlow
         }
         // No response at all from this candidate (shouldn't happen if loop ran)
@@ -245,11 +265,16 @@ internal fun runStreamingToolLoop(
     send(AiStreamEvent.Failed(lastError ?: AiError.Unknown("No candidate model succeeded", null)))
 }
 
-private fun buildSpiRequest(request: StreamTextRequest, messages: List<AiMessage>): ProviderCallRequest =
+private fun buildSpiRequest(
+    request: StreamTextRequest,
+    messages: List<AiMessage>,
+    tools: List<neton.ai.AiToolDefinition> = request.tools,
+    toolChoice: neton.ai.ToolChoice? = null,
+): ProviderCallRequest =
     ProviderCallRequest(
         messages = messages,
-        tools = request.tools,
-        toolChoice = request.toolChoice,
+        tools = tools,
+        toolChoice = toolChoice ?: request.toolChoice,
         temperature = request.temperature,
         maxTokens = request.maxTokens,
         topP = request.topP,

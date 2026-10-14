@@ -79,7 +79,7 @@ class AnthropicIntegrationTest {
         )
         val resp = provider.textModel("claude-3-5-haiku-20241022").generate(ProviderCallRequest(
             messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("Weather?")))),
-            tools = listOf(AiToolDefinition("get_weather", "Get weather", "{}", AiToolExecutor { "" })),
+            tools = listOf(AiToolDefinition("get_weather", "Get weather", "{}", executor = AiToolExecutor { "" })),
             toolChoice = ToolChoice.Auto,
             temperature = null, maxTokens = null, topP = null,
             stopSequences = emptyList(), metadata = emptyMap(),

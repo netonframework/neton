@@ -21,4 +21,6 @@ data class GenerateTextRequest(
      * 模型名、stream 与消息体等保留字段不会被覆盖。回退到其他 provider 时不会带过去。
      */
     val providerOptions: Map<String, kotlinx.serialization.json.JsonObject> = emptyMap(),
+    /** 多步循环的控制、观测、工具授权与审批（spec §10.3）。 */
+    val agent: AiAgentOptions = AiAgentOptions(),
 )

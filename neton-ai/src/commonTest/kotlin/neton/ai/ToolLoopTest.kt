@@ -290,7 +290,7 @@ class ToolLoopTest {
         val req = GenerateTextRequest(
             modelPolicy = "x",
             messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("x")))),
-            tools = listOf(AiToolDefinition("t", "", "{}", AiToolExecutor { _ -> "ok" })),
+            tools = listOf(AiToolDefinition("t", "", "{}", executor = AiToolExecutor { _ -> "ok" })),
         )
         val ex = assertFailsWith<AiException> {
             kotlinx.coroutines.runBlocking {
@@ -329,7 +329,7 @@ class ToolLoopTest {
         val req = GenerateTextRequest(
             messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("hi")))),
             metadata = mapOf("requestId" to "r-42", "userId" to "u1"),
-            tools = listOf(AiToolDefinition("t", "", "{}", AiToolExecutor { _ -> "ok" })),
+            tools = listOf(AiToolDefinition("t", "", "{}", executor = AiToolExecutor { _ -> "ok" })),
         )
         val recorder = CapturingRecorder()
         runLoop(

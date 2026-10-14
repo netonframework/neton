@@ -21,12 +21,18 @@ sealed interface AiStreamEvent {
     /** Local executor finished. Only emitted when an executor was registered for this tool. */
     data class ToolResultReady(val result: AiToolResult) : AiStreamEvent
 
+    /** 一步结束（模型输出与本步工具执行都已完成）。由 AiClient 发出，provider 不得发出。 */
+    data class StepFinished(val step: AiStep) : AiStreamEvent
+
     /** Terminal success. Exactly one Completed OR Failed per stream (or zero if cancelled). */
     data class Completed(
         val message: AiMessage,
         val text: String,
         val usage: AiUsage?,
         val finishReason: AiFinishReason,
+        val steps: List<AiStep> = emptyList(),
+        /** 交还调用方处理的工具调用（没有本地执行器或审批挂起）。 */
+        val pendingToolCalls: List<AiToolCall> = emptyList(),
     ) : AiStreamEvent
 
     /** Terminal failure. */

@@ -61,7 +61,7 @@ class OpenAiCompatibleIntegrationTest {
         val provider = OpenAiCompatibleProvider("openai", client, "https://x", "sk")
         val resp = provider.textModel("m").generate(ProviderCallRequest(
             messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("balance?")))),
-            tools = listOf(AiToolDefinition("get_balance", "", "{}", AiToolExecutor { "" })),
+            tools = listOf(AiToolDefinition("get_balance", "", "{}", executor = AiToolExecutor { "" })),
             toolChoice = ToolChoice.Auto,
             temperature = null, maxTokens = null, topP = null,
             stopSequences = emptyList(), metadata = emptyMap(),

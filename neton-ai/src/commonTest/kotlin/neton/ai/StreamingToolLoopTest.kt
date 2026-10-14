@@ -145,14 +145,16 @@ class StreamingToolLoopTest {
 
         val result = collectLoop(request, registry, router)
 
-        assertEquals(3, result.size, "Expected Started + TextDelta + Completed")
+        assertEquals(4, result.size, "Expected Started + TextDelta + StepFinished + Completed")
         assertIs<AiStreamEvent.Started>(result[0])
         assertEquals("p1", (result[0] as AiStreamEvent.Started).providerId)
         assertEquals("m1", (result[0] as AiStreamEvent.Started).modelName)
         assertIs<AiStreamEvent.TextDelta>(result[1])
         assertEquals("Hello", (result[1] as AiStreamEvent.TextDelta).text)
-        assertIs<AiStreamEvent.Completed>(result[2])
-        assertEquals(AiFinishReason.Stop, (result[2] as AiStreamEvent.Completed).finishReason)
+        assertEquals(1, (result[2] as AiStreamEvent.StepFinished).step.index)
+        val completed = result[3] as AiStreamEvent.Completed
+        assertEquals(AiFinishReason.Stop, completed.finishReason)
+        assertEquals(1, completed.steps.size)
     }
 
     /**
@@ -188,7 +190,7 @@ class StreamingToolLoopTest {
 
         val result = collectLoop(request, registry, router)
 
-        // Expected: Started, ToolCallReady, ToolResultReady, TextDelta, Completed
+        // Expected: Started, ToolCallReady, ToolResultReady, StepFinished(1), TextDelta, StepFinished(2), Completed
         assertIs<AiStreamEvent.Started>(result[0])
         assertIs<AiStreamEvent.ToolCallReady>(result[1])
         assertEquals("c1", (result[1] as AiStreamEvent.ToolCallReady).call.id)
@@ -196,11 +198,14 @@ class StreamingToolLoopTest {
         val toolResult = (result[2] as AiStreamEvent.ToolResultReady).result
         assertEquals("ok", toolResult.content)
         assertFalse(toolResult.isError)
-        assertIs<AiStreamEvent.TextDelta>(result[3])
-        assertEquals("done", (result[3] as AiStreamEvent.TextDelta).text)
-        assertIs<AiStreamEvent.Completed>(result[4])
-        assertEquals(AiFinishReason.Stop, (result[4] as AiStreamEvent.Completed).finishReason)
-        assertEquals(5, result.size)
+        val step1 = (result[3] as AiStreamEvent.StepFinished).step
+        assertEquals(listOf("ok"), step1.toolResults.map { it.content })
+        assertIs<AiStreamEvent.TextDelta>(result[4])
+        assertEquals("done", (result[4] as AiStreamEvent.TextDelta).text)
+        assertEquals(2, (result[5] as AiStreamEvent.StepFinished).step.index)
+        assertIs<AiStreamEvent.Completed>(result[6])
+        assertEquals(AiFinishReason.Stop, (result[6] as AiStreamEvent.Completed).finishReason)
+        assertEquals(7, result.size)
         // Provider must have been called twice (2 rounds)
         assertEquals(2, model.calls)
     }
