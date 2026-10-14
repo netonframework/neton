@@ -170,7 +170,7 @@ object AnthropicCodec : ProtocolCodec {
         val o = request.options
         val d = diagnostics
         put("model", request.model)
-        val thinking = encodeThinking(o.reasoning)
+        val thinking = encodeThinking(o.reasoning, o.maxOutputTokens)
         val budget = thinking?.int("budget_tokens")
         // 预算必须小于 max_tokens：不够时把 max_tokens 抬到「预算 + 1024」，而不是放弃推理（与主流网关一致）
         val requested = o.maxOutputTokens ?: DEFAULT_MAX_TOKENS
@@ -412,14 +412,14 @@ object AnthropicCodec : ProtocolCodec {
         }
     }
 
-    private fun encodeThinking(r: ReasoningOptions?): JsonObject? {
+    private fun encodeThinking(r: ReasoningOptions?, maxTokens: Int?): JsonObject? {
         if (r == null) return null
         return when (r.mode) {
             ReasoningMode.Disabled -> buildJsonObject { put("type", "disabled") }
             ReasoningMode.Adaptive -> buildJsonObject { put("type", "adaptive") }
             else -> {
                 if (r.mode == null && r.budgetTokens == null && (r.effort == null || r.effort == "none")) return null
-                val wanted = r.budgetTokens ?: Reasoning.budgetForEffort(r.effort) ?: return null
+                val wanted = r.budgetTokens ?: Reasoning.budgetForEffort(r.effort, maxTokens) ?: return null
                 buildJsonObject { put("type", "enabled"); put("budget_tokens", maxOf(MIN_THINKING_BUDGET, wanted)) }
             }
         }

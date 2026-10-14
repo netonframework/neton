@@ -292,4 +292,18 @@ class CrossConversionTest {
         val (_, plain) = ProtocolConverter.convertError(502, "Bad Gateway from nginx", WireFormat.OPENAI_CHAT, WireFormat.GEMINI)
         assertEquals("Bad Gateway from nginx", obj(plain)["error"]!!.jsonObject["message"]!!.jsonPrimitive.content)
     }
+
+    @Test
+    fun reasoningBudgetsScaleWithTheOutputLimit() {
+        fun anthropic(effort: String, max: Int) = ProtocolConverter.convertRequest(obj("""
+            {"model":"m","max_tokens":$max,"reasoning_effort":"$effort","messages":[{"role":"user","content":"hi"}]}
+        """), WireFormat.OPENAI_CHAT, WireFormat.ANTHROPIC).value
+        val high = anthropic("high", 32000)
+        assertEquals(19200, high["thinking"]!!.jsonObject["budget_tokens"]!!.jsonPrimitive.content.toInt())
+        assertEquals(32000, high["max_tokens"]!!.jsonPrimitive.content.toInt())
+        // 下限 1024；装不下时把 max_tokens 抬到预算 + 1024
+        val low = anthropic("low", 300)
+        assertEquals(1024, low["thinking"]!!.jsonObject["budget_tokens"]!!.jsonPrimitive.content.toInt())
+        assertEquals(2048, low["max_tokens"]!!.jsonPrimitive.content.toInt())
+    }
 }

@@ -265,7 +265,7 @@ object GeminiCodec : ProtocolCodec {
                 ResponseFormat.Text -> put("responseMimeType", "text/plain")
                 null -> {}
             }
-            encodeThinking(o.reasoning, request.metadata)?.let { put("thinkingConfig", it) }
+            encodeThinking(o.reasoning, request.metadata, o.maxOutputTokens)?.let { put("thinkingConfig", it) }
             (request.metadata[NS, "generationConfigExtra"] as? JsonObject)?.forEach { (k, v) -> if (k !in keys) put(k, v) }
         }
         if (gen.isNotEmpty()) put("generationConfig", gen)
@@ -273,7 +273,7 @@ object GeminiCodec : ProtocolCodec {
         putExtras(request.metadata, F)
     }
 
-    private fun encodeThinking(r: ReasoningOptions?, meta: ProviderMetadata): JsonObject? {
+    private fun encodeThinking(r: ReasoningOptions?, meta: ProviderMetadata, maxTokens: Int?): JsonObject? {
         if (r == null) return null
         return tracking {
             when {
@@ -281,7 +281,7 @@ object GeminiCodec : ProtocolCodec {
                 meta.string(NS, "thinkingField") == "level" && r.effort != null -> put("thinkingLevel", r.effort)
                 r.budgetTokens != null -> put("thinkingBudget", r.budgetTokens)
                 r.mode == ReasoningMode.Adaptive -> put("thinkingBudget", -1)
-                r.effort != null -> Reasoning.budgetForEffort(r.effort)?.let { put("thinkingBudget", it) }
+                r.effort != null -> Reasoning.budgetForEffort(r.effort, maxTokens)?.let { put("thinkingBudget", it) }
             }
             val include = r.includeThoughts ?: if (r.mode != ReasoningMode.Disabled && keys.isNotEmpty()) true else null
             put("includeThoughts", include)

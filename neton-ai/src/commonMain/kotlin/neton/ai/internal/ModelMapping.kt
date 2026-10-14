@@ -81,7 +81,14 @@ internal object ModelMapping {
 
     private fun toToolSpec(t: AiTool): ToolSpec = when (val k = t.kind) {
         is AiToolKind.Provider -> providerTool(t.name, k)
-        else -> FunctionTool(t.name, t.description, t.inputSchema, t.strict)
+        else -> FunctionTool(t.name, describe(t), t.inputSchema, t.strict)
+    }
+
+    /** 参数示例拼进描述（协议层的工具定义没有示例字段，主流做法是写进描述）。 */
+    private fun describe(t: AiTool): String? {
+        if (t.inputExamples.isEmpty()) return t.description
+        val examples = t.inputExamples.joinToString("\n") { it.toString() }
+        return listOfNotNull(t.description, "Input Examples:\n$examples").joinToString("\n\n")
     }
 
     /** 厂商托管工具：`厂商.类型` → 该厂商协议的原生工具定义。 */

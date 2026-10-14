@@ -912,6 +912,20 @@ object OpenAiChatCodec : ProtocolCodec {
 
 /** 推理强度与预算的互换（主流约定；目标协议需要预算而只有强度时使用）。 */
 object Reasoning {
+    /** 推理档位占输出上限的比例（主流 SDK 的约定）。 */
+    private val SHARE = mapOf("minimal" to 0.02, "low" to 0.1, "medium" to 0.3, "high" to 0.6, "xhigh" to 0.9, "max" to 0.95)
+    const val MIN_BUDGET = 1024
+
+    /**
+     * 强度 → 预算。已知输出上限时按比例换算（不低于 [MIN_BUDGET]），预算总在上限之内、留出正文空间；
+     * 不知道上限时用固定档位。
+     */
+    fun budgetForEffort(effort: String?, maxOutputTokens: Int?): Int? {
+        val share = SHARE[effort] ?: return null
+        if (maxOutputTokens == null) return budgetForEffort(effort)
+        return maxOf(MIN_BUDGET, (maxOutputTokens * share).toInt())
+    }
+
     fun budgetForEffort(effort: String?): Int? = when (effort) {
         "minimal" -> 512
         "low" -> 1024
