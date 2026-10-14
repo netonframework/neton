@@ -87,3 +87,9 @@ object SseWriter {
 
     fun event(event: String, data: String): String = "event: $event\ndata: $data\n\n"
 }
+
+/** 非 SSE 的流帧（如 AWS event-stream）→ SSE 文本的增量解码器；[finish] 返回残留（正常为空）。 */
+interface ByteStreamDecoder {
+    fun feed(bytes: ByteArray): String
+    fun finish(): String
+}

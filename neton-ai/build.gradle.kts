@@ -38,6 +38,8 @@ kotlin {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-logging"))
                 implementation(project(":neton-http"))
+                // SigV4（HMAC-SHA256）与 Google 服务账号 JWT（RS256）复用框架的加密原语
+                implementation(project(":neton-security"))
                 implementation(libs.kotlinx.coroutines.core)
                 // 协议层的公开类型（IR、报文）直接暴露 JsonObject
                 api(libs.kotlinx.serialization.json)
