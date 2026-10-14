@@ -89,7 +89,7 @@ object ProtocolConverter {
      */
     fun convertError(status: Int, body: String, from: WireFormat, to: WireFormat): Pair<Int, String> {
         if (from == to) return status to body
-        val err = ProtocolCodecs.of(from).decodeError(status, body)
+        val err = ProtocolCodecs.of(from).decodeError(status, body).let { if (status <= 0) it.copy(status = null) else it }
         return status to ProtocolCodecs.of(to).encodeError(err).toString()
     }
 
