@@ -75,7 +75,43 @@ fun interface AiPrepareStep {
     suspend fun prepare(context: AiStepContext): AiStepOverrides?
 }
 
-data class AiPrincipal(val id: String, val attributes: Map<String, String> = emptyMap())
+/**
+ * 发起调用的主体。[identity] 接 Neton 安全体系的身份（neton-security 认证后得到），
+ * 授权可以直接按其角色与权限判断（见 [AiToolAuthorizers]）。
+ */
+data class AiPrincipal(
+    val id: String,
+    val attributes: Map<String, String> = emptyMap(),
+    val identity: neton.core.interfaces.Identity? = null,
+) {
+    companion object {
+        fun of(identity: neton.core.interfaces.Identity) = AiPrincipal(identity.id, identity = identity)
+    }
+}
+
+/**
+ * 基于 Neton 身份的常用授权（与 `@Permission` / `@RolesAllowed` 同一套字符串）。
+ * 没有列出的工具放行；列出的工具要求主体具备对应权限或角色，否则拒绝。
+ */
+object AiToolAuthorizers {
+    fun requirePermissions(byTool: Map<String, String>) = AiToolAuthorizer { ctx ->
+        val required = byTool[ctx.call.name] ?: return@AiToolAuthorizer AiToolDecision.Allow
+        if (ctx.principal?.identity?.hasPermission(required) == true) AiToolDecision.Allow
+        else AiToolDecision.Deny("missing permission for tool '${ctx.call.name}'")
+    }
+
+    fun requireRoles(byTool: Map<String, Set<String>>) = AiToolAuthorizer { ctx ->
+        val roles = byTool[ctx.call.name] ?: return@AiToolAuthorizer AiToolDecision.Allow
+        if (ctx.principal?.identity?.hasAnyRole(*roles.toTypedArray()) == true) AiToolDecision.Allow
+        else AiToolDecision.Deny("missing role for tool '${ctx.call.name}'")
+    }
+
+    /** 依次检查，全部放行才放行；第一个拒绝即拒绝。 */
+    fun all(vararg authorizers: AiToolAuthorizer) = AiToolAuthorizer { ctx ->
+        for (a in authorizers) { val d = a.authorize(ctx); if (d !is AiToolDecision.Allow) return@AiToolAuthorizer d }
+        AiToolDecision.Allow
+    }
+}
 
 /** 工具执行时可见的上下文。 */
 data class AiToolCallContext(

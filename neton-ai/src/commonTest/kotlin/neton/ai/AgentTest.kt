@@ -203,4 +203,22 @@ class AgentTest {
 
         assertFailsWith<IllegalArgumentException> { JsonSchemas.of<Map<Int, String>>() }
     }
+
+    @Test
+    fun netonIdentityPermissionsGateTools() = runTest {
+        val admin = object : neton.core.interfaces.Identity {
+            override val id = "a1"; override val roles = setOf("admin"); override val permissions = setOf("user:delete")
+        }
+        val guest = object : neton.core.interfaces.Identity {
+            override val id = "g1"; override val roles = emptySet<String>(); override val permissions = emptySet<String>()
+        }
+        val authorizer = AiToolAuthorizers.requirePermissions(mapOf("delete_user" to "user:delete"))
+        suspend fun runAs(identity: neton.core.interfaces.Identity): AiToolResult {
+            val m = Scripted("p", "m", listOf(calls(AiToolCall("1", "delete_user", "{}")), text("done")))
+            return run(provider(m), GenerateTextRequest(messages = listOf(AiMessage.user("go")), tools = listOf(tool("delete_user")),
+                agent = AiAgentOptions(principal = AiPrincipal.of(identity), authorizer = authorizer))).toolResults.single()
+        }
+        assertFalse(runAs(admin).isError)
+        assertTrue(runAs(guest).isError)
+    }
 }
