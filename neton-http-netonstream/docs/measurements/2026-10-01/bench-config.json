@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {"name":"before", "binary":"/tmp/neton-local-opt.qDmuQA/before.kexe", "cwd":"/Users/zoujiaqing/projects/PulseKit/bench-arena/entries/release/neton", "ports":[8080,8082], "source":"neton 2d48198; Arena release entry with explicit composite source substitution"},
+    {"name":"headers", "binary":"/tmp/neton-local-opt.qDmuQA/headers.kexe", "cwd":"/Users/zoujiaqing/projects/PulseKit/bench-arena/entries/release/neton", "ports":[8080,8082], "source":"2d48198 + compact response headers only"},
+    {"name":"after", "binary":"/tmp/neton-local-opt.qDmuQA/after.kexe", "cwd":"/Users/zoujiaqing/projects/PulseKit/bench-arena/entries/release/neton", "ports":[8080,8082], "source":"2d48198 + compact response headers + first-frame-sized body buffer"}
+  ],
+  "conns":[256,1024],
+  "rounds":3,
+  "seconds":10,
+  "quiet_pct":100,
+  "quiet_wait_s":15,
+  "noisy_retries":0,
+  "out_dir":"/tmp/neton-local-opt.qDmuQA/results"
+}

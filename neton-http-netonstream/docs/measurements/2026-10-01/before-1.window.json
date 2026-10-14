@@ -1,0 +1,31 @@
+{
+ "label": "before-1",
+ "requests": 30000,
+ "conns": 16,
+ "seconds": 3.03,
+ "calls_per_request": 104.93,
+ "requested_bytes_per_request": 6565,
+ "idle_calls_per_s": 145,
+ "idle_subtracted_per_request": 0.015,
+ "by_slot_per_request": {
+  "malloc_n": 1.01,
+  "malloc_b": 34.77,
+  "calloc_n": 103.94,
+  "calloc_b": 6530.77,
+  "memalign_n": 0.0,
+  "memalign_b": 0.01,
+  "aligned_n": 0.0,
+  "aligned_b": 0.23,
+  "free_n": 1.01
+ },
+ "seed": 1,
+ "binary": "/tmp/neton-local-opt.qDmuQA/diagnostic-entry/build/bin/macosArm64/releaseExecutable/neton-httparena.kexe",
+ "sha256": {
+  "binary": "e30b8658a49c2ddf07d0fcc899d23e359db1f827ff346b4249e94feb305ef659",
+  "dylib": "3cd4f25dfb7a7748f6f8acaed6d24b4df80a67bf45bde1d95b2867f5827204ec",
+  "alloccount.c": "02292843bf117c65983df6290bc1d67c5b04130cb64263c6ccb243bbf789bfd4",
+  "measure.py": "9b407ccc2b804b72ae6702d721f0169f7cb394f8a9b80f2e8b58031aeca82192",
+  "bench.py": "ab75e04e6a86995f2bc3c930df8da4f4dc4500a808d5ffaddedcc655440ad8ec"
+ },
+ "stacks": null
+}

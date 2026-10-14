@@ -152,52 +152,96 @@ internal fun encodeCookie(cookie: Cookie): String = buildString {
  * dispatch, and the head the connection sends is usually that same snapshot, so one copy serves both.
  */
 private class SimpleMutableHeaders : MutableHeaders {
-    private val map = LinkedHashMap<String, MutableList<String>>()
+    // Most buffered responses have just Content-Type. Allocate the general representation only
+    // for another name or a repeated value; each response still owns all of its mutable state.
+    private var singleName: String? = null
+    private var singleValue: String? = null
+    private var map: LinkedHashMap<String, MutableList<String>>? = null
     private var snapshot: Map<String, List<String>>? = null
-    private var hasContentLength = false
 
-    private fun actualName(name: String): String? = map.keys.firstOrNull { it.equals(name, ignoreCase = true) }
+    private fun actualName(name: String): String? =
+        map?.keys?.firstOrNull { it.equals(name, ignoreCase = true) }
+            ?: singleName?.takeIf { it.equals(name, ignoreCase = true) }
 
-    private fun changed() {
-        snapshot = null
-        hasContentLength = map.keys.any { it.equals("Content-Length", ignoreCase = true) }
+    private fun promote(): LinkedHashMap<String, MutableList<String>> {
+        map?.let { return it }
+        return LinkedHashMap<String, MutableList<String>>().also { expanded ->
+            singleName?.let { expanded[it] = mutableListOf(singleValue!!) }
+            singleName = null
+            singleValue = null
+            map = expanded
+        }
     }
 
-    override fun get(name: String): String? = getAll(name).firstOrNull()
-    override fun getAll(name: String): List<String> = actualName(name)?.let { map[it] } ?: emptyList()
+    override fun get(name: String): String? {
+        val actual = actualName(name) ?: return null
+        return map?.get(actual)?.firstOrNull() ?: singleValue
+    }
+    override fun getAll(name: String): List<String> {
+        val actual = actualName(name) ?: return emptyList()
+        return map?.get(actual) ?: listOf(singleValue!!)
+    }
     override fun contains(name: String): Boolean = actualName(name) != null
-    override fun names(): Set<String> = map.keys
-    override fun toMap(): Map<String, List<String>> =
-        snapshot ?: (if (map.isEmpty()) emptyMap() else map.mapValues { it.value.toList() }).also { snapshot = it }
+    override fun names(): Set<String> = map?.keys ?: singleName?.let { setOf(it) } ?: emptySet()
+    override fun toMap(): Map<String, List<String>> {
+        snapshot?.let { return it }
+        val current = map
+        val name = singleName
+        return when {
+            current != null -> if (current.isEmpty()) emptyMap() else current.mapValues { it.value.toList() }
+            name != null -> mapOf(name to listOf(singleValue!!))
+            else -> emptyMap()
+        }.also { snapshot = it }
+    }
 
     /** The snapshot without Content-Length (the connection frames the body); the [toMap] snapshot itself when there is none. */
     fun snapshotWithoutContentLength(): Map<String, List<String>> {
-        if (!hasContentLength) return toMap()
-        return buildMap(map.size) {
-            for ((name, values) in map) {
+        if (!contains("Content-Length")) return toMap()
+        val current = map ?: return emptyMap()
+        return buildMap(current.size) {
+            for ((name, values) in current) {
                 if (!name.equals("Content-Length", ignoreCase = true)) put(name, values.toList())
             }
         }
     }
 
     override fun set(name: String, value: String) {
-        actualName(name)?.let(map::remove)
-        map[name] = mutableListOf(value)
-        changed()
+        if (map == null && (singleName == null || singleName.equals(name, ignoreCase = true))) {
+            singleName = name
+            singleValue = value
+        } else {
+            val current = promote()
+            actualName(name)?.let(current::remove)
+            current[name] = mutableListOf(value)
+        }
+        snapshot = null
     }
 
     override fun add(name: String, value: String) {
-        map.getOrPut(actualName(name) ?: name) { mutableListOf() }.add(value)
-        changed()
+        if (map == null && singleName == null) {
+            singleName = name
+            singleValue = value
+        } else {
+            val current = promote()
+            current.getOrPut(actualName(name) ?: name) { mutableListOf() }.add(value)
+        }
+        snapshot = null
     }
 
     override fun remove(name: String) {
-        actualName(name)?.let(map::remove)
-        changed()
+        val actual = actualName(name) ?: return
+        val current = map
+        if (current != null) current.remove(actual) else {
+            singleName = null
+            singleValue = null
+        }
+        snapshot = null
     }
 
     override fun clear() {
-        map.clear()
-        changed()
+        map = null
+        singleName = null
+        singleValue = null
+        snapshot = null
     }
 }
