@@ -13,5 +13,9 @@ internal fun aggregateUsage(rounds: List<AiUsage?>): AiUsage? {
         inputTokens = sumOrNull { it.inputTokens },
         outputTokens = sumOrNull { it.outputTokens },
         totalTokens = sumOrNull { it.totalTokens },
+        cachedInputTokens = sumOrNull { it.cachedInputTokens },
+        cacheWriteTokens = sumOrNull { it.cacheWriteTokens },
+        reasoningTokens = sumOrNull { it.reasoningTokens },
+        completeness = present.map { it.completeness }.maxByOrNull { it.ordinal } ?: neton.ai.protocol.usage.UsageCompleteness.COMPLETE,
     )
 }

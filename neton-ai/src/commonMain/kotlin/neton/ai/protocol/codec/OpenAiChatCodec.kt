@@ -163,6 +163,8 @@ object OpenAiChatCodec : ProtocolCodec {
             ProviderMetadata.EMPTY.withExtra(F, p, setOf("type", "text", "annotations")),
         )
         "refusal" -> RefusalBlock(p.str("refusal") ?: "")
+        // Mistral 方言：推理以 thinking 部分出现在 content 里（docs.mistral.ai/capabilities/reasoning）
+        "thinking" -> ReasoningBlock(thinkingText(p))
         "image_url" -> {
             val img = p["image_url"]
             val url = (img as? JsonObject)?.str("url") ?: (img as? JsonPrimitive)?.contentOrNull
@@ -184,6 +186,12 @@ object OpenAiChatCodec : ProtocolCodec {
             d.warn(DiagnosticCodes.MALFORMED_INPUT, path, "unsupported content part '${p.str("type")}' ignored")
             null
         }
+    }
+
+    private fun thinkingText(p: JsonObject): String = when (val t = p["thinking"]) {
+        is JsonPrimitive -> t.contentOrNull ?: ""
+        is JsonArray -> t.objects().mapNotNull { it.str("text") }.joinToString("")
+        else -> ""
     }
 
     private fun decodeTool(t: JsonObject, d: Diagnostics): ToolSpec? {
@@ -655,20 +663,18 @@ object OpenAiChatCodec : ProtocolCodec {
         private var finishSeen = false
         override var completed = false
             private set
-        private val toolKeys = HashMap<Int, String>()
+        private val toolKeys = LinkedHashMap<Int, String>()
         private val toolSignatures = HashMap<Int, String>()
         private val closedTools = HashSet<Int>()
-        private var currentTool: Int? = null
 
         override fun decode(event: SseEvent): List<StreamEvent> {
             val data = event.data.trim()
             if (data.isEmpty()) return emptyList()
             if (data == "[DONE]") { completed = true; return emptyList() }
-            val obj = J.parseObject(data) ?: run {
-                d.warn(DiagnosticCodes.MALFORMED_INPUT, "stream", "unparseable chunk ignored"); return emptyList()
-            }
+            val obj = J.parseObject(data) ?: return malformed(seq, d, WireFormat.OPENAI_CHAT).also { completed = true }
             val out = mutableListOf<StreamEvent>()
             obj.obj("error")?.let { err ->
+                closeTools(out)
                 seq.close(out)
                 out += StreamEvent.Error(OpenAiChatCodec.decodeError(0, JsonObject(mapOf("error" to err)).toString()).let {
                     it.copy(kind = if (it.kind == ErrorKind.Unknown) ErrorKind.ServerError else it.kind, status = null)
@@ -683,7 +689,7 @@ object OpenAiChatCodec : ProtocolCodec {
             val choice = obj.arr("choices")?.objects()?.firstOrNull { (it.int("index") ?: 0) == 0 }
             choice?.obj("delta")?.let { delta -> decodeDelta(delta, out) }
             choice?.str("finish_reason")?.let { raw ->
-                closeTool(out)
+                closeTools(out)
                 seq.close(out)
                 finishSeen = true
                 out += StreamEvent.Finish(finishReasonOf(raw), raw)
@@ -694,20 +700,35 @@ object OpenAiChatCodec : ProtocolCodec {
 
         private fun decodeDelta(delta: JsonObject, out: MutableList<StreamEvent>) {
             (delta.str("reasoning_content") ?: delta.str("reasoning"))?.takeIf { it.isNotEmpty() }?.let {
-                closeTool(out)
+                closeTools(out)
                 seq.delta(KEY_REASONING, Delta.Reasoning(it), out) { ReasoningBlock() }
             }
-            delta.str("content")?.takeIf { it.isNotEmpty() }?.let {
-                closeTool(out)
-                seq.delta(KEY_TEXT, Delta.Text(it), out) { TextBlock("") }
+            when (val content = delta["content"]) {
+                is JsonPrimitive -> content.contentOrNull?.takeIf { it.isNotEmpty() }?.let {
+                    closeTools(out)
+                    seq.delta(KEY_TEXT, Delta.Text(it), out) { TextBlock("") }
+                }
+                // Mistral 方言：推理阶段 delta.content 是部件列表
+                is JsonArray -> for (part in content.objects()) when (part.str("type")) {
+                    "thinking" -> thinkingText(part).takeIf { it.isNotEmpty() }?.let {
+                        closeTools(out)
+                        seq.delta(KEY_REASONING, Delta.Reasoning(it), out) { ReasoningBlock() }
+                    }
+                    "text" -> part.str("text")?.takeIf { it.isNotEmpty() }?.let {
+                        closeTools(out)
+                        seq.delta(KEY_TEXT, Delta.Text(it), out) { TextBlock("") }
+                    }
+                }
+                else -> {}
             }
             delta.str("refusal")?.takeIf { it.isNotEmpty() }?.let {
-                closeTool(out)
+                closeTools(out)
                 seq.delta(KEY_REFUSAL, Delta.Text(it), out) { RefusalBlock("") }
             }
             delta.arr("tool_calls")?.objects()?.forEach { tc -> decodeToolDelta(tc, out) }
         }
 
+        /** 并行工具调用的参数可能按 index 交错到达：每个调用一个块，直到 finish_reason 才统一关闭。 */
         private fun decodeToolDelta(tc: JsonObject, out: MutableList<StreamEvent>) {
             val index = tc.int("index") ?: 0
             if (index in closedTools) {
@@ -715,37 +736,34 @@ object OpenAiChatCodec : ProtocolCodec {
                 return
             }
             signatureOf(tc)?.let { toolSignatures[index] = it }
-            if (currentTool != index) {
-                closeTool(out)
-                currentTool = index
-                val fn = tc.obj("function")
-                val custom = tc.obj("custom")
+            val key = toolKeys.getOrPut(index) { "tool:$index" }
+            if (!seq.isOpen(key)) {
+                seq.close(KEY_TEXT, out); seq.close(KEY_REASONING, out); seq.close(KEY_REFUSAL, out)
                 val isCustom = tc.str("type") == "custom"
-                val key = "tool:$index"
-                toolKeys[index] = key
-                seq.ensure(key, out) {
+                seq.ensure(key, out, exclusive = false) {
                     var meta = ProviderMetadata.EMPTY
                     toolSignatures[index]?.let { meta = meta.with(ProviderMetadata.GEMINI, ProviderMetadata.THOUGHT_SIGNATURE, it) }
-                    ToolCallBlock(tc.str("id") ?: "", (if (isCustom) custom?.str("name") else fn?.str("name")) ?: "", "",
+                    ToolCallBlock(tc.str("id") ?: "", (if (isCustom) tc.obj("custom")?.str("name") else tc.obj("function")?.str("name")) ?: "", "",
                         if (isCustom) ToolKind.Custom else ToolKind.Function, meta)
                 }
             }
             val args = tc.obj("function")?.str("arguments") ?: tc.obj("custom")?.str("input")
-            if (!args.isNullOrEmpty()) out += StreamEvent.BlockDelta(seq.openIndex!!, Delta.Arguments(args))
+            if (!args.isNullOrEmpty()) out += StreamEvent.BlockDelta(seq.indexOf(key)!!, Delta.Arguments(args))
         }
 
-        private fun closeTool(out: MutableList<StreamEvent>) {
-            val index = currentTool ?: return
-            currentTool = null
-            closedTools += index
-            val meta = toolSignatures[index]?.let { ProviderMetadata.EMPTY.with(ProviderMetadata.GEMINI, ProviderMetadata.THOUGHT_SIGNATURE, it) }
-                ?: ProviderMetadata.EMPTY
-            if (seq.isOpen(toolKeys[index]!!)) seq.close(out, meta)
+        private fun closeTools(out: MutableList<StreamEvent>) {
+            for ((index, key) in toolKeys) {
+                if (!seq.isOpen(key)) continue
+                val meta = toolSignatures[index]?.let { ProviderMetadata.EMPTY.with(ProviderMetadata.GEMINI, ProviderMetadata.THOUGHT_SIGNATURE, it) }
+                    ?: ProviderMetadata.EMPTY
+                seq.close(key, out, meta)
+                closedTools += index
+            }
         }
 
         override fun finish(): List<StreamEvent> {
             val out = mutableListOf<StreamEvent>()
-            closeTool(out)
+            closeTools(out)
             seq.close(out)
             // 部分兼容服务不发 [DONE]，只要见过 finish_reason 就算正常结束
             if (finishSeen) completed = true

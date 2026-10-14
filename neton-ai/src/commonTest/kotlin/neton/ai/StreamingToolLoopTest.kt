@@ -75,8 +75,7 @@ private fun completedEvent(
 ) = AiStreamEvent.Completed(
     message = AiMessage(
         role = AiRole.Assistant,
-        content = if (toolCalls.isEmpty()) listOf(AiContent.Text(text)) else emptyList(),
-        toolCalls = toolCalls,
+        content = if (toolCalls.isEmpty()) listOf(AiContent.Text(text)) else toolCalls.map { AiContent.ToolCall(it) },
     ),
     text = text,
     usage = usage,

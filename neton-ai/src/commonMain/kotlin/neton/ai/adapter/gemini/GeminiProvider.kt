@@ -1,0 +1,43 @@
+package neton.ai.adapter.gemini
+
+import neton.ai.AiLogSink
+import neton.ai.adapter.ProtocolEndpoint
+import neton.ai.adapter.ProtocolTextModel
+import neton.ai.protocol.ir.WireFormat
+import neton.ai.protocol.profile.ProviderProfiles
+import neton.ai.protocol.transport.GeminiUpstream
+import neton.ai.provider.AiEmbeddingModel
+import neton.ai.provider.AiProvider
+import neton.ai.provider.AiStreamingTextModel
+import neton.ai.provider.AiTextModel
+import neton.http.client.HttpClient
+
+/**
+ * Google Gemini（generateContent）。鉴权用 `x-goog-api-key`；模型名在 URL 上。
+ * 多轮工具调用的 thought signature 随 [neton.ai.AiContent] 的元数据原样往返（spec §4.5）。
+ */
+class GeminiProvider(
+    override val id: String,
+    private val httpClient: HttpClient,
+    private val baseUrl: String = "https://generativelanguage.googleapis.com",
+    private val apiKey: String,
+    private val defaultHeaders: Map<String, String> = emptyMap(),
+    private val logSink: AiLogSink? = null,
+    private val debug: Boolean = false,
+) : AiProvider {
+    private val endpoint = object : ProtocolEndpoint {
+        override fun url(modelName: String, stream: Boolean) = baseUrl.trimEnd('/') + GeminiUpstream.path(modelName, stream)
+        override fun headers(stream: Boolean) = buildMap {
+            put("x-goog-api-key", apiKey)
+            if (stream) put("Accept", "text/event-stream")
+            putAll(defaultHeaders)
+        }
+    }
+
+    override fun textModel(modelName: String): AiTextModel = streamingTextModel(modelName)
+
+    override fun streamingTextModel(modelName: String): AiStreamingTextModel =
+        ProtocolTextModel(id, modelName, WireFormat.GEMINI, httpClient, endpoint, ProviderProfiles.CONSERVATIVE, logSink, debug)
+
+    override fun embeddingModel(modelName: String): AiEmbeddingModel? = null
+}

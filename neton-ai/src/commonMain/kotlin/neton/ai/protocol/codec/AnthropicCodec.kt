@@ -386,7 +386,7 @@ object AnthropicCodec : ProtocolCodec {
             ReasoningMode.Disabled -> buildJsonObject { put("type", "disabled") }
             ReasoningMode.Adaptive -> buildJsonObject { put("type", "adaptive") }
             else -> {
-                if (r.mode == null && (r.effort == null || r.effort == "none")) return null
+                if (r.mode == null && r.budgetTokens == null && (r.effort == null || r.effort == "none")) return null
                 val wanted = r.budgetTokens ?: Reasoning.budgetForEffort(r.effort) ?: return null
                 // 预算必须 ≥ 1024 且 < max_tokens
                 val budget = maxOf(MIN_THINKING_BUDGET, minOf(wanted, maxTokens - 1))
@@ -534,9 +534,12 @@ object AnthropicCodec : ProtocolCodec {
         private var rawUsage = JsonObject(emptyMap())
 
         override fun decode(event: SseEvent): List<StreamEvent> {
-            val obj = J.parseObject(event.data.trim()) ?: return emptyList()
+            val data = event.data.trim()
+            if (data.isEmpty()) return emptyList()
+            val obj = J.parseObject(data) ?: return malformed(seq, d, WireFormat.ANTHROPIC).also { completed = true }
             val out = mutableListOf<StreamEvent>()
-            when (obj.str("type")) {
+            // 报文里通常带 type；没有时以 SSE 的 event 名为准
+            when (obj.str("type") ?: event.event) {
                 "message_start" -> {
                     val m = obj.obj("message")
                     out += StreamEvent.MessageStart(m?.str("id"), m?.str("model"))
@@ -545,7 +548,7 @@ object AnthropicCodec : ProtocolCodec {
                 "content_block_start" -> {
                     val index = obj.int("index") ?: 0
                     val cb = obj.obj("content_block") ?: JsonObject(emptyMap())
-                    seq.ensure(index, out) { initialBlock(cb) }
+                    seq.ensure(index, out, exclusive = false) { initialBlock(cb) }
                 }
                 "content_block_delta" -> {
                     val index = obj.int("index") ?: 0
@@ -558,9 +561,9 @@ object AnthropicCodec : ProtocolCodec {
                         "citations_delta" -> delta.obj("citation")?.let { Delta.Citation(it) }
                         else -> null
                     } ?: return out
-                    seq.delta(index, ir, out) { TextBlock("") }
+                    seq.delta(index, ir, out, exclusive = false) { TextBlock("") }
                 }
-                "content_block_stop" -> seq.close(out)
+                "content_block_stop" -> seq.close(obj.int("index") ?: 0, out)
                 "message_delta" -> {
                     seq.close(out)
                     obj.obj("usage")?.let { out += usageUpdate(it, UsageCompleteness.COMPLETE) }
@@ -610,9 +613,17 @@ object AnthropicCodec : ProtocolCodec {
         private var usage: Usage? = null
         private var finish: StreamEvent.Finish? = null
 
+        private val sequential = neton.ai.protocol.stream.SequentialBlocks()
+
         override fun encode(event: StreamEvent): String {
             if (done) return ""
             val sb = StringBuilder()
+            for (e in sequential.accept(event)) encodeOne(e, sb)
+            return sb.toString()
+        }
+
+        private fun encodeOne(event: StreamEvent, sb: StringBuilder) {
+            if (done) return
             when (event) {
                 is StreamEvent.MessageStart -> {
                     event.id?.let { id = it }
@@ -623,7 +634,7 @@ object AnthropicCodec : ProtocolCodec {
                 is StreamEvent.BlockStart -> {
                     ensureStarted(sb)
                     closeOpen(sb)
-                    val start = startBlock(event.block) ?: return sb.toString()
+                    val start = startBlock(event.block) ?: return
                     val idx = nextIndex++
                     indexOf[event.index] = idx
                     blocks[event.index] = event.block
@@ -632,7 +643,7 @@ object AnthropicCodec : ProtocolCodec {
                     initialContent(sb, idx, event.index, event.block)
                 }
                 is StreamEvent.BlockDelta -> {
-                    val idx = indexOf[event.index] ?: return ""
+                    val idx = indexOf[event.index] ?: return
                     if (event.delta is Delta.Signature) signed += event.index
                     val delta = when (val dl = event.delta) {
                         is Delta.Text -> buildJsonObject { put("type", "text_delta"); put("text", dl.text) }
@@ -652,7 +663,6 @@ object AnthropicCodec : ProtocolCodec {
                     done = true
                 }
             }
-            return sb.toString()
         }
 
         private fun startBlock(b: Block): JsonObject? = when (b) {
@@ -730,6 +740,9 @@ object AnthropicCodec : ProtocolCodec {
             done = true
             if (truncated) return ""  // 不伪造 message_stop：客户端据此知道流被截断
             val sb = StringBuilder()
+            done = false
+            for (e in sequential.flush()) encodeOne(e, sb)
+            done = true
             ensureStarted(sb)
             closeOpen(sb)
             val f = finish

@@ -71,8 +71,7 @@ class ToolLoopTest {
         ProviderCallResponse(
             message = AiMessage(
                 role = AiRole.Assistant,
-                content = if (calls.isEmpty()) listOf(AiContent.Text(text)) else emptyList(),
-                toolCalls = calls,
+                content = if (calls.isEmpty()) listOf(AiContent.Text(text)) else calls.map { AiContent.ToolCall(it) },
             ),
             text = if (calls.isEmpty()) text else "",
             toolCalls = calls,
@@ -270,7 +269,7 @@ class ToolLoopTest {
         // Even though Network is fallback-eligible, round >= 2 must not fall back (state accumulated)
         val r1Model = ScriptedTextModel("p1", "m1", listOf(
             Reply(ProviderCallResponse(
-                message = AiMessage(AiRole.Assistant, emptyList(), listOf(AiToolCall("c1", "t", "{}"))),
+                message = AiMessage.assistant(toolCalls = listOf(AiToolCall("c1", "t", "{}"))),
                 text = "",
                 toolCalls = listOf(AiToolCall("c1", "t", "{}")),
                 usage = null, finishReason = AiFinishReason.ToolCalls,

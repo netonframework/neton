@@ -211,4 +211,9 @@ private fun buildSpiRequest(request: GenerateTextRequest, messages: List<AiMessa
         topP = request.topP,
         stopSequences = request.stopSequences,
         metadata = request.metadata,
+        options = neton.ai.protocol.ir.CallOptions(
+            reasoning = request.reasoning,
+            responseFormat = request.responseFormat,
+            providerOptions = request.providerOptions,
+        ),
     )

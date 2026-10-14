@@ -47,8 +47,13 @@ class AiConfig {
                     if (url.isNullOrBlank()) errors += "provider '$id': baseUrl is required"
                     else if (!url.startsWith("http://") && !url.startsWith("https://"))
                         errors += "provider '$id': baseUrl must start with http:// or https://"
+                    spec.profile?.let { if (neton.ai.protocol.profile.ProviderProfiles.byName(it) == null) errors += "provider '$id': unknown profile '$it'" }
+                    spec.api?.let { if (it != "chat" && it != "responses") errors += "provider '$id': api must be 'chat' or 'responses'" }
                 }
                 is neton.ai.config.AnthropicSpec -> {
+                    if (spec.apiKey.isNullOrBlank()) errors += "provider '$id': apiKey is blank"
+                }
+                is neton.ai.config.GeminiSpec -> {
                     if (spec.apiKey.isNullOrBlank()) errors += "provider '$id': apiKey is blank"
                 }
             }

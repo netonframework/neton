@@ -28,7 +28,6 @@ internal class OpenAiCompatibleEmbeddingModel(
     private val defaultHeaders: Map<String, String>,
     private val logSink: ((String) -> Unit)? = null,
     private val debug: Boolean = false,
-    private val responseMapper: OpenAiCompatibleResponseMapper = OpenAiCompatibleResponseMapper(),
     private val json: Json = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = false },
 ) : AiEmbeddingModel {
 
@@ -60,7 +59,7 @@ internal class OpenAiCompatibleEmbeddingModel(
             })
         }
         if (resp.statusCode !in 200..299) {
-            responseMapper.errorFromStatus(resp.statusCode, resp.body)
+            throw AiException(neton.ai.adapter.SdkIr.toAiError(neton.ai.protocol.codec.OpenAiChatCodec.decodeError(resp.statusCode, resp.body), modelName))
         }
         val parsed = json.decodeFromString(OpenAiEmbeddingResponse.serializer(), resp.body)
         // Sort by index to preserve input order

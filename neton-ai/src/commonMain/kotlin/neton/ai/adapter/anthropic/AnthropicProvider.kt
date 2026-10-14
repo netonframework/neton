@@ -1,13 +1,17 @@
-// neton-ai/src/commonMain/kotlin/neton/ai/adapter/anthropic/AnthropicProvider.kt
 package neton.ai.adapter.anthropic
 
 import neton.ai.AiLogSink
+import neton.ai.adapter.ProtocolEndpoint
+import neton.ai.adapter.ProtocolTextModel
+import neton.ai.protocol.ir.WireFormat
+import neton.ai.protocol.profile.ProviderProfiles
 import neton.ai.provider.AiEmbeddingModel
 import neton.ai.provider.AiProvider
 import neton.ai.provider.AiStreamingTextModel
 import neton.ai.provider.AiTextModel
 import neton.http.client.HttpClient
 
+/** Anthropic Messages。鉴权用 `x-api-key`，不用 Bearer。 */
 class AnthropicProvider(
     override val id: String,
     private val httpClient: HttpClient,
@@ -19,11 +23,21 @@ class AnthropicProvider(
     private val logSink: AiLogSink? = null,
     private val debug: Boolean = false,
 ) : AiProvider {
-    override fun textModel(modelName: String): AiTextModel = AnthropicTextModel(
-        providerId = id, modelName = modelName, httpClient = httpClient,
-        baseUrl = baseUrl, apiKey = apiKey, version = version, beta = beta,
-        defaultHeaders = defaultHeaders, logSink = logSink, debug = debug,
-    )
-    override fun streamingTextModel(modelName: String): AiStreamingTextModel = textModel(modelName) as AiStreamingTextModel
-    override fun embeddingModel(modelName: String): AiEmbeddingModel? = null            // Anthropic has no embeddings
+    private val endpoint = object : ProtocolEndpoint {
+        override fun url(modelName: String, stream: Boolean) = baseUrl.trimEnd('/') + "/v1/messages"
+        override fun headers(stream: Boolean) = buildMap {
+            put("x-api-key", apiKey)
+            put("anthropic-version", version)
+            if (beta.isNotEmpty()) put("anthropic-beta", beta.joinToString(","))
+            if (stream) put("Accept", "text/event-stream")
+            putAll(defaultHeaders)
+        }
+    }
+
+    override fun textModel(modelName: String): AiTextModel = streamingTextModel(modelName)
+
+    override fun streamingTextModel(modelName: String): AiStreamingTextModel =
+        ProtocolTextModel(id, modelName, WireFormat.ANTHROPIC, httpClient, endpoint, ProviderProfiles.CONSERVATIVE, logSink, debug)
+
+    override fun embeddingModel(modelName: String): AiEmbeddingModel? = null  // Anthropic 没有 embeddings
 }

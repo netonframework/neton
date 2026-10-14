@@ -106,6 +106,7 @@ internal fun runStreamingToolLoop(
                             send(event)
                         }
                         is AiStreamEvent.TextDelta,
+                        is AiStreamEvent.ReasoningDelta,
                         is AiStreamEvent.ToolCallStarted,
                         is AiStreamEvent.ToolCallArgumentsDelta -> send(event)
                     }
@@ -254,4 +255,9 @@ private fun buildSpiRequest(request: StreamTextRequest, messages: List<AiMessage
         topP = request.topP,
         stopSequences = request.stopSequences,
         metadata = request.metadata,
+        options = neton.ai.protocol.ir.CallOptions(
+            reasoning = request.reasoning,
+            responseFormat = request.responseFormat,
+            providerOptions = request.providerOptions,
+        ),
     )

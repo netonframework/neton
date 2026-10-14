@@ -6,6 +6,9 @@ sealed interface AiStreamEvent {
 
     data class TextDelta(val text: String) : AiStreamEvent
 
+    /** 推理内容增量（模型开启推理且厂商返回推理文本时）。 */
+    data class ReasoningDelta(val text: String) : AiStreamEvent
+
     /** Fired when tool call id+name first observed. name may be null if provider sends id first. */
     data class ToolCallStarted(val id: String, val name: String?) : AiStreamEvent
 

@@ -42,9 +42,18 @@ internal object AiClientFactory {
                         baseUrl = eff.baseUrl, apiKey = eff.apiKey,
                         organization = eff.organization, defaultHeaders = eff.defaultHeaders,
                         logSink = config.logSink, debug = config.debug,
-                        streamUsage = spec.streamUsage ?: neton.ai.protocol.profile.ProviderProfiles.forBaseUrl(eff.baseUrl).streamUsage,
+                        streamUsage = spec.streamUsage,
+                        profile = spec.profile?.let { neton.ai.protocol.profile.ProviderProfiles.byName(it) },
+                        api = if (spec.api == "responses") neton.ai.adapter.openaicompatible.OpenAiApi.Responses else neton.ai.adapter.openaicompatible.OpenAiApi.Chat,
                     )
                 }
+                is neton.ai.config.GeminiSpec -> neton.ai.adapter.gemini.GeminiProvider(
+                    id = spec.id, httpClient = httpClient,
+                    baseUrl = spec.baseUrl ?: "https://generativelanguage.googleapis.com",
+                    apiKey = spec.apiKey ?: error("Gemini '${spec.id}': apiKey missing"),
+                    defaultHeaders = spec.defaultHeaders ?: emptyMap(),
+                    logSink = config.logSink, debug = config.debug,
+                )
                 is AnthropicSpec -> {
                     val eff = spec.toEffective()
                     AnthropicProvider(

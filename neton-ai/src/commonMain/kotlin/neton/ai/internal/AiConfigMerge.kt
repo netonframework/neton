@@ -4,6 +4,7 @@ package neton.ai.internal
 import neton.ai.AiConfig
 import neton.ai.AiModelId
 import neton.ai.config.AnthropicSpec
+import neton.ai.config.GeminiSpec
 import neton.ai.config.OpenAiCompatibleSpec
 import neton.ai.routing.ModelPolicy
 import neton.ai.routing.RoutingConfig
@@ -15,7 +16,7 @@ import neton.ai.routing.RoutingConfig
  * Schema:
  *   debug = bool
  *   [providers.<id>]
- *     type = "openAiCompatible" | "anthropic"
+ *     type = "openAiCompatible" | "anthropic" | "gemini"
  *     baseUrl, apiKey, timeoutMillis, organization (openAiCompatible)
  *     baseUrl, apiKey, timeoutMillis, version, beta (anthropic)
  *   [routing]
@@ -45,6 +46,14 @@ internal fun AiConfig.applyFileMap(map: Map<String, Any?>) {
             "anthropic" -> {
                 val spec = (existing as? AnthropicSpec) ?: AnthropicSpec(id).also { providers[id] = it }
                 mergeAnthropic(spec, pm)
+            }
+            "gemini" -> {
+                val spec = (existing as? GeminiSpec) ?: GeminiSpec(id).also { providers[id] = it }
+                if (spec.baseUrl == null) (pm["baseUrl"] as? String)?.let { spec.baseUrl = it }
+                if (spec.apiKey == null) (pm["apiKey"] as? String)?.let { spec.apiKey = it }
+                if (spec.timeoutMillis == null) (pm["timeoutMillis"] as? Number)?.toLong()?.let { spec.timeoutMillis = it }
+                @Suppress("UNCHECKED_CAST")
+                if (spec.defaultHeaders == null) (pm["defaultHeaders"] as? Map<String, String>)?.let { spec.defaultHeaders = it }
             }
             else -> { /* skip unknown type; validate() will surface as missing config */ }
         }
@@ -79,6 +88,8 @@ private fun mergeOpenAiCompatible(spec: OpenAiCompatibleSpec, m: Map<String, Any
     if (spec.apiKey == null) (m["apiKey"] as? String)?.let { spec.apiKey = it }
     if (spec.organization == null) (m["organization"] as? String)?.let { spec.organization = it }
     if (spec.streamUsage == null) (m["streamUsage"] as? Boolean)?.let { spec.streamUsage = it }
+    if (spec.profile == null) (m["profile"] as? String)?.let { spec.profile = it }
+    if (spec.api == null) (m["api"] as? String)?.let { spec.api = it }
     if (spec.timeoutMillis == null) (m["timeoutMillis"] as? Number)?.toLong()?.let { spec.timeoutMillis = it }
     @Suppress("UNCHECKED_CAST")
     if (spec.defaultHeaders == null) (m["defaultHeaders"] as? Map<String, String>)?.let { spec.defaultHeaders = it }

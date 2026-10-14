@@ -86,3 +86,16 @@ internal fun jsonOf(vararg pairs: Pair<String, JsonElement?>): JsonObject =
     JsonObject(pairs.filter { it.second != null }.associate { it.first to it.second!! })
 
 internal fun String.json(): JsonPrimitive = JsonPrimitive(this)
+
+/**
+ * 上游流里出现无法解析的数据：关闭打开的块并以错误结束，**不跳过**——
+ * 跳过会让客户端拿到缺内容却看似完整的结果。
+ */
+internal fun malformed(seq: neton.ai.protocol.stream.BlockSequencer, d: neton.ai.protocol.diag.Diagnostics, format: WireFormat): List<neton.ai.protocol.ir.StreamEvent> {
+    d.error(neton.ai.protocol.diag.DiagnosticCodes.MALFORMED_INPUT, "stream", "unparseable upstream chunk")
+    val out = mutableListOf<neton.ai.protocol.ir.StreamEvent>()
+    seq.close(out)
+    out += neton.ai.protocol.ir.StreamEvent.Error(
+        neton.ai.protocol.error.ProtocolError(neton.ai.protocol.error.ErrorKind.ServerError, "malformed upstream stream chunk", sourceFormat = format))
+    return out
+}

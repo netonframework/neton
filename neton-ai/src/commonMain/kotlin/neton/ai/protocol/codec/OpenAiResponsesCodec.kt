@@ -602,7 +602,9 @@ object OpenAiResponsesCodec : ProtocolCodec {
         private val itemIds = HashMap<Int, String>()
 
         override fun decode(event: SseEvent): List<StreamEvent> {
-            val obj = J.parseObject(event.data.trim()) ?: return emptyList()
+            val data = event.data.trim()
+            if (data.isEmpty() || data == "[DONE]") return emptyList()
+            val obj = J.parseObject(data) ?: return malformed(seq, d, WireFormat.OPENAI_RESPONSES).also { completed = true }
             val out = mutableListOf<StreamEvent>()
             val type = obj.str("type") ?: event.event
             val oi = obj.int("output_index") ?: 0
@@ -726,9 +728,17 @@ object OpenAiResponsesCodec : ProtocolCodec {
         }
         private var open: Open? = null
 
+        private val sequential = neton.ai.protocol.stream.SequentialBlocks()
+
         override fun encode(event: StreamEvent): String {
             if (done) return ""
             val sb = StringBuilder()
+            for (e in sequential.accept(event)) encodeOne(e, sb)
+            return sb.toString()
+        }
+
+        private fun encodeOne(event: StreamEvent, sb: StringBuilder) {
+            if (done) return
             when (event) {
                 is StreamEvent.MessageStart -> {
                     event.id?.let { id = it }
@@ -752,7 +762,6 @@ object OpenAiResponsesCodec : ProtocolCodec {
                     done = true
                 }
             }
-            return sb.toString()
         }
 
         private fun ensureStarted(sb: StringBuilder) {
@@ -957,6 +966,9 @@ object OpenAiResponsesCodec : ProtocolCodec {
             done = true
             if (truncated) return ""
             val sb = StringBuilder()
+            done = false
+            for (e in sequential.flush()) encodeOne(e, sb)
+            done = true
             ensureStarted(sb)
             stopBlock(sb, ProviderMetadata.EMPTY)
             closeMessage(sb)

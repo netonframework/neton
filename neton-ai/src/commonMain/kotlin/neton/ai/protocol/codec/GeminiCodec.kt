@@ -587,7 +587,9 @@ object GeminiCodec : ProtocolCodec {
             private set
 
         override fun decode(event: SseEvent): List<StreamEvent> {
-            val obj = J.parseObject(event.data.trim()) ?: return emptyList()
+            val data = event.data.trim()
+            if (data.isEmpty()) return emptyList()
+            val obj = J.parseObject(data) ?: return malformed(seq, d, WireFormat.GEMINI).also { completed = true }
             val out = mutableListOf<StreamEvent>()
             obj.obj("error")?.let {
                 closeOpen(out)

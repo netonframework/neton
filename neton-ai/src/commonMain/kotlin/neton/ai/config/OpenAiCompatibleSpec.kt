@@ -16,4 +16,8 @@ class OpenAiCompatibleSpec(override val id: String) : ProviderSpec {
      * null = 按 baseUrl 取内置厂商配置（[neton.ai.protocol.profile.ProviderProfiles]），未收录的厂商默认不发。
      */
     var streamUsage: Boolean? = null
+    /** 内置厂商配置名（如 "vllm"、"ollama"），自建服务按主机名识别不了时指定；null = 按 baseUrl 识别。 */
+    var profile: String? = null
+    /** API 面："chat"（默认）或 "responses"。 */
+    var api: String? = null
 }

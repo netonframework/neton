@@ -215,4 +215,20 @@ class StreamConversionTest {
         assertEquals(UsageCompleteness.COMPLETE, m.completeness)
         assertNull(Usage().cacheWriteTokens)
     }
+
+    @Test
+    fun mistralThinkingPartsBecomeReasoning() {
+        val mistral = listOf(
+            """{"id":"m","choices":[{"index":0,"delta":{"content":[{"type":"thinking","thinking":[{"type":"text","text":"ponder"}]}]}}]}""",
+            """{"id":"m","choices":[{"index":0,"delta":{"content":[{"type":"text","text":"Hi"}]}}]}""",
+            """{"id":"m","choices":[{"index":0,"delta":{"content":" there"},"finish_reason":"stop"}]}""",
+            "[DONE]",
+        ).joinToString("") { "data: $it\n\n" }
+        val conv = ProtocolConverter.streamConverter(WireFormat.OPENAI_CHAT, WireFormat.ANTHROPIC)
+        val events = run(conv, mistral)
+        val starts = events.filter { it.event == "content_block_start" }.map { it.json()["content_block"]!!.jsonObject["type"]!!.jsonPrimitive.content }
+        assertEquals(listOf("thinking", "text"), starts)
+        val text = events.filter { it.event == "content_block_delta" }.mapNotNull { it.json()["delta"]!!.jsonObject["text"]?.jsonPrimitive?.content }
+        assertEquals("Hi there", text.joinToString(""))
+    }
 }

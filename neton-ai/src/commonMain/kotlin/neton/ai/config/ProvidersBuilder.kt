@@ -10,6 +10,12 @@ class ProvidersBuilder internal constructor(internal val target: MutableMap<Stri
         target[id] = OpenAiCompatibleSpec(id).apply(block)
     }
 
+    fun gemini(id: String, block: GeminiSpec.() -> Unit) {
+        require(idPattern.matches(id)) { "Invalid provider id '$id'" }
+        require(id !in target) { "Duplicate provider id '$id'" }
+        target[id] = GeminiSpec(id).apply(block)
+    }
+
     fun anthropic(id: String, block: AnthropicSpec.() -> Unit) {
         require(idPattern.matches(id)) { "Invalid provider id '$id'" }
         require(id !in target) { "Duplicate provider id '$id'" }
