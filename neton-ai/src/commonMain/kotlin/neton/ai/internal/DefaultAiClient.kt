@@ -1,21 +1,18 @@
 package neton.ai.internal
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import neton.ai.AiClient
-import neton.ai.AiError
-import neton.ai.AiException
-import neton.ai.AiStreamEvent
-import neton.ai.EmbeddingRequest
-import neton.ai.EmbeddingResult
-import neton.ai.GenerateTextRequest
-import neton.ai.GenerateTextResult
-import neton.ai.StreamTextRequest
-import neton.ai.builder.EmbeddingRequestBuilder
-import neton.ai.builder.GenerateTextRequestBuilder
-import neton.ai.builder.StreamTextRequestBuilder
-import neton.ai.builder.toRequest
-import neton.ai.provider.ProviderEmbedRequest
-import neton.ai.provider.ProviderRegistry
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import neton.ai.*
+import neton.ai.model.AiLanguageModel
+import neton.ai.model.AiModelMiddleware
+import neton.ai.model.withMiddleware
+import neton.ai.provider.*
 import neton.ai.routing.ModelRouter
 import neton.ai.usage.AiUsageRecorder
 
@@ -23,41 +20,86 @@ internal class DefaultAiClient(
     private val registry: ProviderRegistry,
     private val router: ModelRouter,
     private val recorder: AiUsageRecorder,
-    private val logSink: neton.ai.AiLogSink? = null,
+    private val logSink: AiLogSink? = null,
 ) : AiClient {
+    private val loop = AgentLoop(registry, router, recorder, logSink)
 
-    override suspend fun generateText(block: GenerateTextRequestBuilder.() -> Unit): GenerateTextResult {
-        val request = GenerateTextRequestBuilder().apply(block).toRequest()
-        return generateText(request)
+    override suspend fun generate(request: AiRequest): AiResult = loop.run(request, streaming = false) {}
+
+    override fun stream(request: AiRequest): Flow<AiStreamPart> = channelFlow {
+        try {
+            val result = loop.run(request, streaming = true) { send(it) }
+            send(AiStreamPart.Finish(result))
+        } catch (e: AiException) {
+            try { send(AiStreamPart.Error(e.error)) } catch (_: ClosedSendChannelException) {}
+        }
     }
 
-    override suspend fun generateText(request: GenerateTextRequest): GenerateTextResult =
-        runToolLoop(request, registry, router, recorder, logSink)
+    override fun languageModel(id: AiModelId): AiLanguageModel =
+        registry.get(id.providerId)?.languageModel(id.modelName)
+            ?: throw AiException(AiError.ModelNotFound(id.toString(), "language model '$id' is not configured"))
 
-    override fun streamText(block: StreamTextRequestBuilder.() -> Unit): Flow<AiStreamEvent> =
-        streamText(StreamTextRequestBuilder().apply(block).toRequest())
-
-    override fun streamText(request: StreamTextRequest): Flow<AiStreamEvent> =
-        runStreamingToolLoop(request, registry, router, recorder, logSink)
-
-    override suspend fun embed(block: EmbeddingRequestBuilder.() -> Unit): EmbeddingResult =
-        embed(EmbeddingRequestBuilder().apply(block).toRequest())
+    private fun <T> model(id: AiModelId, kind: String, get: (AiProvider) -> T?): T =
+        registry.get(id.providerId)?.let(get)
+            ?: throw AiException(AiError.ModelNotFound(id.toString(), "provider '${id.providerId}' has no $kind model '${id.modelName}'"))
 
     override suspend fun embed(request: EmbeddingRequest): EmbeddingResult {
-        val provider = registry.get(request.model.providerId)
-            ?: throw AiException(AiError.ModelNotFound(request.model.toString(), "Provider '${request.model.providerId}' not registered"))
-        val model = provider.embeddingModel(request.model.modelName)
-            ?: throw AiException(AiError.ModelNotFound(request.model.toString(), "Provider '${request.model.providerId}' does not support embeddings (model '${request.model.modelName}')"))
-        val resp = model.embed(ProviderEmbedRequest(input = request.input, metadata = request.metadata))
+        val m = model(request.model, "embedding") { it.embeddingModel(request.model.modelName) }
+        if (request.values.isEmpty()) return EmbeddingResult(emptyList(), AiUsage.ZERO_COMPLETE, emptyList(), request.model)
+        val chunks = request.values.chunked(m.maxEmbeddingsPerCall ?: request.values.size)
+        val opts = EmbedOptions(request.dimensions, request.headers, request.providerOptions, request.metadata)
+        val gate = Semaphore(if (m.supportsParallelCalls) request.maxParallelCalls else 1)
+        val results = coroutineScope {
+            chunks.map { chunk -> async { gate.withPermit { withRetries(request.maxRetries) { m.embed(chunk, opts) } } } }.awaitAll()
+        }
         return EmbeddingResult(
-            embeddings = resp.embeddings,
-            usage = resp.usage,
-            providerId = request.model.providerId,
-            modelName = request.model.modelName,
+            embeddings = results.flatMap { it.embeddings },
+            usage = results.map { it.usage }.reduce { a, b -> a + b },
+            warnings = results.flatMap { it.warnings },
+            model = request.model,
         )
     }
 
-    override suspend fun close() {
-        // DefaultAiClient 不拥有 HttpClient；外层（standalone factory / AiComponent）负责管理生命周期
+    override suspend fun generateImage(request: ImageRequest): ImageGenerationResult {
+        val m = model(request.model, "image") { it.imageModel(request.model.modelName) }
+        val perCall = (request.maxImagesPerCall ?: m.maxImagesPerCall).coerceAtLeast(1)
+        val counts = List((request.n + perCall - 1) / perCall) { i -> minOf(perCall, request.n - i * perCall) }
+        val results = coroutineScope {
+            counts.map { n ->
+                async {
+                    withRetries(request.maxRetries) {
+                        m.generate(ImageOptions(request.prompt, n, request.size, request.aspectRatio, request.seed, request.providerOptions, request.headers))
+                    }
+                }
+            }.awaitAll()
+        }
+        val images = results.flatMap { it.images }
+        if (images.isEmpty()) throw AiException(AiError.Unknown("no image generated by ${request.model}", null))
+        return ImageGenerationResult(images, results.map { it.usage }.reduce { a, b -> a + b }, results.flatMap { it.warnings })
     }
+
+    override suspend fun generateSpeech(model: AiModelId, options: SpeechOptions, maxRetries: Int): SpeechResult {
+        val m = model(model, "speech") { it.speechModel(model.modelName) }
+        return withRetries(maxRetries) { m.generate(options) }
+    }
+
+    override suspend fun transcribe(model: AiModelId, options: TranscriptionOptions, maxRetries: Int): TranscriptionResult {
+        val m = model(model, "transcription") { it.transcriptionModel(model.modelName) }
+        return withRetries(maxRetries) { m.transcribe(options) }
+    }
+
+    override suspend fun rerank(model: AiModelId, query: String, documents: List<String>, topN: Int?, maxRetries: Int): RerankResult {
+        if (documents.isEmpty()) return RerankResult(emptyList())
+        val m = model(model, "reranking") { it.rerankingModel(model.modelName) }
+        return withRetries(maxRetries) { m.rerank(query, documents, topN) }
+    }
+
+    override suspend fun close() {
+        // 不拥有 HttpClient：创建者负责关闭
+    }
+}
+
+/** 给 provider 的语言模型套上配置的中间件（[AiConfig.middleware]）。 */
+internal class MiddlewareProvider(private val inner: AiProvider, private val middleware: List<AiModelMiddleware>) : AiProvider by inner {
+    override fun languageModel(modelId: String): AiLanguageModel? = inner.languageModel(modelId)?.withMiddleware(middleware)
 }

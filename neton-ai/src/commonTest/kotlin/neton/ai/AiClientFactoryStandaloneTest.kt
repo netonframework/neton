@@ -35,11 +35,11 @@ class AiClientFactoryStandaloneTest {
             }
             routing { defaultModel = "openai:gpt-4o-mini" }
         }
-        val result = ai.generateText {
+        val result = ai.generate {
             user("hi")
         }
         assertEquals("ok", result.text)
-        assertEquals("openai", result.providerId)
+        assertEquals("openai", result.model?.providerId)
         ai.close()
     }
 

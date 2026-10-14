@@ -13,9 +13,12 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import neton.ai.AiToolDefinition
-import neton.ai.AiToolException
+import neton.ai.AiContent
+import neton.ai.AiTool
 import neton.ai.AiToolExecutor
+import neton.ai.AiToolKind
+import neton.ai.AiToolOutput
+import neton.ai.protocol.ir.MediaSource
 import neton.ai.protocol.transport.SseFramer
 import neton.core.http.HttpHeaders
 import neton.http.client.HttpClient
@@ -23,7 +26,18 @@ import neton.http.client.HttpClientBody
 import neton.http.client.HttpClientMethod
 import neton.http.client.HttpClientRequest
 
-data class McpTool(val name: String, val description: String?, val inputSchema: JsonObject)
+data class McpTool(
+    val name: String,
+    val description: String?,
+    val inputSchema: JsonObject,
+    val title: String? = null,
+    /** 行为提示（readOnlyHint、destructiveHint、idempotentHint、openWorldHint），只是提示，不能当作安全保证。 */
+    val annotations: JsonObject? = null,
+)
+
+data class McpResource(val uri: String, val name: String?, val description: String?, val mimeType: String?)
+
+data class McpPrompt(val name: String, val description: String?, val arguments: List<String>)
 
 data class McpToolResult(
     /** 文本内容拼接（非文本内容以类型占位）。 */
@@ -81,10 +95,13 @@ class McpClient(
             val result = rpc("tools/list", buildJsonObject { cursor?.let { put("cursor", it) } })
             result["tools"]?.jsonArray?.forEach { t ->
                 val o = t.jsonObject
+                val annotations = o["annotations"] as? JsonObject
                 out += McpTool(
                     o["name"]?.jsonPrimitive?.contentOrNull ?: return@forEach,
                     o["description"]?.jsonPrimitive?.contentOrNull,
                     o["inputSchema"] as? JsonObject ?: buildJsonObject { put("type", "object") },
+                    o["title"]?.jsonPrimitive?.contentOrNull ?: annotations?.get("title")?.jsonPrimitive?.contentOrNull,
+                    annotations,
                 )
             }
             cursor = result["nextCursor"]?.jsonPrimitive?.contentOrNull
@@ -107,22 +124,82 @@ class McpClient(
     }
 
     /**
-     * 把服务端的工具包装成 [AiToolDefinition]，可直接放进生成请求。[prefix] 用来区分多个服务端的同名工具。
-     * 工具返回 isError 时以 [AiToolException] 交给模型（内容来自 MCP 服务端，属于可公开的工具输出）。
+     * 把服务端的工具包装成动态工具 [AiTool]，可直接放进生成请求。[prefix] 用来区分多个服务端的同名工具。
+     * 结果：文本 → 文本；图片 → 多模态内容；只有 structuredContent 时 → JSON；isError → 错误输出（服务端给的内容属于可公开的工具输出）。
      */
-    suspend fun toolDefinitions(prefix: String = ""): List<AiToolDefinition> = listTools().map { t ->
-        AiToolDefinition(
+    suspend fun tools(prefix: String = ""): List<AiTool> = listTools().map { t ->
+        AiTool(
             name = prefix + t.name,
-            description = t.description ?: "",
-            inputSchemaJson = t.inputSchema.toString(),
-            executor = AiToolExecutor { args ->
-                val parsed = runCatching { json.parseToJsonElement(args.ifBlank { "{}" }) as? JsonObject }.getOrNull()
-                    ?: throw AiToolException("arguments must be a JSON object", "invalid_arguments")
-                val r = callTool(t.name, parsed)
-                if (r.isError) throw AiToolException(r.text.ifEmpty { "tool reported an error" }, "mcp_tool_error")
-                r.structuredContent?.takeIf { r.text.isEmpty() }?.toString() ?: r.text
+            description = t.description,
+            inputSchema = t.inputSchema,
+            kind = AiToolKind.Dynamic,
+            title = t.title,
+            metadata = buildMap {
+                put("mcp.toolName", t.name)
+                t.annotations?.forEach { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { put("mcp.$k", it) } }
+            },
+            execute = AiToolExecutor { input, _ ->
+                val args = input as? JsonObject ?: return@AiToolExecutor AiToolOutput.ErrorText("arguments must be a JSON object")
+                toOutput(callTool(t.name, args))
             },
         )
+    }
+
+    private fun toOutput(r: McpToolResult): AiToolOutput {
+        val content = r.raw["content"] as? kotlinx.serialization.json.JsonArray
+        if (r.isError) return AiToolOutput.ErrorText(r.text.ifEmpty { "tool reported an error" })
+        if (content.isNullOrEmpty()) return r.structuredContent?.let { AiToolOutput.Json(it) } ?: AiToolOutput.Text("")
+        val parts = content.mapNotNull { c ->
+            val o = c as? JsonObject ?: return@mapNotNull null
+            when (o["type"]?.jsonPrimitive?.contentOrNull) {
+                "text" -> AiContent.Text(o["text"]?.jsonPrimitive?.contentOrNull ?: "")
+                "image" -> AiContent.Image(MediaSource.Base64(o["data"]?.jsonPrimitive?.contentOrNull ?: "", o["mimeType"]?.jsonPrimitive?.contentOrNull))
+                "audio" -> AiContent.File(MediaSource.Base64(o["data"]?.jsonPrimitive?.contentOrNull ?: "", o["mimeType"]?.jsonPrimitive?.contentOrNull))
+                else -> AiContent.Text(o.toString())
+            }
+        }
+        return if (parts.all { it is AiContent.Text }) AiToolOutput.Text(r.text) else AiToolOutput.Content(parts)
+    }
+
+    /** 列出资源（自动翻页）。 */
+    suspend fun listResources(): List<McpResource> {
+        ensureInitialized()
+        val out = mutableListOf<McpResource>()
+        var cursor: String? = null
+        do {
+            val result = rpc("resources/list", buildJsonObject { cursor?.let { put("cursor", it) } })
+            result["resources"]?.jsonArray?.forEach { r ->
+                val o = r.jsonObject
+                out += McpResource(o["uri"]?.jsonPrimitive?.contentOrNull ?: return@forEach, o["name"]?.jsonPrimitive?.contentOrNull,
+                    o["description"]?.jsonPrimitive?.contentOrNull, o["mimeType"]?.jsonPrimitive?.contentOrNull)
+            }
+            cursor = result["nextCursor"]?.jsonPrimitive?.contentOrNull
+        } while (cursor != null)
+        return out
+    }
+
+    /** 读取资源：返回原始 `contents` 数组（text 或 blob）。 */
+    suspend fun readResource(uri: String): JsonObject {
+        ensureInitialized()
+        return rpc("resources/read", buildJsonObject { put("uri", uri) })
+    }
+
+    suspend fun listPrompts(): List<McpPrompt> {
+        ensureInitialized()
+        return rpc("prompts/list", buildJsonObject { })["prompts"]?.jsonArray?.mapNotNull { p ->
+            val o = p.jsonObject
+            McpPrompt(o["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null, o["description"]?.jsonPrimitive?.contentOrNull,
+                o["arguments"]?.jsonArray?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull } ?: emptyList())
+        } ?: emptyList()
+    }
+
+    /** 取得提示词模板展开后的消息（原始 `messages` 数组）。 */
+    suspend fun getPrompt(name: String, arguments: Map<String, String> = emptyMap()): JsonObject {
+        ensureInitialized()
+        return rpc("prompts/get", buildJsonObject {
+            put("name", name)
+            put("arguments", buildJsonObject { arguments.forEach { (k, v) -> put(k, v) } })
+        })
     }
 
     /** 结束会话（服务端支持时）。 */

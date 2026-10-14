@@ -30,6 +30,10 @@ sealed interface AiError {
     data class ModelNotFound(val modelId: String, override val message: String) : AiError {
         override val cause: Throwable? = null
     }
+    /** toolChoice 要求调用工具（Required / Named），模型却没有调用。 */
+    data class ToolChoiceViolation(override val message: String) : AiError {
+        override val cause: Throwable? = null
+    }
     data class Unknown(override val message: String, override val cause: Throwable?) : AiError
 }
 
@@ -46,6 +50,7 @@ val AiError.kind: String
         is AiError.ContextLengthExceeded -> "ContextLengthExceeded"
         is AiError.ContentFilter -> "ContentFilter"
         is AiError.ModelNotFound -> "ModelNotFound"
+        is AiError.ToolChoiceViolation -> "ToolChoiceViolation"
         is AiError.Unknown -> "Unknown"
     }
 

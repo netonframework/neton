@@ -30,7 +30,7 @@ class RedactionVerificationTest {
             debug = true
             logSink = { line -> capturedLines += line }
         }
-        ai.generateText { user("hi") }
+        ai.generate { user("hi") }
         ai.close()
 
         // The API key value MUST NOT appear anywhere in captured logs
@@ -56,7 +56,7 @@ class RedactionVerificationTest {
             debug = false
             logSink = { line -> capturedLines += line }
         }
-        ai.generateText { user("hi") }
+        ai.generate { user("hi") }
         ai.close()
         assertTrue(capturedLines.isEmpty(), "no logs expected when debug=false; got: $capturedLines")
     }

@@ -31,9 +31,10 @@ internal object AiClientFactory {
         if (errors.isNotEmpty()) {
             throw AiException(AiError.InvalidRequest("Invalid AI config: ${errors.joinToString()}"))
         }
-        val httpClient = config.httpClient ?: error("validate() should have caught null httpClient")
+        val httpClient = config.httpClient
 
-        val providers: Map<String, AiProvider> = config.providers.mapValues { (_, spec) ->
+        val configured: Map<String, AiProvider> = config.providers.mapValues { (_, spec) ->
+            httpClient ?: error("validate() should have caught null httpClient")
             when (spec) {
                 is OpenAiCompatibleSpec -> {
                     val eff = spec.toEffective()
@@ -67,6 +68,11 @@ internal object AiClientFactory {
             }
         }
 
+        val all = configured + config.customProviders
+        val providers = all.mapValues { (id, p) ->
+            val mw = config.middleware["*"].orEmpty() + config.middleware[id].orEmpty()
+            if (mw.isEmpty()) p else MiddlewareProvider(p, mw)
+        }
         return create(
             registry = DefaultProviderRegistry(providers),
             router = DefaultModelRouter(config.routing),

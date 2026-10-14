@@ -6,10 +6,8 @@ import neton.ai.adapter.ProtocolTextModel
 import neton.ai.protocol.ir.WireFormat
 import neton.ai.protocol.profile.ProviderProfile
 import neton.ai.protocol.profile.ProviderProfiles
-import neton.ai.provider.AiEmbeddingModel
-import neton.ai.provider.AiProvider
-import neton.ai.provider.AiStreamingTextModel
-import neton.ai.provider.AiTextModel
+import neton.ai.model.AiLanguageModel
+import neton.ai.provider.*
 import neton.http.client.HttpClient
 
 /** OpenAI 兼容的 API 面：Chat Completions（绝大多数兼容服务）或 Responses（OpenAI、Azure v1 等）。 */
@@ -48,14 +46,18 @@ class OpenAiCompatibleProvider(
         }
     }
 
-    override fun textModel(modelName: String): AiTextModel = streamingTextModel(modelName)
+    private val http = OpenAiHttp(id, httpClient, baseUrl) { buildMap {
+        put("Authorization", "Bearer $apiKey")
+        organization?.let { put("OpenAI-Organization", it) }
+        putAll(defaultHeaders)
+    } }
 
-    override fun streamingTextModel(modelName: String): AiStreamingTextModel =
-        ProtocolTextModel(id, modelName, api.format, httpClient, endpoint, profile, logSink, debug)
+    override fun languageModel(modelId: String): AiLanguageModel =
+        ProtocolTextModel(id, modelId, api.format, httpClient, endpoint, profile, logSink, debug)
 
-    override fun embeddingModel(modelName: String): AiEmbeddingModel = OpenAiCompatibleEmbeddingModel(
-        providerId = id, modelName = modelName, httpClient = httpClient,
-        baseUrl = baseUrl, apiKey = apiKey, organization = organization,
-        defaultHeaders = defaultHeaders, logSink = logSink, debug = debug,
-    )
+    override fun embeddingModel(modelId: String): AiEmbeddingModel = OpenAiEmbeddingModel(modelId, http)
+    override fun imageModel(modelId: String): AiImageModel = OpenAiImageModel(modelId, http)
+    override fun speechModel(modelId: String): AiSpeechModel = OpenAiSpeechModel(modelId, http)
+    override fun transcriptionModel(modelId: String): AiTranscriptionModel = OpenAiTranscriptionModel(modelId, http)
+    override fun rerankingModel(modelId: String): AiRerankingModel = OpenAiRerankingModel(modelId, http)
 }

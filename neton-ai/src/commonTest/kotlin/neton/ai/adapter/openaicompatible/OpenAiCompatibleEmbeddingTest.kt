@@ -9,7 +9,6 @@ import neton.ai.AiError
 import neton.ai.AiException
 import neton.ai.AiUsage
 import neton.ai.adapter.anthropic.AnthropicProvider
-import neton.ai.provider.ProviderEmbedRequest
 import neton.http.client.HttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,10 +19,7 @@ import kotlin.test.assertTrue
 
 class OpenAiCompatibleEmbeddingTest {
 
-    private fun makeEmbedRequest(vararg texts: String) = ProviderEmbedRequest(
-        input = texts.toList(),
-        metadata = emptyMap(),
-    )
+    private fun makeEmbedRequest(vararg texts: String) = texts.toList()
 
     /** Test 1: single input returns correct FloatArray */
     @Test
@@ -110,8 +106,9 @@ class OpenAiCompatibleEmbeddingTest {
         client.close()
 
         assertNotNull(resp.usage)
-        assertEquals(8, resp.usage!!.inputTokens)
-        assertEquals(8, resp.usage!!.totalTokens)
+        assertEquals(8L, resp.usage.inputTokens)
+        // 嵌入没有输出 token：合计不可知，不推算
+        kotlin.test.assertNull(resp.usage.totalTokens)
     }
 
     /** Test 4: HTTP 401 maps to AiException(Unauthorized) */

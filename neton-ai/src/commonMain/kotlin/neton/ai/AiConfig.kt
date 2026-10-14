@@ -21,6 +21,21 @@ class AiConfig {
     internal var usage: UsageConfig = UsageConfig(recorder = null)
     var debug: Boolean = false
     var logSink: AiLogSink? = null
+    internal val middleware = mutableMapOf<String, MutableList<neton.ai.model.AiModelMiddleware>>()
+    internal val customProviders = mutableMapOf<String, neton.ai.provider.AiProvider>()
+
+    /**
+     * 给某个 provider 的语言模型套上中间件（如 MiniMax 的 `<think>` 抽取）；[providerId] 为 `*` 时作用于全部。
+     * 先配置的先改写请求、最外层包住调用。
+     */
+    fun middleware(providerId: String, vararg middleware: neton.ai.model.AiModelMiddleware) {
+        this.middleware.getOrPut(providerId) { mutableListOf() } += middleware
+    }
+
+    /** 注册自定义 provider（自建模型、测试替身等），与配置的 provider 一起参与路由。 */
+    fun provider(provider: neton.ai.provider.AiProvider) {
+        customProviders[provider.id] = provider
+    }
 
     fun providers(block: ProvidersBuilder.() -> Unit) {
         ProvidersBuilder(providers).apply(block)
@@ -37,8 +52,8 @@ class AiConfig {
     /** Validation per spec §3.9. Returns list of error strings; empty = valid. */
     internal fun validate(): List<String> {
         val errors = mutableListOf<String>()
-        if (httpClient == null) errors += "httpClient is required"
-        if (providers.isEmpty()) errors += "at least one provider must be configured"
+        if (providers.isEmpty() && customProviders.isEmpty()) errors += "at least one provider must be configured"
+        if (providers.isNotEmpty() && httpClient == null) errors += "httpClient is required"
         for ((id, spec) in providers) {
             when (spec) {
                 is neton.ai.config.OpenAiCompatibleSpec -> {
@@ -59,12 +74,12 @@ class AiConfig {
             }
         }
         routing.defaultModel?.let { def ->
-            if (def.providerId !in providers) errors += "routing.defaultModel references unknown provider '${def.providerId}'"
+            if (def.providerId !in providers && def.providerId !in customProviders) errors += "routing.defaultModel references unknown provider '${def.providerId}'"
         }
         for ((name, policy) in routing.policies) {
             if (policy.prefer.isEmpty()) errors += "policy '$name': prefer list is empty"
             for (m in policy.prefer + policy.fallback) {
-                if (m.providerId !in providers) errors += "policy '$name': references unknown provider '${m.providerId}'"
+                if (m.providerId !in providers && m.providerId !in customProviders) errors += "policy '$name': references unknown provider '${m.providerId}'"
             }
         }
         return errors

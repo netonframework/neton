@@ -4,7 +4,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import neton.ai.AiToolException
 import neton.ai.testkit.bodyText
 import neton.core.http.HttpHeaders
 import neton.http.client.HttpClientMethod
@@ -12,7 +11,6 @@ import neton.http.client.HttpClientResponse
 import neton.http.testkit.ScriptedHttpClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class McpClientTest {
@@ -46,12 +44,13 @@ class McpClientTest {
     fun negotiatesSessionPagesToolsAndCallsThem() = runTest {
         val http = server()
         val mcp = McpClient(http, "https://mcp.example/mcp", mapOf("Authorization" to "Bearer t"))
-        val tools = mcp.toolDefinitions(prefix = "calc_")
+        val tools = mcp.tools(prefix = "calc_")
         assertEquals(listOf("calc_add", "calc_fail"), tools.map { it.name })
+        assertEquals(neton.ai.AiToolKind.Dynamic, tools[0].kind)
         assertEquals("2025-06-18", mcp.protocolVersion)
-        assertEquals("3", tools[0].executor!!.execute("""{"a":1,"b":2}"""))
-        val e = assertFailsWith<AiToolException> { tools[1].executor!!.execute("{}") }
-        assertEquals("bad input", e.publicMessage)
+        val ctx = neton.ai.AiToolCallContext(neton.ai.AiToolCall("c", "add", "{}"), 1, null, emptyMap(), emptyList())
+        assertEquals(neton.ai.AiToolOutput.Text("3"), tools[0].execute!!.execute(Json.parseToJsonElement("""{"a":1,"b":2}"""), ctx))
+        assertEquals(neton.ai.AiToolOutput.ErrorText("bad input"), tools[1].execute!!.execute(Json.parseToJsonElement("{}"), ctx))
         // 初始化之后的请求带会话 ID 与协商后的版本
         val later = http.recorded.last()
         assertEquals("S1", later.headers.get("Mcp-Session-Id"))

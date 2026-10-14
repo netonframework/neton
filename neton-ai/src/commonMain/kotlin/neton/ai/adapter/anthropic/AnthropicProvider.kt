@@ -5,10 +5,8 @@ import neton.ai.adapter.ProtocolEndpoint
 import neton.ai.adapter.ProtocolTextModel
 import neton.ai.protocol.ir.WireFormat
 import neton.ai.protocol.profile.ProviderProfiles
-import neton.ai.provider.AiEmbeddingModel
+import neton.ai.model.AiLanguageModel
 import neton.ai.provider.AiProvider
-import neton.ai.provider.AiStreamingTextModel
-import neton.ai.provider.AiTextModel
 import neton.http.client.HttpClient
 
 /** Anthropic Messages。鉴权用 `x-api-key`，不用 Bearer。 */
@@ -34,10 +32,6 @@ class AnthropicProvider(
         }
     }
 
-    override fun textModel(modelName: String): AiTextModel = streamingTextModel(modelName)
-
-    override fun streamingTextModel(modelName: String): AiStreamingTextModel =
-        ProtocolTextModel(id, modelName, WireFormat.ANTHROPIC, httpClient, endpoint, ProviderProfiles.CONSERVATIVE, logSink, debug)
-
-    override fun embeddingModel(modelName: String): AiEmbeddingModel? = null  // Anthropic 没有 embeddings
+    override fun languageModel(modelId: String): AiLanguageModel =
+        ProtocolTextModel(id, modelId, WireFormat.ANTHROPIC, httpClient, endpoint, ProviderProfiles.CONSERVATIVE, logSink, debug)
 }

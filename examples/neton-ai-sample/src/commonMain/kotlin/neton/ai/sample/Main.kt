@@ -5,14 +5,17 @@ import neton.http.client.create
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import neton.ai.AiClient
-import neton.ai.AiStreamEvent
+import neton.ai.AiStreamPart
+import neton.ai.AiModelId
+import neton.ai.EmbeddingRequest
+import neton.ai.cosineSimilarity
 import neton.ai.AiException
 import neton.http.client.HttpClient
 
 /**
  * neton-ai v0.1 sample. Demonstrates standalone (Mode 1) usage:
- *  - generateText (non-streaming)
- *  - streamText (SSE streaming)
+ *  - generate (non-streaming)
+ *  - stream (streaming parts)
  *  - embed (vector embeddings)
  *
  * Requires environment variables (skips demos if missing):
@@ -71,49 +74,41 @@ fun main() = runBlocking {
         return@runBlocking
     }
 
-    // -- Demo 1: generateText (non-streaming) --
-    println("\n=== Demo 1: generateText ===")
+    // -- Demo 1: generate (non-streaming) --
+    println("\n=== Demo 1: generate ===")
     try {
-        val result = ai.generateText {
+        val result = ai.generate {
             user("Say hello in exactly three words.")
         }
-        println("Provider: ${result.providerId}/${result.modelName}")
+        println("Model: ${result.model}")
         println("Response: ${result.text}")
-        println("Tokens: in=${result.usage?.inputTokens} out=${result.usage?.outputTokens}")
+        println("Tokens: in=${result.usage.inputTokens} out=${result.usage.outputTokens} (${result.usage.completeness})")
     } catch (e: AiException) {
-        println("generateText failed: ${e.error::class.simpleName} - ${e.message}")
+        println("generate failed: ${e.error::class.simpleName} - ${e.message}")
     }
 
-    // -- Demo 2: streamText --
-    println("\n=== Demo 2: streamText ===")
-    try {
-        ai.streamText {
-            user("Count from 1 to 5, one per line.")
-        }.collect { event ->
-            when (event) {
-                is AiStreamEvent.Started -> println("[started: ${event.providerId}/${event.modelName}]")
-                is AiStreamEvent.TextDelta -> print(event.text)
-                is AiStreamEvent.Completed -> println("\n[completed; finish=${event.finishReason}]")
-                is AiStreamEvent.Failed -> println("\n[failed: ${event.error::class.simpleName}]")
-                else -> {} // ToolCall* / ToolResult* not used in this demo
-            }
+    // -- Demo 2: stream --
+    println("\n=== Demo 2: stream ===")
+    ai.stream {
+        user("Count from 1 to 5, one per line.")
+    }.collect { part ->
+        when (part) {
+            is AiStreamPart.StepStart -> println("[step ${part.stepNumber}: ${part.model}]")
+            is AiStreamPart.TextDelta -> print(part.text)
+            is AiStreamPart.Finish -> println("\n[finished; reason=${part.result.finishReason}]")
+            is AiStreamPart.Error -> println("\n[failed: ${part.error::class.simpleName}]")
+            else -> {}
         }
-    } catch (e: AiException) {
-        println("streamText failed: ${e.error::class.simpleName} - ${e.message}")
     }
 
     // -- Demo 3: embed (OpenAI only — Anthropic has no embedding API) --
     if (openaiKey != null) {
         println("\n=== Demo 3: embed ===")
         try {
-            val result = ai.embed {
-                model = "openai:text-embedding-3-small"
-                input("Hello world.")
-                input("Goodbye world.")
-            }
-            println("Provider: ${result.providerId}/${result.modelName}")
+            val result = ai.embed(EmbeddingRequest(AiModelId.parse("openai:text-embedding-3-small"), listOf("Hello world.", "Goodbye world.")))
             println("Returned ${result.embeddings.size} embeddings; first vector size=${result.embeddings[0].size}")
-            println("Tokens: in=${result.usage?.inputTokens} total=${result.usage?.totalTokens}")
+            println("Similarity: ${cosineSimilarity(result.embeddings[0], result.embeddings[1])}")
+            println("Tokens: in=${result.usage.inputTokens}")
         } catch (e: AiException) {
             println("embed failed: ${e.error::class.simpleName} - ${e.message}")
         }

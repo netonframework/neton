@@ -6,10 +6,8 @@ import neton.ai.adapter.ProtocolTextModel
 import neton.ai.protocol.ir.WireFormat
 import neton.ai.protocol.profile.ProviderProfiles
 import neton.ai.protocol.transport.GeminiUpstream
-import neton.ai.provider.AiEmbeddingModel
+import neton.ai.model.AiLanguageModel
 import neton.ai.provider.AiProvider
-import neton.ai.provider.AiStreamingTextModel
-import neton.ai.provider.AiTextModel
 import neton.http.client.HttpClient
 
 /**
@@ -34,10 +32,6 @@ class GeminiProvider(
         }
     }
 
-    override fun textModel(modelName: String): AiTextModel = streamingTextModel(modelName)
-
-    override fun streamingTextModel(modelName: String): AiStreamingTextModel =
-        ProtocolTextModel(id, modelName, WireFormat.GEMINI, httpClient, endpoint, ProviderProfiles.CONSERVATIVE, logSink, debug)
-
-    override fun embeddingModel(modelName: String): AiEmbeddingModel? = null
+    override fun languageModel(modelId: String): AiLanguageModel =
+        ProtocolTextModel(id, modelId, WireFormat.GEMINI, httpClient, endpoint, ProviderProfiles.CONSERVATIVE, logSink, debug)
 }

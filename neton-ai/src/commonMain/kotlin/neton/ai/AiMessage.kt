@@ -2,25 +2,21 @@ package neton.ai
 
 /**
  * 与厂商无关的消息。
- *
- * - role=Assistant：[content] 里按顺序放文本、推理与 [AiContent.ToolCall]；
- * - role=Tool：[toolCallId] 指向对应的调用，[content] 是执行结果，[toolResultIsError] 标记执行失败；
- * - [metadata]：轻量的提示信息，**不要**放密钥。
+ * - Assistant：按顺序放文本、推理、[AiContent.ToolCall] 与 [AiContent.ToolApprovalRequest]；
+ * - Tool：放 [AiContent.ToolResult] 与 [AiContent.ToolApprovalResponse]（一条消息可以有多个）。
  */
 data class AiMessage(
     val role: AiRole,
     val content: List<AiContent> = emptyList(),
-    val toolCallId: String? = null,
+    /** 轻量的提示信息，**不要**放密钥。 */
     val metadata: Map<String, String> = emptyMap(),
-    val toolResultIsError: Boolean? = null,
 ) {
-    /** 本条消息里的工具调用（按出现顺序）。 */
     val toolCalls: List<AiToolCall> get() = content.filterIsInstance<AiContent.ToolCall>().map { it.call }
+    val toolResults: List<AiContent.ToolResult> get() = content.filterIsInstance<AiContent.ToolResult>()
 
-    /** 全部文本块拼接（不含推理）。 */
+    /** 全部文本块拼接（不含推理与拒绝）。 */
     val text: String get() = content.filterIsInstance<AiContent.Text>().joinToString("") { it.text }
 
-    /** 全部推理文本拼接。 */
     val reasoningText: String get() = content.filterIsInstance<AiContent.Reasoning>().joinToString("") { it.text }
 
     companion object {
@@ -34,8 +30,12 @@ data class AiMessage(
             listOfNotNull(text?.let { AiContent.Text(it) }) + toolCalls.map { AiContent.ToolCall(it) },
         )
 
-        fun toolResult(toolCallId: String, content: String, isError: Boolean = false) = AiMessage(
-            AiRole.Tool, listOf(AiContent.Text(content)), toolCallId = toolCallId, toolResultIsError = if (isError) true else null,
-        )
+        fun tool(vararg content: AiContent) = AiMessage(AiRole.Tool, content.toList())
+
+        fun toolResult(toolCallId: String, toolName: String, output: AiToolOutput) =
+            AiMessage(AiRole.Tool, listOf(AiContent.ToolResult(toolCallId, toolName, output)))
+
+        /** 对挂起的审批作答，作为最后一条消息发回即可继续（见 [AiResult.pendingApprovals]）。 */
+        fun approvals(vararg responses: AiContent.ToolApprovalResponse) = AiMessage(AiRole.Tool, responses.toList())
     }
 }
