@@ -38,9 +38,10 @@ object AnthropicCodec : ProtocolCodec {
 
     private val REQUEST_KEYS = setOf(
         "model", "messages", "system", "max_tokens", "temperature", "top_p", "top_k", "stop_sequences",
-        "stream", "tools", "tool_choice", "thinking", "metadata",
+        "stream", "tools", "tool_choice", "thinking", "metadata", "output_config", "output_format",
     )
     private val CC = ProviderMetadata.CACHE_CONTROL
+    private const val EFFORT_IN_OUTPUT_CONFIG = "effortInOutputConfig"
     private val NS = ProviderMetadata.ANTHROPIC
 
     // ───────────────────────── 请求 ─────────────────────────
@@ -64,7 +65,12 @@ object AnthropicCodec : ProtocolCodec {
         val metadataObj = body.obj("metadata")
         var meta = ProviderMetadata.EMPTY.withExtra(F, body, REQUEST_KEYS)
         metadataObj?.let { m -> JsonObject(m - "user_id").takeIf { it.isNotEmpty() }?.let { meta = meta.with(NS, "metadataExtra", it) } }
-        val effortHint = body.obj("output_config")?.str("effort")
+        val outputConfig = body.obj("output_config")
+        val effortHint = outputConfig?.str("effort")
+        if (effortHint != null) meta = meta.with(NS, EFFORT_IN_OUTPUT_CONFIG, JsonPrimitive(true))
+        outputConfig?.let { oc -> JsonObject(oc - "effort" - "format").takeIf { it.isNotEmpty() }?.let { meta = meta.with(NS, "outputConfigExtra", it) } }
+        // 结构化输出：output_config.format（GA）；output_format 是已废弃的 beta 写法，读入后按新写法写回
+        val format = outputConfig?.obj("format") ?: body.obj("output_format")
         return ChatRequest(
             model = body.str("model"),
             instructions = instructions,
@@ -80,6 +86,9 @@ object AnthropicCodec : ProtocolCodec {
                 parallelToolCalls = if (tc?.bool("disable_parallel_tool_use") == true) false else null,
                 reasoning = decodeThinking(thinking, effortHint),
                 user = metadataObj?.str("user_id"),
+                responseFormat = format?.takeIf { it.str("type") == "json_schema" }?.let {
+                    ResponseFormat.JsonSchema("response", it["schema"] ?: JsonObject(emptyMap()))
+                },
             ),
             stream = body.bool("stream") ?: false,
             metadata = meta,
@@ -183,20 +192,33 @@ object AnthropicCodec : ProtocolCodec {
         if (!thinkingOn) put("top_k", o.topK)
         if (o.stop.isNotEmpty()) put("stop_sequences", JsonArray(o.stop.map(::JsonPrimitive)))
         thinking?.let { put("thinking", it) }
-        val outputConfigKept = request.metadata.wireExtra(F).containsKey("output_config")
-        if (!outputConfigKept && o.reasoning?.effort != null && o.reasoning.mode == ReasoningMode.Adaptive) {
-            put("output_config", buildJsonObject { put("effort", o.reasoning.effort) })
-        }
+        encodeOutputConfig(request, d)?.let { put("output_config", it) }
         val metaExtra = request.metadata[NS, "metadataExtra"] as? JsonObject
         if (o.user != null || metaExtra != null) put("metadata", JsonObject((metaExtra ?: JsonObject(emptyMap())) + listOfNotNull(o.user?.let { "user_id" to JsonPrimitive(it) })))
         if (request.stream) put("stream", true)
         if (o.seed != null) d.warn(DiagnosticCodes.UNSUPPORTED_OPTION, "seed", "Anthropic has no seed parameter")
         if (o.presencePenalty != null || o.frequencyPenalty != null) d.warn(DiagnosticCodes.UNSUPPORTED_OPTION, "penalty", "Anthropic has no presence/frequency penalty")
         if ((o.candidateCount ?: 1) > 1) d.error(DiagnosticCodes.N_GT_1_UNSUPPORTED, "n", "Anthropic returns a single candidate")
-        o.responseFormat?.let { rf ->
-            if (rf !is ResponseFormat.Text) d.error(DiagnosticCodes.UNSUPPORTED_OPTION, "response_format", "structured output is not mapped to Anthropic yet")
-        }
         putExtras(request.metadata, F)
+    }
+
+    /**
+     * `output_config`：推理强度（自适应 thinking 或源请求本来就写在这里）与结构化输出
+     * （platform.claude.com/docs/en/build-with-claude/structured-outputs：`format: {type: json_schema, schema}`，无需 beta 头）。
+     */
+    private fun encodeOutputConfig(request: ChatRequest, d: Diagnostics): JsonObject? {
+        val o = request.options
+        val r = o.reasoning
+        return tracking {
+            if (r?.effort != null && (r.mode == ReasoningMode.Adaptive || request.metadata[NS, EFFORT_IN_OUTPUT_CONFIG] != null)) put("effort", r.effort)
+            when (val rf = o.responseFormat) {
+                is ResponseFormat.JsonSchema -> put("format", buildJsonObject { put("type", "json_schema"); put("schema", rf.schema) })
+                ResponseFormat.JsonObject -> d.warn(DiagnosticCodes.UNSUPPORTED_OPTION, "response_format",
+                    "Anthropic has no schema-less JSON mode; the request is sent without a format constraint")
+                else -> {}
+            }
+            (request.metadata[NS, "outputConfigExtra"] as? JsonObject)?.forEach { (k, v) -> if (k !in keys) put(k, v) }
+        }.takeIf { it.isNotEmpty() }
     }
 
     private fun encodeSystem(request: ChatRequest, d: Diagnostics): JsonElement? {

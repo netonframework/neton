@@ -264,4 +264,23 @@ class CrossConversionTest {
         assertTrue(r.value === body)
         assertTrue(r.diagnostics.isEmpty())
     }
+
+    @Test
+    fun structuredOutputMapsToAnthropicOutputConfig() {
+        val r = ProtocolConverter.convertRequest(obj("""
+            {"model":"m","messages":[{"role":"user","content":"hi"}],
+             "response_format":{"type":"json_schema","json_schema":{"name":"o","schema":{"type":"object","additionalProperties":false},"strict":true}}}
+        """), WireFormat.OPENAI_CHAT, WireFormat.ANTHROPIC)
+        val format = r.value["output_config"]!!.jsonObject["format"]!!.jsonObject
+        assertEquals("json_schema", format["type"]!!.jsonPrimitive.content)
+        assertEquals("object", format["schema"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        assertTrue(r.diagnostics.isEmpty(), r.diagnostics.toString())
+        // 反向：Anthropic 的 output_config.format（以及已废弃的 output_format）→ OpenAI json_schema
+        for (field in listOf(""""output_config":{"format":{"type":"json_schema","schema":{"type":"object"}},"effort":"high"}""",
+                             """"output_format":{"type":"json_schema","schema":{"type":"object"}}""")) {
+            val back = ProtocolConverter.convertRequest(obj("""{"model":"m","max_tokens":10,"messages":[{"role":"user","content":"hi"}],$field}"""),
+                WireFormat.ANTHROPIC, WireFormat.OPENAI_CHAT)
+            assertEquals("json_schema", back.value["response_format"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        }
+    }
 }
