@@ -328,7 +328,9 @@ class StreamingToolLoopTest {
         val toolResultReady = result.filterIsInstance<AiStreamEvent.ToolResultReady>()
         assertEquals(1, toolResultReady.size)
         assertTrue(toolResultReady[0].result.isError, "Executor error should mark result as isError=true")
-        assertTrue("boom" in toolResultReady[0].result.content)
+        // 异常详情只进日志，不发给模型（spec/ai.md §8）
+        assertTrue("boom" !in toolResultReady[0].result.content)
+        assertTrue(AiToolFailure.GENERIC_CODE in toolResultReady[0].result.content)
         val completed = result.filterIsInstance<AiStreamEvent.Completed>()
         assertEquals(1, completed.size)
         assertEquals(AiFinishReason.Stop, completed[0].finishReason)

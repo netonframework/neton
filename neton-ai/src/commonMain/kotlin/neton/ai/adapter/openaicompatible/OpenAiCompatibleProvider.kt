@@ -17,6 +17,7 @@ class OpenAiCompatibleProvider(
     private val defaultHeaders: Map<String, String> = emptyMap(),
     private val logSink: AiLogSink? = null,
     private val debug: Boolean = false,
+    private val streamUsage: Boolean = false,
 ) : AiProvider {
     override fun textModel(modelName: String): AiTextModel = OpenAiCompatibleTextModel(
         providerId = id,
@@ -28,6 +29,7 @@ class OpenAiCompatibleProvider(
         defaultHeaders = defaultHeaders,
         logSink = logSink,
         debug = debug,
+        streamUsage = streamUsage,
     )
     override fun streamingTextModel(modelName: String): AiStreamingTextModel = textModel(modelName) as AiStreamingTextModel
     override fun embeddingModel(modelName: String): AiEmbeddingModel = OpenAiCompatibleEmbeddingModel(

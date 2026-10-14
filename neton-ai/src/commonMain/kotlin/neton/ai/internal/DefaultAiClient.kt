@@ -23,6 +23,7 @@ internal class DefaultAiClient(
     private val registry: ProviderRegistry,
     private val router: ModelRouter,
     private val recorder: AiUsageRecorder,
+    private val logSink: neton.ai.AiLogSink? = null,
 ) : AiClient {
 
     override suspend fun generateText(block: GenerateTextRequestBuilder.() -> Unit): GenerateTextResult {
@@ -31,13 +32,13 @@ internal class DefaultAiClient(
     }
 
     override suspend fun generateText(request: GenerateTextRequest): GenerateTextResult =
-        runToolLoop(request, registry, router, recorder)
+        runToolLoop(request, registry, router, recorder, logSink)
 
     override fun streamText(block: StreamTextRequestBuilder.() -> Unit): Flow<AiStreamEvent> =
         streamText(StreamTextRequestBuilder().apply(block).toRequest())
 
     override fun streamText(request: StreamTextRequest): Flow<AiStreamEvent> =
-        runStreamingToolLoop(request, registry, router, recorder)
+        runStreamingToolLoop(request, registry, router, recorder, logSink)
 
     override suspend fun embed(block: EmbeddingRequestBuilder.() -> Unit): EmbeddingResult =
         embed(EmbeddingRequestBuilder().apply(block).toRequest())

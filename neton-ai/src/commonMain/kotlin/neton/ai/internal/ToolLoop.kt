@@ -48,6 +48,7 @@ internal suspend fun runToolLoop(
     registry: ProviderRegistry,
     router: ModelRouter,
     recorder: AiUsageRecorder,
+    logSink: neton.ai.AiLogSink? = null,
 ): GenerateTextResult {
     val candidates: List<AiModelId> = router.resolve(request.model, request.modelPolicy)
     if (candidates.isEmpty()) {
@@ -165,7 +166,7 @@ internal suspend fun runToolLoop(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {
-                    AiToolResult(call.id, e.message ?: "tool execution failed", isError = true)
+                    AiToolResult(call.id, neton.ai.AiToolFailure.contentFor(call.name, e, logSink), isError = true)
                 }
                 accumulatedResults += result
                 workingMessages += AiMessage(

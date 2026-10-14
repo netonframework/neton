@@ -19,7 +19,8 @@ internal object AiClientFactory {
         registry: ProviderRegistry,
         router: ModelRouter,
         recorder: AiUsageRecorder,
-    ): AiClient = DefaultAiClient(registry, router, recorder)
+        logSink: neton.ai.AiLogSink? = null,
+    ): AiClient = DefaultAiClient(registry, router, recorder, logSink)
 
     /**
      * High-level: construct from an AiConfig that has already been merged with file values.
@@ -41,6 +42,7 @@ internal object AiClientFactory {
                         baseUrl = eff.baseUrl, apiKey = eff.apiKey,
                         organization = eff.organization, defaultHeaders = eff.defaultHeaders,
                         logSink = config.logSink, debug = config.debug,
+                        streamUsage = spec.streamUsage ?: neton.ai.protocol.profile.ProviderProfiles.forBaseUrl(eff.baseUrl).streamUsage,
                     )
                 }
                 is AnthropicSpec -> {
@@ -60,6 +62,7 @@ internal object AiClientFactory {
             registry = DefaultProviderRegistry(providers),
             router = DefaultModelRouter(config.routing),
             recorder = config.usage.recorder ?: NoopAiUsageRecorder,
+            logSink = config.logSink,
         )
     }
 }

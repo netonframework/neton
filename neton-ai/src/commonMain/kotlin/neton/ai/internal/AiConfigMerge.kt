@@ -78,6 +78,7 @@ private fun mergeOpenAiCompatible(spec: OpenAiCompatibleSpec, m: Map<String, Any
     if (spec.baseUrl == null) (m["baseUrl"] as? String)?.let { spec.baseUrl = it }
     if (spec.apiKey == null) (m["apiKey"] as? String)?.let { spec.apiKey = it }
     if (spec.organization == null) (m["organization"] as? String)?.let { spec.organization = it }
+    if (spec.streamUsage == null) (m["streamUsage"] as? Boolean)?.let { spec.streamUsage = it }
     if (spec.timeoutMillis == null) (m["timeoutMillis"] as? Number)?.toLong()?.let { spec.timeoutMillis = it }
     @Suppress("UNCHECKED_CAST")
     if (spec.defaultHeaders == null) (m["defaultHeaders"] as? Map<String, String>)?.let { spec.defaultHeaders = it }

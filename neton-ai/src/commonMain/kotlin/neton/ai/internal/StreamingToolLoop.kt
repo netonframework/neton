@@ -46,6 +46,7 @@ internal fun runStreamingToolLoop(
     registry: ProviderRegistry,
     router: ModelRouter,
     recorder: AiUsageRecorder,
+    logSink: neton.ai.AiLogSink? = null,
 ): Flow<AiStreamEvent> = channelFlow {
     val candidates: List<AiModelId> = router.resolve(request.model, request.modelPolicy)
     if (candidates.isEmpty()) {
@@ -216,7 +217,7 @@ internal fun runStreamingToolLoop(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {
-                    AiToolResult(call.id, e.message ?: "tool execution failed", isError = true)
+                    AiToolResult(call.id, neton.ai.AiToolFailure.contentFor(call.name, e, logSink), isError = true)
                 }
                 send(AiStreamEvent.ToolResultReady(result))
                 workingMessages += AiMessage(

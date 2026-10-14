@@ -16,6 +16,7 @@ internal data class OpenAiChatRequest(
     val tools: List<OpenAiTool>? = null,
     @SerialName("tool_choice") val toolChoice: JsonElement? = null,  // string OR object — keep flexible
     val stream: Boolean? = null,  // false for non-stream; PR2 sets true
+    @SerialName("stream_options") val streamOptions: OpenAiStreamOptions? = null,
 )
 
 @Serializable
@@ -51,4 +52,9 @@ internal data class OpenAiToolCall(
 internal data class OpenAiFunctionCall(
     val name: String,
     val arguments: String,                       // JSON string per OpenAI spec
+)
+
+@Serializable
+internal data class OpenAiStreamOptions(
+    @SerialName("include_usage") val includeUsage: Boolean,
 )

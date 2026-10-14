@@ -12,6 +12,7 @@ import neton.ai.AiException
 import neton.ai.AiLogSink
 import neton.ai.AiStreamEvent
 import neton.ai.adapter.openaicompatible.dto.OpenAiChatRequest
+import neton.ai.adapter.openaicompatible.dto.OpenAiStreamOptions
 import neton.ai.internal.withRedactedValues
 import neton.ai.provider.AiStreamingTextModel
 import neton.ai.provider.ProviderCallRequest
@@ -33,6 +34,8 @@ internal class OpenAiCompatibleTextModel(
     private val defaultHeaders: Map<String, String>,
     private val logSink: AiLogSink? = null,
     private val debug: Boolean = false,
+    /** 流式时是否发送 stream_options.include_usage（来自厂商配置文件或显式配置）。 */
+    private val streamUsage: Boolean = false,
     private val requestMapper: OpenAiCompatibleRequestMapper = OpenAiCompatibleRequestMapper(),
     private val responseMapper: OpenAiCompatibleResponseMapper = OpenAiCompatibleResponseMapper(),
     private val json: Json = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = false },
@@ -73,7 +76,10 @@ internal class OpenAiCompatibleTextModel(
     }
 
     override fun stream(request: ProviderCallRequest): Flow<AiStreamEvent> = channelFlow {
-        val wire = requestMapper.toWire(modelName, request).copy(stream = true)
+        val wire = requestMapper.toWire(modelName, request).copy(
+            stream = true,
+            streamOptions = if (streamUsage) OpenAiStreamOptions(includeUsage = true) else null,
+        )
         val bodyJson = json.encodeToString(OpenAiChatRequest.serializer(), wire)
         val headers = buildMap {
             put("Authorization", "Bearer $apiKey")

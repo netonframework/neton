@@ -15,6 +15,7 @@ import neton.ai.usage.AiUsageRecorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ToolLoopTest {
@@ -162,7 +163,25 @@ class ToolLoopTest {
         )
         assertEquals("recovered", res.text)
         assertEquals(true, res.toolResults.single().isError)
-        assertTrue("boom" in res.toolResults.single().content)
+        // 异常详情只进日志，不发给模型（spec/ai.md §8）
+        assertFalse("boom" in res.toolResults.single().content)
+        assertTrue(AiToolFailure.GENERIC_CODE in res.toolResults.single().content)
+    }
+
+    @Test fun toolExceptionMessageIsSharedOnlyWhenThrownDeliberately() = runTest {
+        val req = GenerateTextRequest(
+            messages = listOf(AiMessage(AiRole.User, listOf(AiContent.Text("call")))),
+            tools = listOf(AiToolDefinition(
+                name = "weather", description = "", inputSchemaJson = "{}",
+                executor = AiToolExecutor { _ -> throw AiToolException("Unknown city, ask the user for another one.", code = "unknown_city") },
+            )),
+        )
+        val res = runLoop(
+            request = req,
+            script = listOf(textReply("", calls = listOf(AiToolCall("c1", "weather", "{}"))), textReply("ok")),
+        )
+        val content = res.toolResults.single().content
+        assertTrue("Unknown city" in content && "unknown_city" in content, content)
     }
 
     @Test fun toolCallWithoutExecutorReturnsEarly() = runTest {
