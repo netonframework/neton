@@ -283,4 +283,13 @@ class CrossConversionTest {
             assertEquals("json_schema", back.value["response_format"]!!.jsonObject["type"]!!.jsonPrimitive.content)
         }
     }
+
+    @Test
+    fun unstructuredUpstreamErrorsKeepTheUpstreamText() {
+        val (_, body) = ProtocolConverter.convertError(403, """{"error": "forbidden"}""", WireFormat.OPENAI_CHAT, WireFormat.ANTHROPIC)
+        assertEquals("forbidden", obj(body)["error"]!!.jsonObject["message"]!!.jsonPrimitive.content)
+        assertEquals("permission_error", obj(body)["error"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        val (_, plain) = ProtocolConverter.convertError(502, "Bad Gateway from nginx", WireFormat.OPENAI_CHAT, WireFormat.GEMINI)
+        assertEquals("Bad Gateway from nginx", obj(plain)["error"]!!.jsonObject["message"]!!.jsonPrimitive.content)
+    }
 }

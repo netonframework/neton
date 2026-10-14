@@ -561,7 +561,7 @@ object GeminiCodec : ProtocolCodec {
         val parsed = J.parseObject(body) ?: (runCatching { J.json.parseToJsonElement(body) as? JsonArray }.getOrNull()?.firstOrNull() as? JsonObject)
         val err = parsed?.obj("error")
         val st = err?.str("status")
-        val message = err?.str("message") ?: "upstream error (HTTP $status)"
+        val message = err?.str("message") ?: errorMessageFallback(body, status)
         val kind = when (st) {
             "INVALID_ARGUMENT", "FAILED_PRECONDITION" -> if (message.contains("token", true) && message.contains("exceed", true)) ErrorKind.ContextLengthExceeded else ErrorKind.InvalidRequest
             "UNAUTHENTICATED" -> ErrorKind.Unauthorized

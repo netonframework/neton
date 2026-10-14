@@ -362,7 +362,7 @@ object BedrockConverseCodec : ProtocolCodec {
 
     override fun decodeError(status: Int, body: String): ProtocolError {
         val o = J.parseObject(body)
-        val message = o?.str("message") ?: o?.str("Message") ?: "upstream error (HTTP $status)"
+        val message = o?.str("message") ?: o?.str("Message") ?: errorMessageFallback(body, status)
         val kind = when {
             message.contains("too long", true) || message.contains("context", true) && message.contains("exceed", true) -> ErrorKind.ContextLengthExceeded
             status == 400 -> ErrorKind.InvalidRequest

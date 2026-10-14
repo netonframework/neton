@@ -99,3 +99,14 @@ internal fun malformed(seq: neton.ai.protocol.stream.BlockSequencer, d: neton.ai
         neton.ai.protocol.error.ProtocolError(neton.ai.protocol.error.ErrorKind.ServerError, "malformed upstream stream chunk", sourceFormat = format))
     return out
 }
+
+/**
+ * 上游错误体里拿不到结构化的 message 时的兜底：`error` 是字符串就用它，其次顶层 `message`，
+ * 再不行用原文（截断）——客户端至少要看到上游说了什么。
+ */
+internal fun errorMessageFallback(body: String, status: Int): String {
+    val o = J.parseObject(body)
+    (o?.get("error") as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }?.let { return it }
+    o?.str("message")?.takeIf { it.isNotBlank() }?.let { return it }
+    return body.trim().take(500).ifEmpty { "upstream error (HTTP $status)" }
+}

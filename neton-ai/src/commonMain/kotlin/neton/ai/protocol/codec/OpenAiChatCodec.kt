@@ -648,7 +648,7 @@ object OpenAiChatCodec : ProtocolCodec {
     override fun decodeError(status: Int, body: String): ProtocolError {
         val err = J.parseObject(body)?.obj("error")
         val code = err?.str("code") ?: err?.str("type")
-        val message = err?.str("message") ?: "upstream error (HTTP $status)"
+        val message = err?.str("message") ?: errorMessageFallback(body, status)
         val kind = when {
             code == "context_length_exceeded" || message.contains("maximum context length", ignoreCase = true) -> ErrorKind.ContextLengthExceeded
             code == "content_filter" || code == "content_policy_violation" -> ErrorKind.ContentFilter

@@ -531,7 +531,7 @@ object AnthropicCodec : ProtocolCodec {
     override fun decodeError(status: Int, body: String): ProtocolError {
         val err = J.parseObject(body)?.obj("error")
         val type = err?.str("type")
-        val message = err?.str("message") ?: "upstream error (HTTP $status)"
+        val message = err?.str("message") ?: errorMessageFallback(body, status)
         val kind = when (type) {
             "invalid_request_error" -> if (message.contains("prompt is too long", true) || message.contains("context", true) && message.contains("exceed", true))
                 ErrorKind.ContextLengthExceeded else ErrorKind.InvalidRequest
