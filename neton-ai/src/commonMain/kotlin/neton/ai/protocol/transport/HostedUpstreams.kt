@@ -25,6 +25,12 @@ object BedrockUpstream {
         SigV4.sign(credentials, region, SERVICE, method, url,
             mapOf("Content-Type" to "application/json", "Accept" to "application/json"), body.encodeToByteArray(), nowMs).headers
 
+    /** Converse（任意 Bedrock 模型）：`/model/{modelId}/converse` 或 `/converse-stream`；body 不含 modelId。 */
+    fun conversePath(modelId: String, stream: Boolean): String =
+        "/model/${SigV4.uriEncode(modelId, encodeSlash = true)}/" + if (stream) "converse-stream" else "converse"
+
+    fun converseBody(body: JsonObject): JsonObject = JsonObject(body.filterKeys { it != "modelId" })
+
     /** 流式响应是 AWS event-stream 二进制帧。 */
     fun streamDecoder(): ByteStreamDecoder = neton.ai.protocol.transport.aws.EventStreamDecoder()
 }

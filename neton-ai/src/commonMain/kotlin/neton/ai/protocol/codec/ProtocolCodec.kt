@@ -56,5 +56,6 @@ object ProtocolCodecs {
         WireFormat.OPENAI_RESPONSES -> OpenAiResponsesCodec
         WireFormat.ANTHROPIC -> AnthropicCodec
         WireFormat.GEMINI -> GeminiCodec
+        WireFormat.BEDROCK_CONVERSE -> BedrockConverseCodec
     }
 }
