@@ -39,7 +39,8 @@ kotlin {
                 implementation(project(":neton-logging"))
                 implementation(project(":neton-http"))
                 implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
+                // 协议层的公开类型（IR、报文）直接暴露 JsonObject
+                api(libs.kotlinx.serialization.json)
             }
         }
 
@@ -53,3 +54,17 @@ kotlin {
         }
     }
 }
+
+// spec/ai.md §11：依赖单向，neton.ai.protocol 不得引用 neton.ai 的 SDK 类型
+val checkProtocolLayering by tasks.registering {
+    val dir = file("src/commonMain/kotlin/neton/ai/protocol")
+    inputs.dir(dir)
+    doLast {
+        val bad = dir.walkTopDown().filter { it.extension == "kt" }.flatMap { f ->
+            f.readLines().filter { it.startsWith("import neton.ai.") && !it.startsWith("import neton.ai.protocol.") }
+                .map { "${f.relativeTo(dir)}: $it" }
+        }.toList()
+        if (bad.isNotEmpty()) throw GradleException("neton.ai.protocol must not depend on the SDK layer:\n" + bad.joinToString("\n"))
+    }
+}
+tasks.named("check") { dependsOn(checkProtocolLayering) }
