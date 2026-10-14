@@ -1,0 +1,110 @@
+diff --git a/lib/src/request_body.rs b/lib/src/request_body.rs
+new file mode 100644
+index 0000000..3740ffa
+--- /dev/null
++++ b/lib/src/request_body.rs
+@@ -0,0 +1,104 @@
++use bytes::{Bytes, BytesMut};
++use http_body_util::BodyExt;
++use hyper::body::Body;
++
++/// Consume the entire limited body, retaining a single DATA frame without a
++/// collection allocation. Trailers are consumed but not exposed by the request ABI.
++pub(crate) async fn collect<B: Body<Data = Bytes> + Unpin>(mut body: B) -> Result<Bytes, B::Error> {
++    let mut first = Bytes::new();
++    let mut rest = Vec::new();
++    let mut size = 0;
++    while let Some(frame) = body.frame().await {
++        let Ok(data) = frame?.into_data() else {
++            continue;
++        };
++        if data.is_empty() {
++            continue;
++        }
++        size += data.len();
++        if first.is_empty() {
++            first = data;
++        } else {
++            rest.push(data);
++        }
++    }
++    if rest.is_empty() {
++        return Ok(first);
++    }
++    let mut joined = BytesMut::with_capacity(size);
++    joined.extend_from_slice(&first);
++    for data in rest {
++        joined.extend_from_slice(&data);
++    }
++    Ok(joined.freeze())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use futures_util::stream;
++    use http_body_util::{Full, Limited, StreamBody};
++    use hyper::body::Frame;
++    use std::convert::Infallible;
++
++    #[tokio::test]
++    async fn single_frame_keeps_its_backing_buffer() {
++        let original = Bytes::from(vec![7; 256]);
++        let pointer = original.as_ptr();
++        let result = collect(Limited::new(Full::new(original), 256))
++            .await
++            .unwrap();
++        assert_eq!(result.as_ptr(), pointer);
++        assert_eq!(result.len(), 256);
++    }
++
++    #[tokio::test]
++    async fn empty_body_is_empty() {
++        assert!(collect(Full::new(Bytes::new())).await.unwrap().is_empty());
++    }
++
++    #[tokio::test]
++    async fn collects_all_data_and_consumes_trailers() {
++        let frames = vec![
++            Ok::<_, Infallible>(Frame::data(Bytes::new())),
++            Ok(Frame::data(Bytes::from_static(b"ab"))),
++            Ok(Frame::data(Bytes::new())),
++            Ok(Frame::data(Bytes::from_static(b"cd"))),
++            Ok(Frame::trailers(hyper::HeaderMap::new())),
++        ];
++        assert_eq!(
++            collect(StreamBody::new(stream::iter(frames)))
++                .await
++                .unwrap(),
++            "abcd"
++        );
++    }
++
++    #[tokio::test]
++    async fn size_limit_is_enforced_across_frames() {
++        for limit in [3, 4] {
++            let frames = vec![
++                Ok::<_, Infallible>(Frame::data(Bytes::from_static(b"ab"))),
++                Ok(Frame::data(Bytes::from_static(b"cd"))),
++            ];
++            let result = collect(Limited::new(StreamBody::new(stream::iter(frames)), limit)).await;
++            assert_eq!(result.is_ok(), limit == 4);
++        }
++        assert!(
++            collect(Limited::new(Full::new(Bytes::from_static(b"abcd")), 3))
++                .await
++                .is_err()
++        );
++    }
++
++    #[tokio::test]
++    async fn an_error_after_data_is_not_a_successful_partial_body() {
++        let frames = vec![
++            Ok(Frame::data(Bytes::from_static(b"ab"))),
++            Err(std::io::Error::other("read failed")),
++        ];
++        assert!(collect(StreamBody::new(stream::iter(frames)))
++            .await
++            .is_err());
++    }
++}

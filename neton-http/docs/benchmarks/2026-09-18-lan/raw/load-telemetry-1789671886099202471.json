@@ -1,0 +1,27 @@
+{
+  "args": [
+    "http://172.21.105.40:8080",
+    "--raw",
+    "/tmp/neton-lan-20260918/requests/get.raw,/tmp/neton-lan-20260918/requests/post_cl.raw,/tmp/neton-lan-20260918/requests/post_chunked.raw",
+    "-c",
+    "4096",
+    "-t",
+    "16",
+    "-d",
+    "5s",
+    "-p",
+    "1"
+  ],
+  "wall_seconds": 5.135616478999964,
+  "exit_code": 0,
+  "client_cpu_seconds": 32.532878,
+  "max_rss_kib": 287308,
+  "before": {
+    "cpu": "cpu  12934 198 10746 1488879 16111 907 2931 0 0 0",
+    "net": "Inter-|   Receive                                                |  Transmit\n face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n    lo:   22773     220    0    0    0     0          0         0    22773     220    0    0    0     0       0          0\n  eth0: 1994722827 6396246    0    0    0     0          0         0 833608374 5803625    0    1    0     0       0          0\n"
+  },
+  "after": {
+    "cpu": "cpu  13191 198 13225 1489163 18446 1077 4559 0 0 0",
+    "net": "Inter-|   Receive                                                |  Transmit\n face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n    lo:   22773     220    0    0    0     0          0         0    22773     220    0    0    0     0       0          0\n  eth0: 2726932516 10082082    0    0    0     0          0         0 1378852135 9500757    0    1    0     0       0          0\n"
+  }
+}

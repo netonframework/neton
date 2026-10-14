@@ -1,0 +1,41 @@
+diff --git a/lib/src/lib.rs b/lib/src/lib.rs
+index c486ac9..3d7dca4 100644
+--- a/lib/src/lib.rs
++++ b/lib/src/lib.rs
+@@ -7,6 +7,7 @@
+ 
+ pub mod abi;
+ pub mod client;
++mod request_body;
+ 
+ use std::cell::Cell;
+ use std::convert::Infallible;
+@@ -19,7 +20,9 @@ use std::task::{Context, Poll};
+ 
+ use bytes::Bytes;
+ use dashmap::DashMap;
+-use http_body_util::{BodyExt, Full};
++#[cfg(test)]
++use http_body_util::BodyExt;
++use http_body_util::Full;
+ use hyper::body::{Body, Frame, Incoming};
+ use hyper::header::{HeaderMap, HeaderName, HeaderValue};
+ use hyper::service::service_fn;
+@@ -371,11 +374,13 @@ async fn handle(
+     };
+ 
+     // v1：聚合 body（流式版本未来用 Incoming 的 frame stream 实现）
+-    let body: Bytes = match http_body_util::Limited::new(incoming, MAX_REQUEST_BODY_BYTES)
+-        .collect()
+-        .await
++    let body: Bytes = match request_body::collect(http_body_util::Limited::new(
++        incoming,
++        MAX_REQUEST_BODY_BYTES,
++    ))
++    .await
+     {
+-        Ok(c) => c.to_bytes(),
++        Ok(body) => body,
+         Err(_) => {
+             return Ok(error_response(413, b"hyper4k: request body too large"));
+         }

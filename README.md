@@ -6,6 +6,14 @@ Native-first, zero reflection, compile-time code generation, structured logging,
 
 [中文文档](README.zh-CN.md)
 
+## AI-assisted development
+
+Install the [Neton development skill from neton-docs](https://github.com/netonframework/netonframework.github.io/tree/main/skills)
+for version-aware framework development and integration. Skills and specifications
+are maintained centrally; adding a Gradle dependency does not install a skill.
+[AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md) retain repository entry points.
+Forks still need project-specific requirements and acceptance tests.
+
 ## Building This Development Branch
 
 The source-integration build uses sibling protocol repositories, not Maven Local.

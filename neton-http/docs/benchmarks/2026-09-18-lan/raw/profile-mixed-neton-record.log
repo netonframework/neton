@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 1.210 MB /tmp/neton-lan-20260918/profile-mixed-neton.data (29796 samples) ]

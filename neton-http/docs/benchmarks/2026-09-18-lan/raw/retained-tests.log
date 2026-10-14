@@ -1,0 +1,54 @@
+
+> Configure project :
+w: ⚠️ Deprecated Gradle Version
+The used Gradle version (Gradle 8.14.2) is deprecated and will not be supported in future Kotlin Gradle Plugin releases.
+The minimum supported Gradle version will become Gradle 8.14.4 in Kotlin 2.5.0.
+
+This warning can be suppressed in 'gradle.properties':
+    kotlin.suppressGradlePluginWarnings=DeprecatedGradleVersionWarning
+Solution: Please update the Gradle version to at least Gradle 8.14.4.
+
+w: ⚠️ Native task 'macosX64Test' is disabled
+Task 'macosX64Test' for target 'macos_x64' cannot run on the current host (macos_arm64).
+Reason: tests can only run on macos_x64
+Solution: To suppress this warning, add 'kotlin.native.ignoreDisabledTargets=true' to gradle.properties.
+
+w: ⚠️ Native task 'linuxX64Test' is disabled
+Task 'linuxX64Test' for target 'linux_x64' cannot run on the current host (macos_arm64).
+Reason: tests can only run on linux_x64
+Solution: To suppress this warning, add 'kotlin.native.ignoreDisabledTargets=true' to gradle.properties.
+
+w: ⚠️ Native task 'mingwX64Test' is disabled
+Task 'mingwX64Test' for target 'mingw_x64' cannot run on the current host (macos_arm64).
+Reason: tests can only run on mingw_x64
+Solution: To suppress this warning, add 'kotlin.native.ignoreDisabledTargets=true' to gradle.properties.
+
+
+> Task :kmpPartiallyResolvedDependenciesChecker
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :cargoBuildMacosArm64
+   Compiling hyper4k v0.9.2 (/Users/zoujiaqing/projects/Neton/hyper4k/lib)
+    Finished `release` profile [optimized] target(s) in 30.80s
+
+> Task :downloadKotlinNativeDistribution UP-TO-DATE
+> Task :macosArm64ProcessResources NO-SOURCE
+> Task :computeLocalPackageDependencyInputFiles UP-TO-DATE
+> Task :generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump SKIPPED
+> Task :serializeSwiftPMDependenciesMetadataForLockFiles UP-TO-DATE
+> Task :generateUmbrellaPackageIdentifierBasedResolutionForDefault SKIPPED
+> Task :fetchUmbrellaPackageIdentifierForDefault SKIPPED
+> Task :syncPersistedPackageResolvedToSynthetic SKIPPED
+> Task :fetchSyntheticImportProjectPackages SKIPPED
+> Task :convertSyntheticImportProjectIntoDefFileMacosx UP-TO-DATE
+> Task :cinteropHyper4kMacosArm64
+> Task :compileKotlinMacosArm64
+> Task :macosArm64MainKlibrary
+> Task :compileTestKotlinMacosArm64
+> Task :linkDebugTestMacosArm64
+> Task :macosArm64Test
+
+[Incubating] Problems report is available at: file:///Users/zoujiaqing/projects/Neton/hyper4k/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 46s
+11 actionable tasks: 7 executed, 4 up-to-date

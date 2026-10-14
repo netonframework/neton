@@ -1,0 +1,94 @@
+[info] available CPUs: 16
+[info] framework: neton (neton, Kotlin)
+[info] subscribed tests: baseline,limited-conn
+[info] building image: httparena-neton
+[info] skipping system tuning as requested (SKIP_TUNE=true)
+
+==============================================
+=== neton / limited-conn / 4096c (tool=gcannon) ===
+==============================================
+[warn] profile cpuset 0-31,64-95 exceeds available CPUs (max 15) — using all cores
+[info] waiting for server...
+[info] server ready
+
+[run 1/3]
+gcannon v0.5.3
+  Target:    172.21.105.40:8080/
+  Threads:   16
+  Conns:     4096 (256/thread)
+  Pipeline:  1
+  Req/conn:  10
+  Templates: 3
+  Expected:  200
+  Duration:  5s
+
+
+  Thread Stats   Avg      p50      p90      p99    p99.9
+    Latency   2.55ms    721us   1.82ms   5.24ms   417.00ms
+
+  1441729 requests in 5.00s, 1440930 responses
+  Throughput: 288.14K req/s
+  Bandwidth:  32.43MB/s
+  Status codes: 2xx=1440930, 3xx=0, 4xx=0, 5xx=0
+  Latency samples: 1440928 / 1440930 responses (100.0%)
+  Reconnects: 143979
+  Per-template: 479935,480266,480727
+  Per-template-ok: 479935,480266,480839
+[info] CPU 962.5% | Mem 1001MiB
+
+[run 2/3]
+gcannon v0.5.3
+  Target:    172.21.105.40:8080/
+  Threads:   16
+  Conns:     4096 (256/thread)
+  Pipeline:  1
+  Req/conn:  10
+  Templates: 3
+  Expected:  200
+  Duration:  5s
+
+
+  Thread Stats   Avg      p50      p90      p99    p99.9
+    Latency   3.30ms    749us   1.91ms   6.27ms   422.40ms
+
+  1517783 requests in 5.00s, 1517624 responses
+  Throughput: 303.48K req/s
+  Bandwidth:  34.15MB/s
+  Status codes: 2xx=1517624, 3xx=0, 4xx=0, 5xx=0
+  Latency samples: 1517619 / 1517624 responses (100.0%)
+  Reconnects: 151695
+  Per-template: 505512,506048,506059
+  Per-template-ok: 505512,506048,506059
+[info] CPU 1136.2% | Mem 1004MiB
+
+[run 3/3]
+gcannon v0.5.3
+  Target:    172.21.105.40:8080/
+  Threads:   16
+  Conns:     4096 (256/thread)
+  Pipeline:  1
+  Req/conn:  10
+  Templates: 3
+  Expected:  200
+  Duration:  5s
+
+
+  Thread Stats   Avg      p50      p90      p99    p99.9
+    Latency   3.34ms    745us   1.91ms   6.20ms   419.30ms
+
+  1515443 requests in 5.00s, 1515142 responses
+  Throughput: 302.99K req/s
+  Bandwidth:  34.10MB/s
+  Status codes: 2xx=1515142, 3xx=0, 4xx=0, 5xx=0
+  Latency samples: 1515140 / 1515142 responses (100.0%)
+  Reconnects: 151455
+  Per-template: 504261,504831,506048
+  Per-template-ok: 504261,504831,506048
+[info] CPU 1027.1% | Mem 1004MiB
+
+=== Best: 303524 req/s (CPU: 1136.2%, Mem: 1004MiB) ===
+[info] input BW: 23.45MB/s (avg template: 81 bytes)
+[info] dry-run — not saving (use --save to persist)
+httparena-bench-neton
+httparena-bench-neton
+[info] done

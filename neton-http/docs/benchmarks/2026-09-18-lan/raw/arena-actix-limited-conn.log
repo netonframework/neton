@@ -1,0 +1,94 @@
+[info] available CPUs: 16
+[info] framework: actix (actix, Rust)
+[info] subscribed tests: baseline,limited-conn
+[info] building image: httparena-actix
+[info] skipping system tuning as requested (SKIP_TUNE=true)
+
+==============================================
+=== actix / limited-conn / 4096c (tool=gcannon) ===
+==============================================
+[warn] profile cpuset 0-31,64-95 exceeds available CPUs (max 15) — using all cores
+[info] waiting for server...
+[info] server ready
+
+[run 1/3]
+gcannon v0.5.3
+  Target:    172.21.105.40:8080/
+  Threads:   16
+  Conns:     4096 (256/thread)
+  Pipeline:  1
+  Req/conn:  10
+  Templates: 3
+  Expected:  200
+  Duration:  5s
+
+
+  Thread Stats   Avg      p50      p90      p99    p99.9
+    Latency   4.95ms   2.34ms   10.90ms   31.10ms   220.70ms
+
+  2667206 requests in 5.00s, 2668685 responses
+  Throughput: 533.67K req/s
+  Bandwidth:  67.69MB/s
+  Status codes: 2xx=2668685, 3xx=0, 4xx=0, 5xx=0
+  Latency samples: 2668679 / 2668685 responses (100.0%)
+  Reconnects: 266868
+  Per-template: 889941,889029,889709
+  Per-template-ok: 889941,889029,889709
+[info] CPU 888.4% | Mem 135MiB
+
+[run 2/3]
+gcannon v0.5.3
+  Target:    172.21.105.40:8080/
+  Threads:   16
+  Conns:     4096 (256/thread)
+  Pipeline:  1
+  Req/conn:  10
+  Templates: 3
+  Expected:  200
+  Duration:  5s
+
+
+  Thread Stats   Avg      p50      p90      p99    p99.9
+    Latency   2.99ms   1.01ms   7.22ms   24.30ms   208.80ms
+
+  2391486 requests in 5.00s, 2395367 responses
+  Throughput: 479.01K req/s
+  Bandwidth:  60.76MB/s
+  Status codes: 2xx=2395367, 3xx=0, 4xx=0, 5xx=0
+  Latency samples: 2395362 / 2395367 responses (100.0%)
+  Reconnects: 240635
+  Per-template: 798794,798309,798259
+  Per-template-ok: 798794,798309,798259
+[info] CPU 958.4% | Mem 129MiB
+
+[run 3/3]
+gcannon v0.5.3
+  Target:    172.21.105.40:8080/
+  Threads:   16
+  Conns:     4096 (256/thread)
+  Pipeline:  1
+  Req/conn:  10
+  Templates: 3
+  Expected:  200
+  Duration:  5s
+
+
+  Thread Stats   Avg      p50      p90      p99    p99.9
+    Latency   3.21ms   1.08ms   7.67ms   25.50ms   99.90ms
+
+  2391284 requests in 5.00s, 2395190 responses
+  Throughput: 478.97K req/s
+  Bandwidth:  60.75MB/s
+  Status codes: 2xx=2395190, 3xx=0, 4xx=0, 5xx=0
+  Latency samples: 2395178 / 2395190 responses (100.0%)
+  Reconnects: 241265
+  Per-template: 798999,798186,797993
+  Per-template-ok: 798999,798186,797993
+[info] CPU 866.4% | Mem 146MiB
+
+=== Best: 533737 req/s (CPU: 888.4%, Mem: 135MiB) ===
+[info] input BW: 41.23MB/s (avg template: 81 bytes)
+[info] dry-run — not saving (use --save to persist)
+httparena-bench-actix
+httparena-bench-actix
+[info] done
