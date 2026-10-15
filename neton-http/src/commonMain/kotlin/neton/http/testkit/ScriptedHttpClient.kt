@@ -2,6 +2,7 @@ package neton.http.testkit
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import neton.core.http.HttpHeaders
 import neton.http.client.HttpClient
 import neton.http.client.HttpClientCapability
 import neton.http.client.HttpClientError
@@ -93,7 +94,12 @@ class ScriptedHttpClient : HttpClient {
                     null,
                 ),
             )
-        for (chunk in stream(request)) emit(chunk)
+        val chunks = stream(request)
+        // 和真实引擎一样先给出响应头；脚本没写 Start 时补一个 200，头取自 End（旧脚本把 Content-Type 写在那里）
+        if (chunks.firstOrNull() !is HttpClientStreamChunk.Start) {
+            emit(HttpClientStreamChunk.Start(200, (chunks.lastOrNull() as? HttpClientStreamChunk.End)?.finalHeaders ?: HttpHeaders.EMPTY))
+        }
+        for (chunk in chunks) emit(chunk)
     }
 
     override suspend fun close() {

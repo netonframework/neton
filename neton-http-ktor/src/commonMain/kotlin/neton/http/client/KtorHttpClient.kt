@@ -125,6 +125,7 @@ internal class KtorHttpClient(
                     )
                 )
             }
+            send(HttpClientStreamChunk.Start(status, response.headers.toNeton()))
             val channel: ByteReadChannel = response.bodyAsChannel()
             val buf = ByteArray(DEFAULT_STREAM_CHUNK_BYTES)
             try {

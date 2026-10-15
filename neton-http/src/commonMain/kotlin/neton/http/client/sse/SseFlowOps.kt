@@ -49,6 +49,7 @@ fun Flow<HttpClientStreamChunk>.parseSseEvents(): Flow<SseEvent> = flow {
 
     collect { chunk ->
         when (chunk) {
+            is HttpClientStreamChunk.Start -> {}
             is HttpClientStreamChunk.Bytes -> {
                 buffer += chunk.bytes.decodeToString()
                 drainLines()

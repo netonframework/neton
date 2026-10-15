@@ -118,7 +118,7 @@ internal class ProtocolTextModel(
                     when (chunk) {
                         is HttpClientStreamChunk.Bytes -> handle(utf8.decode(chunk.bytes))
                         is HttpClientStreamChunk.Text -> handle(chunk.text)
-                        is HttpClientStreamChunk.End -> {}
+                        is HttpClientStreamChunk.Start, is HttpClientStreamChunk.End -> {}
                     }
                 }
                 handle(utf8.flush())

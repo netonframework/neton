@@ -93,7 +93,7 @@ internal class S3StorageOperator(
                 when (chunk) {
                     is HttpClientStreamChunk.Bytes -> bytes += chunk.bytes
                     is HttpClientStreamChunk.Text -> bytes += chunk.text.encodeToByteArray()
-                    is HttpClientStreamChunk.End -> Unit
+                    is HttpClientStreamChunk.Start, is HttpClientStreamChunk.End -> Unit
                 }
             }
         } catch (e: HttpClientException) {

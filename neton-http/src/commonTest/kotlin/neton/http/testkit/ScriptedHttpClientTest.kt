@@ -46,7 +46,9 @@ class ScriptedHttpClientTest {
             listOf(HttpClientStreamChunk.Text("a"), HttpClientStreamChunk.Text("b"), HttpClientStreamChunk.End(HttpHeaders.EMPTY)),
         )
         val chunks = client.stream(get("https://s/events")).toList()
-        assertEquals(3, chunks.size)
+        // 和真实引擎一样以 Start 开头：脚本没写时补一个 200
+        assertEquals(4, chunks.size)
+        assertEquals(HttpClientStreamChunk.Start(200, HttpHeaders.EMPTY), chunks.first())
         assertIs<HttpClientStreamChunk.End>(chunks.last())
     }
 

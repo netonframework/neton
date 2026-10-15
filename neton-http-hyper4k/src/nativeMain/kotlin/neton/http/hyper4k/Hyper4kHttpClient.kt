@@ -104,6 +104,7 @@ internal class Hyper4kHttpClient(config: HttpClientConfig) : HttpClient {
                         is Hyper4kClientEvent.Headers -> {
                             headers = event.headers.toNeton()
                             if (event.status !in 200..299) errorStatus = event.status
+                            else emit(HttpClientStreamChunk.Start(event.status, headers))
                         }
                         is Hyper4kClientEvent.Chunk -> {
                             if (errorStatus != 0) errorBody.append(event.bytes) else emit(HttpClientStreamChunk.Bytes(event.bytes))

@@ -208,6 +208,7 @@ public abstract class HttpClientConformanceSuite {
                 val body = chunks.filterIsInstance<HttpClientStreamChunk.Bytes>()
                     .fold(ByteArray(0)) { acc, c -> acc + c.bytes }.decodeToString()
                 check(body == "firstsecond") { "stream body '$body'" }
+                check((chunks.first() as? HttpClientStreamChunk.Start)?.statusCode == 200) { "stream must begin with Start(200), was ${chunks.first()}" }
                 check(chunks.last() is HttpClientStreamChunk.End) { "stream must end with End" }
             }
         }

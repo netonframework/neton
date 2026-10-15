@@ -72,7 +72,7 @@ internal class OpenAiHttp(
                 when (c) {
                     is neton.http.client.HttpClientStreamChunk.Bytes -> out += c.bytes
                     is neton.http.client.HttpClientStreamChunk.Text -> out += c.text.encodeToByteArray()
-                    is neton.http.client.HttpClientStreamChunk.End -> {}
+                    is neton.http.client.HttpClientStreamChunk.Start, is neton.http.client.HttpClientStreamChunk.End -> {}
                 }
             }
         } catch (e: HttpClientException) {

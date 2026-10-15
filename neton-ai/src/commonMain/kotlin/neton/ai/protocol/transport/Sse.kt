@@ -1,7 +1,7 @@
 package neton.ai.protocol.transport
 
-/** 一个 SSE 事件。[event] 是 `event:` 字段（没有为 null），[data] 是多行 `data:` 以 `\n` 连接后的负载。 */
-data class SseEvent(val event: String?, val data: String)
+/** 一个 SSE 事件。[event] 是 `event:` 字段（没有为 null），[data] 是多行 `data:` 以 `\n` 连接后的负载，[id] 是 `id:` 字段（断线续传用）。 */
+data class SseEvent(val event: String?, val data: String, val id: String? = null)
 
 /**
  * 增量 SSE 分帧（spec §6）。
@@ -64,6 +64,7 @@ class SseFramer {
         val data = StringBuilder()
         var hasData = false
         var name: String? = null
+        var id: String? = null
         for (line in event.split('\n')) {
             when {
                 line.startsWith("data:") -> {
@@ -72,9 +73,10 @@ class SseFramer {
                     data.append(fieldValue(line, 5))
                 }
                 line.startsWith("event:") -> name = fieldValue(line, 6)
+                line.startsWith("id:") -> id = fieldValue(line, 3)
             }
         }
-        return if (hasData) SseEvent(name, data.toString()) else null
+        return if (hasData) SseEvent(name, data.toString(), id) else null
     }
 
     private fun fieldValue(line: String, prefix: Int): String =

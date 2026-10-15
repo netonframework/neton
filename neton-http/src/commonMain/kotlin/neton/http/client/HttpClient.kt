@@ -36,8 +36,8 @@ interface HttpClient {
     suspend fun request(request: HttpClientRequest): HttpClientResponse
 
     /**
-     * Open a streaming HTTP body. Flow emits [HttpClientStreamChunk.Bytes] (or [HttpClientStreamChunk.Text] for text bodies)
-     * followed by exactly one [HttpClientStreamChunk.End].
+     * Open a streaming HTTP body. Flow emits exactly one [HttpClientStreamChunk.Start] (status + headers, before any body),
+     * then [HttpClientStreamChunk.Bytes] (or [HttpClientStreamChunk.Text] for text bodies), then exactly one [HttpClientStreamChunk.End].
      *
      * Cancellation: cancelling the Flow collection closes the underlying HTTP response body,
      * which closes the TCP connection. Server observes the close and stops generating.
