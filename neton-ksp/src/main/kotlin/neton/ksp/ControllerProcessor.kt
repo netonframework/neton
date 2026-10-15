@@ -844,6 +844,10 @@ ${
         val rawOrEmpty = "($raw ?: \"\")"
         val hasDefault = param.hasDefault
         val required = !isNullable && !hasDefault
+        // 参数省略时用声明的默认值。KSP 拿不到默认值表达式，这里从源码读出**字面量**默认值；
+        // 不是字面量（常量引用、函数调用）时退回类型零值并给出构建警告——那种写法应改成可空参数。
+        val literal = if (hasDefault && !isNullable) literalDefault(param, paramType) else null
+        fun fallback(zero: String) = literal ?: zero
         fun missingThrow() =
             "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"is required\", code = \"Missing\")))"
 
@@ -882,32 +886,32 @@ ${
                 }
             }
 
-            "kotlin.String" -> if (isNullable) raw else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; _r }" else rawOrEmpty
-            "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: 0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r) ?: ${
+            "kotlin.String" -> if (isNullable) raw else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; _r }" else "($raw ?: ${fallback("\"\"")})"
+            "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: ${fallback("0")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r) ?: ${
                 typeThrow(
                     "must be a valid integer"
                 )
             } }"
 
-            "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: 0L" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r) ?: ${
+            "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: ${fallback("0L")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r) ?: ${
                 typeThrow(
                     "must be a valid integer"
                 )
             } }"
 
-            "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: false" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r) ?: ${
+            "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: ${fallback("false")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r) ?: ${
                 typeThrow(
                     "must be true/false/1/0/on/off"
                 )
             } }"
 
-            "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: 0.0" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r) ?: ${
+            "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: ${fallback("0.0")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r) ?: ${
                 typeThrow(
                     "must be a valid number"
                 )
             } }"
 
-            "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: 0f" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r)?.toFloat() ?: ${
+            "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: ${fallback("0f")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r)?.toFloat() ?: ${
                 typeThrow(
                     "must be a valid number"
                 )
@@ -919,6 +923,38 @@ ${
                 )
             }) ?: ${typeThrow("invalid value")} }" else "($raw as ${paramType.substringAfterLast('.')}) ?: ${typeThrow("invalid value")}"
         }
+    }
+
+    /**
+     * 读取参数在源码里声明的字面量默认值（数字、布尔、不含模板的字符串），按参数类型返回 Kotlin 字面量。
+     * 读不到或不是字面量时返回 null，并给出构建警告。
+     */
+    private fun literalDefault(param: com.google.devtools.ksp.symbol.KSValueParameter, paramType: String): String? {
+        val name = param.name?.asString() ?: return null
+        val location = param.location as? com.google.devtools.ksp.symbol.FileLocation
+        val source = location?.let { runCatching { java.io.File(it.filePath).readLines() }.getOrNull() }
+        val expr = source?.let { lines ->
+            val tail = lines.drop((location.lineNumber - 1).coerceAtLeast(0)).joinToString("\n")
+            Regex("""\b${Regex.escape(name)}\s*:\s*[\w.<>?]+\s*=\s*("(?:[^"\\$]|\\.)*"|-?\d+(?:\.\d+)?[LfF]?|true|false)""")
+                .find(tail)?.groupValues?.get(1)
+        }
+        val literal = when {
+            expr == null -> null
+            paramType == "kotlin.String" -> expr.takeIf { it.startsWith("\"") }
+            paramType == "kotlin.Boolean" -> expr.takeIf { it == "true" || it == "false" }
+            paramType == "kotlin.Int" -> expr.takeIf { Regex("-?\\d+").matches(it) }
+            paramType == "kotlin.Long" -> expr.removeSuffix("L").takeIf { Regex("-?\\d+").matches(it) }?.let { "${it}L" }
+            paramType == "kotlin.Double" -> expr.trimEnd('f', 'F').takeIf { Regex("-?\\d+(\\.\\d+)?").matches(it) }?.let { if ('.' in it) it else "$it.0" }
+            paramType == "kotlin.Float" -> expr.trimEnd('f', 'F').takeIf { Regex("-?\\d+(\\.\\d+)?").matches(it) }?.let { "${it}f" }
+            else -> null
+        }
+        if (literal == null) {
+            logger.warn(
+                "@Query 参数 `$name` 的默认值不是字面量，省略时将使用类型零值。请改为可空参数并在代码里给默认值。",
+                param,
+            )
+        }
+        return literal
     }
 
     /** 为 @Cacheable / @CachePut / @CacheEvict 生成织入代码；无缓存注解时返回 null */
