@@ -150,7 +150,7 @@ ALPN until the config parser reads arrays.
 - **Request streaming**: the framework's dispatcher takes a complete `ByteArray` body, so request
   bodies are buffered (up to 16 MiB), as with hyper4k.
 - **Trailers**: not declared; the framework has no API for them.
-- **HTTP client adapter**: phase 2 (hyper4k also provides the framework's HTTP client).
+- **HTTP client**: done — `HttpClient.create { }` is the built-in netonstream client (h1/h2 pooling, TLS + ALPN, streaming, cancellation, HTTP proxy); hyper4k and Ktor clients are opt-in through `HttpClient.createWith`.
 - **Performance**: no comparison with hyper4k yet (phase 3). The library's own figures are in its
   SPEC §11.
 - **Windows**: mingwX64 compiles; its tests have not been run (no Windows host in this round).

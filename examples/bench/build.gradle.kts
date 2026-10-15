@@ -28,7 +28,6 @@ kotlin {
                 implementation(project(":neton-logging"))
                 implementation(project(":neton-routing"))
                 implementation(project(":neton-http"))
-                implementation(project(":neton-http-hyper4k"))
                 implementation(libs.kotlinx.coroutines.core)
             }
         }

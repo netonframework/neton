@@ -7,7 +7,7 @@ import neton.routing.*
 
 /**
  * The netonstream engine end to end: HTTP/1.1 and h2c on one port, gzip, SSE and cookies.
- * The engine is selected explicitly; `http { }` without an adapter would be hyper4k's.
+ * `http { }` with no adapter is the built-in engine (neton-http on netonstream io).
  */
 fun main(args: Array<String>) {
     Neton.run(args) {

@@ -41,7 +41,7 @@ import neton.http.adapter.BufferedHttpResponse
  */
 public abstract class HttpEngineConformanceSuite {
 
-    /** 被测适配器。实现方通常直接 `Hyper4kHttpAdapter(HttpServerConfig(port = 0), ...)`。 */
+    /** 被测适配器。实现方通常直接构造自己的适配器，如内置引擎 `DefaultHttpAdapter(HttpServerConfig(port = 0))`。 */
     public abstract fun createAdapter(): HttpAdapter
 
     /**

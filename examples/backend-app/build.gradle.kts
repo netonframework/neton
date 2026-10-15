@@ -32,7 +32,6 @@ kotlin {
                 implementation(project(":neton-routing"))
                 implementation(project(":neton-security"))
                 implementation(project(":neton-http"))
-                implementation(project(":neton-http-hyper4k"))
                 implementation(project(":neton-database"))
                 implementation(project(":neton-logging"))
                 implementation(project(":neton-validation"))

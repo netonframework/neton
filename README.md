@@ -160,22 +160,23 @@ levels = "ALL"
 
 ---
 
-### HTTP Engines
+### Networking: Neton's own stack by default
 
-`neton-http` includes `neton.http.engine.default.DefaultHttpAdapter`, backed by the Kotlin/Native
-io/http/tls libraries. `http { port = 8080 }` always selects this built-in server.
-Applications that need Hyper4k add `neton-http-hyper4k` and pass its constructor explicitly:
+Every Neton component networks through `neton-http`, which is built on Neton's own Kotlin/Native
+io / http / tls libraries (coroutine reactors, no Rust or Ktor engine underneath):
 
-```kotlin
-Neton.run(args) {
-    http(::Hyper4kHttpAdapter) { port = 8080 }
-}
-```
+| Role | Default | Entry point |
+|------|---------|-------------|
+| HTTP server (HTTP/1.1, h2, h2c, TLS + ALPN, SSE, gzip) | `DefaultHttpAdapter` | `http { port = 8080 }` |
+| Outbound HTTP client (h1/h2 pooling, TLS, streaming, cancellation, HTTP proxy) | built-in client | `HttpClient.create { }` |
+| SMTP (implicit TLS 465, STARTTLS 587) | built-in transport | `defaultSmtpTransport()` |
+| WebSocket | `neton-websocket`'s default provider (netonstream websocket) | `websocket { }` |
 
-Adding another adapter dependency does not change the default. Adapter selection is compile-time
-application code, not an `application.conf` setting or a runtime registry.
-See [default engine and migration](neton-http/DEFAULT_ENGINE.md). The `neton` umbrella no longer
-includes Hyper4k; applications using its HTTP client must add `neton-http-hyper4k` explicitly.
+The `neton` umbrella brings all of this; no engine module is needed. `neton-http-hyper4k` and
+`neton-http-ktor` remain only as explicit, opt-in alternatives (`http(::Hyper4kHttpAdapter)`,
+`HttpClient.createWith(::createKtorHttpClient)`); adding one never changes a default. Engine
+selection is compile-time application code, not an `application.conf` setting or a runtime registry.
+See [default engine](neton-http/DEFAULT_ENGINE.md).
 
 ### Optional WebSocket Engine Integration
 
@@ -185,17 +186,14 @@ heartbeat and bounded queues are implemented; see [usage and validation status](
 
 ### Mail (SMTP transport)
 
-`neton-http` defines `neton.http.mail.SmtpTransport`; `neton-http-ktor` ships the implementations and
-`defaultSmtpTransport()` picks one per platform: POSIX targets talk to the **system libcurl** through
-cinterop (implicit TLS on 465, STARTTLS on 587, certificates checked against the OS trust store),
-Windows falls back to a plaintext Ktor-socket client. Applications bind it like the HTTP client:
+`neton-http` defines `neton.http.mail.SmtpTransport` and ships its implementation on the same stack
+as the HTTP client: implicit TLS on 465, STARTTLS on 587 (refused if the server does not offer it),
+certificates checked against the OS trust store, AUTH PLAIN / LOGIN. Applications bind it like the
+HTTP client:
 
 ```kotlin
 bind(SmtpTransport::class, defaultSmtpTransport())
 ```
-
-Linux build hosts need `libcurl4-openssl-dev`; runtime images need `libcurl4` (the `curl` package brings it).
-Ktor's own `Socket.tls()` is not available on Kotlin/Native, which is why SMTP does not use it.
 
 ---
 
@@ -366,7 +364,7 @@ Hello Neton!
 | neton | Entry coordinate: core + logging + http + routing, plus BOM constraints | Stable |
 | neton-bom | Version alignment for all modules | Stable |
 | neton-core | Bootstrap / components / config | Stable |
-| neton-http | Default Ktor server adapter + outbound HTTP client | Stable |
+| neton-http | Built-in HTTP server, outbound HTTP client and SMTP on Neton's io / http / tls | Stable |
 | neton-logging | Structured logging + sinks/async | Stable |
 | neton-routing | Routing DSL + KSP Controller | Stable |
 | neton-security | Guard + JWT | Stable |
@@ -398,8 +396,8 @@ Neton is built on top of these excellent open-source projects:
 
 | Project | Usage | Link |
 |---------|-------|------|
-| **Ktor** | HTTP server engine (CIO) | [github.com/ktorio/ktor](https://github.com/ktorio/ktor) |
-| **hyper4k** | Optional Tokio + Hyper engine | [github.com/netonframework/hyper4k](https://github.com/netonframework/hyper4k) |
+| **Ktor** | Optional engine adapter (`neton-http-ktor`) | [github.com/ktorio/ktor](https://github.com/ktorio/ktor) |
+| **hyper4k** | Optional Tokio + Hyper engine adapter (`neton-http-hyper4k`) | [github.com/netonframework/hyper4k](https://github.com/netonframework/hyper4k) |
 | **kotlinx.coroutines** | Kotlin coroutines | [github.com/Kotlin/kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) |
 | **kotlinx.serialization** | JSON / Protobuf serialization | [github.com/Kotlin/kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) |
 | **sqlx4k** | Kotlin/Native database driver (SQLite / PostgreSQL / MySQL) | [github.com/smyrgeorge/sqlx4k](https://github.com/smyrgeorge/sqlx4k) |

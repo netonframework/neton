@@ -30,7 +30,7 @@ data class TlsSettings(
 /**
  * How an application installs an engine.
  *
- * A constructor reference (`::Hyper4kHttpAdapter`) rather than a name, so the engine
+ * A constructor reference (`::DefaultHttpAdapter`, the built-in engine `http { }` uses) rather than a name, so the engine
  * is a compile-time dependency of the application and never a string looked up at
  * runtime. It lives here, with [HttpAdapter], because it is part of the engine
  * contract: neton-http consumes it but does not own it.

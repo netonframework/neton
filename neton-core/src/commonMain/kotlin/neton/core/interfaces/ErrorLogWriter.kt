@@ -3,7 +3,7 @@ package neton.core.interfaces
 /**
  * API 错误日志写入器接口
  *
- * 由 KtorHttpAdapter 在请求发生 500 异常时调用（异步），
+ * 由 HTTP 适配器（默认是 neton-http 内置引擎）在请求发生 500 异常时调用（异步），
  * 业务模块实现此接口将错误日志持久化到数据库。
  */
 interface ErrorLogWriter {

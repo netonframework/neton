@@ -3,7 +3,7 @@ package neton.core.interfaces
 /**
  * API 访问日志写入器接口
  *
- * 由 KtorHttpAdapter 在每次请求完成后调用（异步），
+ * 由 HTTP 适配器（默认是 neton-http 内置引擎）在每次请求完成后调用（异步），
  * 业务模块实现此接口将日志持久化到数据库。
  */
 interface AccessLogWriter {

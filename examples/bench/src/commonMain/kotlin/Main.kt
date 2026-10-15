@@ -5,7 +5,7 @@ import kotlin.native.runtime.GC
 import kotlin.native.runtime.NativeRuntimeApi
 
 /**
- * Neton TechEmpower-style benchmark application (Hyper4k default engine).
+ * Neton TechEmpower-style benchmark application (Neton built-in engine).
  *
  * GC is tunable via CLI args for A/B without rebuilds (stripped before Neton.run):
  *   gcmin=<MB> gctarget=<MB> gcauto=0

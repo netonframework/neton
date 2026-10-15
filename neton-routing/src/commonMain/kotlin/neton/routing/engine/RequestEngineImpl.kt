@@ -5,7 +5,7 @@ import neton.logging.Logger
 /**
  * 路由注册表。
  *
- * **它不分发请求**：HTTP 适配器（[neton.http.KtorHttpAdapter]）从 [getRoutes] 拿到路由后
+ * **它不分发请求**：HTTP 适配器（默认是 neton-http 内置引擎，经 BufferedHttpDispatcher）从 [getRoutes] 拿到路由后
  * 直接调用 [RouteDefinition.handler]（KSP 编译期生成的 lambda，自带参数绑定与序列化）。
  * 因此这里只负责「登记 + 去重 + 供查询」。
  *

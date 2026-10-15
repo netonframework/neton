@@ -89,7 +89,7 @@ class HttpCapabilityValidationTest {
         val e = assertFailsWith<HttpCapabilityException> {
             validateHttpCapabilities("Ktor CIO", emptySet(), req)
         }
-        assertContains(e.message!!, "Hyper4kHttpAdapter")
+        assertContains(e.message!!, "内置引擎 http { }")
     }
 
     @Test

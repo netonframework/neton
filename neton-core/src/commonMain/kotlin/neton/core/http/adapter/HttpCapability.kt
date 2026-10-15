@@ -100,7 +100,7 @@ fun validateHttpCapabilities(
             appendLine(detail)
             appendLine()
             appendLine("  可选处置：")
-            appendLine("    · 换用具备该能力的引擎，如 Neton.LaunchBuilder().http(::Hyper4kHttpAdapter)")
+            appendLine("    · 换用具备该能力的引擎：默认是内置引擎 http { }，其他引擎显式传入，如 http(::XxxHttpAdapter)")
             append("    · 或移除依赖该能力的组件")
         },
     )
