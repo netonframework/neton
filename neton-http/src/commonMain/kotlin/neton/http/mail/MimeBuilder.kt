@@ -42,5 +42,3 @@ object MimeBuilder {
         return "${dows[dow]}, ${p2(d)} ${mons[(m - 1).toInt()]} $y ${p2((rem / 3600).toLong())}:${p2(((rem % 3600) / 60).toLong())}:${p2((rem % 60).toLong())} +0000"
     }
 }
-
-class SmtpException(message: String) : RuntimeException(message)

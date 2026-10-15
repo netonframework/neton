@@ -196,7 +196,7 @@ internal fun defaultPort(scheme: String?): Int? = when (scheme) {
 
 internal fun authorityOf(host: String, port: Int): String = if (':' in host) "[$host]:$port" else "$host:$port"
 
-private suspend fun connectTcp(host: String, port: Int, timeoutMillis: Long): IoStream = try {
+internal suspend fun connectTcp(host: String, port: Int, timeoutMillis: Long): IoStream = try {
     withTimeout(timeoutMillis) { tcpConnect(host, port) }
 } catch (e: TimeoutCancellationException) {
     throw ConnectTimeoutException("connect to $host:$port timed out after ${timeoutMillis}ms", e)

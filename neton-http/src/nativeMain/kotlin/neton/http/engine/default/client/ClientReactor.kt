@@ -40,7 +40,17 @@ internal class ClientReactor<S : Any>(
     private val setUp: (root: CoroutineScope) -> S,
     /** Releases that state on the reactor thread when the reactor stops. */
     private val tearDown: (S) -> Unit,
+    /** What a caller sees when the reactor is stopped, or stops under its operation. */
+    private val closedError: (cause: Throwable?) -> Throwable = { closedException(it) },
+    /** What a caller sees when the reactor failed to start ([setUp] or the reactor itself threw). */
+    private val startError: (cause: Throwable) -> Throwable = { e ->
+        e as? HttpClientException
+            ?: HttpClientException(HttpClientError.Unknown("HTTP client reactor failed to start: ${e.message ?: e}", e))
+    },
 ) {
+    /** Completes [ready] once the reactor has stopped, so later callers fail fast with [closedError]. */
+    private class Stopped : Exception("reactor stopped")
+
     private class Loop<S>(val state: S, val operations: CoroutineScope)
 
     private val ready = CompletableDeferred<Loop<S>>()
@@ -72,7 +82,7 @@ internal class ClientReactor<S : Any>(
         } catch (e: Throwable) {
             ready.completeExceptionally(e)
         } finally {
-            ready.completeExceptionally(closedException())
+            ready.completeExceptionally(Stopped())
             stopped.complete(Unit)
             worker.requestTermination(processScheduledJobs = false)
         }
@@ -89,14 +99,14 @@ internal class ClientReactor<S : Any>(
             loop.operations.async(start = CoroutineStart.DEFAULT) { block(loop.state) }
         } catch (e: IllegalStateException) {
             // ReactorStoppedException: the reactor refused the dispatch, it is stopping.
-            throw closedException(e)
+            throw closedError(e)
         }
         try {
             return deferred.await()
         } catch (e: CancellationException) {
             deferred.cancel()
             if (!currentCoroutineContext().isActive) throw e
-            throw closedException(e)
+            throw closedError(e)
         }
     }
 
@@ -106,20 +116,20 @@ internal class ClientReactor<S : Any>(
         return try {
             loop.operations.launch { block(loop.state) }
         } catch (e: IllegalStateException) {
-            throw closedException(e)
+            throw closedError(e)
         }
     }
 
     private suspend fun awaitLoop(): Loop<S> {
-        if (stopping.load()) throw closedException()
+        if (stopping.load()) throw closedError(null)
         return try {
             ready.await()
-        } catch (e: HttpClientException) {
-            throw e
+        } catch (e: Stopped) {
+            throw closedError(null)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            throw HttpClientException(HttpClientError.Unknown("HTTP client reactor failed to start: ${e.message ?: e}", e))
+            throw startError(e)
         }
     }
 

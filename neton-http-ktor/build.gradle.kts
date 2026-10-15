@@ -17,12 +17,6 @@ kotlin {
     sourceSets {
         val nativeMain by creating {
             dependsOn(commonMain.get())
-            // SMTP 发信（KtorSmtpTransport）：裸 socket + TLS。这两个包 CIO 客户端本来就带着，
-            // 这里显式声明只是为了能直接用它们的 API。
-            dependencies {
-                implementation(libs.ktor.network)
-                implementation(libs.ktor.network.tls)
-            }
         }
         val posixMain by creating { dependsOn(nativeMain) }
         // CIO on every POSIX target. Darwin failed the client conformance suite
@@ -69,24 +63,6 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.ktor.client.mock)
-            }
-        }
-    }
-}
-
-// libcurl cinterop：只给 POSIX 目标（SMTP 的 TLS 靠它；Windows 没有系统 libcurl，走纯明文兜底）
-kotlin {
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
-        if (konanTarget.family != org.jetbrains.kotlin.konan.target.Family.MINGW) {
-            compilations.getByName("main").cinterops.create("libcurl") {
-                defFile(project.file("src/nativeInterop/cinterop/libcurl.def"))
-                // Linux targets are cross-compiled on the macOS release host, which has no
-                // Linux curl headers. Generate their bindings from vendored upstream public
-                // headers (curl 7.88.1, Debian bookworm's); linking still uses the target's
-                // own -lcurl, so runtime behaviour is unchanged.
-                if (konanTarget.family == org.jetbrains.kotlin.konan.target.Family.LINUX) {
-                    includeDirs(project.file("src/nativeInterop/cinterop/include"))
-                }
             }
         }
     }
