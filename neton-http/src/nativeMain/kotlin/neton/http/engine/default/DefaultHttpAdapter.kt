@@ -585,13 +585,13 @@ public class DefaultHttpAdapter(
 private class BodyBudgetExceeded : Exception()
 
 /** Reads the whole request body; null when it is over [limit] (HTTP/2, or a body without the h1 limit). */
-private suspend fun readBody(body: StreamBody, limit: Long, reserveCapacity: (Int) -> Unit): ByteArray? {
+internal suspend fun readBody(body: StreamBody, limit: Long, reserveCapacity: (Int) -> Unit): ByteArray? {
     if (body.isEndStream) return EMPTY
     val declared = body.exactLength
     if (declared > limit) return null
     val initialCapacity = if (declared in 1..limit) declared.toInt() else 0
-    reserveCapacity(initialCapacity)
-    var out = ByteArray(initialCapacity)
+    if (initialCapacity > 0) reserveCapacity(initialCapacity)
+    var out = if (initialCapacity > 0) ByteArray(initialCapacity) else EMPTY
     var size = 0
     while (true) {
         // An HTTP/1 body over Http1ServerConfig.maxRequestBodySize throws the library's
@@ -599,11 +599,15 @@ private suspend fun readBody(body: StreamBody, limit: Long, reserveCapacity: (In
         val frame = body.nextFrame() ?: break
         if (frame !is StreamFrame.Data) continue
         val bytes = frame.bytes
+        if (bytes.size == 0) continue
         if (size.toLong() + bytes.size > limit) return null
         if (size + bytes.size > out.size) {
-            val capacity = minOf(limit.toInt(), maxOf(out.size * 2, size + bytes.size, 1024))
+            // A small chunked body often fits in its first data frame. Copy it once into an
+            // exactly sized array; only subsequent frames need geometric growth and a final trim.
+            val capacity = if (out.isEmpty()) bytes.size
+                else minOf(limit.toInt(), maxOf(out.size * 2, size + bytes.size, 1024))
             reserveCapacity(capacity)
-            out = out.copyOf(capacity)
+            out = if (size == 0) ByteArray(capacity) else out.copyOf(capacity)
         }
         bytes.copyInto(out, size)
         size += bytes.size

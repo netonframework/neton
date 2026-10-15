@@ -40,8 +40,10 @@ IoStream (neton-io) ─► [tlsAccept → TlsStream, alpn] ─► AutoServerConf
 - **Timeout**: `lazyTimeout` as in hyper4k — the timer is armed only if the handler suspends; it
   covers the whole handler including a stream. Before the head is out the answer is the
   dispatcher's 504 envelope; once streaming, the body simply ends.
-- **Admission**: a `Semaphore(maxConnections)` of concurrent requests plus an in-flight counter,
-  checked twice around the increment, exactly as `AsyncRequestDispatcher.submit`.
+- **Admission**: one shared CAS counter bounds concurrent requests by `maxConnections`; the
+  accepting flag is checked before and after admission. It also counts streamed handlers until
+  completion. Handler jobs attach to a per-connection supervisor, not directly to one adapter-wide
+  parent on every request. Admission and the buffered-body byte budget remain shared.
 
 ## Streaming
 
