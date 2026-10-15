@@ -298,8 +298,10 @@ public class DefaultHttpAdapter(
             }
         } finally {
             pending?.second?.release()
-            // The connection is over: whatever its handlers still do has no one to answer (as a client that goes away).
-            connectionHandlers.cancel()
+            // The connection is over. A handler still answering has no one to answer and is cancelled by its
+            // request's watch (handle); one that already ended its streamed body keeps running its own follow-up
+            // work. So the job is completed, not cancelled: no new handlers, the running ones decide for themselves.
+            connectionHandlers.complete()
         }
     }
 
@@ -427,7 +429,9 @@ public class DefaultHttpAdapter(
             }
             handedOff = true
             if (!handler.isCompleted) {
-                val watch = connectionJob?.invokeOnCompletion { handler.cancel() }
+                // The connection ending cancels a handler that is still answering. A handler that already
+                // ended its streamed body keeps running: the work after the body (billing, audit) is its own.
+                val watch = connectionJob?.invokeOnCompletion { if (!live.bodyFinished) handler.cancel() }
                 handler.invokeOnCompletion { watch?.dispose() }
             }
             val response = try {

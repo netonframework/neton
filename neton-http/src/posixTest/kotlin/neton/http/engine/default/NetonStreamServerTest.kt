@@ -8,6 +8,7 @@ import kotlinx.cinterop.convert
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -519,6 +520,45 @@ class NetonStreamServerTest {
             val sentBeforeNoticing = withTimeout(5_000) { gone.await() }
             assertTrue(sentBeforeNoticing < 1_000, "the handler noticed only after $sentBeforeNoticing events")
             // The request is released: nothing in flight any more.
+            withTimeout(5_000) { while (server.adapter.inFlightRequests > 0) delay(10) }
+        } finally {
+            client.close()
+            server.stop()
+        }
+    }
+
+    @Test
+    fun clientLeavingAfterTheBodyEndedDoesNotCancelTheHandlersFollowUpWork() = runBlocking {
+        // A relay bills after its stream: the client has the whole body and closes, but the work
+        // after `stream { }` must still run (it did on hyper4k and Ktor; cancelling it lost the bill).
+        val followUp = CompletableDeferred<String>()
+        val routes = listOf(
+            get("/events") { ctx ->
+                ctx.response.contentType = "text/event-stream"
+                ctx.response.stream {
+                    writeChunk("data: a\n\n")
+                    writeChunk("data: [DONE]\n\n")
+                }
+                try {
+                    delay(300)   // the client is gone by now
+                    followUp.complete("billed")
+                } catch (e: CancellationException) {
+                    followUp.complete("cancelled")
+                    throw e
+                }
+                null
+            },
+        )
+        val server = startServer(routes)
+        val client = RawClient(server.port)
+        try {
+            client.send(getRequest("/events"))
+            assertEquals(200, client.readHead().first)
+            assertEquals("data: a\n\n", client.nextChunk()?.decodeToString())
+            assertEquals("data: [DONE]\n\n", client.nextChunk()?.decodeToString())
+            assertNull(client.nextChunk(), "the body ended")
+            client.close()
+            assertEquals("billed", withTimeout(5_000) { followUp.await() })
             withTimeout(5_000) { while (server.adapter.inFlightRequests > 0) delay(10) }
         } finally {
             client.close()

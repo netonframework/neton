@@ -17,8 +17,9 @@ import neton.core.http.NetonErrorCode
  * it is held here and handed back as one [EngineResponse], so a plain `response.text("ok")` costs
  * no channel and no coroutine switch.
  *
- * A client that goes away cancels the producer task, including a blocked write. Handlers must
- * release their resources in finally; [clientGone] also records the abandoned body.
+ * A client that goes away while the body is still open cancels the producer task, including a
+ * blocked write. Handlers must release their resources in finally; [clientGone] also records the
+ * abandoned body. Once the handler has ended the body, the client leaving no longer cancels it.
  */
 internal class NetonStreamLiveResponse(
     private val corsHeaders: Map<String, List<String>>,
@@ -55,6 +56,9 @@ internal class NetonStreamLiveResponse(
     override val bytesOut: Long get() = writtenBytes
 
     private var body: LiveBody? = null
+
+    /** Whether the handler streamed and then ended the body itself. */
+    val bodyFinished: Boolean get() = body?.isFinished == true
 
     /** Whether the client went away while the handler was streaming. */
     val clientGone: Boolean get() = body?.isGone == true

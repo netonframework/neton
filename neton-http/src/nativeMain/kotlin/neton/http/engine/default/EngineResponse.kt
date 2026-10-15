@@ -84,19 +84,26 @@ internal fun EngineResponse.toStreamResponse(connectionJob: Job?): StreamRespons
  *   marks the body gone and cancels the queue; a producer blocked in [send] wakes up, and [send]
  *   returns false from then on.
  * - End: [finish] closes the queue; chunks already queued are still written, then the body ends.
+ *   From then on the client leaving no longer cancels the producer: the handler has said everything
+ *   it will say, and what it does after the body (billing, audit, cleanup) must run to completion,
+ *   as it does on every other engine.
  */
 @OptIn(ExperimentalAtomicApi::class)
 internal class LiveBody(capacity: Int) : StreamBody {
     private val channel = Channel<ByteArray>(capacity)
     private val gone = AtomicBoolean(false)
+    private val finished = AtomicBoolean(false)
     private val producer = AtomicReference<Job?>(null)
     private var watchHandle: DisposableHandle? = null
 
     val isGone: Boolean get() = gone.load()
 
+    /** Whether the handler ended the body ([finish]); the client leaving afterwards does not cancel it. */
+    val isFinished: Boolean get() = finished.load()
+
     fun bindProducer(job: Job) {
         producer.store(job)
-        if (gone.load()) job.cancel()
+        if (gone.load() && !finished.load()) job.cancel()
         job.invokeOnCompletion { producer.compareAndSet(job, null) }
     }
 
@@ -109,7 +116,7 @@ internal class LiveBody(capacity: Int) : StreamBody {
     fun markGone() {
         if (gone.compareAndSet(false, true)) {
             channel.cancel()
-            producer.load()?.cancel()
+            if (!finished.load()) producer.load()?.cancel()
         }
     }
 
@@ -146,6 +153,7 @@ internal class LiveBody(capacity: Int) : StreamBody {
     }
 
     fun finish() {
+        finished.store(true)
         channel.close()
     }
 }
