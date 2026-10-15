@@ -12,13 +12,16 @@ class HttpClientConfig {
     var socketMillis: Long? = null
     var debug: Boolean = false
 
-    /** HTTP(S) 代理地址，如 "http://host:port"。仅支持 HTTP 代理（CIO 引擎不支持 SOCKS）。 */
+    /**
+     * HTTP(S) 代理地址，如 "http://host:port"（可带 `user:pass@`，按 Basic 发 Proxy-Authorization）。
+     * https 目标走 CONNECT 隧道，http 目标走 absolute-form。不支持 SOCKS。
+     */
     var proxyUrl: String? = null
 
     /**
-     * 对单个主机的并发连接上限。引擎默认 8；池满时**直接以连接失败拒绝**而不是排队，
-     * 所以对同一下游（如 IM service API）扇出超过 8 路并发的应用必须调高，否则表现为
-     * 偶发的 "connect: connect failed"。
+     * 对单个 `scheme://authority` 同时打开的连接上限。未设置时内置客户端不限（HTTP/1 每个在途请求
+     * 一条连接，HTTP/2 一条连接多路复用）；设置后，已满时新连接**直接以 Network 错误拒绝**而不是排队，
+     * 所以设了它的应用要按对同一下游的最大并发来取值。Ktor 客户端未设置时默认 8。
      */
     var maxConnectionsPerHost: Int? = null
 

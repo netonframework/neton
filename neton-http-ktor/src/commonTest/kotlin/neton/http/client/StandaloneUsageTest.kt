@@ -18,7 +18,7 @@ class StandaloneUsageTest {
 
     @Test
     fun createWithDefaultConfigProducesUsableClient() = runTest {
-        val client = HttpClient.create()
+        val client = HttpClient.createWith(::createKtorHttpClient)
         // We can't make a real request without an engine, but instantiation alone proves the
         // factory does NOT require NetonContext / LoggerFactory / any runtime dependency.
         assertTrue(client is HttpClient)  // tautology, but proves type binding
@@ -28,7 +28,7 @@ class StandaloneUsageTest {
     @Test
     fun createWithDslConfigAppliesOverrides() = runTest {
         // DSL block runs without any Neton runtime / context.
-        val client = HttpClient.create {
+        val client = HttpClient.createWith(::createKtorHttpClient) {
             requestMillis = 12_345
             connectMillis = 999
             socketMillis = 67_890
@@ -40,7 +40,7 @@ class StandaloneUsageTest {
     @Test
     fun invalidConfigThrowsTypedException() {
         val ex = assertFailsWith<HttpClientException> {
-            HttpClient.create { requestMillis = 0 }  // 0 invalid (must be > 0)
+            HttpClient.createWith(::createKtorHttpClient) { requestMillis = 0 }  // 0 invalid (must be > 0)
         }
         assertTrue(ex.error is HttpClientError.Unknown,
             "Expected Unknown error for invalid config, got ${ex.error::class.simpleName}")

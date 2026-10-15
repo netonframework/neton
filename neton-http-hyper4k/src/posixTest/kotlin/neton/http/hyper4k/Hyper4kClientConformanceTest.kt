@@ -4,18 +4,17 @@ import kotlinx.coroutines.runBlocking
 import neton.http.client.HttpClient
 import neton.http.client.HttpClientCapability
 import neton.http.client.HttpClientConfig
-import neton.http.client.create
 import neton.http.conformance.HttpClientConformanceSuite
 import kotlin.test.Test
 
 /**
  * The shared client conformance suite against the hyper4k client, through the
- * same `HttpClient.create { }` an application would call.
+ * explicit factory an application that chooses hyper4k would use.
  */
 class Hyper4kClientConformanceTest : HttpClientConformanceSuite() {
 
     override fun createClient(block: HttpClientConfig.() -> Unit): HttpClient =
-        HttpClient.create(block)
+        HttpClient.createWith(::createHyper4kHttpClient, block)
 
     override fun recordSkipped(capability: HttpClientCapability, testName: String) {
         println("conformance: skipped $testName, the hyper4k client does not declare $capability")

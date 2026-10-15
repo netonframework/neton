@@ -14,10 +14,10 @@ typealias HttpClientFactory = (HttpClientConfig) -> HttpClient
  * Ownership: the creator closes it. Register it with `ctx.lifecycle` so shutdown is
  * deterministic; modules handed a client only borrow it and must not close it.
  *
- * The no-argument `HttpClient.create { }` is not declared here. An engine module
- * declares it in this package (spec zh-hans/spec/http-engine.md §4): depend on
- * `neton-http-hyper4k` and it resolves to the hyper4k client, depend on
- * `neton-http-ktor` and it resolves to Ktor. This file never names an engine.
+ * The no-argument `HttpClient.create { }` (DefaultHttpClient.kt) is neton-http's built-in
+ * netonstream client (spec zh-hans/spec/http-engine.md §4). Another engine is chosen in source
+ * with [createWith] and its factory, e.g. `HttpClient.createWith(::createKtorHttpClient)`; no
+ * engine module declares a second `create`. This file never names an engine.
  *
  * Implementations are responsible for:
  *  - timeout enforcement

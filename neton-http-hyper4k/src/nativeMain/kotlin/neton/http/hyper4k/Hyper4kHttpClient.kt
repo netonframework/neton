@@ -258,4 +258,9 @@ private class ChunkBuffer(private val limit: Int = Int.MAX_VALUE) {
     }
 }
 
-internal fun createHyper4kHttpClient(config: HttpClientConfig): HttpClient = Hyper4kHttpClient(config)
+/**
+ * The hyper4k client, chosen explicitly: `HttpClient.createWith(::createHyper4kHttpClient) { }`.
+ * The no-argument `HttpClient.create { }` is neton-http's built-in client; this module no longer
+ * declares one (spec zh-hans/spec/http-engine.md §4.2).
+ */
+fun createHyper4kHttpClient(config: HttpClientConfig): HttpClient = Hyper4kHttpClient(config)

@@ -10,14 +10,14 @@ class HttpClientProxyTest {
     @Test
     fun createAcceptsHttpProxyUrl() {
         // 仅验证构造路径：合法 http 代理地址可创建 client（不实际发请求）
-        val client = HttpClient.create { proxyUrl = "http://127.0.0.1:1" }
+        val client = HttpClient.createWith(::createKtorHttpClient) { proxyUrl = "http://127.0.0.1:1" }
         assertTrue(client is HttpClient)
     }
 
     @Test
     fun malformedProxyUrlFailsFast() {
         assertFailsWith<HttpClientException> {
-            HttpClient.create { proxyUrl = "not-a-url" }
+            HttpClient.createWith(::createKtorHttpClient) { proxyUrl = "not-a-url" }
         }
     }
 
@@ -25,7 +25,7 @@ class HttpClientProxyTest {
     fun socksProxyRejected() {
         // v1 只支持 HTTP 代理（Ktor CIO 不支持 SOCKS）
         assertFailsWith<HttpClientException> {
-            HttpClient.create { proxyUrl = "socks5://127.0.0.1:1080" }
+            HttpClient.createWith(::createKtorHttpClient) { proxyUrl = "socks5://127.0.0.1:1080" }
         }
     }
 }

@@ -12,7 +12,7 @@ import kotlin.test.Test
 class KtorClientConformanceTest : HttpClientConformanceSuite() {
 
     override fun createClient(block: HttpClientConfig.() -> Unit): HttpClient =
-        HttpClient.create(block)
+        HttpClient.createWith(::createKtorHttpClient, block)
 
     override fun recordSkipped(capability: HttpClientCapability, testName: String) {
         println("conformance: skipped $testName, the Ktor client does not declare $capability")
