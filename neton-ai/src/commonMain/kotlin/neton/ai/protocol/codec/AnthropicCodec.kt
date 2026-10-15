@@ -558,16 +558,29 @@ object AnthropicCodec : ProtocolCodec {
         override var completed = false
             private set
         private var rawUsage = JsonObject(emptyMap())
+        /** 当前打开的消息；为 null 表示还没开始。 */
+        private var messageId: String? = null
+        private var started = false
+        /** 已报告流错误：之后的事件一律忽略。 */
+        private var failed = false
 
         override fun decode(event: SseEvent): List<StreamEvent> {
+            if (failed) return emptyList()
             val data = event.data.trim()
             if (data.isEmpty()) return emptyList()
-            val obj = J.parseObject(data) ?: return malformed(seq, d, WireFormat.ANTHROPIC).also { completed = true }
+            val obj = J.parseObject(data) ?: return malformed(seq, d, WireFormat.ANTHROPIC).also { completed = true; failed = true }
             val out = mutableListOf<StreamEvent>()
             // 报文里通常带 type；没有时以 SSE 的 event 名为准
             when (obj.str("type") ?: event.event) {
                 "message_start" -> {
                     val m = obj.obj("message")
+                    if (started) {
+                        // 同一条消息重复开始：忽略；上一条还没结束又开始另一条：两条消息的块会串在一起，按畸形流报错
+                        if (m?.str("id") == messageId) return out
+                        return malformed(seq, d, WireFormat.ANTHROPIC).also { completed = true; failed = true }
+                    }
+                    started = true
+                    messageId = m?.str("id")
                     out += StreamEvent.MessageStart(m?.str("id"), m?.str("model"))
                     m?.obj("usage")?.let { out += usageUpdate(it, UsageCompleteness.PARTIAL) }
                 }
@@ -627,6 +640,7 @@ object AnthropicCodec : ProtocolCodec {
     }
 
     private class MessagesStreamEncoder(private val d: Diagnostics) : StreamEncoder {
+        private val customTools = neton.ai.protocol.stream.CustomToolCallsAsFunctions(d)
         private var id = "msg_neton"
         private var model = ""
         private var started = false
@@ -644,7 +658,7 @@ object AnthropicCodec : ProtocolCodec {
         override fun encode(event: StreamEvent): String {
             if (done) return ""
             val sb = StringBuilder()
-            for (e in sequential.accept(event)) encodeOne(e, sb)
+            for (c in customTools.accept(event)) for (e in sequential.accept(c)) encodeOne(e, sb)
             return sb.toString()
         }
 

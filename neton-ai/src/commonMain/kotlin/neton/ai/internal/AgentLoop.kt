@@ -27,6 +27,9 @@ import neton.ai.model.AiWarning
 import neton.ai.protocol.ir.*
 import neton.ai.provider.ProviderRegistry
 import neton.ai.routing.ModelRouter
+import neton.ai.telemetry.AiOperation
+import neton.ai.telemetry.AiTelemetryContext
+import neton.ai.telemetry.AiTelemetryEvent
 import neton.ai.usage.AiUsageEvent
 import neton.ai.usage.AiUsageRecorder
 import kotlin.time.Duration.Companion.milliseconds
@@ -44,6 +47,7 @@ internal class AgentLoop(
     private val router: ModelRouter,
     private val recorder: AiUsageRecorder,
     private val logSink: AiLogSink?,
+    private val telemetry: TelemetryHub = TelemetryHub.NONE,
 ) {
     private val clock = TimeSource.Monotonic
 
@@ -51,16 +55,30 @@ internal class AgentLoop(
     private class Fallback(val error: AiError) : RuntimeException(error.message)
 
     suspend fun run(request: AiRequest, streaming: Boolean, emit: suspend (AiStreamPart) -> Unit): AiResult {
+        val ctx = telemetry.context(if (streaming) AiOperation.Stream else AiOperation.Generate, request.functionId, request.metadata)
+        // 没写模型时按路由的首选候选报告（回退会另有 Fallback 事件）
+        val model = if (!telemetry.enabled) null else request.model ?: runCatching { router.resolve(null, request.modelPolicy).firstOrNull() }.getOrNull()
+        return telemetry.operation(
+            ctx, model,
+            start = { AiTelemetryEvent.OperationStart(ctx, model, if (telemetry.settings.recordInputs) withInstructions(request) else null) },
+            end = { r: AiResult, ms -> AiTelemetryEvent.OperationEnd(ctx, ms, r.usage, r.steps.size, r.steps.lastOrNull()?.finishReason) },
+        ) { runObserved(request, streaming, emit, ctx) }
+    }
+
+    private fun withInstructions(request: AiRequest): List<AiMessage> =
+        listOfNotNull(request.instructions?.let { AiMessage.system(it) }) + request.messages
+
+    private suspend fun runObserved(request: AiRequest, streaming: Boolean, emit: suspend (AiStreamPart) -> Unit, ctx: AiTelemetryContext): AiResult {
         val callbacks = request.callbacks
         observe(logSink, "onStart") { callbacks?.onStart(request) }
         try {
             val result = request.timeout?.totalMs?.let { ms ->
                 try {
-                    withTimeout(ms) { runCandidates(request, streaming, emit) }
+                    withTimeout(ms) { runCandidates(request, streaming, emit, ctx) }
                 } catch (e: TimeoutCancellationException) {
                     throw AiException(AiError.Timeout("request exceeded the total timeout of ${ms}ms", e))
                 }
-            } ?: runCandidates(request, streaming, emit)
+            } ?: runCandidates(request, streaming, emit, ctx)
             observe(logSink, "onEnd") { callbacks?.onEnd(result) }
             return result
         } catch (e: AiException) {
@@ -69,17 +87,18 @@ internal class AgentLoop(
         }
     }
 
-    private suspend fun runCandidates(request: AiRequest, streaming: Boolean, emit: suspend (AiStreamPart) -> Unit): AiResult {
+    private suspend fun runCandidates(request: AiRequest, streaming: Boolean, emit: suspend (AiStreamPart) -> Unit, ctx: AiTelemetryContext): AiResult {
         val candidates = router.resolve(request.model, request.modelPolicy)
         if (candidates.isEmpty()) throw AiException(AiError.InvalidRequest("router returned no candidate model"))
         var lastError: AiError? = null
         for ((i, candidate) in candidates.withIndex()) {
             val canFallback = request.modelPolicy != null && i < candidates.lastIndex
             try {
-                return Run(request, candidate, streaming, emit, canFallback).execute()
+                return Run(request, candidate, streaming, emit, canFallback, ctx).execute()
             } catch (f: Fallback) {
                 lastError = f.error
                 logSink?.invoke("ai.fallback from=$candidate error=${f.error.kind}")
+                telemetry.emit { AiTelemetryEvent.Fallback(ctx, candidate, f.error) }
             }
         }
         throw AiException(lastError ?: AiError.Unknown("no candidate model succeeded", null))
@@ -94,6 +113,7 @@ internal class AgentLoop(
         val streaming: Boolean,
         val emit: suspend (AiStreamPart) -> Unit,
         val canFallback: Boolean,
+        val ctx: AiTelemetryContext,
     ) {
         val callbacks = request.callbacks
         val messages = request.messages.toMutableList()
@@ -227,13 +247,16 @@ internal class AgentLoop(
                 stream = streaming,
             )
             observe(logSink, "onStepStart") { callbacks?.onStepStart(AiStepContext(stepNumber, steps.toList(), modelId, instructions, messages.toList())) }
+            telemetry.emit { AiTelemetryEvent.StepStart(ctx, stepNumber, modelId) }
 
             // 模型调用
             observe(logSink, "onModelCallStart") { callbacks?.onModelCallStart(stepNumber, modelId) }
+            telemetry.emit { AiTelemetryEvent.ModelCallStart(ctx, stepNumber, modelId, streaming) }
             val modelMark = clock.markNow()
             val call = try {
-                if (streaming) streamCall(model, chat, stepNumber, modelId) else generateCall(model, chat, stepNumber)
+                if (streaming) streamCall(model, chat, stepNumber, modelId) else generateCall(model, chat, stepNumber, modelId)
             } catch (e: AiException) {
+                telemetry.emit { AiTelemetryEvent.ModelCallError(ctx, stepNumber, modelId, modelMark.elapsedNow().inWholeMilliseconds, e.error) }
                 recordUsage(modelId, stepNumber, null, null, modelMark, e.error)
                 if (stepNumber == 1 && steps.isEmpty() && canFallback && e.error.isFallbackEligible() && !emittedOutput) throw Fallback(e.error)
                 throw e
@@ -241,6 +264,10 @@ internal class AgentLoop(
             val modelTimeMs = modelMark.elapsedNow().inWholeMilliseconds
             recordUsage(modelId, stepNumber, call.usage, call.finishReason, modelMark, null)
             observe(logSink, "onModelCallEnd") { callbacks?.onModelCallEnd(stepNumber, modelId, call.usage, call.finishReason) }
+            telemetry.emit {
+                AiTelemetryEvent.ModelCallEnd(ctx, stepNumber, modelId, modelTimeMs, call.timeToFirstOutputMs, call.responseId,
+                    call.finishReason, call.rawFinishReason, call.usage, if (telemetry.settings.recordOutputs) call.content else null)
+            }
 
             // toolChoice 强制：要求调用工具却没有调用
             val validCalls = call.content.filterIsInstance<AiContent.ToolCall>().filter { !it.invalid }
@@ -288,6 +315,7 @@ internal class AgentLoop(
             steps += step
             emit(AiStreamPart.StepFinish(step))
             observe(logSink, "onStepEnd") { callbacks?.onStepEnd(step) }
+            telemetry.emit { AiTelemetryEvent.StepEnd(ctx, stepNumber, step.finishReason, step.usage) }
 
             val clientCalls = call.content.filterIsInstance<AiContent.ToolCall>().filter { !it.providerExecuted }
             val shouldContinue = execAllowed && clientCalls.isNotEmpty() && !outcome.pending &&
@@ -312,6 +340,7 @@ internal class AgentLoop(
             val usage: AiUsage,
             val warnings: List<AiWarning>,
             val timeToFirstOutputMs: Long?,
+            val responseId: String?,
         )
 
         /** 流式模式下本步是否已经对外发出过输出（发出后不再回退或重试）。 */
@@ -319,14 +348,16 @@ internal class AgentLoop(
 
         private val callOptions = AiModelCallOptions(headers = request.headers, metadata = request.metadata)
 
-        private suspend fun generateCall(model: AiLanguageModel, chat: ChatRequest, stepNumber: Int): ModelCall {
-            val r = withRetries(request.maxRetries) { model.generate(chat, callOptions) }
+        private suspend fun generateCall(model: AiLanguageModel, chat: ChatRequest, stepNumber: Int, modelId: AiModelId): ModelCall {
+            val r = withRetries(request.maxRetries, onRetry = { attempt, error, delayMs ->
+                telemetry.emit { AiTelemetryEvent.ModelCallRetry(ctx, stepNumber, modelId, attempt, error, delayMs) }
+            }) { model.generate(chat, callOptions) }
             val raw = r.response.content.flatMap(ModelMapping::toContent)
             val content = raw.map { if (it is AiContent.ToolCall) validateCall(it, stepNumber) else it }
             emit(AiStreamPart.StepStart(stepNumber, AiModelId(model.provider, model.modelId), r.warnings))
             val hasCalls = content.any { it is AiContent.ToolCall }
             return ModelCall(content, ModelMapping.toFinish(r.response.finishReason, hasCalls), r.response.rawFinishReason,
-                ModelMapping.toUsage(r.response.usage), r.warnings, null)
+                ModelMapping.toUsage(r.response.usage), r.warnings, null, r.response.id)
         }
 
         /** 流式调用：首个事件之前的失败可以重试；之后的失败直接上抛。 */
@@ -342,11 +373,13 @@ internal class AgentLoop(
                     val content = acc.content()
                     val hasCalls = content.any { it is AiContent.ToolCall }
                     return ModelCall(content, ModelMapping.toFinish(acc.finish, hasCalls), acc.rawFinish,
-                        ModelMapping.toUsage(acc.usage), s.warnings, acc.firstOutputMs)
+                        ModelMapping.toUsage(acc.usage), s.warnings, acc.firstOutputMs, acc.responseId)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: AiException) {
                     if (acc.started || attempt >= request.maxRetries || !e.error.isFallbackEligible()) throw e
+                    val wait = delayMs
+                    telemetry.emit { AiTelemetryEvent.ModelCallRetry(ctx, stepNumber, modelId, attempt + 1, e.error, wait) }
                     kotlinx.coroutines.delay(delayMs)
                     delayMs *= 2
                     attempt++
@@ -389,6 +422,7 @@ internal class AgentLoop(
             var firstOutputMs: Long? = null
             var finish: FinishReason? = null
             var rawFinish: String? = null
+            var responseId: String? = null
             var usage: neton.ai.protocol.usage.Usage? = null
             private inner class Building(val start: Block) {
                 val text = StringBuilder()
@@ -413,7 +447,7 @@ internal class AgentLoop(
             /** 返回这个事件是否是真正的输出（用于块间超时计时）。 */
             suspend fun accept(e: StreamEvent): Boolean {
                 when (e) {
-                    is StreamEvent.MessageStart -> started = true
+                    is StreamEvent.MessageStart -> { started = true; e.id?.let { responseId = it } }
                     is StreamEvent.BlockStart -> {
                         started = true
                         val b = Building(e.block)
@@ -644,6 +678,7 @@ internal class AgentLoop(
             val (tool, input, ctx) = item
             val mark = clock.markNow()
             observe(logSink, "onToolExecutionStart") { callbacks?.onToolExecutionStart(ctx) }
+            telemetry.emit { AiTelemetryEvent.ToolStart(this.ctx, ctx.stepNumber, ctx.call.id, tool.name, if (telemetry.settings.recordInputs) input else null) }
             val output: AiToolOutput = try {
                 val timeout = tool.timeoutMillis ?: request.timeout?.toolMs
                 val block: suspend () -> AiToolOutput = {
@@ -662,6 +697,10 @@ internal class AgentLoop(
             val ms = mark.elapsedNow().inWholeMilliseconds
             timings[ctx.call.id] = ms
             observe(logSink, "onToolExecutionEnd") { callbacks?.onToolExecutionEnd(ctx, output, ms) }
+            telemetry.emit {
+                val failed = output is AiToolOutput.ErrorText || output is AiToolOutput.ErrorJson || output is AiToolOutput.Denied
+                AiTelemetryEvent.ToolEnd(this.ctx, ctx.stepNumber, ctx.call.id, tool.name, ms, failed, if (telemetry.settings.recordOutputs) output else null)
+            }
             return AiContent.ToolResult(ctx.call.id, tool.name, output).also { emit(AiStreamPart.ToolResult(it)) }
         }
 

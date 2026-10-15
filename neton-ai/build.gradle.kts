@@ -46,6 +46,12 @@ kotlin {
             }
         }
 
+        // 读文件的测试（真实上游回放样本）只在 POSIX 目标上跑
+        val posixTest by creating { dependsOn(commonTest.get()) }
+        listOf("macosArm64Test", "macosX64Test", "linuxX64Test", "linuxArm64Test").forEach { name ->
+            getByName(name).dependsOn(posixTest)
+        }
+
         commonTest {
             dependencies {
                 // No engine: the tests script HttpClient directly (neton-http testkit),
@@ -70,3 +76,8 @@ val checkProtocolLayering by tasks.registering {
     }
 }
 tasks.named("check") { dependsOn(checkProtocolLayering) }
+
+// 回放样本的绝对路径交给测试进程（原生测试的工作目录不固定）
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>().configureEach {
+    environment("NETON_AI_FIXTURES", file("src/commonTest/fixtures").absolutePath)
+}

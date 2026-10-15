@@ -674,6 +674,7 @@ object GeminiCodec : ProtocolCodec {
     }
 
     private class GeminiStreamEncoder(private val d: Diagnostics) : StreamEncoder {
+        private val customTools = neton.ai.protocol.stream.CustomToolCallsAsFunctions(d)
         private var id: String? = null
         private var model: String? = null
         private var done = false
@@ -686,6 +687,12 @@ object GeminiCodec : ProtocolCodec {
         override fun encode(event: StreamEvent): String {
             if (done) return ""
             val sb = StringBuilder()
+            for (e in customTools.accept(event)) one(e, sb)
+            return sb.toString()
+        }
+
+        private fun one(event: StreamEvent, sb: StringBuilder) {
+            if (done) return
             when (event) {
                 is StreamEvent.MessageStart -> { id = event.id; model = event.model }
                 is StreamEvent.BlockStart -> {
@@ -739,7 +746,6 @@ object GeminiCodec : ProtocolCodec {
                     done = true
                 }
             }
-            return sb.toString()
         }
 
         private fun part(sb: StringBuilder, part: JsonObject) {

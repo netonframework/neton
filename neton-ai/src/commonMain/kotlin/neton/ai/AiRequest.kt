@@ -42,8 +42,10 @@ data class AiRequest(
     val maxRetries: Int = 2,
     val timeout: AiTimeout? = null,
     val callbacks: AiCallbacks? = null,
-    /** 透传给用量记录与 HTTP 客户端的元数据（requestId、traceId 等）。 */
+    /** 透传给用量记录与 HTTP 客户端的元数据（requestId、traceId 等）；遥测会读取其中的 W3C `traceparent`。 */
     val metadata: Map<String, String> = emptyMap(),
+    /** 遥测里标识这类调用的名字（如 `support-agent`），对应语义约定的 agent 名称。 */
+    val functionId: String? = null,
 ) {
     init {
         require(maxRetries >= 0) { "maxRetries must be >= 0" }
@@ -169,6 +171,7 @@ class AiRequestBuilder {
     var prepareStep: AiPrepareStep? = null
     var callbacks: AiCallbacks? = null
     var metadata: Map<String, String> = emptyMap()
+    var functionId: String? = null
     var headers: Map<String, String> = emptyMap()
 
     // 调用参数直接写在 DSL 顶层
@@ -235,6 +238,7 @@ class AiRequestBuilder {
         timeout = timeout,
         callbacks = callbacks,
         metadata = metadata,
+        functionId = functionId,
     )
 }
 

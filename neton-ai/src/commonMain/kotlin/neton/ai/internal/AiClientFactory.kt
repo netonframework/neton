@@ -20,7 +20,8 @@ internal object AiClientFactory {
         router: ModelRouter,
         recorder: AiUsageRecorder,
         logSink: neton.ai.AiLogSink? = null,
-    ): AiClient = DefaultAiClient(registry, router, recorder, logSink)
+        telemetry: TelemetryHub = TelemetryHub.NONE,
+    ): AiClient = DefaultAiClient(registry, router, recorder, logSink, telemetry)
 
     /**
      * High-level: construct from an AiConfig that has already been merged with file values.
@@ -78,6 +79,7 @@ internal object AiClientFactory {
             router = DefaultModelRouter(config.routing),
             recorder = config.usage.recorder ?: NoopAiUsageRecorder,
             logSink = config.logSink,
+            telemetry = TelemetryHub(config.telemetry.toList(), config.telemetrySettings, config.logSink),
         )
     }
 }

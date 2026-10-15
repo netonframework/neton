@@ -14,6 +14,8 @@ import neton.ai.model.AiModelMiddleware
 import neton.ai.model.withMiddleware
 import neton.ai.provider.*
 import neton.ai.routing.ModelRouter
+import neton.ai.telemetry.AiOperation
+import neton.ai.telemetry.AiTelemetryEvent
 import neton.ai.usage.AiUsageRecorder
 
 internal class DefaultAiClient(
@@ -21,8 +23,15 @@ internal class DefaultAiClient(
     private val router: ModelRouter,
     private val recorder: AiUsageRecorder,
     private val logSink: AiLogSink? = null,
+    private val telemetry: TelemetryHub = TelemetryHub.NONE,
 ) : AiClient {
-    private val loop = AgentLoop(registry, router, recorder, logSink)
+    private val loop = AgentLoop(registry, router, recorder, logSink, telemetry)
+
+    /** 非文本操作的遥测：开始、结束（带用量）或失败。 */
+    private suspend fun <T> traced(op: AiOperation, model: AiModelId, metadata: Map<String, String>, usage: (T) -> AiUsage, block: suspend () -> T): T {
+        val ctx = telemetry.context(op, null, metadata)
+        return telemetry.operation(ctx, model, end = { r: T, ms -> AiTelemetryEvent.OperationEnd(ctx, ms, usage(r), 0, null) }, block = block)
+    }
 
     override suspend fun generate(request: AiRequest): AiResult = loop.run(request, streaming = false) {}
 
@@ -43,7 +52,10 @@ internal class DefaultAiClient(
         registry.get(id.providerId)?.let(get)
             ?: throw AiException(AiError.ModelNotFound(id.toString(), "provider '${id.providerId}' has no $kind model '${id.modelName}'"))
 
-    override suspend fun embed(request: EmbeddingRequest): EmbeddingResult {
+    override suspend fun embed(request: EmbeddingRequest): EmbeddingResult =
+        traced(AiOperation.Embed, request.model, request.metadata, { it.usage }) { embedUntraced(request) }
+
+    private suspend fun embedUntraced(request: EmbeddingRequest): EmbeddingResult {
         val m = model(request.model, "embedding") { it.embeddingModel(request.model.modelName) }
         if (request.values.isEmpty()) return EmbeddingResult(emptyList(), AiUsage.ZERO_COMPLETE, emptyList(), request.model)
         val chunks = request.values.chunked(m.maxEmbeddingsPerCall ?: request.values.size)
@@ -60,7 +72,10 @@ internal class DefaultAiClient(
         )
     }
 
-    override suspend fun generateImage(request: ImageRequest): ImageGenerationResult {
+    override suspend fun generateImage(request: ImageRequest): ImageGenerationResult =
+        traced(AiOperation.Image, request.model, emptyMap(), { it.usage }) { generateImageUntraced(request) }
+
+    private suspend fun generateImageUntraced(request: ImageRequest): ImageGenerationResult {
         val m = model(request.model, "image") { it.imageModel(request.model.modelName) }
         val perCall = (request.maxImagesPerCall ?: m.maxImagesPerCall).coerceAtLeast(1)
         val counts = List((request.n + perCall - 1) / perCall) { i -> minOf(perCall, request.n - i * perCall) }
@@ -80,18 +95,18 @@ internal class DefaultAiClient(
 
     override suspend fun generateSpeech(model: AiModelId, options: SpeechOptions, maxRetries: Int): SpeechResult {
         val m = model(model, "speech") { it.speechModel(model.modelName) }
-        return withRetries(maxRetries) { m.generate(options) }
+        return traced(AiOperation.Speech, model, emptyMap(), { AiUsage.UNKNOWN }) { withRetries(maxRetries) { m.generate(options) } }
     }
 
     override suspend fun transcribe(model: AiModelId, options: TranscriptionOptions, maxRetries: Int): TranscriptionResult {
         val m = model(model, "transcription") { it.transcriptionModel(model.modelName) }
-        return withRetries(maxRetries) { m.transcribe(options) }
+        return traced(AiOperation.Transcribe, model, emptyMap(), { AiUsage.UNKNOWN }) { withRetries(maxRetries) { m.transcribe(options) } }
     }
 
     override suspend fun rerank(model: AiModelId, query: String, documents: List<String>, topN: Int?, maxRetries: Int): RerankResult {
         if (documents.isEmpty()) return RerankResult(emptyList())
         val m = model(model, "reranking") { it.rerankingModel(model.modelName) }
-        return withRetries(maxRetries) { m.rerank(query, documents, topN) }
+        return traced(AiOperation.Rerank, model, emptyMap(), { AiUsage.UNKNOWN }) { withRetries(maxRetries) { m.rerank(query, documents, topN) } }
     }
 
     override suspend fun close() {

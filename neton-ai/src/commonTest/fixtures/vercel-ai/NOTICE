@@ -1,0 +1,7 @@
+These fixtures are recorded provider responses copied unmodified from the Vercel AI SDK
+(https://github.com/vercel/ai, packages/*/src/**/__fixtures__), version 7.0.141, commit 46a5d9788b.
+
+Copyright 2023 Vercel, Inc.
+Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+They are used only as test input for neton-ai's protocol codecs (FixtureReplayTest).

@@ -363,7 +363,10 @@ object OpenAiResponsesCodec : ProtocolCodec {
                 }
                 is ReasoningBlock -> {
                     flushText()
-                    if (b.signature != null || b.redacted) {
+                    if (b.redacted && forOutput) {
+                        d.warn(DiagnosticCodes.REASONING_DROPPED, p, "redacted reasoning has no readable text for Responses")
+                    } else if ((b.signature != null || b.redacted) && !forOutput) {
+                        // 请求里不能伪造 Responses 推理项；给客户端看的响应里，带签名的推理只取文本（与 Chat 的做法一致）
                         d.warn(DiagnosticCodes.REASONING_DROPPED, p, "Anthropic thinking cannot be sent as Responses reasoning")
                     } else if (b.encryptedContent != null || b.metadata.string(NS, ITEM_ID) != null || forOutput) {
                         items += tracking {

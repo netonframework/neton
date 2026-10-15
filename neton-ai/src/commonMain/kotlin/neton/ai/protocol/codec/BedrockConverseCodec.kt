@@ -234,7 +234,8 @@ object BedrockConverseCodec : ProtocolCodec {
         putExtras(request.metadata, F)
     }
 
-    private fun encodeBlock(b: Block, path: String, d: Diagnostics, role: Role): JsonObject? = when (b) {
+    /** [forOutput]：编给客户端的响应。没有签名的推理在请求里不能发给 Converse，在响应里可以原样展示。 */
+    private fun encodeBlock(b: Block, path: String, d: Diagnostics, role: Role, forOutput: Boolean = false): JsonObject? = when (b) {
         is TextBlock -> buildJsonObject { put("text", b.text) }
         is ImageBlock -> when (val s = b.source) {
             is MediaSource.Base64 -> {
@@ -277,6 +278,9 @@ object BedrockConverseCodec : ProtocolCodec {
             b.signature != null -> buildJsonObject {
                 put("reasoningContent", buildJsonObject { put("reasoningText", buildJsonObject { put("text", b.text); put("signature", b.signature) }) })
             }
+            forOutput -> b.text.ifEmpty { b.summary.joinToString("\n") }.takeIf { it.isNotEmpty() }?.let { text ->
+                buildJsonObject { put("reasoningContent", buildJsonObject { put("reasoningText", buildJsonObject { put("text", text) }) }) }
+            }
             else -> { d.warn(DiagnosticCodes.REASONING_DROPPED, path, "unsigned reasoning is not sent to Converse"); null }
         }
         is RefusalBlock -> buildJsonObject { put("text", b.text) }
@@ -301,7 +305,7 @@ object BedrockConverseCodec : ProtocolCodec {
         put("output", buildJsonObject {
             put("message", buildJsonObject {
                 put("role", "assistant")
-                put("content", JsonArray(response.content.mapIndexedNotNull { i, b -> encodeBlock(b, "content[$i]", diagnostics, Role.Assistant) }))
+                put("content", JsonArray(response.content.mapIndexedNotNull { i, b -> encodeBlock(b, "content[$i]", diagnostics, Role.Assistant, forOutput = true) }))
             })
         })
         put("stopReason", stopReasonString(response.finishReason, response.rawFinishReason))
@@ -444,6 +448,7 @@ object BedrockConverseCodec : ProtocolCodec {
 
     /** 输出 `event: <事件名>` + JSON 负载的文本形式（与解码器的输入一致）。 */
     private class ConverseStreamEncoder(private val d: Diagnostics) : StreamEncoder {
+        private val customTools = neton.ai.protocol.stream.CustomToolCallsAsFunctions(d)
         private val sequential = neton.ai.protocol.stream.SequentialBlocks()
         private var started = false
         private var done = false
@@ -455,7 +460,7 @@ object BedrockConverseCodec : ProtocolCodec {
         override fun encode(event: StreamEvent): String {
             if (done) return ""
             val sb = StringBuilder()
-            for (e in sequential.accept(event)) one(e, sb)
+            for (c in customTools.accept(event)) for (e in sequential.accept(c)) one(e, sb)
             return sb.toString()
         }
 

@@ -333,10 +333,14 @@ object OpenAiChatCodec : ProtocolCodec {
         }
     }
 
-    /** 纯文本（无元数据）写成字符串：不少兼容服务不接受数组形式的 content，多段文本以换行连接。 */
-    private fun plainTextOnly(blocks: List<Block>): String? =
+    /**
+     * 纯文本（无元数据）写成字符串：不少兼容服务不接受数组形式的 content。
+     * 用户的多段文本是各自独立的段落，以换行连接；助手的多段文本是同一段输出被工具调用等切开，
+     * 原样拼接——与流式转换（增量直接相连）结果一致。
+     */
+    private fun plainTextOnly(blocks: List<Block>, separator: String = "\n"): String? =
         if (blocks.isNotEmpty() && blocks.all { it is TextBlock && it.metadata.isEmpty() && it.citations.isEmpty() })
-            blocks.joinToString("\n") { (it as TextBlock).text } else null
+            blocks.joinToString(separator) { (it as TextBlock).text } else null
 
     private fun encodeUserContent(blocks: List<Block>, path: String, d: Diagnostics): JsonElement {
         plainTextOnly(blocks)?.let { return JsonPrimitive(it) }
@@ -428,7 +432,7 @@ object OpenAiChatCodec : ProtocolCodec {
             put("role", "assistant")
             put("content", when {
                 texts.isEmpty() -> JsonNull
-                plainTextOnly(texts) != null -> JsonPrimitive(plainTextOnly(texts)!!)
+                plainTextOnly(texts, separator = "") != null -> JsonPrimitive(plainTextOnly(texts, separator = "")!!)
                 else -> JsonArray(texts.map(::textPart))
             })
             if (reasoning.isNotEmpty()) put("reasoning_content", reasoning.toString())

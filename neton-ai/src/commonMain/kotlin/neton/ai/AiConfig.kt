@@ -23,6 +23,15 @@ class AiConfig {
     var logSink: AiLogSink? = null
     internal val middleware = mutableMapOf<String, MutableList<neton.ai.model.AiModelMiddleware>>()
     internal val customProviders = mutableMapOf<String, neton.ai.provider.AiProvider>()
+    internal val telemetry = mutableListOf<neton.ai.telemetry.AiTelemetry>()
+
+    /** 遥测是否记录内容（提示词、工具参数、输出）；默认都不记录。 */
+    var telemetrySettings: neton.ai.telemetry.AiTelemetrySettings = neton.ai.telemetry.AiTelemetrySettings()
+
+    /** 注册遥测集成（如 [neton.ai.telemetry.GenAiSpans]），接收每次调用的生命周期事件。 */
+    fun telemetry(vararg integration: neton.ai.telemetry.AiTelemetry) {
+        telemetry += integration
+    }
 
     /**
      * 给某个 provider 的语言模型套上中间件（如 MiniMax 的 `<think>` 抽取）；[providerId] 为 `*` 时作用于全部。
