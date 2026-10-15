@@ -455,7 +455,7 @@ public class BufferedHttpDispatcher(
             // ValidationException 默认走 InvalidParams（spec ERROR_CODE_SPEC §3）；
             // 业务侧需要更细错误码请直接 throw HttpException(code, ...)
             DispatchOutcome(
-                errorResponse(HttpStatus.BAD_REQUEST, NetonErrorCode.INVALID_PARAMS, e.message),
+                envelopeResponse(HttpStatus.BAD_REQUEST, ApiEnvelope.error(NetonErrorCode.INVALID_PARAMS, e.message, e.errors)),
                 matched.route.pattern,
                 context,
             )
@@ -480,7 +480,7 @@ public class BufferedHttpDispatcher(
             DispatchOutcome(
                 envelopeResponse(
                     httpStatus,
-                    ApiEnvelope.error(e.code, e.message),
+                    ApiEnvelope.error(e.code, e.message, e.errors),
                     e.headers.mapValues { (_, value) -> listOf(value) },
                 ),
                 matched.route.pattern,

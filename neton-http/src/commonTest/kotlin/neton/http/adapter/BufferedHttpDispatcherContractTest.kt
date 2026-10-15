@@ -287,6 +287,34 @@ class BufferedHttpDispatcherContractTest {
     }
 
     @Test
+    fun fieldErrorsReachTheEnvelopeOnlyWhenPresent() = runBlocking {
+        fun route(path: String, errors: List<neton.core.http.ValidationError>) = RouteDefinition(
+            pattern = path,
+            method = HttpMethod.POST,
+            allowAnonymous = true,
+            handler = object : RouteHandler {
+                override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs): Any =
+                    throw neton.core.http.BadRequestException("BODY_INVALID", errors)
+            },
+        )
+        val context = NetonContext(emptyArray()).apply {
+            bind(RequestEngine::class, FixedRequestEngine(listOf(
+                route("/with", listOf(neton.core.http.ValidationError("body[2].text", "is required", "Missing"))),
+                route("/without", emptyList()),
+            )))
+        }
+        val dispatcher = BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(context) }
+
+        val with = dispatcher.dispatch(BufferedHttpRequest("POST", "/with", "", emptyMap(), ByteArray(0))).body.decodeToString()
+        assertEquals(
+            """{"code":10100,"message":"BODY_INVALID","data":null,"errors":[{"field":"body[2].text","message":"is required","code":"Missing"}]}""",
+            with,
+        )
+        val without = dispatcher.dispatch(BufferedHttpRequest("POST", "/without", "", emptyMap(), ByteArray(0))).body.decodeToString()
+        assertEquals("""{"code":10100,"message":"BODY_INVALID","data":null}""", without)
+    }
+
+    @Test
     fun httpExceptionHeadersReachTheErrorResponse() = runBlocking {
         val route = RouteDefinition(
             pattern = "/locked",
