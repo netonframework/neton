@@ -3,7 +3,10 @@ package neton.security.password
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.random.Random
-import neton.security.crypto.HmacSha256
+import dev.whyoleg.cryptography.BinarySize.Companion.bytes
+import dev.whyoleg.cryptography.CryptographyProvider
+import dev.whyoleg.cryptography.algorithms.PBKDF2
+import dev.whyoleg.cryptography.algorithms.SHA256
 import neton.security.internal.constantTimeEquals
 
 object PasswordHasher {
@@ -82,34 +85,19 @@ object PasswordHasher {
         return hash.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
     }
 
+    /**
+     * PBKDF2-HMAC-SHA256，交给平台原生实现（Apple CommonCrypto `CCKeyDerivationPBKDF` / OpenSSL 3 `EVP_KDF`）。
+     *
+     * 以前这里手写迭代循环，每一轮都经 [neton.security.crypto.HmacSha256.sign] 重新导入一次 HMAC 密钥；
+     * 210 000 轮在 macOS arm64 上一次校验约 1.6–1.8 秒，登录失败（以及成功）都要等这么久。原生实现
+     * 同参数约 34 毫秒，输出逐字节相同（RFC 6070 / RFC 7914 §11 测试向量 + 旧循环对照），已有哈希无需迁移。
+     */
     private fun pbkdf2HmacSha256(password: ByteArray, salt: ByteArray, iterations: Int, dkLen: Int): ByteArray {
         require(iterations > 0) { "iterations must be positive" }
         require(dkLen > 0) { "dkLen must be positive" }
-
-        val hLen = 32
-        val blockCount = (dkLen + hLen - 1) / hLen
-        val derived = ByteArray(blockCount * hLen)
-
-        for (blockIndex in 1..blockCount) {
-            val saltBlock = ByteArray(salt.size + 4)
-            salt.copyInto(saltBlock)
-            saltBlock[salt.size] = (blockIndex ushr 24).toByte()
-            saltBlock[salt.size + 1] = (blockIndex ushr 16).toByte()
-            saltBlock[salt.size + 2] = (blockIndex ushr 8).toByte()
-            saltBlock[salt.size + 3] = blockIndex.toByte()
-
-            var u = HmacSha256.sign(password, saltBlock)
-            val t = u.copyOf()
-            repeat(iterations - 1) {
-                u = HmacSha256.sign(password, u)
-                for (i in t.indices) {
-                    t[i] = (t[i].toInt() xor u[i].toInt()).toByte()
-                }
-            }
-            t.copyInto(derived, destinationOffset = (blockIndex - 1) * hLen)
-        }
-
-        return derived.copyOf(dkLen)
+        return CryptographyProvider.Default.get(PBKDF2)
+            .secretDerivation(digest = SHA256, iterations = iterations, outputSize = dkLen.bytes, salt = salt)
+            .deriveSecretToByteArrayBlocking(password)
     }
 
     // Temporary legacy helper for gradual migration away from single-round SHA-256.
