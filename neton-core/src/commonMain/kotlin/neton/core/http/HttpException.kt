@@ -9,9 +9,12 @@ package neton.core.http
  * 用法：
  *
  * ```kotlin
- * throw HttpException(NetonErrorCode.RESOURCE_NOT_FOUND, "user $uid not found")
- * throw HttpException(MemberErrorCode.MOBILE_ALREADY_BOUND, "mobile already bound")
+ * throw HttpException(NetonErrorCode.RESOURCE_NOT_FOUND, MemberErrorCodes.USER_NOT_FOUND)
+ * throw HttpException(MemberErrorCode.MOBILE_ALREADY_BOUND, MemberErrorCodes.MOBILE_ALREADY_BOUND)
  * ```
+ *
+ * **[message] 必须是机器码**（`UPPER_SNAKE_CASE`，见 [NetonErrorMessage] 与各模块 `<Module>ErrorCodes`），
+ * 不是给人看的句子：它原样进响应信封，客户端拿它查语言包。排障细节进日志，不进 message。
  *
  * 需要随错误一起下发的响应头（如冷却的 `Retry-After`、质询的 `WWW-Authenticate`）放进 [headers]：
  * 错误响应是框架重新生成的，处理器此前写到 `context.response` 上的头不会带出去。
@@ -71,6 +74,6 @@ private fun legacyCodeFromStatus(status: HttpStatus): Int = when (status) {
  * `INVALID_FORMAT=10104` / `MISSING_REQUIRED_PARAM=10101`）请直接 throw `HttpException(code, msg)`。
  */
 open class BadRequestException(
-    message: String = "Bad Request",
+    message: String = NetonErrorMessage.INVALID_PARAMS,
     errors: List<ValidationError> = emptyList(),
 ) : HttpException(NetonErrorCode.INVALID_PARAMS, message, errors)

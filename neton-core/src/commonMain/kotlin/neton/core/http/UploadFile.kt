@@ -40,7 +40,7 @@ class UploadFiles(private val parts: List<UploadFile>) {
 
     /** 按 fieldName 获取第一个文件，不存在则抛异常 */
     fun require(name: String): UploadFile =
-        first(name) ?: throw BadRequestException("Missing upload file: $name")
+        first(name) ?: throw ValidationException(listOf(ValidationError.of(name, ValidationCode.REQUIRED)))
 
     /** 转为 Map 视图 */
     fun asMap(): Map<String, List<UploadFile>> =

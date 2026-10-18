@@ -1,7 +1,10 @@
 package neton.routing.ratelimit
 
 import neton.core.http.HttpContext
+import kotlinx.serialization.json.Json
+import neton.core.http.ApiEnvelope
 import neton.core.http.HttpStatus
+import neton.core.http.NetonErrorCode
 import neton.core.interfaces.Identity
 import neton.core.interfaces.RateLimitConfig
 import neton.core.interfaces.RateLimitDecision
@@ -49,17 +52,18 @@ class RateLimitInterceptor(
 
         if (!decision.allowed) {
             context.response.header("Retry-After", config.windowSeconds.toString())
+            // 标准信封：code 是 RATE_LIMIT_EXCEEDED（不是 HTTP 429），message 是注解给的机器码
+            val envelope = ApiEnvelope.error(NetonErrorCode.RATE_LIMIT_EXCEEDED, config.message)
             context.response.status = HttpStatus.TOO_MANY_REQUESTS
-            context.response.json(
-                mapOf(
-                    "code" to 429,
-                    "message" to config.message
-                )
-            )
+            context.response.json(envelopeJson.encodeToString(ApiEnvelope.serializer(), envelope))
             return false
         }
 
         return true
+    }
+
+    private companion object {
+        val envelopeJson = Json { encodeDefaults = true; explicitNulls = true }
     }
 
     /**

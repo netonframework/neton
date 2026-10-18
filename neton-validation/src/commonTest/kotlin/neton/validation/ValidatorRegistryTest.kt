@@ -22,7 +22,7 @@ class ValidatorRegistryTest {
 
     private val createValidator = Validator<CreateUserRequest> { value ->
         if (value.name.isBlank()) {
-            listOf(ValidationError(path = "name", message = "must not be blank", code = "NotBlank"))
+            listOf(ValidationError.of("name", "REQUIRED"))
         } else {
             emptyList()
         }
@@ -60,8 +60,8 @@ class ValidatorRegistryTest {
 
         assertEquals(1, errors.size)
         assertEquals("name", errors[0].path)
-        assertEquals("must not be blank", errors[0].message)
-        assertEquals("NotBlank", errors[0].code)
+        assertEquals("REQUIRED", errors[0].message)
+        assertEquals("REQUIRED", errors[0].code)
     }
 
     @Test

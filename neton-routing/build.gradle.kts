@@ -32,6 +32,8 @@ kotlin {
         commonTest {
             dependencies {
                 implementation(kotlin("test"))
+                // 限流响应契约：经真实 dispatcher 断言信封形态
+                implementation(project(":neton-http"))
             }
         }
     }

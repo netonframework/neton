@@ -12,5 +12,5 @@ package neton.core.http
  * `HttpException(NetonErrorCode.INVALID_TOKEN, ...)`。
  */
 class UnauthorizedException(
-    message: String = "Authentication required",
+    message: String = NetonErrorMessage.AUTH_REQUIRED,
 ) : HttpException(NetonErrorCode.AUTH_REQUIRED, message)

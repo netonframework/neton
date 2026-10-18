@@ -8,6 +8,7 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import neton.ksp.MACHINE_CODE
 import neton.ksp.ModuleFragmentSink
 import neton.ksp.validation.codegen.ValidatorGenerator
 import java.io.OutputStreamWriter
@@ -111,8 +112,17 @@ class ValidationProcessor(
         isNullable: Boolean = false
     ): ValidationRule? {
         val simpleName = ann.shortName.asString()
-        val message = ann.arguments.find { it.name?.asString() == "message" }?.value as? String
-            ?: defaultMessage(simpleName)
+        // 注解默认 message = ""：用约束的内建码。作者写了就必须是机器码——它原样成为字段错误的
+        // code/message，客户端拿它查语言包；句子在这里直接让编译失败。
+        val customCode = (ann.arguments.find { it.name?.asString() == "message" }?.value as? String)
+            ?.takeIf { it.isNotEmpty() }
+        if (customCode != null && !MACHINE_CODE.matches(customCode)) {
+            logger.error(
+                "Neton @$simpleName on '$propName': message=\"$customCode\" is not a machine code. " +
+                    "Use an UPPER_SNAKE_CASE code (e.g. INVALID_MOBILE) or omit message to get the built-in code.",
+                ann
+            )
+        }
         val valueArgs = when (simpleName) {
             "Min", "Max" -> listOf(
                 (ann.arguments.find { it.name?.asString() == "value" }?.value as? Number)?.toString() ?: "0"
@@ -120,7 +130,7 @@ class ValidationProcessor(
 
             "Size" -> listOf(
                 (ann.arguments.find { it.name?.asString() == "min" }?.value as? Number)?.toString() ?: "0",
-                (ann.arguments.find { it.name?.asString() == "max" }?.value as? Number)?.toString() ?: "Long.MAX_VALUE"
+                (ann.arguments.find { it.name?.asString() == "max" }?.value as? Number)?.toString() ?: Long.MAX_VALUE.toString()
             )
 
             "Pattern" -> listOf(ann.arguments.find { it.name?.asString() == "regex" }?.value as? String ?: "")
@@ -129,42 +139,11 @@ class ValidationProcessor(
         return ValidationRule(
             propertyName = propName,
             annotationSimpleName = simpleName,
-            message = resolveMessagePlaceholders(message, simpleName, valueArgs),
-            constraintCode = simpleName,
+            customCode = customCode,
             valueArgs = valueArgs,
             propertyTypeQualified = propertyTypeQualified,
             isNullable = isNullable
         )
-    }
-
-    /**
-     * 把消息模板里的占位符换成注解上的真实约束值。
-     *
-     * `@Min(1)` 的默认消息是 `"must be >= {value}"`；不替换的话客户端收到的就是字面量
-     * `must be >= {value}`，而不是 `must be >= 1`。
-     *
-     * 只替换数值型占位符（Min/Max 的 `{value}`、Size 的 `{min}`/`{max}`）——它们进生成代码时
-     * 是安全的字面量。Pattern 的 regex 不做替换，避免把反斜杠/引号带进消息字符串。
-     */
-    private fun resolveMessagePlaceholders(
-        template: String,
-        simpleName: String,
-        valueArgs: List<String>
-    ): String = when (simpleName) {
-        "Min", "Max" -> template.replace("{value}", valueArgs.getOrElse(0) { "{value}" })
-        "Size" -> template
-            .replace("{min}", valueArgs.getOrElse(0) { "{min}" })
-            .replace("{max}", valueArgs.getOrElse(1) { "{max}" })
-        else -> template
-    }
-
-    private fun defaultMessage(simpleName: String): String = when (simpleName) {
-        "NotBlank" -> "must not be blank"
-        "NotNull" -> "must not be null"
-        "Min" -> "must be >= {value}"
-        "Max" -> "must be <= {value}"
-        "Email" -> "invalid email"
-        else -> "validation failed"
     }
 
     // endregion

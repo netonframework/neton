@@ -6,8 +6,11 @@ package neton.ksp.validation
 data class ValidationRule(
     val propertyName: String,
     val annotationSimpleName: String,
-    val message: String,
-    val constraintCode: String,
+    /**
+     * 注解上作者给的字段机器码（`message = "INVALID_MOBILE"`）；null 表示用约束的内建码
+     * （`REQUIRED`/`TOO_SHORT`/…，见 neton-core `ValidationCode`）。
+     */
+    val customCode: String?,
     val valueArgs: List<String> = emptyList(),
     /** 属性类型 FQN，用于 Size（String→length / List|Set|Map|Array→size） */
     val propertyTypeQualified: String? = null,

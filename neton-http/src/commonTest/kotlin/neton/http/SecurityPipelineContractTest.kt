@@ -149,10 +149,10 @@ class SecurityPipelineContractTest {
         val ctx = testCtx()
         val ex = kotlin.runCatching {
             runSecurityPreHandle(route(requireAuth = true), ctx, reqCtx(), null)
-        }.exceptionOrNull() as? HttpException
-            ?: error("Expected HttpException")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
-        assertTrue(ex.message.contains("SecurityComponent"))
+        }.exceptionOrNull() as? IllegalStateException
+            ?: error("Expected IllegalStateException")
+        // 部署配置错误不进响应信封：抛普通异常，dispatcher 记日志并回 500 INTERNAL_ERROR
+        assertTrue(ex.message!!.contains("SecurityComponent"))
     }
 
     // --- Test 3: Mode B + RequireAuth + MockAuthenticator → 200, identity set ---
@@ -200,10 +200,10 @@ class SecurityPipelineContractTest {
         )
         val ex = kotlin.runCatching {
             runSecurityPreHandle(route(requireAuth = true), ctx, reqCtx(), config)
-        }.exceptionOrNull() as? HttpException
-            ?: error("Expected HttpException")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
-        assertTrue(ex.message.contains("Authenticator"))
+        }.exceptionOrNull() as? IllegalStateException
+            ?: error("Expected IllegalStateException")
+        // 部署配置错误不进响应信封：抛普通异常，dispatcher 记日志并回 500 INTERNAL_ERROR
+        assertTrue(ex.message!!.contains("Authenticator"))
     }
 
     // --- Test 6: @Permission 有权限 → 放行 ---
@@ -229,7 +229,7 @@ class SecurityPipelineContractTest {
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
         assertEquals(HttpStatus.FORBIDDEN, httpStatusForErrorCode(ex.code))
-        assertTrue(ex.message.contains("system:user:edit"))
+        assertEquals("PERMISSION_DENIED", ex.message)
     }
 
     // --- Test 8: PermissionEvaluator 自定义逻辑（superadmin 绕过） ---
@@ -300,9 +300,8 @@ class SecurityPipelineContractTest {
                 config,
                 groupConfigs
             )
-        }.exceptionOrNull() as? HttpException
-            ?: error("Expected HttpException")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
+        }.exceptionOrNull() as? IllegalStateException
+            ?: error("Expected IllegalStateException")
     }
 
     // --- Test 11: @Permission + 无 evaluator + 空 permissions → 403（默认行为冻结） ---
@@ -316,7 +315,7 @@ class SecurityPipelineContractTest {
         }.exceptionOrNull() as? HttpException
             ?: error("Expected HttpException")
         assertEquals(HttpStatus.FORBIDDEN, httpStatusForErrorCode(ex.code))
-        assertTrue(ex.message.contains("system:user:edit"))
+        assertEquals("PERMISSION_DENIED", ex.message)
     }
 
     // --- Test 12: @Permission + identity == null → 401（未认证） ---
@@ -413,9 +412,9 @@ class SecurityPipelineContractTest {
                 reqCtx(),
                 null
             )
-        }.exceptionOrNull() as? HttpException
-            ?: error("Expected HttpException for permission-implies-auth fail-fast")
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, httpStatusForErrorCode(ex.code))
+        }.exceptionOrNull() as? IllegalStateException
+            ?: error("Expected IllegalStateException for permission-implies-auth fail-fast")
+        assertTrue(ex.message!!.contains("SecurityComponent"))
     }
 
     // --- Test 16: @FreshAuth 字段默认 false ---

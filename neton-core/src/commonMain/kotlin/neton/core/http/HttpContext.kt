@@ -100,6 +100,7 @@ enum class HttpStatus(val code: Int, val message: String) {
     FORBIDDEN(403, "Forbidden"),
     NOT_FOUND(404, "Not Found"),
     METHOD_NOT_ALLOWED(405, "Method Not Allowed"),
+    REQUEST_TIMEOUT(408, "Request Timeout"),
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
     CONFLICT(409, "Conflict"),
     GONE(410, "Gone"),

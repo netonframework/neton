@@ -346,16 +346,16 @@ public class DefaultHttpAdapter(
     ): StreamResponse<out StreamBody> {
         val connectionJob = currentCoroutineContext()[Job]
         if (!accepting.load() || !admit()) {
-            return rejection(503, "Service Unavailable", !request.body.isEndStream).toStreamResponse(connectionJob)
+            return rejection(503, !request.body.isEndStream).toStreamResponse(connectionJob)
         }
         var handedOff = false
         var reservation = 0L
         try {
-            if (!accepting.load()) return rejection(503, "Service Unavailable", !request.body.isEndStream).toStreamResponse(connectionJob)
+            if (!accepting.load()) return rejection(503, !request.body.isEndStream).toStreamResponse(connectionJob)
             if (!request.body.isEndStream) {
                 // Reserve a small initial buffer, then grow admission before growing the array.
                 val required = 2 * minOf(options.maxRequestBodyBytes, 1024)
-                if (!reserveBody(required)) return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
+                if (!reserveBody(required)) return rejection(503).toStreamResponse(connectionJob)
                 reservation = required
             }
             val body = try {
@@ -378,13 +378,13 @@ public class DefaultHttpAdapter(
                     }
                 }
             } catch (_: TimeoutCancellationException) {
-                return bodyTimeout().toStreamResponse(connectionJob)
+                return bodyTimeout(dispatcher).toStreamResponse(connectionJob)
             } catch (e: neton.http.HttpError) {
                 if (!e.isTimeout()) throw e
-                return bodyTimeout().toStreamResponse(connectionJob)
+                return bodyTimeout(dispatcher).toStreamResponse(connectionJob)
             } catch (_: BodyBudgetExceeded) {
-                return rejection(503, "Service Unavailable").toStreamResponse(connectionJob)
-            } ?: return bodyTooLarge().toStreamResponse(connectionJob)
+                return rejection(503).toStreamResponse(connectionJob)
+            } ?: return bodyTooLarge(dispatcher).toStreamResponse(connectionJob)
             val acceptEncoding = headerString(request, "accept-encoding")
             val buffered = request.toBuffered(body, peer, secure,
                 onUpgrade != null && request.extensions.get<neton.http.OnUpgrade>() != null)
@@ -418,11 +418,11 @@ public class DefaultHttpAdapter(
                     if (response != null) ready.complete(response)
                 } catch (_: TimeoutCancellationException) {
                     // Once streaming, the head is out: nothing can be sent but the end of the body.
-                    if (!live.isStreaming) ready.complete(failure(504, "Gateway Timeout"))
+                    if (!live.isStreaming) ready.complete(failure(504))
                 } catch (_: CancellationException) {
-                    if (!live.isStreaming) ready.complete(failure(503, "Service Unavailable"))
+                    if (!live.isStreaming) ready.complete(failure(503))
                 } catch (_: Throwable) {
-                    if (!live.isStreaming) ready.complete(failure(500, "Internal Server Error"))
+                    if (!live.isStreaming) ready.complete(failure(500))
                 } finally {
                     release(reserved)
                 }
@@ -500,13 +500,13 @@ public class DefaultHttpAdapter(
     internal val connectionHandlerJobs: Int get() = handlerJob.children.count()
     internal val reservedRequestBytes: Long get() = bufferedBytes.load()
 
-    private fun rejection(status: Int, message: String, close: Boolean = true): EngineResponse {
-        val response = failure(status, message)
+    private fun rejection(status: Int, close: Boolean = true): EngineResponse {
+        val response = failure(status)
         return if (close) EngineResponse(response.status, response.headers + ("Connection" to listOf("close")), response.body) else response
     }
 
-    private fun failure(status: Int, message: String): EngineResponse =
-        dispatcher.transportFailureResponse(status, message).toEngine()
+    private fun failure(status: Int): EngineResponse =
+        dispatcher.transportFailureResponse(status).toEngine()
 
     private fun logger() = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
 
@@ -626,18 +626,14 @@ private val EMPTY = ByteArray(0)
  * §15.5.9, the client was too slow), not 504, which names a timeout of the server's own upstream.
  * The body is left unread, so the connection closes.
  */
-private fun bodyTimeout() = EngineResponse(
-    status = 408,
-    headers = mapOf("Content-Type" to listOf("text/plain; charset=utf-8"), "Connection" to listOf("close")),
-    body = "request body timeout".encodeToByteArray(),
-)
+private fun bodyTimeout(dispatcher: BufferedHttpDispatcher): EngineResponse {
+    val response = dispatcher.transportFailureResponse(408).toEngine()
+    return EngineResponse(response.status, response.headers + ("Connection" to listOf("close")), response.body)
+}
 
-/** hyper4k answers an oversized body with 413 and this text, before the handler is involved. */
-private fun bodyTooLarge() = EngineResponse(
-    status = 413,
-    headers = mapOf("Content-Type" to listOf("text/plain; charset=utf-8")),
-    body = "request body too large".encodeToByteArray(),
-)
+/** An oversized body is answered with the 413 `PAYLOAD_TOO_LARGE` envelope, before the handler is involved. */
+private fun bodyTooLarge(dispatcher: BufferedHttpDispatcher): EngineResponse =
+    dispatcher.transportFailureResponse(413).toEngine()
 
 /**
  * The library request as the framework's [BufferedHttpRequest]. Header lookups go straight to the

@@ -16,9 +16,9 @@ import kotlinx.serialization.json.JsonNull
  * ```
  *
  * - `code`: `protocol::ErrorCode` 数字（spec ERROR_CODE_SPEC），`0` 成功，非 0 错误
- * - `message`: 简短描述（错误时携带可读信息，成功时通常为 `"OK"`）
+ * - `message`: 成功为 `"OK"`；错误时为**机器码**（`UPPER_SNAKE_CASE`，见 [NetonErrorMessage]），不是句子
  * - `data`: 业务数据；错误时**必须** `null`
- * - `errors`: 仅错误时可选出现，字段级错误列表 `[{ "field", "message", "code" }]`（参数校验、业务逐字段拒绝）；
+ * - `errors`: 仅错误时可选出现，字段级错误列表 `[{ "field", "message", "code", "params"? }]`（参数校验、业务逐字段拒绝）；
  *   没有字段错误时不输出这个键，成功响应永远不带它
  *
  * 序列化默认经 [kotlinx.serialization]；neton-http 对常见值形态（null/String/数字/Boolean/Map/Iterable）
@@ -48,14 +48,20 @@ data class ApiEnvelope(
 
         /** 错误，携带字段级错误；列表为空时与 [error] 相同。 */
         fun error(code: Int, message: String, errors: List<ValidationError>): ApiEnvelope =
-            ApiEnvelope(code, message, null, errors.takeIf { it.isNotEmpty() }?.map { ApiFieldError(it.path, it.message, it.code) })
+            ApiEnvelope(code, message, null, errors.takeIf { it.isNotEmpty() }?.map { ApiFieldError(it.path, it.message, it.code, it.params) })
     }
 }
 
-/** 字段级错误的对外形态：`field` 为字段路径（如 `body[2].text`），`code` 为机器码（可空）。 */
+/**
+ * 字段级错误的对外形态：`field` 为字段路径（如 `body[2].text`），`code` 为机器码，`message` 与 `code`
+ * 相同（不放句子），`params` 为约束值（如 `{"min":2,"max":32}`），没有时不输出。
+ */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ApiFieldError(
     val field: String,
     val message: String,
     val code: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val params: Map<String, Long>? = null,
 )

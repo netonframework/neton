@@ -88,7 +88,7 @@ class RedisLockManager(
         block: suspend () -> T
     ): T {
         val lock = tryLock(key, ttl, wait, retryInterval)
-            ?: throw LockNotAcquiredException("Lock not acquired for key: $key", key)
+            ?: throw LockNotAcquiredException(key = key)
         try {
             return block()
         } finally {

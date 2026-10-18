@@ -173,11 +173,12 @@ class Hyper4kHttpAdapterTest {
 
     @Test
     fun keepsNetonEnvelopeForTransportTimeout() {
-        val response = newAdapter(HttpServerConfig(port = 0)).transportFailureResponse(504, "Gateway Timeout")
+        val response = newAdapter(HttpServerConfig(port = 0)).transportFailureResponse(504)
         val envelope = Json.parseToJsonElement(response.body.decodeToString()).jsonObject
 
         assertEquals(504, response.status)
         assertEquals(NetonErrorCode.TIMEOUT, envelope.getValue("code").jsonPrimitive.content.toInt())
+        assertEquals("TIMEOUT", envelope.getValue("message").jsonPrimitive.content)
     }
 }
 

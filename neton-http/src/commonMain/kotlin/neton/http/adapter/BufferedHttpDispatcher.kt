@@ -29,6 +29,7 @@ import neton.core.http.JsonContent
 import neton.core.http.MemoryHttpSession
 import neton.core.http.MutableHeaders
 import neton.core.http.NetonErrorCode
+import neton.core.http.NetonErrorMessage
 import neton.core.http.Parameters
 import neton.core.http.SimpleCookie
 import neton.core.http.UploadFiles
@@ -386,7 +387,7 @@ public class BufferedHttpDispatcher(
             errorResponse(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 NetonErrorCode.SERVICE_UNAVAILABLE,
-                "RequestEngine is not available",
+                NetonErrorMessage.SERVICE_UNAVAILABLE,
             ),
             null,
         )
@@ -394,7 +395,7 @@ public class BufferedHttpDispatcher(
             errorResponse(
                 HttpStatus.METHOD_NOT_ALLOWED,
                 NetonErrorCode.OPERATION_NOT_ALLOWED,
-                "Unsupported HTTP method: ${request.method}",
+                NetonErrorMessage.METHOD_NOT_ALLOWED,
             ),
             null,
         )
@@ -402,7 +403,7 @@ public class BufferedHttpDispatcher(
             errorResponse(
                 HttpStatus.NOT_FOUND,
                 NetonErrorCode.RESOURCE_NOT_FOUND,
-                "Route not found: ${request.method} ${request.path}",
+                NetonErrorMessage.ROUTE_NOT_FOUND,
             ),
             null,
         )
@@ -514,7 +515,7 @@ public class BufferedHttpDispatcher(
             writeErrorLog(request, context, e)
             // 兜底未捕获异常 → InternalError（spec ERROR_CODE_SPEC system 段），HTTP 仍 500
             DispatchOutcome(
-                errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, NetonErrorCode.INTERNAL_ERROR, "Internal Server Error"),
+                errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, NetonErrorCode.INTERNAL_ERROR, NetonErrorMessage.INTERNAL_ERROR),
                 matched.route.pattern,
                 context,
             )
@@ -629,15 +630,15 @@ public class BufferedHttpDispatcher(
         val cors = corsConfig() ?: return errorResponse(
             HttpStatus.FORBIDDEN,
             NetonErrorCode.PERMISSION_DENIED,
-            "CORS is not enabled",
+            NetonErrorMessage.CORS_NOT_ENABLED,
         )
         val origin = request.header("Origin") ?: return errorResponse(
             HttpStatus.BAD_REQUEST,
             NetonErrorCode.INVALID_PARAMS,
-            "Origin header is required",
+            NetonErrorMessage.ORIGIN_REQUIRED,
         )
         if (!cors.allowsOrigin(origin)) {
-            return errorResponse(HttpStatus.FORBIDDEN, NetonErrorCode.PERMISSION_DENIED, "Origin is not allowed")
+            return errorResponse(HttpStatus.FORBIDDEN, NetonErrorCode.PERMISSION_DENIED, NetonErrorMessage.ORIGIN_NOT_ALLOWED)
         }
         return BufferedHttpResponse(
             status = HttpStatus.NO_CONTENT.code,
@@ -822,11 +823,20 @@ public class BufferedHttpDispatcher(
     private fun errorResponse(status: HttpStatus, code: Int, message: String): BufferedHttpResponse =
         envelopeResponse(status, ApiEnvelope.error(code, message))
 
-    public fun transportFailureResponse(status: Int, message: String): BufferedHttpResponse = when (status) {
-        HttpStatus.GATEWAY_TIMEOUT.code -> errorResponse(HttpStatus.GATEWAY_TIMEOUT, NetonErrorCode.TIMEOUT, message)
+    /**
+     * 传输层在 handler 之前/之外拒绝请求时的信封（超时、停机、过载、请求体过大）。
+     * `message` 按 status 固定为机器码（[NetonErrorMessage]），传输层的描述只进日志。
+     */
+    public fun transportFailureResponse(status: Int): BufferedHttpResponse = when (status) {
+        HttpStatus.GATEWAY_TIMEOUT.code ->
+            errorResponse(HttpStatus.GATEWAY_TIMEOUT, NetonErrorCode.TIMEOUT, NetonErrorMessage.TIMEOUT)
         HttpStatus.SERVICE_UNAVAILABLE.code ->
-            errorResponse(HttpStatus.SERVICE_UNAVAILABLE, NetonErrorCode.SERVICE_UNAVAILABLE, message)
-        else -> errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, NetonErrorCode.INTERNAL_ERROR, message)
+            errorResponse(HttpStatus.SERVICE_UNAVAILABLE, NetonErrorCode.SERVICE_UNAVAILABLE, NetonErrorMessage.SERVICE_UNAVAILABLE)
+        HttpStatus.PAYLOAD_TOO_LARGE.code ->
+            errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, NetonErrorCode.PAYLOAD_TOO_LARGE, NetonErrorMessage.PAYLOAD_TOO_LARGE)
+        HttpStatus.REQUEST_TIMEOUT.code ->
+            errorResponse(HttpStatus.REQUEST_TIMEOUT, NetonErrorCode.TIMEOUT, NetonErrorMessage.REQUEST_TIMEOUT)
+        else -> errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, NetonErrorCode.INTERNAL_ERROR, NetonErrorMessage.INTERNAL_ERROR)
     }
 
     private val jsonHeaders: Map<String, List<String>> =

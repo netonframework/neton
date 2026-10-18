@@ -47,7 +47,8 @@ enum class RateLimitStrategy {
  * @param scope          限流作用域（USER / IP / GLOBAL / CUSTOM）
  * @param key            自定义 key（仅 scope=CUSTOM 时有效，支持 query:/header:/path: 前缀）
  * @param strategy       限流策略（v1 仅支持 FIXED_WINDOW）
- * @param message        被限流时的返回消息
+ * @param message        被限流时信封的 `message`：必须是机器码（如 `LOGIN_RATE_LIMITED`），KSP 编译期校验；
+ *                       缺省 `RATE_LIMITED`。信封 `code` 固定为 `NetonErrorCode.RATE_LIMIT_EXCEEDED`
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
@@ -57,5 +58,5 @@ annotation class RateLimit(
     val scope: RateLimitScope = RateLimitScope.USER,
     val key: String = "",
     val strategy: RateLimitStrategy = RateLimitStrategy.FIXED_WINDOW,
-    val message: String = "Too many requests"
+    val message: String = neton.core.http.NetonErrorMessage.RATE_LIMITED
 )

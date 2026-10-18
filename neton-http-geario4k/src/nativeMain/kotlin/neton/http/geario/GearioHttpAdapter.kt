@@ -93,7 +93,7 @@ private class NativeState(private val dispatcher: BufferedHttpDispatcher) {
 
             override fun resumeWith(result: Result<BufferedHttpResponse>) {
                 val response = result.getOrElse {
-                    dispatcher.transportFailureResponse(500, "Internal Server Error")
+                    dispatcher.transportFailureResponse(500)
                 }
                 respond(responder, response)
             }

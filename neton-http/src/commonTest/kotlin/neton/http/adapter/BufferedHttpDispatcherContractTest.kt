@@ -299,7 +299,7 @@ class BufferedHttpDispatcherContractTest {
         )
         val context = NetonContext(emptyArray()).apply {
             bind(RequestEngine::class, FixedRequestEngine(listOf(
-                route("/with", listOf(neton.core.http.ValidationError("body[2].text", "is required", "Missing"))),
+                route("/with", listOf(neton.core.http.ValidationError.of("body[2].text", "REQUIRED"))),
                 route("/without", emptyList()),
             )))
         }
@@ -307,7 +307,7 @@ class BufferedHttpDispatcherContractTest {
 
         val with = dispatcher.dispatch(BufferedHttpRequest("POST", "/with", "", emptyMap(), ByteArray(0))).body.decodeToString()
         assertEquals(
-            """{"code":10100,"message":"BODY_INVALID","data":null,"errors":[{"field":"body[2].text","message":"is required","code":"Missing"}]}""",
+            """{"code":10100,"message":"BODY_INVALID","data":null,"errors":[{"field":"body[2].text","message":"REQUIRED","code":"REQUIRED"}]}""",
             with,
         )
         val without = dispatcher.dispatch(BufferedHttpRequest("POST", "/without", "", emptyMap(), ByteArray(0))).body.decodeToString()
@@ -324,7 +324,7 @@ class BufferedHttpDispatcherContractTest {
                 override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs): Any =
                     throw neton.core.http.HttpException(
                         neton.core.http.NetonErrorCode.RATE_LIMIT_EXCEEDED,
-                        "Too many failed attempts",
+                        "LOGIN_RATE_LIMITED",
                         headers = mapOf("Retry-After" to "120"),
                     )
             },
@@ -338,6 +338,80 @@ class BufferedHttpDispatcherContractTest {
         assertEquals(429, result.status)
         assertEquals(listOf("120"), result.headers["Retry-After"])
         assertTrue(result.headers["Content-Type"]!!.single().startsWith("application/json"))
+    }
+    // ---- 框架自己产生的错误：message 一律是机器码 ----
+
+    private fun throwingRoute(path: String, error: Throwable) = RouteDefinition(
+        pattern = path,
+        method = HttpMethod.GET,
+        allowAnonymous = true,
+        handler = object : RouteHandler {
+            override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs): Any = throw error
+        },
+    )
+
+    private fun dispatcherWith(vararg routes: RouteDefinition): BufferedHttpDispatcher {
+        val context = NetonContext(emptyArray()).apply { bind(RequestEngine::class, FixedRequestEngine(routes.toList())) }
+        return BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(context) }
+    }
+
+    @Test
+    fun routeNotFoundIsAMachineCode() = runBlocking {
+        val result = dispatcherWith().dispatch(BufferedHttpRequest("GET", "/nope", "", emptyMap(), ByteArray(0)))
+        assertEquals(404, result.status)
+        assertEquals("""{"code":10201,"message":"ROUTE_NOT_FOUND","data":null}""", result.body.decodeToString())
+    }
+
+    @Test
+    fun unsupportedMethodIsAMachineCode() = runBlocking {
+        val result = dispatcherWith().dispatch(BufferedHttpRequest("BREW", "/x", "", emptyMap(), ByteArray(0)))
+        assertEquals(405, result.status)
+        assertEquals("""{"code":10200,"message":"METHOD_NOT_ALLOWED","data":null}""", result.body.decodeToString())
+    }
+
+    @Test
+    fun unhandledExceptionNeverLeaksItsText() = runBlocking {
+        val result = dispatcherWith(throwingRoute("/boom", IllegalStateException("db password is hunter2")))
+            .dispatch(BufferedHttpRequest("GET", "/boom", "", emptyMap(), ByteArray(0)))
+        assertEquals(500, result.status)
+        assertEquals("""{"code":4,"message":"INTERNAL_ERROR","data":null}""", result.body.decodeToString())
+    }
+
+    @Test
+    fun frameworkExceptionDefaultsAreMachineCodes() = runBlocking {
+        val d = dispatcherWith(
+            throwingRoute("/nf", neton.core.http.NotFoundException()),
+            throwingRoute("/bad", neton.core.http.BadRequestException()),
+            throwingRoute("/auth", neton.core.http.UnauthorizedException()),
+            throwingRoute("/media", neton.core.http.UnsupportedMediaTypeException()),
+            throwingRoute("/lock", neton.core.http.LockNotAcquiredException(key = "k")),
+            throwingRoute("/invalid", neton.core.http.ValidationException(listOf(neton.core.http.ValidationError.of("name", "REQUIRED")))),
+        )
+        suspend fun message(path: String) = kotlinx.serialization.json.Json.parseToJsonElement(
+            d.dispatch(BufferedHttpRequest("GET", path, "", emptyMap(), ByteArray(0))).body.decodeToString()
+        ).let { (it as kotlinx.serialization.json.JsonObject)["message"].toString().trim('"') }
+        assertEquals("RESOURCE_NOT_FOUND", message("/nf"))
+        assertEquals("INVALID_PARAMS", message("/bad"))
+        assertEquals("AUTH_REQUIRED", message("/auth"))
+        assertEquals("UNSUPPORTED_MEDIA_TYPE", message("/media"))
+        assertEquals("LOCK_NOT_ACQUIRED", message("/lock"))
+        assertEquals("VALIDATION_FAILED", message("/invalid"))
+    }
+
+    @Test
+    fun transportFailuresAreMachineCodes() {
+        val d = dispatcherWith()
+        mapOf(
+            504 to """{"code":5,"message":"TIMEOUT","data":null}""",
+            503 to """{"code":3,"message":"SERVICE_UNAVAILABLE","data":null}""",
+            413 to """{"code":10106,"message":"PAYLOAD_TOO_LARGE","data":null}""",
+            408 to """{"code":5,"message":"REQUEST_TIMEOUT","data":null}""",
+            500 to """{"code":4,"message":"INTERNAL_ERROR","data":null}""",
+        ).forEach { (status, body) ->
+            val response = d.transportFailureResponse(status)
+            assertEquals(status, response.status)
+            assertEquals(body, response.body.decodeToString())
+        }
     }
 }
 

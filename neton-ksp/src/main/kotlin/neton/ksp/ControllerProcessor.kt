@@ -494,7 +494,16 @@ ${
             val strategyExpr = rateLimitAnn.arguments
                 .firstOrNull { it.name?.asString() == "strategy" }
                 ?.enumName() ?: "FIXED_WINDOW"
-            val message = (rateLimitAnn.arguments.firstOrNull { it.name?.asString() == "message" }?.value as? String) ?: "Too many requests"
+            val message = (rateLimitAnn.arguments.firstOrNull { it.name?.asString() == "message" }?.value as? String)
+                ?.takeIf { it.isNotEmpty() } ?: "RATE_LIMITED"
+            // message 原样进响应信封：必须是机器码（客户端按它翻译），不能是句子
+            if (!MACHINE_CODE.matches(message)) {
+                logger.error(
+                    "Neton @RateLimit: message=\"$message\" is not a machine code. Use an UPPER_SNAKE_CASE code " +
+                        "(e.g. LOGIN_RATE_LIMITED) from the module's ErrorCodes catalogue, or omit it for RATE_LIMITED.",
+                    function
+                )
+            }
             // Validate strategy at compile time
             if (strategyExpr != "FIXED_WINDOW") {
                 logger.error(
@@ -720,12 +729,12 @@ ${
                             // path="\$" in generated source → literal "$" in JSON (Kotlin string escape)
                             """run {
                                 val ct = context.request.contentType?.lowercase() ?: ""
-                                if (!ct.contains("application/json")) throw UnsupportedMediaTypeException("Body requires application/json")
+                                if (!ct.contains("application/json")) throw UnsupportedMediaTypeException()
                                 val raw = context.request.text()
                                 val body = try {
                                     Json.decodeFromString($bodySerializerExpr, raw)
                                 } catch (e: Exception) {
-                                    throw ValidationException(listOf(ValidationError(path = "\$", message = "Invalid JSON body", code = "InvalidJson")))
+                                    throw neton.core.http.HttpException(neton.core.http.NetonErrorCode.INVALID_JSON, "INVALID_JSON", listOf(ValidationError.of("\$", "INVALID_JSON")))
                                 }
                                 val registry = context.getApplicationContext()?.getOrNull(neton.validation.ValidatorRegistry::class)
                                 val validator = registry?.get($typeName::class)
@@ -742,7 +751,7 @@ ${
 
                         cookie != null -> {
                             val c = cookie.arguments.firstOrNull()?.value as? String ?: paramName
-                            if (isNullable) "context.request.cookie(\"$c\")?.value" else "(context.request.cookie(\"$c\")?.value ?: throw ValidationException(listOf(ValidationError(path = \"$c\", message = \"is required\", code = \"Missing\"))))"
+                            if (isNullable) "context.request.cookie(\"$c\")?.value" else "(context.request.cookie(\"$c\")?.value ?: throw ValidationException(listOf(ValidationError.of(\"$c\", \"REQUIRED\"))))"
                         }
 
                         else -> generateArgConversion(param, actualParamName, paramType, isNullable)
@@ -849,19 +858,20 @@ ${
         val literal = if (hasDefault && !isNullable) literalDefault(param, paramType) else null
         fun fallback(zero: String) = literal ?: zero
         fun missingThrow() =
-            "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"is required\", code = \"Missing\")))"
+            "throw ValidationException(listOf(ValidationError.of(\"$actualParamName\", \"REQUIRED\")))"
 
-        fun typeThrow(msg: String) =
-            "throw ValidationException(listOf(ValidationError(path = \"$actualParamName\", message = \"$msg\", code = \"Type\")))"
+        // 类型不符的字段码：INVALID_INTEGER / INVALID_NUMBER / INVALID_BOOLEAN / INVALID_VALUE（机器码，客户端翻译）
+        fun typeThrow(code: String) =
+            "throw ValidationException(listOf(ValidationError.of(\"$actualParamName\", \"$code\")))"
         return when (paramType) {
             "kotlin.collections.List" -> {
                 val elemType = param.type.element?.typeArguments?.firstOrNull()?.type?.resolve()?.toString()
                     ?.substringAfterLast('.') ?: "String"
                 val typeMsg = when (elemType) {
-                    "Int", "Long" -> "must be a valid integer"
-                    "Double", "Float" -> "must be a valid number"
-                    "Boolean" -> "must be true/false/1/0/on/off"
-                    else -> "invalid value"
+                    "Int", "Long" -> "INVALID_INTEGER"
+                    "Double", "Float" -> "INVALID_NUMBER"
+                    "Boolean" -> "INVALID_BOOLEAN"
+                    else -> "INVALID_VALUE"
                 }
                 val parseExpr = when (elemType) {
                     "Int" -> "ParamConverters.parseInt(s) ?: ${typeThrow(typeMsg)}"
@@ -889,31 +899,31 @@ ${
             "kotlin.String" -> if (isNullable) raw else if (required) "run { val _r = $raw; if (_r == null) ${missingThrow()}; _r }" else "($raw ?: ${fallback("\"\"")})"
             "kotlin.Int" -> if (isNullable) "ParamConverters.parseInt($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseInt($rawOrEmpty) ?: ${fallback("0")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseInt(_r) ?: ${
                 typeThrow(
-                    "must be a valid integer"
+                    "INVALID_INTEGER"
                 )
             } }"
 
             "kotlin.Long" -> if (isNullable) "ParamConverters.parseLong($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseLong($rawOrEmpty) ?: ${fallback("0L")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseLong(_r) ?: ${
                 typeThrow(
-                    "must be a valid integer"
+                    "INVALID_INTEGER"
                 )
             } }"
 
             "kotlin.Boolean" -> if (isNullable) "ParamConverters.parseBoolean($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseBoolean($rawOrEmpty) ?: ${fallback("false")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseBoolean(_r) ?: ${
                 typeThrow(
-                    "must be true/false/1/0/on/off"
+                    "INVALID_BOOLEAN"
                 )
             } }"
 
             "kotlin.Double" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty) ?: ${fallback("0.0")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r) ?: ${
                 typeThrow(
-                    "must be a valid number"
+                    "INVALID_NUMBER"
                 )
             } }"
 
             "kotlin.Float" -> if (isNullable) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat()" else if (hasDefault) "ParamConverters.parseDouble($rawOrEmpty)?.toFloat() ?: ${fallback("0f")}" else "run { val _r = $raw; if (_r == null) ${missingThrow()}; ParamConverters.parseDouble(_r)?.toFloat() ?: ${
                 typeThrow(
-                    "must be a valid number"
+                    "INVALID_NUMBER"
                 )
             } }"
 
@@ -921,7 +931,7 @@ ${
                 paramType.substringAfterLast(
                     '.'
                 )
-            }) ?: ${typeThrow("invalid value")} }" else "($raw as ${paramType.substringAfterLast('.')}) ?: ${typeThrow("invalid value")}"
+            }) ?: ${typeThrow("INVALID_VALUE")} }" else "($raw as ${paramType.substringAfterLast('.')}) ?: ${typeThrow("INVALID_VALUE")}"
         }
     }
 
@@ -994,8 +1004,8 @@ ${
             resolveLockKeyExpression(keyTemplate)
         }
         val ctxBlock = """
-                        val ctx = context.getApplicationContext() ?: throw HttpException(neton.core.http.NetonErrorCode.INTERNAL_ERROR, "Cache annotations require NetonContext")
-                        val cacheManager = ctx.getOrNull(neton.cache.CacheManager::class) ?: throw HttpException(neton.core.http.NetonErrorCode.INTERNAL_ERROR, "CacheManager not bound. Install cache { } to enable @Cacheable.")
+                        val ctx = context.getApplicationContext() ?: throw IllegalStateException("Cache annotations require NetonContext")
+                        val cacheManager = ctx.getOrNull(neton.cache.CacheManager::class) ?: throw IllegalStateException("CacheManager not bound. Install cache { } to enable @Cacheable.")
 """.trimIndent()
         val ttlExpr = if (ttlMs > 0) "${ttlMs}L.milliseconds" else "null"
 

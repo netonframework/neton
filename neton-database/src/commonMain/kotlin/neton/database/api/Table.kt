@@ -63,7 +63,7 @@ interface Table<T : Any, ID : Any> {
 }
 
 suspend fun <T : Any, ID : Any> Table<T, ID>.getOrThrow(id: ID): T =
-    get(id) ?: throw NotFoundException("Entity not found: id=$id")
+    get(id) ?: throw NotFoundException()
 
 interface QueryBuilder<T : Any> {
     fun where(block: QueryContext<T>.() -> QueryCondition): QueryBuilder<T>

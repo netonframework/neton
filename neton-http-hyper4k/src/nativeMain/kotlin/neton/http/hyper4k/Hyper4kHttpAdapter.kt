@@ -48,8 +48,9 @@ public class Hyper4kHttpAdapter(
             // timeout = 0 表示关掉每请求超时，但停机仍要留出排空时间——直接取 min
             // 会把优雅停机也一起归零。
             shutdownGraceMillis = if (serverConfig.timeout > 0) minOf(serverConfig.timeout, 5_000L) else 5_000L,
-            failureResponse = { status, message ->
-                dispatcher.transportFailureResponse(status, message).toHyper4k()
+            failureResponse = { status, _ ->
+                // hyper4k 的描述只是传输层诊断；信封 message 由 status 决定（机器码）
+                dispatcher.transportFailureResponse(status).toHyper4k()
             },
             tls = serverConfig.tls?.let {
                 Hyper4kTls(it.certificatePath, it.privateKeyPath, it.alpnProtocols)
@@ -175,8 +176,8 @@ public class Hyper4kHttpAdapter(
         }
     }
 
-    internal fun transportFailureResponse(status: Int, message: String): Hyper4kResponse =
-        dispatcher.transportFailureResponse(status, message).toHyper4k()
+    internal fun transportFailureResponse(status: Int): Hyper4kResponse =
+        dispatcher.transportFailureResponse(status).toHyper4k()
 
     private fun logger() = appContext?.getOrNull(LoggerFactory::class)?.get("neton.http")
 }
