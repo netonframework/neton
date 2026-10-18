@@ -332,6 +332,11 @@ class Neton private constructor() {
                 val application = KotlinApplication(adapter.port(), ctx)
                 userBlock?.invoke(application)
 
+                // 全部配置（application.conf + 各模块命名空间）都已加载：每个 CLI 覆盖必须落到某份
+                // 配置上，否则启动失败（spec 5.4.2）。漏了命名空间前缀的 `--default.uri=...`
+                // 曾被静默忽略，脚本连着默认开发库跑了两个月。
+                ConfigLoader.validateOverrides("config", env, args)
+
                 ctx.markValidating()
                 validateRuntimeGraph(ctx)
                 // 监听者与持久化设施都登记完了：转只读，并校验 RETRYABLE 有落库设施

@@ -25,3 +25,9 @@ expect fun getProcessId(): Int
  * 读取单个环境变量，用于 banner 的 Environment 等。
  */
 expect fun getEnv(key: String): String?
+
+/**
+ * 让未被捕获的 [ConfigOverrideException] 以退出码 1 结束进程（5.4.2）。
+ * 抛出该异常前调用；调用方自己 catch 并映射退出码（如 `migrate` 子命令）时不受影响。
+ */
+internal expect fun exitOnUncaughtConfigOverrideError()

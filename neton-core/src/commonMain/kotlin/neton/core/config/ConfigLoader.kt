@@ -1,6 +1,7 @@
 package neton.core.config
 
 import neton.core.CoreLog
+import kotlin.concurrent.AtomicReference
 
 /**
  * 配置加载器 - Core 模块纯文件加载器
@@ -24,6 +25,19 @@ import neton.core.CoreLog
 object ConfigLoader {
     
     private const val DEFAULT_CONFIG_PATH = "config"
+
+    /**
+     * 本进程加载过的模块命名空间 → 文件内容（合并环境文件后、应用覆盖前）。
+     * 用于 [validateOverrides] 判定命名空间存在，以及给漏前缀的覆盖推断正确写法。
+     */
+    private val loadedNamespaces = AtomicReference<Map<String, Map<String, Any?>>>(emptyMap())
+
+    private fun recordNamespace(namespace: String, content: Map<String, Any?>) {
+        while (true) {
+            val current = loadedNamespaces.value
+            if (loadedNamespaces.compareAndSet(current, current + (namespace to content))) return
+        }
+    }
     
     /**
      * 从启动参数 --env=xxx 或 ENV 解析 environment，默认 dev。
@@ -64,7 +78,112 @@ object ConfigLoader {
         }
         // 命名空间取文件名（DataModule → database.conf → "database"），不是传入的 moduleName。
         val namespace = configFileName.removeSuffix(".conf")
+        recordNamespace(namespace, merged)
+        rejectOverridesMissingThisNamespace(namespace, merged, configPath, environment, args)
         return ConfigOverrides.applyModuleOverrides(namespace, merged.toMutableMap(), getEnvMap(), args)
+    }
+
+    /**
+     * 加载模块时就拦下最常见的错误：CLI 覆盖漏了命名空间前缀，而第一段恰好是本模块文件里的段
+     * （`--default.uri=...` 之于 database.conf 的 `[default]`）。
+     *
+     * 不能只靠启动末尾的 [validateOverrides]：`migrate` 子命令和启动前 precheck 不走 `Neton.run`，
+     * 只加载 database.conf 就去连库 —— 漏前缀的 uri 被忽略，连上的是默认开发库。
+     */
+    private fun rejectOverridesMissingThisNamespace(
+        namespace: String,
+        content: Map<String, Any?>,
+        configPath: String,
+        environment: String?,
+        args: Array<String>,
+    ) {
+        val suspects = ConfigOverrides.cliOverrideEntries(args).filter { (_, path) ->
+            val root = path.substringBefore(".")
+            !root.equals(namespace, ignoreCase = true) && content.keys.any { it.equals(root, ignoreCase = true) }
+        }
+        if (suspects.isEmpty()) return
+        val unknown = ConfigOverrides.findUnknownOverrides(
+            env = emptyMap(),
+            args = suspects.map { (arg, _) -> args.first { it.startsWith("$arg=") } }.toTypedArray(),
+            appRoots = rawApplicationRoots(configPath, environment),
+            namespaces = loadedNamespaces.value,
+            // 此刻别的模块可能还没加载：框架组件的命名空间一律算已知，宁可漏报不误报，
+            // 启动末尾的 validateOverrides 会再按实际装配严格校验一遍。
+            namespaceDeclared = {
+                it.lowercase() in FRAMEWORK_MODULE_NAMESPACES || namespaceFileExists(it, configPath, environment)
+            },
+        )
+        if (unknown.isNotEmpty()) failOnUnknownOverrides(unknown)
+    }
+
+    /**
+     * 5.4.2：每个 CLI `--key=value` 与每个 `NETON_*` 环境变量都必须落到某份配置上。
+     *
+     * 在全部配置加载完之后调用（`Neton.run` 在组件 init/prepare 与用户块之后调用一次）。
+     * - CLI 未知根 → 打 `neton.config.override.unknown` 错误日志并抛 [ConfigOverrideException]（启动失败）
+     * - ENV 未知根 → 打 `neton.config.override.unused` 告警，不失败（共享 shell 里的变量可能属于别的宿主）
+     */
+    fun validateOverrides(
+        configPath: String = DEFAULT_CONFIG_PATH,
+        environment: String? = null,
+        args: Array<String> = emptyArray(),
+        env: Map<String, String> = getEnvMap(),
+    ) {
+        val unknown = ConfigOverrides.findUnknownOverrides(
+            env = env,
+            args = args,
+            appRoots = rawApplicationRoots(configPath, environment),
+            namespaces = loadedNamespaces.value,
+            namespaceDeclared = { namespaceFileExists(it, configPath, environment) },
+        )
+        val log = CoreLog.logOrBootstrap()
+        for (u in unknown.filter { it.source == ConfigSource.ENV }) {
+            log.warn("neton.config.override.unused", overrideFields(u))
+        }
+        val cli = unknown.filter { it.source == ConfigSource.CLI }
+        if (cli.isNotEmpty()) failOnUnknownOverrides(cli)
+    }
+
+    private fun failOnUnknownOverrides(unknown: List<UnknownConfigOverride>): Nothing {
+        val log = CoreLog.logOrBootstrap()
+        for (u in unknown) log.error("neton.config.override.unknown", overrideFields(u))
+        exitOnUncaughtConfigOverrideError()
+        throw ConfigOverrideException(unknown)
+    }
+
+    private fun overrideFields(u: UnknownConfigOverride): Map<String, Any?> = buildMap {
+        put("code", ConfigOverrideException.CODE)
+        put("source", u.source.name)
+        put("arg", u.arg)
+        put("root", u.root)
+        put(
+            "hint",
+            u.hint ?: when (u.source) {
+                ConfigSource.ENV -> "NETON_<NAMESPACE>__<KEY> for module config, or NETON_<SECTION>__<KEY> for application.conf"
+                else -> "--<namespace>.<key>=... for module config, or --<section>.<key>=... for application.conf"
+            },
+        )
+    }
+
+    /** application.conf（+ 环境文件）的根键，不含覆盖本身新增的键。 */
+    private fun rawApplicationRoots(configPath: String, environment: String?): Set<String> {
+        val base = loadRawConfigFile("$configPath/application.conf")?.keys ?: emptySet()
+        val envKeys = environment?.let { loadRawConfigFile("$configPath/application.$it.conf")?.keys } ?: emptySet()
+        return base + envKeys
+    }
+
+    /** 框架组件自己加载的模块命名空间（没有配置文件时也会用代码默认值加载）。 */
+    private val FRAMEWORK_MODULE_NAMESPACES = setOf("database", "redis", "cache", "storage", "jobs", "routing", "ai")
+
+    private val NAMESPACE_NAME = Regex("^[A-Za-z0-9_-]+$")
+
+    /** 配置目录里有 `<ns>.conf` 或 `<ns>.<env>.conf` —— 模块存在但本进程尚未（懒）加载它。 */
+    private fun namespaceFileExists(root: String, configPath: String, environment: String?): Boolean {
+        if (!NAMESPACE_NAME.matches(root)) return false
+        val name = root.lowercase()
+        if (name == "application") return false
+        if (readConfigFile("$configPath/$name.conf") != null) return true
+        return environment != null && readConfigFile("$configPath/$name.$environment.conf") != null
     }
 
     /**
