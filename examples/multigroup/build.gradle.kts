@@ -36,6 +36,11 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
             }
         }
+        commonTest {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
     }
 }
 
@@ -62,7 +67,7 @@ tasks.matching { it.name.matches(Regex("compileKotlin(MacosArm64|MacosX64|LinuxX
 }
 
 // link 依赖 libenv.a
-tasks.matching { it.name.startsWith("linkDebugExecutable") }.configureEach {
+tasks.matching { it.name.startsWith("linkDebugExecutable") || it.name.startsWith("linkDebugTest") }.configureEach {
     val targetName = when {
         name.contains("MacosArm64") -> "MacosArm64"
         name.contains("MacosX64") -> "MacosX64"

@@ -61,7 +61,7 @@ interface HttpContext {
     fun hasAttribute(name: String): Boolean = attributes.containsKey(name)
 
     /**
-     * 应用上下文（可选），用于在 handler 内获取 ValidatorRegistry 等组件。
+     * 应用上下文（可选），用于在 handler 内获取应用组件。
      * 默认 null；Ktor 等适配器在构造 HttpContext 时注入。
      */
     fun getApplicationContext(): NetonContext? = null

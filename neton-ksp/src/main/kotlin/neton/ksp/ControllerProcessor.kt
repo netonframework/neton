@@ -18,7 +18,10 @@ class ControllerProcessor(
     private val lockAnnotationName = "neton.redis.lock.Lock"
 
 
+    private lateinit var resolver: Resolver
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
+        this.resolver = resolver
         // 使用字符串名称查找注解，不依赖具体类
         val symbols = resolver.getSymbolsWithAnnotation(controllerAnnotationName)
         val controllers = symbols.filterIsInstance<KSClassDeclaration>().toList()
@@ -221,7 +224,6 @@ class ControllerProcessor(
                 extraImports.add("kotlinx.serialization.builtins.serializer")
             }
             if (bodyParamTypes.isNotEmpty()) {
-                extraImports.add("neton.validation.ValidatorRegistry")
                 bodyParamTypes.forEach { extraImports.add(it) }
             }
             if (hasSerializableReturn) {
@@ -736,10 +738,7 @@ ${
                                 } catch (e: Exception) {
                                     throw neton.core.http.HttpException(neton.core.http.NetonErrorCode.INVALID_JSON, "INVALID_JSON", listOf(ValidationError.of("\$", "INVALID_JSON")))
                                 }
-                                val registry = context.getApplicationContext()?.getOrNull(neton.validation.ValidatorRegistry::class)
-                                val validator = registry?.get($typeName::class)
-                                val errors = validator?.validate(body)
-                                if (!errors.isNullOrEmpty()) throw ValidationException(errors)
+                                ${bodyValidation(resolvedType)}
                                 body
                             }"""
                         }
@@ -843,6 +842,31 @@ ${
     )
 
     /** 单值/List 逐元素 parse（规范 v1.0.2）；必填时先 Missing 再 Type，Int/Long→integer、Double/Float→number */
+    /**
+     * 请求体校验：有约束的 DTO **直接调用**它的生成校验器（按确定名字引用，见 validatorFqnFor）。
+     * 不查运行期注册表——注册表曾是「先装的模块赢」的 bindIfAbsent，后装模块的 DTO 查不到校验器就被静默跳过。
+     * 引用不到（校验器没生成）就编译失败，所以不存在「有约束却没校验」的运行时路径。
+     */
+    private fun bodyValidation(type: KSType): String {
+        val decl = type.declaration as? KSClassDeclaration ?: return ""
+        val qualified = decl.qualifiedName?.asString()
+        if (qualified in neton.ksp.validation.VALIDATABLE_COLLECTIONS) {
+            val element = type.arguments.firstOrNull()?.type?.resolve() ?: return ""
+            val ref = neton.ksp.validation.validatorRefFor(resolver, element) ?: return ""
+            return """run {
+                                    val errors = mutableListOf<ValidationError>()
+                                    body.forEachIndexed { _i, _item -> _item?.let { _x -> $ref.validate(_x).forEach { e -> errors += e.copy(path = "[" + _i + "]." + e.path) } } }
+                                    if (errors.isNotEmpty()) throw ValidationException(errors)
+                                }"""
+        }
+        val ref = neton.ksp.validation.validatorRefFor(resolver, type.makeNotNullable()) ?: return ""
+        return if (type.isMarkedNullable) {
+            "body?.let { _b -> $ref.validate(_b).takeIf { it.isNotEmpty() }?.let { throw ValidationException(it) } }"
+        } else {
+            "$ref.validate(body).takeIf { it.isNotEmpty() }?.let { throw ValidationException(it) }"
+        }
+    }
+
     private fun generateArgConversion(
         param: com.google.devtools.ksp.symbol.KSValueParameter,
         actualParamName: String,
