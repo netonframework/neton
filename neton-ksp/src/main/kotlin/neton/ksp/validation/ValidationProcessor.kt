@@ -120,7 +120,8 @@ class ValidationProcessor(
             logger.error(
                 "Neton @$simpleName on '$propName': message=\"$customCode\" is not a machine code. " +
                     "Use an UPPER_SNAKE_CASE code (e.g. INVALID_MOBILE) or omit message to get the built-in code.",
-                ann
+                // 注解节点在部分 KSP 版本上没有位置信息；挂到所在属性上，报错带文件与行号
+                ann.parent ?: ann
             )
         }
         val valueArgs = when (simpleName) {
