@@ -255,7 +255,7 @@ class IndexController {
 ./gradlew run
 
 # 或使用命令行参数
-./gradlew run --args="--env=dev --config-path=config"
+./gradlew run --args="--env=dev --server.port=8081"
 ```
 
 ### 测试路由

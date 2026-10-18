@@ -28,7 +28,7 @@ fun loadExampleJwtRuntimeConfig(ctx: NetonContext): ExampleJwtRuntimeConfig {
     val secretKey = ConfigLoader.getString(appConfig, JWT_SECRET_PATH)?.trim()
         ?.takeIf { it.isNotEmpty() }
         ?: throw IllegalStateException(
-            "Missing JWT secret. Configure security.jwt.secretKey or NETON__SECURITY__JWT__SECRET_KEY."
+            "Missing JWT secret. Configure security.jwt.secretKey or NETON_SECURITY__JWT__SECRETKEY."
         )
 
     val headerName = ConfigLoader.getString(appConfig, JWT_HEADER_NAME_PATH)?.trim()
