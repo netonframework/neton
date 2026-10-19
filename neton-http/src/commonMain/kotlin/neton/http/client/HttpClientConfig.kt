@@ -28,8 +28,9 @@ class HttpClientConfig {
     /**
      * 出站地址策略：设置后，每条新连接都按 [OutboundAddressPolicy] 校验 scheme / 端口 / 解析出的**全部**地址，
      * 只连校验过的地址（防 DNS 解析到内网与解析结果在校验和连接之间被换掉）。给抓取用户 / 外部内容 URL 的客户端用；
-     * 地址固定在应用配置里的客户端（AI、支付、存储）不需要。不能与 [proxyUrl] 同时设置。
-     * 需要客户端声明 [HttpClientCapability.ADDRESS_POLICY]。
+     * 地址固定在部署配置里的客户端不需要。可与 [proxyUrl] 同时设置：目标仍由客户端解析并校验，代理只会收到校验过的
+     * IP（https 为 `CONNECT <ip>:<port>`，http 为指向 IP 的 absolute-form、`Host` 保留原主机）；代理地址本身按
+     * [OutboundAddressPolicy.admitProxy] 校验（内网代理须在白名单里）。需要客户端声明 [HttpClientCapability.ADDRESS_POLICY]。
      */
     var addressPolicy: OutboundAddressPolicy? = null
 
@@ -57,9 +58,6 @@ class HttpClientConfig {
             if (!it.startsWith("http://") && !it.startsWith("https://")) {
                 errors += "proxyUrl must be an http(s) URL: $it"
             }
-        }
-        if (addressPolicy != null && proxyUrl != null) {
-            errors += "addressPolicy cannot be combined with proxyUrl: the proxy would resolve and dial the target itself"
         }
         return errors
     }

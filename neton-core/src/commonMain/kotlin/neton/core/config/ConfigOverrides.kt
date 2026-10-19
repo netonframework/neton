@@ -124,7 +124,7 @@ object ConfigOverrides {
      * 框架会从 application.conf 读取的根段。文件里没写这些段时覆盖依然有意义
      * （`--server.port=9000` 对一份没有 `[server]` 的 application.conf 也要生效）。
      */
-    val FRAMEWORK_APP_ROOTS: Set<String> = setOf("server", "http", "cors", "logging", "websocket", "application")
+    val FRAMEWORK_APP_ROOTS: Set<String> = setOf("server", "http", "cors", "logging", "websocket", "application", "egress")
 
     /** CLI 中参与覆盖的项：(原始键写法 `--a.b`, 点分路径 `a.b`)。只认 `--key=value`；子命令、`--flag` 不参与。 */
     internal fun cliOverrideEntries(args: Array<String>): List<Pair<String, String>> =

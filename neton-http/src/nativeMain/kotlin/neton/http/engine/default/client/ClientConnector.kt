@@ -36,9 +36,11 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * documents. Without it the count is not limited.
  *
  * With an [addressPolicy] (or a custom [hostResolver]) the target is resolved here, once, every address is
- * checked by the policy, and the TCP connection goes to exactly those addresses as IP literals: no second
+ * checked by the policy, and the connection goes to exactly those addresses as IP literals: no second
  * lookup can swap the target between the check and the connect. TLS keeps the URL's host name for SNI and
- * certificate verification. The policy and a proxy are never combined (config validation).
+ * certificate verification. Through a proxy the checked address is what the proxy is told
+ * (`CONNECT <ip>:<port>`, or the absolute-form target of [openForwardProxy]); the proxy endpoint is
+ * checked by [OutboundAddressPolicy.admitProxy] and dialled at its checked address as well.
  *
  * All of it runs on the client's reactor thread (no locking).
  */
@@ -67,17 +69,80 @@ internal class ClientConnector(
         // Admitted before any socket is opened: a refused target sends nothing.
         val pinned = pinnedAddresses(scheme, host, port)
         val connected = when (scheme) {
-            "http" -> Connected(if (proxy != null) proxy.open(connectTimeoutMillis) else direct(host, port, pinned))
+            "http" -> {
+                // Through a proxy, http goes in absolute-form on a connection of its own (openForwardProxy).
+                if (proxy != null) throw ConnectError("http through a proxy is not pooled: $uri")
+                Connected(direct(host, port, pinned))
+            }
             "https" -> {
-                val transport = if (proxy != null) proxy.tunnel(host, port, connectTimeoutMillis) else direct(host, port, pinned)
+                val transport = if (proxy != null) tunnel(proxy, host, port, pinned) else direct(host, port, pinned)
                 // tlsConnect closes the transport when the handshake fails.
                 val secured = tlsConnect(transport, tls, peerIdentityOf(host), handshakeTimeoutMillis = connectTimeoutMillis)
                 Connected(secured, negotiatedH2 = secured.alpn == "h2")
             }
             else -> throw ConnectError("invalid URL, scheme is neither http nor https: $uri")
         }
+        return counted(key, connected)
+    }
+
+    /**
+     * A connection to the proxy for one `http` request in absolute-form, and the request target to write:
+     * [uri] itself, or — with an address policy / resolver — [uri] with its host replaced by the checked
+     * address, so the proxy dials that address and never resolves the name. The caller keeps the URL's
+     * authority in `Host`.
+     */
+    suspend fun openForwardProxy(uri: Uri): Pair<Connected, Uri> {
+        val proxy = proxy ?: throw ConnectError("no proxy configured")
+        val host = uri.host?.removeSurrounding("[", "]")?.ifEmpty { null } ?: throw ConnectError("invalid URL, missing host: $uri")
+        val port = uri.portU16 ?: defaultPort(uri.schemeStr) ?: throw ConnectError("invalid URL, unknown port: $uri")
+        val key = "${uri.schemeStr}://${uri.authority}"
+        val limit = maxConnectionsPerHost
+        if (limit != null && (open[key] ?: 0) >= limit) {
+            throw ConnectError("connection limit reached for $key (maxConnectionsPerHost=$limit)")
+        }
+        val pinned = pinnedAddresses(uri.schemeStr, host, port)
+        val target = if (pinned == null) uri else {
+            val address = pinned.firstOrNull() ?: throw ConnectError("connect to ${authorityOf(host, port)} failed: no addresses")
+            val pathAndQuery = uri.pathAndQuery?.toString()?.ifEmpty { null } ?: "/"
+            Uri.parse("http://${authorityOf(address.toString(), port)}$pathAndQuery")
+        }
+        val stream = openProxy(proxy)
+        return counted(key, Connected(stream)) to target
+    }
+
+    private fun counted(key: String, connected: Connected): Connected {
         open[key] = (open[key] ?: 0) + 1
         return Connected(CountedStream(connected.stream) { release(key) }, connected.negotiatedH2)
+    }
+
+    /** A connection to the proxy itself, at its checked address when a policy / resolver is set. */
+    private suspend fun openProxy(proxy: ProxyEndpoint): IoStream {
+        val policy = addressPolicy
+        val resolver = hostResolver ?: SystemHostResolver
+        val pinned = when {
+            policy != null -> policy.admitProxy(proxy.host, proxy.port, resolver)
+            hostResolver != null -> IpAddress.parse(proxy.host)?.let { listOf(it) } ?: resolver.resolve(proxy.host)
+            else -> null
+        }
+        return proxy.open(direct(proxy.host, proxy.port, pinned), connectTimeoutMillis)
+    }
+
+    /**
+     * A tunnel to the target through [proxy]: to `host:port` when nothing was resolved here, otherwise to
+     * the checked addresses in order (`CONNECT <ip>:<port>`), the first the proxy accepts winning.
+     */
+    private suspend fun tunnel(proxy: ProxyEndpoint, host: String, port: Int, pinned: List<IpAddress>?): IoStream {
+        if (pinned == null) return proxy.tunnel(openProxy(proxy), host, port, connectTimeoutMillis)
+        if (pinned.isEmpty()) throw ConnectError("connect to ${authorityOf(host, port)} failed: no addresses")
+        var last: Throwable? = null
+        for (address in pinned) {
+            try {
+                return proxy.tunnel(openProxy(proxy), address.toString(), port, connectTimeoutMillis)
+            } catch (e: ConnectError) {
+                last = e
+            }
+        }
+        throw last!!
     }
 
     private fun release(key: String) {
@@ -96,23 +161,31 @@ internal class ClientConnector(
 
     private suspend fun direct(host: String, port: Int, pinned: List<IpAddress>?): IoStream {
         if (pinned == null) return connectTcp(host, port, connectTimeoutMillis)
-        if (pinned.isEmpty()) throw ConnectError("connect to ${authorityOf(host, port)} failed: no addresses")
-        // One budget for all addresses, as the platform's own multi-address connect has.
-        return try {
-            withTimeout(connectTimeoutMillis) {
-                var last: Throwable? = null
-                for (address in pinned) {
-                    try {
-                        return@withTimeout tcpConnect(address.toString(), port)
-                    } catch (e: neton.io.net.ConnectException) {
-                        last = e
-                    }
+        return connectPinned(host, port, pinned, connectTimeoutMillis)
+    }
+}
+
+/**
+ * TCP to the first of [addresses] (already checked for [host]) that accepts, as IP literals: nothing
+ * resolves [host] again. One [timeoutMillis] budget for all of them, as the platform's own multi-address
+ * connect has.
+ */
+internal suspend fun connectPinned(host: String, port: Int, addresses: List<IpAddress>, timeoutMillis: Long): IoStream {
+    if (addresses.isEmpty()) throw ConnectError("connect to ${authorityOf(host, port)} failed: no addresses")
+    return try {
+        withTimeout(timeoutMillis) {
+            var last: Throwable? = null
+            for (address in addresses) {
+                try {
+                    return@withTimeout tcpConnect(address.toString(), port)
+                } catch (e: neton.io.net.ConnectException) {
+                    last = e
                 }
-                throw ConnectError("connect to ${authorityOf(host, port)} failed: ${last?.message}", last)
             }
-        } catch (e: TimeoutCancellationException) {
-            throw ConnectTimeoutException("connect to ${authorityOf(host, port)} timed out after ${connectTimeoutMillis}ms", e)
+            throw ConnectError("connect to ${authorityOf(host, port)} failed: ${last?.message}", last)
         }
+    } catch (e: TimeoutCancellationException) {
+        throw ConnectTimeoutException("connect to ${authorityOf(host, port)} timed out after ${timeoutMillis}ms", e)
     }
 }
 
@@ -131,9 +204,8 @@ internal class ProxyEndpoint(
     val authorization: String?,
     private val tlsToProxy: () -> TlsContext,
 ) {
-    /** A connection to the proxy itself (TLS when the proxy URL is `https`). */
-    suspend fun open(connectTimeoutMillis: Long): IoStream {
-        val tcp = connectTcp(host, port, connectTimeoutMillis)
+    /** [tcp] (a connection to the proxy) with TLS on top when the proxy URL is `https`. */
+    suspend fun open(tcp: IoStream, connectTimeoutMillis: Long): IoStream {
         if (scheme != "https") return tcp
         return tlsConnect(tcp, tlsToProxy(), peerIdentityOf(host), handshakeTimeoutMillis = connectTimeoutMillis)
     }
@@ -143,8 +215,7 @@ internal class ProxyEndpoint(
      * first on the tunnel (TLS ClientHello), so a conforming proxy sends nothing after its response
      * head; bytes past the head are a protocol error, not data to keep.
      */
-    suspend fun tunnel(targetHost: String, targetPort: Int, connectTimeoutMillis: Long): IoStream {
-        val stream = open(connectTimeoutMillis)
+    suspend fun tunnel(stream: IoStream, targetHost: String, targetPort: Int, connectTimeoutMillis: Long): IoStream {
         try {
             val authority = authorityOf(targetHost, targetPort)
             val head = buildString {

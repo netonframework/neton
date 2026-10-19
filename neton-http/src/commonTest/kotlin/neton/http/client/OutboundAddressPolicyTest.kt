@@ -216,12 +216,34 @@ class OutboundAddressPolicyTest {
     }
 
     @Test
-    fun configRefusesPolicyWithProxyAndClientsWithoutTheCapability() {
+    fun proxyEndpointsFollowTheAddressRuleOnAnyPort() = runTest {
+        val resolver = TableResolver(mapOf(
+            "proxy.example" to listOf("93.184.216.34"),
+            "corp-proxy.internal" to listOf("10.1.2.3"),
+            "metadata.alias" to listOf("169.254.169.254"),
+        ))
+        val strict = OutboundAddressPolicy()
+        assertEquals(listOf(ip("93.184.216.34")), strict.admitProxy("proxy.example", 3128, resolver))
+        assertEquals(listOf(ip("8.8.8.8")), strict.admitProxy("8.8.8.8", 7890, noDns))
+        listOf("127.0.0.1", "[::1]", "corp-proxy.internal", "metadata.alias", "2130706433").forEach { host ->
+            assertEquals(TargetRejection.PROXY, rejection { strict.admitProxy(host, 7890, resolver) }, host)
+        }
+        assertEquals(TargetRejection.PROXY, rejection { strict.admitProxy("nx.example", 7890, resolver) })
+
+        val corp = OutboundAddressPolicy(allowedNetworks = listOf(IpNetwork.parse("10.0.0.0/8")))
+        assertEquals(listOf(ip("10.1.2.3")), corp.admitProxy("corp-proxy.internal", 3128, resolver))
+        assertEquals(TargetRejection.PROXY, rejection { corp.admitProxy("metadata.alias", 3128, resolver) })
+        val byName = OutboundAddressPolicy(allowedHosts = setOf("127.0.0.1"))
+        assertEquals(listOf(ip("127.0.0.1")), byName.admitProxy("127.0.0.1", 7890, noDns))
+    }
+
+    @Test
+    fun configAcceptsPolicyWithProxyAndRefusesClientsWithoutTheCapability() {
         val cfg = HttpClientConfig().apply {
             addressPolicy = OutboundAddressPolicy()
             proxyUrl = "http://127.0.0.1:7890"
         }
-        assertTrue(cfg.validate().any { "addressPolicy" in it })
+        assertTrue(cfg.validate().isEmpty(), "${cfg.validate()}")
 
         val plain = object : HttpClient {
             override suspend fun request(request: HttpClientRequest): HttpClientResponse = error("unused")

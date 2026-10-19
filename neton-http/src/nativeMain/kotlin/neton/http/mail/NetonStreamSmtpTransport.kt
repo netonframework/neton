@@ -8,6 +8,13 @@ import kotlinx.coroutines.withTimeout
 import neton.http.engine.default.client.ClientReactor
 import neton.http.engine.default.client.ConnectTimeoutException
 import neton.http.engine.default.client.connectTcp
+import neton.http.engine.default.client.connectPinned
+import neton.http.engine.default.client.SystemHostResolver
+import neton.http.client.ConnectError
+import neton.http.client.HostResolver
+import neton.http.client.HttpClientError
+import neton.http.client.HttpClientException
+import neton.http.client.OutboundAddressPolicy
 import neton.io.bytes.Buffer
 import neton.io.core.IoException
 import neton.io.core.IoStream
@@ -46,9 +53,11 @@ internal class NetonStreamSmtpTransport(
     private val heloName: String = "localhost",
     private val connectTimeoutMillis: Long = 15_000,
     private val sendTimeoutMillis: Long = 60_000,
+    /** Name lookups for [send]'s address policy; tests inject answers. */
+    private val hostResolver: HostResolver = SystemHostResolver,
 ) : SmtpTransport {
 
-    override suspend fun send(account: SmtpAccount, message: SmtpMessage) {
+    override suspend fun send(account: SmtpAccount, message: SmtpMessage, addressPolicy: OutboundAddressPolicy?) {
         validate(account, message)
         val data = SmtpData.encode(MimeBuilder.build(message))
         val target = "${account.host}:${account.port}"
@@ -62,7 +71,7 @@ internal class NetonStreamSmtpTransport(
         try {
             reactor.run {
                 try {
-                    withTimeout(sendTimeoutMillis) { session(account, message, data) }
+                    withTimeout(sendTimeoutMillis) { session(account, message, data, addressPolicy) }
                 } catch (e: TimeoutCancellationException) {
                     throw SmtpException("SMTP send to $target timed out after ${sendTimeoutMillis}ms", e)
                 } catch (e: ConnectTimeoutException) {
@@ -80,8 +89,23 @@ internal class NetonStreamSmtpTransport(
         }
     }
 
-    private suspend fun session(account: SmtpAccount, message: SmtpMessage, data: ByteArray) {
-        val plain = connectTcp(account.host, account.port, connectTimeoutMillis)
+    private suspend fun session(account: SmtpAccount, message: SmtpMessage, data: ByteArray, policy: OutboundAddressPolicy?) {
+        val plain = if (policy == null) {
+            connectTcp(account.host, account.port, connectTimeoutMillis)
+        } else {
+            // Checked before any socket is opened; the connection goes to exactly the checked addresses.
+            val addresses = try {
+                policy.admitEndpoint(account.host, account.port, hostResolver)
+            } catch (e: HttpClientException) {
+                val rejected = e.error as? HttpClientError.TargetRejected ?: throw e
+                throw SmtpTargetRejectedException(rejected.reason, "SMTP server ${account.host}:${account.port} refused by the egress policy: ${rejected.message}")
+            }
+            try {
+                connectPinned(account.host, account.port, addresses, connectTimeoutMillis)
+            } catch (e: ConnectError) {
+                throw SmtpException("SMTP connection to ${account.host}:${account.port} failed: ${e.message ?: e}", e)
+            }
+        }
         var conn = SmtpConnection(
             if (account.ssl) handshake(plain, account.host) else plain,
         )

@@ -213,15 +213,139 @@ class NetonStreamAddressPolicyTest {
     }
 
     @Test
-    fun policyAndProxyCannotBeCombined() {
+    fun httpsThroughAProxyConnectsToTheCheckedAddressAndVerifiesTheHostName() = runBlocking {
+        // The certificate names DNS:localhost only: TLS inside the tunnel must use the URL host, not the IP.
+        val origin = TestOrigin.start(identity, alpn = listOf("http/1.1"))
+        val proxy = ConnectProxy.start()
+        val resolver = ScriptedResolver(listOf("127.0.0.1"))
+        val client = client {
+            addressPolicy = loopbackAsPublic(origin.port)
+            hostResolver = resolver
+            proxyUrl = "http://127.0.0.1:${proxy.port}"
+        }
         try {
-            client {
-                addressPolicy = OutboundAddressPolicy()
-                proxyUrl = "http://127.0.0.1:7890"
+            val response = withTimeout(20_000) { client.request(get("https://localhost:${origin.port}/tunnel")) }
+            assertEquals(200, response.statusCode)
+            val head = proxy.heads.receive()
+            assertTrue(head.startsWith("CONNECT 127.0.0.1:${origin.port} HTTP/1.1\r\n"), "proxy saw: $head")
+            assertTrue("localhost" !in head, "the proxy must not be given the name to resolve: $head")
+            assertEquals(listOf("localhost:${origin.port}"), origin.seen.receive().all("host"))
+            assertEquals(1, resolver.lookups.load())
+        } finally {
+            client.close()
+            proxy.stop()
+            origin.stop()
+        }
+    }
+
+    @Test
+    fun rebindingCannotMoveATunnelledTarget() = runBlocking {
+        val release = CompletableDeferred<Unit>()
+        val origin = TestOrigin.start(identity, alpn = listOf("http/1.1")) { seen ->
+            if (seen.path == "/slow") release.await()
+            200 to seen.path.encodeToByteArray()
+        }
+        val proxy = ConnectProxy.start()
+        val resolver = ScriptedResolver(listOf("127.0.0.1"), listOf("10.0.0.1"))
+        val client = client {
+            addressPolicy = loopbackAsPublic(origin.port)
+            hostResolver = resolver
+            proxyUrl = "http://127.0.0.1:${proxy.port}"
+        }
+        try {
+            val base = "https://localhost:${origin.port}"
+            val slow = async { client.request(get("$base/slow")) }
+            assertEquals("/slow", withTimeout(20_000) { origin.seen.receive() }.path)
+            assertTrue(proxy.heads.receive().startsWith("CONNECT 127.0.0.1:${origin.port} "))
+            // The second connection resolves again, gets the internal answer and is refused before any CONNECT.
+            val error = expectFailure { client.request(get("$base/second")) }
+            assertTrue(error is HttpClientError.TargetRejected && error.reason == TargetRejection.ADDRESS, "got $error")
+            assertTrue(proxy.heads.tryReceive().isFailure, "no CONNECT may be sent for the refused answer")
+            release.complete(Unit)
+            assertEquals("/slow", slow.await().body)
+        } finally {
+            release.complete(Unit)
+            client.close()
+            proxy.stop()
+            origin.stop()
+        }
+    }
+
+    @Test
+    fun aLoopbackAliasThroughAnAllowlistedProxyIsStillRefused() = runBlocking {
+        val origin = TestOrigin.start(identity, alpn = listOf("http/1.1"))
+        val proxy = ConnectProxy.start()
+        val client = client {
+            // The proxy is allowlisted by name; the target is held to the public internet.
+            addressPolicy = OutboundAddressPolicy(allowedPorts = setOf(origin.port), allowedHosts = setOf("127.0.0.1"))
+            hostResolver = ScriptedResolver(listOf("127.0.0.1"))
+            proxyUrl = "http://127.0.0.1:${proxy.port}"
+        }
+        try {
+            val error = expectFailure { client.request(get("https://loopback-alias.example:${origin.port}/")) }
+            assertTrue(error is HttpClientError.TargetRejected && error.reason == TargetRejection.ADDRESS, "got $error")
+            assertTrue(proxy.heads.tryReceive().isFailure, "the proxy must not have been asked to connect")
+            assertTrue(origin.seen.tryReceive().isFailure)
+        } finally {
+            client.close()
+            proxy.stop()
+            origin.stop()
+        }
+    }
+
+    @Test
+    fun aPrivateProxyThatNoAllowlistNamesIsRefused() = runBlocking {
+        val proxy = ConnectProxy.start()
+        val client = client {
+            addressPolicy = OutboundAddressPolicy()
+            hostResolver = ScriptedResolver(listOf("93.184.216.34"))
+            proxyUrl = "http://127.0.0.1:${proxy.port}"
+        }
+        try {
+            val error = expectFailure { client.request(get("https://public.example/")) }
+            assertTrue(error is HttpClientError.TargetRejected && error.reason == TargetRejection.PROXY, "got $error")
+            val plain = expectFailure { client.request(get("http://public.example/")) }
+            assertTrue(plain is HttpClientError.TargetRejected && plain.reason == TargetRejection.PROXY, "got $plain")
+            assertTrue(proxy.heads.tryReceive().isFailure, "nothing may reach the refused proxy")
+        } finally {
+            client.close()
+            proxy.stop()
+        }
+    }
+
+    @Test
+    fun httpThroughAProxyNamesTheCheckedAddressInTheRequestLine() = runBlocking {
+        // A plain origin plays the forward proxy: it records the absolute-form target and the Host field.
+        val forward = TestOrigin.start(null) { 200 to "via-proxy".encodeToByteArray() }
+        val resolver = ScriptedResolver(listOf("127.0.0.1"))
+        val client = client {
+            addressPolicy = loopbackAsPublic(forward.port)
+            hostResolver = resolver
+            proxyUrl = "http://127.0.0.1:${forward.port}"
+        }
+        try {
+            val response = withTimeout(20_000) { client.request(get("http://plain.example:${forward.port}/p?q=1")) }
+            assertEquals("via-proxy", response.body)
+            val seen = forward.seen.receive()
+            assertEquals("127.0.0.1:${forward.port}", seen.authority)
+            assertEquals("/p?q=1", seen.path)
+            assertEquals(listOf("plain.example:${forward.port}"), seen.all("host"))
+            // An internal answer is refused before the proxy sees anything.
+            val internal = client {
+                addressPolicy = loopbackAsPublic(forward.port)
+                hostResolver = ScriptedResolver(listOf("169.254.169.254"))
+                proxyUrl = "http://127.0.0.1:${forward.port}"
             }
-            fail("expected the config to be refused")
-        } catch (e: HttpClientException) {
-            assertTrue("addressPolicy" in e.error.message, e.error.message)
+            try {
+                val error = expectFailure { internal.request(get("http://metadata.example:${forward.port}/")) }
+                assertTrue(error is HttpClientError.TargetRejected && error.reason == TargetRejection.ADDRESS, "got $error")
+                assertTrue(forward.seen.tryReceive().isFailure)
+            } finally {
+                internal.close()
+            }
+        } finally {
+            client.close()
+            forward.stop()
         }
     }
 

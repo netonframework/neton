@@ -62,7 +62,8 @@ import neton.http.header.HeaderValue as StreamHeaderValue
  *   on HTTP/2 the authority travels as `:authority`, and a `host` field next to it is what strict
  *   servers (nginx) answer with 400 — the hyper4k client's bug this one must not repeat.
  * - Proxy (`proxyUrl`): `https` targets through a `CONNECT` tunnel (TLS end to end, pooled like a
- *   direct connection); `http` targets in absolute-form on a connection of their own per request.
+ *   direct connection); `http` targets in absolute-form on a connection of their own per request. With an
+ *   address policy both name the checked IP address, never the host name ([ClientConnector]).
  * - Timeouts (`toEffectiveTimeout()`, per-request overrides on top): `connectMillis` bounds TCP connect
  *   + proxy CONNECT + TLS handshake; `requestMillis` the whole exchange, body included (0 per request:
  *   none); `socketMillis` each wait for the next body frame (0 per request: none). A per-request
@@ -239,15 +240,19 @@ internal class NetonStreamHttpClient(
 
     /**
      * `http` through the proxy: absolute-form request line and `Host` from the URL (RFC 9112 §3.2.2),
-     * on a connection to the proxy that this exchange owns. The pool rewrites every request into
+     * on a connection to the proxy that this exchange owns. With an address policy the request line names
+     * the checked IP address instead of the host name (the proxy must not resolve it). The pool rewrites every request into
      * origin-form, so this path does not go through it.
      */
     private suspend fun sendThroughProxy(state: State, uri: Uri, request: StreamRequest<StreamBody>): Exchange {
         val proxy = proxy!!
-        val stream = state.connector.connect(uri).stream
+        val (connected, target) = state.connector.openForwardProxy(uri)
+        val stream = connected.stream
         val (sender, connection) = Http1ClientConfig().handshake(stream)
         val run = state.root.launch { try { connection.run() } catch (e: Exception) { } }
         val authority = uri.authority.toString().substringAfterLast('@')
+        // With an address policy the request target names the checked address; Host keeps the URL's authority.
+        if (target !== uri) request.uri = target
         request.headers.insert("host", StreamHeaderValue.fromStr(authority))
         proxy.authorization?.let { request.headers.insert("proxy-authorization", StreamHeaderValue.fromStr(it)) }
         val response = try {

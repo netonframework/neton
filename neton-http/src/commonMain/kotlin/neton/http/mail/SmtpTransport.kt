@@ -1,5 +1,8 @@
 package neton.http.mail
 
+import neton.http.client.OutboundAddressPolicy
+import neton.http.client.TargetRejection
+
 /** SMTP 账号：465 用隐式 TLS（[ssl]），587 用 STARTTLS（[starttls]），两者都关就是明文（只适合内网中继与测试）。 */
 data class SmtpAccount(
     val host: String,
@@ -28,12 +31,22 @@ data class SmtpMessage(
  * SNI 校验。
  */
 interface SmtpTransport {
-    /** 发送一封邮件；任何失败（连接、TLS、认证、服务器拒收、超时）都抛 [SmtpException]。 */
-    suspend fun send(account: SmtpAccount, message: SmtpMessage)
+    /**
+     * 发送一封邮件；任何失败（连接、TLS、认证、服务器拒收、超时）都抛 [SmtpException]。
+     *
+     * [addressPolicy] 非空时，[SmtpAccount.host] 只解析一次、端口与**全部**地址按策略校验
+     * （[OutboundAddressPolicy.admitEndpoint]），只连校验过的地址，TLS 仍按原主机名做 SNI 与证书校验；
+     * 被拒抛 [SmtpTargetRejectedException]，一个包都不发。SMTP 账号是后台运行期数据时必须传运维出站策略
+     * （[neton.http.client.EgressSettings.smtpPolicy]）；只有地址写死在部署配置里的调用方才传 null。
+     */
+    suspend fun send(account: SmtpAccount, message: SmtpMessage, addressPolicy: OutboundAddressPolicy?)
 }
 
 /** SMTP 发信失败。消息里有服务器的应答，但从不包含密码（明文或编码后的）。 */
-class SmtpException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+open class SmtpException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+
+/** SMTP 服务器地址被出站策略拒绝（[reason] 同 HTTP 客户端的 [TargetRejection]）：没有建立任何连接。 */
+class SmtpTargetRejectedException(val reason: TargetRejection, message: String) : SmtpException(message)
 
 /**
  * Neton 内置的 SMTP 实现（netonstream io + tls）：连接 15 秒超时，整次发送 60 秒超时。

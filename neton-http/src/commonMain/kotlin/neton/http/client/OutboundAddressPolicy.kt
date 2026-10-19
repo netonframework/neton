@@ -14,6 +14,12 @@ fun interface HostResolver {
     suspend fun resolve(host: String): List<IpAddress>
 }
 
+/**
+ * The platform resolver (getaddrinfo, off the calling thread) the built-in client uses: for checks that
+ * must agree with what a guarded client will do, such as validating an admin-entered URL when it is saved.
+ */
+expect fun systemHostResolver(): HostResolver
+
 /** Why an [OutboundAddressPolicy] refused a request target. */
 enum class TargetRejection {
     /** Not `http` / `https`. */
@@ -27,6 +33,9 @@ enum class TargetRejection {
 
     /** The host name did not resolve. */
     RESOLVE,
+
+    /** The configured proxy is, or resolves to, a non-public address that no allowlist names (or does not resolve). */
+    PROXY,
 }
 
 /**
@@ -48,14 +57,23 @@ enum class TargetRejection {
  *
  * A refused target fails the request with [HttpClientError.TargetRejected]; no packet leaves for it.
  *
- * The escape hatch is explicit and narrow, meant for local development (a stub origin on the loopback,
- * a TUN proxy that answers every name with a 198.18.0.0/15 fake address):
+ * The escape hatch is explicit and narrow — a self-hosted upstream on a private network, a stub origin on
+ * the loopback, a TUN proxy that answers every name with a 198.18.0.0/15 fake address — and belongs to the
+ * operator: applications take it from deploy configuration once ([EgressSettings], `[egress]`), never from
+ * data an admin can edit at runtime:
  *  - [allowedHosts]: exact host names (or IP literals) admitted whatever they resolve to and on any port;
  *  - [allowedNetworks]: address blocks admitted although special-purpose (ports are still checked).
  * Both are empty by default; [isRelaxed] tells an application to log loudly that they are not.
  *
- * Mutually exclusive with [HttpClientConfig.proxyUrl]: through a proxy the proxy resolves and dials, and
- * nothing here could hold it to the checked address.
+ * Through a proxy ([HttpClientConfig.proxyUrl]) the target is pinned in what the proxy is told, so the
+ * proxy never resolves the name itself:
+ *  - `https`: `CONNECT <checked-address>:<port>`; TLS inside the tunnel sends SNI for, and verifies the
+ *    certificate against, the URL's host name;
+ *  - `http`: the absolute-form request line names the checked address, `Host` keeps the URL's authority.
+ *
+ * The proxy endpoint itself is checked by [admitProxy] (same address rule, any port) and dialled at the
+ * checked address too: a proxy URL can be operator- or admin-supplied, and a private proxy address is only
+ * reachable when an allowlist names it.
  */
 class OutboundAddressPolicy(
     val allowedPorts: Set<Int> = DEFAULT_PORTS,
@@ -79,6 +97,14 @@ class OutboundAddressPolicy(
     suspend fun admit(scheme: String, host: String, port: Int, resolver: HostResolver): List<IpAddress> {
         val s = scheme.lowercase()
         if (s != "http" && s != "https") reject(TargetRejection.SCHEME, "scheme '$scheme' is not http/https")
+        return admitEndpoint(host, port, resolver)
+    }
+
+    /**
+     * [admit] without the scheme: the port and address rules for a non-HTTP connection (an SMTP server)
+     * whose protocol the caller fixes itself.
+     */
+    suspend fun admitEndpoint(host: String, port: Int, resolver: HostResolver): List<IpAddress> {
         val name = normalizeHost(host)
         if (name.isEmpty()) reject(TargetRejection.ADDRESS, "empty host")
         val hostAllowed = name in allowedHosts
@@ -96,6 +122,37 @@ class OutboundAddressPolicy(
             for (a in addresses) {
                 if (!isPublic(a) && allowedNetworks.none { a in it }) {
                     reject(TargetRejection.ADDRESS, "'$name' resolves to non-public address $a")
+                }
+            }
+        }
+        return addresses
+    }
+
+    /**
+     * The addresses the proxy [host]:[port] may be dialled at. Same address rule as [admit] (public, or in
+     * [allowedHosts] / [allowedNetworks]); the port is not checked against [allowedPorts], since a proxy
+     * listens wherever its operator put it.
+     */
+    suspend fun admitProxy(host: String, port: Int, resolver: HostResolver): List<IpAddress> {
+        require(port in 1..65535) { "proxy port must be in 1..65535: $port" }
+        val name = normalizeHost(host)
+        if (name.isEmpty()) reject(TargetRejection.PROXY, "empty proxy host")
+        val literal = IpAddress.parse(name)
+        val addresses: List<IpAddress> = when {
+            literal != null -> listOf(literal)
+            ':' in name || '%' in name -> reject(TargetRejection.PROXY, "malformed IPv6 proxy literal '$name'")
+            IpAddress.looksNumeric(name) -> reject(TargetRejection.PROXY, "non-canonical proxy IP literal '$name'")
+            else -> try {
+                resolveName(name, resolver)
+            } catch (e: HttpClientException) {
+                reject(TargetRejection.PROXY, "proxy ${e.error.message}")
+            }
+        }
+        if (addresses.isEmpty()) reject(TargetRejection.PROXY, "proxy '$name' resolved to no address")
+        if (name !in allowedHosts) {
+            for (a in addresses) {
+                if (!isPublic(a) && allowedNetworks.none { a in it }) {
+                    reject(TargetRejection.PROXY, "proxy '$name' resolves to non-public address $a")
                 }
             }
         }

@@ -7,6 +7,11 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import neton.http.client.HostResolver
+import neton.http.client.IpAddress
+import neton.http.client.IpNetwork
+import neton.http.client.OutboundAddressPolicy
+import neton.http.client.TargetRejection
 import neton.http.engine.default.TestIdentity
 import neton.http.engine.default.ignoreSigpipe
 import neton.http.engine.default.testIdentity
@@ -53,7 +58,7 @@ class NetonStreamSmtpTransportTest {
     fun plaintextAuthPlainMultipleRecipientsAndMultiLineReplies() = runBlocking {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(auth = listOf("LOGIN", "PLAIN")))
         try {
-            withTimeout(20_000) { transport().send(account(server.port), message) }
+            withTimeout(20_000) { transport().send(account(server.port), message, null) }
             val s = server.sessions.receive()
             assertEquals("PLAIN", s.authMechanism)
             assertEquals(USER to PASSWORD, s.credentials)
@@ -71,7 +76,7 @@ class NetonStreamSmtpTransportTest {
     fun authLoginWhenThatIsAllTheServerOffers() = runBlocking {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(auth = listOf("LOGIN")))
         try {
-            withTimeout(20_000) { transport().send(account(server.port), message) }
+            withTimeout(20_000) { transport().send(account(server.port), message, null) }
             val s = server.sessions.receive()
             assertEquals("LOGIN", s.authMechanism)
             assertEquals(USER to PASSWORD, s.credentials)
@@ -85,7 +90,7 @@ class NetonStreamSmtpTransportTest {
     fun blankUsernameSkipsAuth() = runBlocking {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(auth = listOf("PLAIN")))
         try {
-            withTimeout(20_000) { transport().send(account(server.port).copy(username = ""), message) }
+            withTimeout(20_000) { transport().send(account(server.port).copy(username = ""), message, null) }
             val s = server.sessions.receive()
             assertNull(s.authMechanism)
             assertEquals(message.to, s.recipients)
@@ -98,7 +103,7 @@ class NetonStreamSmtpTransportTest {
     fun starttlsUpgradesBeforeAuthAndSendsAgainEhlo() = runBlocking {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(starttls = true, auth = listOf("PLAIN")))
         try {
-            withTimeout(20_000) { transport().send(account(server.port, starttls = true), message) }
+            withTimeout(20_000) { transport().send(account(server.port, starttls = true), message, null) }
             val s = server.sessions.receive()
             assertTrue(s.secured, "MAIL FROM must arrive over TLS")
             assertTrue(s.authSecured, "credentials must only travel over TLS")
@@ -114,7 +119,7 @@ class NetonStreamSmtpTransportTest {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(starttls = false, auth = listOf("PLAIN")))
         try {
             val e = assertFailsWith<SmtpException> {
-                withTimeout(20_000) { transport().send(account(server.port, starttls = true), message) }
+                withTimeout(20_000) { transport().send(account(server.port, starttls = true), message, null) }
             }
             assertTrue("STARTTLS" in e.message!!, e.message)
             val s = server.sessions.receive()
@@ -129,7 +134,7 @@ class NetonStreamSmtpTransportTest {
     fun implicitTls() = runBlocking {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(implicitTls = true, auth = listOf("PLAIN", "LOGIN")))
         try {
-            withTimeout(20_000) { transport().send(account(server.port, ssl = true), message) }
+            withTimeout(20_000) { transport().send(account(server.port, ssl = true), message, null) }
             val s = server.sessions.receive()
             assertTrue(s.secured)
             assertEquals(1, s.ehloCount)
@@ -145,7 +150,7 @@ class NetonStreamSmtpTransportTest {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(implicitTls = true, auth = listOf("PLAIN")))
         try {
             val e = assertFailsWith<SmtpException> {
-                withTimeout(20_000) { NetonStreamSmtpTransport().send(account(server.port, ssl = true), message) }
+                withTimeout(20_000) { NetonStreamSmtpTransport().send(account(server.port, ssl = true), message, null) }
             }
             assertTrue("TLS handshake" in e.message!!, e.message)
         } finally {
@@ -160,7 +165,7 @@ class NetonStreamSmtpTransportTest {
             try {
                 val wrong = "s3cret-Wrong!"
                 val e = assertFailsWith<SmtpException> {
-                    withTimeout(20_000) { transport().send(account(server.port, password = wrong), message) }
+                    withTimeout(20_000) { transport().send(account(server.port, password = wrong), message, null) }
                 }
                 val text = generateSequence<Throwable>(e) { it.cause }.joinToString(" / ") { it.message.orEmpty() }
                 assertTrue("535" in text, text)
@@ -180,7 +185,7 @@ class NetonStreamSmtpTransportTest {
         val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(auth = listOf("PLAIN"), refuse = setOf("b@example.test")))
         try {
             val e = assertFailsWith<SmtpException> {
-                withTimeout(20_000) { transport().send(account(server.port), message) }
+                withTimeout(20_000) { transport().send(account(server.port), message, null) }
             }
             assertTrue("b@example.test" in e.message!! && "550" in e.message!!, e.message)
             assertNull(server.sessions.receive().data)
@@ -192,9 +197,54 @@ class NetonStreamSmtpTransportTest {
     @Test
     fun addressesWithLineBreaksAreRefusedBeforeConnecting() = runBlocking {
         val e = assertFailsWith<SmtpException> {
-            transport().send(account(1), message.copy(to = listOf("a@example.test>\r\nRCPT TO:<evil@example.test")))
+            transport().send(account(1), message.copy(to = listOf("a@example.test>\r\nRCPT TO:<evil@example.test")), null)
         }
         assertTrue("invalid mail address" in e.message!!, e.message)
+    }
+
+    @Test
+    fun theEgressPolicyRefusesAnInternalServerBeforeConnecting() = runBlocking {
+        val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(auth = listOf("PLAIN")))
+        try {
+            // A back-office SMTP host that resolves to the loopback, and the loopback literal itself.
+            val aliased = NetonStreamSmtpTransport(
+                tls = TlsContext(server = false, trustRootsPem = identity.certificate),
+                hostResolver = HostResolver { listOf(IpAddress.parse("127.0.0.1")!!) },
+            )
+            val strict = OutboundAddressPolicy(allowedPorts = setOf(server.port))
+            for ((transport, host) in listOf(aliased to "smtp.alias.example", transport() to "127.0.0.1")) {
+                val e = assertFailsWith<SmtpTargetRejectedException> {
+                    withTimeout(20_000) { transport.send(account(server.port).copy(host = host), message, strict) }
+                }
+                assertEquals(TargetRejection.ADDRESS, e.reason, e.message)
+            }
+            val port = assertFailsWith<SmtpTargetRejectedException> {
+                transport().send(account(server.port), message, OutboundAddressPolicy(allowedPorts = setOf(25)))
+            }
+            assertEquals(TargetRejection.PORT, port.reason)
+            assertTrue(server.sessions.tryReceive().isFailure, "the server must not have been contacted")
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun anAllowlistedServerIsDialledAtTheCheckedAddress() = runBlocking {
+        val server = FakeSmtpServer.start(identity, FakeSmtpServer.Options(implicitTls = true, auth = listOf("PLAIN")))
+        var lookups = 0
+        try {
+            // The certificate names DNS:localhost: TLS must verify the host name while the socket goes to the literal.
+            val transport = NetonStreamSmtpTransport(
+                tls = TlsContext(server = false, trustRootsPem = identity.certificate),
+                hostResolver = HostResolver { lookups++; listOf(IpAddress.parse("127.0.0.1")!!) },
+            )
+            val policy = OutboundAddressPolicy(allowedPorts = setOf(server.port), allowedNetworks = listOf(IpNetwork.parse("127.0.0.0/8")))
+            withTimeout(20_000) { transport.send(account(server.port, ssl = true).copy(host = "localhost"), message, policy) }
+            assertEquals(USER to PASSWORD, server.sessions.receive().credentials)
+            assertEquals(1, lookups)
+        } finally {
+            server.stop()
+        }
     }
 
     @Test
