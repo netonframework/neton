@@ -15,6 +15,9 @@ import neton.http.client.HttpClientException
 import neton.http.client.HttpClientMethod
 import neton.http.client.HttpClientRequest
 import neton.http.client.HttpClientStreamChunk
+import neton.http.client.IpNetwork
+import neton.http.client.OutboundAddressPolicy
+import neton.http.client.TargetRejection
 
 /**
  * 客户端一致性套件（spec zh-hans/spec/http-engine.md §6）。
@@ -243,6 +246,44 @@ public abstract class HttpClientConformanceSuite {
                 check(seen.target.startsWith("http://example.invalid:8080/resource")) {
                     "a proxied request must carry an absolute URI, got '${seen.requestLine}'"
                 }
+            }
+        }
+
+    public suspend fun checkAddressPolicyRefusesInternalTargets(): Unit =
+        requiring(HttpClientCapability.ADDRESS_POLICY, "address_policy_refuses_internal_targets") {
+            val origin = ScriptedOrigin.start { writeFixed(200, body = "admitted".encodeToByteArray()) }
+            val port = origin.baseUrl.substringAfterLast(':').toInt()
+            try {
+                // 本机回环不是公网地址：不发任何字节就拒绝。
+                val strict = createClient { addressPolicy = OutboundAddressPolicy(allowedPorts = setOf(port)) }
+                try {
+                    val error = expectFailure { withTimeout(20_000) { strict.request(get("${origin.baseUrl}/x")) } }
+                    check(error is HttpClientError.TargetRejected && error.reason == TargetRejection.ADDRESS) {
+                        "a loopback target under the default policy must be TargetRejected(ADDRESS), got $error"
+                    }
+                    val port80 = expectFailure { withTimeout(20_000) { strict.request(get("http://93.184.216.34:1/")) } }
+                    check(port80 is HttpClientError.TargetRejected && port80.reason == TargetRejection.PORT) {
+                        "a port outside allowedPorts must be TargetRejected(PORT), got $port80"
+                    }
+                } finally {
+                    strict.close()
+                }
+                check(origin.requests.isEmpty()) { "a refused target must not reach the origin: ${origin.requests}" }
+                // 显式放行的网段照常连通。
+                val relaxed = createClient {
+                    addressPolicy = OutboundAddressPolicy(
+                        allowedPorts = setOf(port),
+                        allowedNetworks = listOf(IpNetwork.parse("127.0.0.1/32")),
+                    )
+                }
+                try {
+                    val response = withTimeout(20_000) { relaxed.request(get("${origin.baseUrl}/x")) }
+                    check(response.body == "admitted") { "allowlisted network must be reachable, got '${response.body}'" }
+                } finally {
+                    relaxed.close()
+                }
+            } finally {
+                origin.stop()
             }
         }
 

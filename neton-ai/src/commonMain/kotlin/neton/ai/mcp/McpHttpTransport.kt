@@ -151,6 +151,8 @@ internal class McpHttpTransport(
         }
         is HttpClientError.Timeout -> McpException(McpErrorKind.Timeout, err.message, outcomeUnknown = true, cause = err.cause)
         is HttpClientError.Network -> McpException(McpErrorKind.Transport, err.message, outcomeUnknown = true, cause = err.cause)
+        // Refused before any connection: the server never saw the request.
+        is HttpClientError.TargetRejected -> McpException(McpErrorKind.Transport, err.message, outcomeUnknown = false)
         is HttpClientError.Unknown -> McpException(McpErrorKind.Transport, err.message, outcomeUnknown = true, cause = err.cause)
     }
 

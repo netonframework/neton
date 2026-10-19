@@ -25,6 +25,9 @@ import neton.http.client.HttpClientException
 import neton.http.client.HttpClientRequest
 import neton.http.client.HttpClientResponse
 import neton.http.client.HttpClientStreamChunk
+import neton.http.client.HostResolver
+import neton.http.client.OutboundAddressPolicy
+import neton.http.client.TargetRejection
 import neton.http.h1.Http1ClientConfig
 import neton.http.uri.Uri
 import neton.io.bytes.Bytes
@@ -77,6 +80,7 @@ internal class NetonStreamHttpClient(
         HttpClientCapability.STREAMING_BODY,
         HttpClientCapability.CANCELLATION,
         HttpClientCapability.PROXY,
+        HttpClientCapability.ADDRESS_POLICY,
     )
 
     // toEffectiveTimeout() fills every field.
@@ -94,7 +98,10 @@ internal class NetonStreamHttpClient(
 
     internal class State(val pool: StreamClient, val connector: ClientConnector, val root: CoroutineScope)
 
-    private val connectorConfig = ConnectorConfig(defaultConnectMillis, proxy, tls, config.maxConnectionsPerHost)
+    private val connectorConfig = ConnectorConfig(
+        defaultConnectMillis, proxy, tls, config.maxConnectionsPerHost, config.addressPolicy, config.hostResolver,
+    )
+    private val addressPolicy = config.addressPolicy
 
     private val reactor = ClientReactor(
         name = "neton-http-client",
@@ -219,6 +226,9 @@ internal class NetonStreamHttpClient(
             throw HttpClientException(HttpClientError.Unknown("invalid request URL ${request.url}: ${e.message}", e))
         }
         val scheme = uri.schemeStr
+        if (addressPolicy != null && scheme != "http" && scheme != "https") {
+            throw HttpClientException(HttpClientError.TargetRejected(TargetRejection.SCHEME, "scheme '$scheme' is not http/https"))
+        }
         if ((scheme != "http" && scheme != "https") || uri.authority == null) {
             throw HttpClientException(HttpClientError.Unknown("invalid request URL, an absolute http(s) URL is required: ${request.url}", null))
         }
@@ -350,9 +360,11 @@ internal class ConnectorConfig(
     private val proxy: ProxyEndpoint?,
     private val tls: TlsContext,
     private val maxConnectionsPerHost: Int?,
+    private val addressPolicy: OutboundAddressPolicy?,
+    private val hostResolver: HostResolver?,
 ) {
     fun build(root: CoroutineScope): NetonStreamHttpClient.State {
-        val connector = ClientConnector(connectMillis, proxy, tls, maxConnectionsPerHost)
+        val connector = ClientConnector(connectMillis, proxy, tls, maxConnectionsPerHost, addressPolicy, hostResolver)
         val pool = StreamClient.builder().build(root, connector)
         return NetonStreamHttpClient.State(pool, connector, root)
     }

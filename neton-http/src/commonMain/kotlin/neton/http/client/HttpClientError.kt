@@ -23,6 +23,17 @@ sealed interface HttpClientError {
         override val cause: Throwable? = null
     }
 
+    /**
+     * The request target was refused before any connection was made: an [OutboundAddressPolicy]
+     * on the client did not admit its scheme, port or address, or its host did not resolve.
+     */
+    data class TargetRejected(
+        val reason: TargetRejection,
+        override val message: String,
+    ) : HttpClientError {
+        override val cause: Throwable? = null
+    }
+
     data class Unknown(
         override val message: String,
         override val cause: Throwable?,

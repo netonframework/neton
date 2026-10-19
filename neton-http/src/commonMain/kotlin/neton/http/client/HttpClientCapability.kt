@@ -32,4 +32,11 @@ enum class HttpClientCapability {
 
     /** 支持 HTTP 代理。 */
     PROXY,
+
+    /**
+     * 执行 [HttpClientConfig.addressPolicy] 与 [HttpClientConfig.hostResolver]：每条新连接先解析、按策略
+     * 校验全部地址，再只连校验过的地址（[OutboundAddressPolicy]）。缺它时策略被忽略 = 不可信 URL 可以打到内网，
+     * 所以 [HttpClient.createWith] 在配了策略而客户端没声明时直接拒绝建客户端。
+     */
+    ADDRESS_POLICY,
 }

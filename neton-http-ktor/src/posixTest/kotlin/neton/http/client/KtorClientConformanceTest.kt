@@ -29,6 +29,7 @@ class KtorClientConformanceTest : HttpClientConformanceSuite() {
     @Test fun streamingChunksEmitBeforeBodyCompletes() = runBlocking { checkStreamingChunksEmitBeforeBodyCompletes() }
     @Test fun flowCancellationClosesTheConnection() = runBlocking { checkFlowCancellationClosesTheConnection() }
     @Test fun proxyUrlRoutesThroughTheProxy() = runBlocking { checkProxyUrlRoutesThroughTheProxy() }
+    @Test fun addressPolicyRefusesInternalTargets() = runBlocking { checkAddressPolicyRefusesInternalTargets() }
     @Test fun http2IsNegotiatedWhenOriginOffersIt() = runBlocking { checkHttp2IsNegotiatedWhenOriginOffersIt() }
     @Test fun customCaIsTrustedAndSystemCaIsNot() = runBlocking { checkCustomCaIsTrustedAndSystemCaIsNot() }
 }

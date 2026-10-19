@@ -5,11 +5,15 @@ import kotlinx.coroutines.withTimeout
 import neton.http.client.ConnectError
 import neton.http.client.Connected
 import neton.http.client.Connector
+import neton.http.client.HostResolver
+import neton.http.client.IpAddress
+import neton.http.client.OutboundAddressPolicy
 import neton.http.uri.Uri
 import neton.io.bytes.Buffer
 import neton.io.core.IoStream
 import neton.io.core.StreamCapability
 import neton.io.net.connect as tcpConnect
+import neton.io.net.lookupHost
 import neton.openssl.TlsContext
 import neton.tls.peerIdentityOf
 import neton.tls.systemTrustRootsPem
@@ -31,6 +35,11 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * more fails at once with a [ConnectError] (it does not queue), as [neton.http.client.HttpClientConfig]
  * documents. Without it the count is not limited.
  *
+ * With an [addressPolicy] (or a custom [hostResolver]) the target is resolved here, once, every address is
+ * checked by the policy, and the TCP connection goes to exactly those addresses as IP literals: no second
+ * lookup can swap the target between the check and the connect. TLS keeps the URL's host name for SNI and
+ * certificate verification. The policy and a proxy are never combined (config validation).
+ *
  * All of it runs on the client's reactor thread (no locking).
  */
 internal class ClientConnector(
@@ -38,6 +47,8 @@ internal class ClientConnector(
     private val proxy: ProxyEndpoint?,
     private val tls: TlsContext,
     private val maxConnectionsPerHost: Int?,
+    private val addressPolicy: OutboundAddressPolicy? = null,
+    private val hostResolver: HostResolver? = null,
 ) : Connector {
     private val open = HashMap<String, Int>()
 
@@ -53,10 +64,12 @@ internal class ClientConnector(
         if (limit != null && (open[key] ?: 0) >= limit) {
             throw ConnectError("connection limit reached for $key (maxConnectionsPerHost=$limit)")
         }
+        // Admitted before any socket is opened: a refused target sends nothing.
+        val pinned = pinnedAddresses(scheme, host, port)
         val connected = when (scheme) {
-            "http" -> Connected(if (proxy != null) proxy.open(connectTimeoutMillis) else tcp(host, port))
+            "http" -> Connected(if (proxy != null) proxy.open(connectTimeoutMillis) else direct(host, port, pinned))
             "https" -> {
-                val transport = if (proxy != null) proxy.tunnel(host, port, connectTimeoutMillis) else tcp(host, port)
+                val transport = if (proxy != null) proxy.tunnel(host, port, connectTimeoutMillis) else direct(host, port, pinned)
                 // tlsConnect closes the transport when the handshake fails.
                 val secured = tlsConnect(transport, tls, peerIdentityOf(host), handshakeTimeoutMillis = connectTimeoutMillis)
                 Connected(secured, negotiatedH2 = secured.alpn == "h2")
@@ -72,7 +85,41 @@ internal class ClientConnector(
         if (n <= 0) open.remove(key) else open[key] = n
     }
 
-    private suspend fun tcp(host: String, port: Int): IoStream = connectTcp(host, port, connectTimeoutMillis)
+    /** The addresses to dial, or null to let the platform resolve [host] while connecting (no policy, no resolver). */
+    private suspend fun pinnedAddresses(scheme: String?, host: String, port: Int): List<IpAddress>? {
+        val resolver = hostResolver ?: SystemHostResolver
+        val policy = addressPolicy
+        if (policy != null) return policy.admit(scheme ?: "", host, port, resolver)
+        if (hostResolver == null) return null
+        return IpAddress.parse(host)?.let { listOf(it) } ?: resolver.resolve(host)
+    }
+
+    private suspend fun direct(host: String, port: Int, pinned: List<IpAddress>?): IoStream {
+        if (pinned == null) return connectTcp(host, port, connectTimeoutMillis)
+        if (pinned.isEmpty()) throw ConnectError("connect to ${authorityOf(host, port)} failed: no addresses")
+        // One budget for all addresses, as the platform's own multi-address connect has.
+        return try {
+            withTimeout(connectTimeoutMillis) {
+                var last: Throwable? = null
+                for (address in pinned) {
+                    try {
+                        return@withTimeout tcpConnect(address.toString(), port)
+                    } catch (e: neton.io.net.ConnectException) {
+                        last = e
+                    }
+                }
+                throw ConnectError("connect to ${authorityOf(host, port)} failed: ${last?.message}", last)
+            }
+        } catch (e: TimeoutCancellationException) {
+            throw ConnectTimeoutException("connect to ${authorityOf(host, port)} timed out after ${connectTimeoutMillis}ms", e)
+        }
+    }
+}
+
+/** The platform resolver (getaddrinfo off the reactor thread), as [IpAddress]es. */
+internal object SystemHostResolver : HostResolver {
+    override suspend fun resolve(host: String): List<IpAddress> =
+        lookupHost(host, 0).map { IpAddress.of(it.ipBytes()) }.distinct()
 }
 
 /** The configured `proxyUrl`, parsed once at client construction. */

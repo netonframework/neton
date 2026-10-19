@@ -88,6 +88,18 @@ interface HttpClient {
                     null,
                 ))
             }
+            // Same rule for the address policy: an ignored policy lets an untrusted URL reach
+            // the internal network.
+            if ((cfg.addressPolicy != null || cfg.hostResolver != null) &&
+                HttpClientCapability.ADDRESS_POLICY !in client.capabilities
+            ) {
+                throw HttpClientException(HttpClientError.Unknown(
+                    "addressPolicy / hostResolver is set but this HTTP client does not declare " +
+                        "${HttpClientCapability.ADDRESS_POLICY} (capabilities: ${client.capabilities}). " +
+                        "Use the built-in client for untrusted URLs.",
+                    null,
+                ))
+            }
             return client
         }
 

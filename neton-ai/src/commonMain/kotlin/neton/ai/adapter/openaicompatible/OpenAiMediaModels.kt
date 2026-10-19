@@ -50,6 +50,8 @@ internal class OpenAiHttp(
                 is HttpClientError.Network -> AiError.Network(err.message, err.cause)
                 is HttpClientError.Timeout -> AiError.Timeout(err.message, err.cause)
                 is HttpClientError.Http -> ModelMapping.toAiError(OpenAiChatCodec.decodeError(err.statusCode, err.body ?: ""), modelId)
+                // Refused before any connection: nothing reached the provider.
+                is HttpClientError.TargetRejected -> AiError.Network(err.message, null)
                 is HttpClientError.Unknown -> AiError.Unknown(err.message, err.cause)
             })
         }
@@ -80,6 +82,8 @@ internal class OpenAiHttp(
                 is HttpClientError.Network -> AiError.Network(err.message, err.cause)
                 is HttpClientError.Timeout -> AiError.Timeout(err.message, err.cause)
                 is HttpClientError.Http -> ModelMapping.toAiError(OpenAiChatCodec.decodeError(err.statusCode, err.body ?: ""), modelId)
+                // Refused before any connection: nothing reached the provider.
+                is HttpClientError.TargetRejected -> AiError.Network(err.message, null)
                 is HttpClientError.Unknown -> AiError.Unknown(err.message, err.cause)
             })
         }

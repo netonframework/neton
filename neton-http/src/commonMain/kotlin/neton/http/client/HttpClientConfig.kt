@@ -25,6 +25,20 @@ class HttpClientConfig {
      */
     var maxConnectionsPerHost: Int? = null
 
+    /**
+     * 出站地址策略：设置后，每条新连接都按 [OutboundAddressPolicy] 校验 scheme / 端口 / 解析出的**全部**地址，
+     * 只连校验过的地址（防 DNS 解析到内网与解析结果在校验和连接之间被换掉）。给抓取用户 / 外部内容 URL 的客户端用；
+     * 地址固定在应用配置里的客户端（AI、支付、存储）不需要。不能与 [proxyUrl] 同时设置。
+     * 需要客户端声明 [HttpClientCapability.ADDRESS_POLICY]。
+     */
+    var addressPolicy: OutboundAddressPolicy? = null
+
+    /**
+     * 自定义域名解析。未设置时用平台解析器。设置后客户端解析一次、只连解析出的地址（与 [addressPolicy] 同一条路径）。
+     * 主要给测试注入「解析到内网」「两次解析结果不同」这类答案。需要 [HttpClientCapability.ADDRESS_POLICY]。
+     */
+    var hostResolver: HostResolver? = null
+
     /** Public only so client adapter modules can resolve the same defaults. */
     @InternalNetonApi
     fun toEffectiveTimeout(): HttpClientTimeouts = HttpClientTimeouts(
@@ -43,6 +57,9 @@ class HttpClientConfig {
             if (!it.startsWith("http://") && !it.startsWith("https://")) {
                 errors += "proxyUrl must be an http(s) URL: $it"
             }
+        }
+        if (addressPolicy != null && proxyUrl != null) {
+            errors += "addressPolicy cannot be combined with proxyUrl: the proxy would resolve and dial the target itself"
         }
         return errors
     }
