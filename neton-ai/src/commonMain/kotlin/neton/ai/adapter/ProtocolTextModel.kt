@@ -33,6 +33,7 @@ import neton.http.client.HttpClientException
 import neton.http.client.HttpClientMethod
 import neton.http.client.HttpClientRequest
 import neton.http.client.HttpClientStreamChunk
+import neton.http.client.HttpClientTimeouts
 
 /** 一家厂商的 HTTP 端点：URL 与鉴权头。 */
 internal interface ProtocolEndpoint {
@@ -84,6 +85,8 @@ internal class ProtocolTextModel(
             url = url,
             headers = HttpHeaders.from(headers),
             body = HttpClientBody.Json(body),
+            // 单次调用覆盖 provider 超时；provider 级默认由 ProviderTimeoutHttpClient 补齐。
+            timeout = options.timeoutMillis?.let { HttpClientTimeouts(requestMillis = it, socketMillis = it) },
             metadata = options.metadata,
         )
     }

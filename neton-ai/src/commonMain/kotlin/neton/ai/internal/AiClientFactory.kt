@@ -40,7 +40,7 @@ internal object AiClientFactory {
                 is OpenAiCompatibleSpec -> {
                     val eff = spec.toEffective()
                     OpenAiCompatibleProvider(
-                        id = eff.id, httpClient = httpClient,
+                        id = eff.id, httpClient = ProviderTimeoutHttpClient(httpClient, eff.timeoutMillis),
                         baseUrl = eff.baseUrl, apiKey = eff.apiKey,
                         organization = eff.organization, defaultHeaders = eff.defaultHeaders,
                         logSink = config.logSink, debug = config.debug,
@@ -50,7 +50,7 @@ internal object AiClientFactory {
                     )
                 }
                 is neton.ai.config.GeminiSpec -> neton.ai.adapter.gemini.GeminiProvider(
-                    id = spec.id, httpClient = httpClient,
+                    id = spec.id, httpClient = ProviderTimeoutHttpClient(httpClient, spec.timeoutMillis ?: DEFAULT_PROVIDER_TIMEOUT_MS),
                     baseUrl = spec.baseUrl ?: "https://generativelanguage.googleapis.com",
                     apiKey = spec.apiKey ?: error("Gemini '${spec.id}': apiKey missing"),
                     defaultHeaders = spec.defaultHeaders ?: emptyMap(),
@@ -59,7 +59,7 @@ internal object AiClientFactory {
                 is AnthropicSpec -> {
                     val eff = spec.toEffective()
                     AnthropicProvider(
-                        id = eff.id, httpClient = httpClient,
+                        id = eff.id, httpClient = ProviderTimeoutHttpClient(httpClient, eff.timeoutMillis),
                         baseUrl = eff.baseUrl, apiKey = eff.apiKey,
                         version = eff.version, beta = eff.beta,
                         defaultHeaders = eff.defaultHeaders,

@@ -77,6 +77,10 @@ enum class AiReasoning(val effort: String?) {
 /**
  * 超时（毫秒）。[firstChunkMs] 与 [chunkMs] 只对流式有效：前者从开始请求到第一个输出块，
  * 后者是相邻输出块的间隔（只有文本、推理、工具参数等真正的输出才重置计时）。
+ *
+ * [requestMs] 是**单次 HTTP 交换**（每次模型调用的每一次尝试）的传输层超时，覆盖 provider 配置的
+ * `timeoutMillis`；为 null 时用 provider 的值（默认 60s）。它与应用共享的出站 HttpClient 的默认超时无关——
+ * AI 调用总是带着自己的超时发出，长生成不必为此放宽整个应用的出站超时。
  */
 data class AiTimeout(
     val totalMs: Long? = null,
@@ -84,7 +88,12 @@ data class AiTimeout(
     val firstChunkMs: Long? = null,
     val chunkMs: Long? = null,
     val toolMs: Long? = null,
-)
+    val requestMs: Long? = null,
+) {
+    init {
+        requestMs?.let { require(it > 0) { "requestMs must be > 0" } }
+    }
+}
 
 /** 停止条件：在每一步结束、且循环本来会继续时检查，任一为 true 即停止。 */
 fun interface AiStopCondition {

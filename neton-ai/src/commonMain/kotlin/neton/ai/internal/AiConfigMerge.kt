@@ -110,6 +110,12 @@ private fun mergeAnthropic(spec: AnthropicSpec, m: Map<String, Any?>) {
  * Resolve effective provider config — apply built-in defaults to any still-null fields.
  * Called by AiClientFactory after applyFileMap; returns a value-class snapshot used to construct providers.
  */
+/**
+ * provider 单次 HTTP 交换的默认超时（请求 + 读空闲）。provider 配置 `timeoutMillis` 覆盖它，
+ * 调用级 [neton.ai.AiTimeout.requestMs] 再覆盖 provider 的值。
+ */
+internal const val DEFAULT_PROVIDER_TIMEOUT_MS = 60_000L
+
 internal data class EffectiveOpenAiCompatibleConfig(
     val id: String, val baseUrl: String, val apiKey: String,
     val organization: String?, val timeoutMillis: Long, val defaultHeaders: Map<String, String>,
@@ -126,7 +132,7 @@ internal fun OpenAiCompatibleSpec.toEffective(): EffectiveOpenAiCompatibleConfig
         baseUrl = baseUrl ?: error("OpenAiCompat '$id': baseUrl missing (should have been caught by validate())"),
         apiKey = apiKey ?: error("OpenAiCompat '$id': apiKey missing"),
         organization = organization,
-        timeoutMillis = timeoutMillis ?: 60_000L,
+        timeoutMillis = timeoutMillis ?: DEFAULT_PROVIDER_TIMEOUT_MS,
         defaultHeaders = defaultHeaders ?: emptyMap(),
     )
 
@@ -137,6 +143,6 @@ internal fun AnthropicSpec.toEffective(): EffectiveAnthropicConfig =
         apiKey = apiKey ?: error("Anthropic '$id': apiKey missing"),
         version = version ?: "2023-06-01",
         beta = beta ?: emptyList(),
-        timeoutMillis = timeoutMillis ?: 60_000L,
+        timeoutMillis = timeoutMillis ?: DEFAULT_PROVIDER_TIMEOUT_MS,
         defaultHeaders = defaultHeaders ?: emptyMap(),
     )

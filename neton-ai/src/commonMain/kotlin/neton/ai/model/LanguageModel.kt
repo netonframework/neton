@@ -29,6 +29,8 @@ data class AiModelCallOptions(
     val headers: Map<String, String> = emptyMap(),
     /** 透传给 HTTP 客户端的元数据（追踪等）。 */
     val metadata: Map<String, String> = emptyMap(),
+    /** 本次调用的 HTTP 超时（请求 + 读空闲），覆盖 provider 的 `timeoutMillis`；null = 用 provider 的。 */
+    val timeoutMillis: Long? = null,
 )
 
 data class AiModelResult(

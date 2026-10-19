@@ -346,7 +346,7 @@ internal class AgentLoop(
         /** 流式模式下本步是否已经对外发出过输出（发出后不再回退或重试）。 */
         var emittedOutput = false
 
-        private val callOptions = AiModelCallOptions(headers = request.headers, metadata = request.metadata)
+        private val callOptions = AiModelCallOptions(headers = request.headers, metadata = request.metadata, timeoutMillis = request.timeout?.requestMs)
 
         private suspend fun generateCall(model: AiLanguageModel, chat: ChatRequest, stepNumber: Int, modelId: AiModelId): ModelCall {
             val r = withRetries(request.maxRetries, onRetry = { attempt, error, delayMs ->

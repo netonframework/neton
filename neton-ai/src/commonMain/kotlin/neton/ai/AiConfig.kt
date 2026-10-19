@@ -64,6 +64,12 @@ class AiConfig {
         if (providers.isEmpty() && customProviders.isEmpty()) errors += "at least one provider must be configured"
         if (providers.isNotEmpty() && httpClient == null) errors += "httpClient is required"
         for ((id, spec) in providers) {
+            val timeout = when (spec) {
+                is neton.ai.config.OpenAiCompatibleSpec -> spec.timeoutMillis
+                is neton.ai.config.AnthropicSpec -> spec.timeoutMillis
+                is neton.ai.config.GeminiSpec -> spec.timeoutMillis
+            }
+            if (timeout != null && timeout <= 0) errors += "provider '$id': timeoutMillis must be > 0"
             when (spec) {
                 is neton.ai.config.OpenAiCompatibleSpec -> {
                     if (spec.apiKey.isNullOrBlank()) errors += "provider '$id': apiKey is blank"
