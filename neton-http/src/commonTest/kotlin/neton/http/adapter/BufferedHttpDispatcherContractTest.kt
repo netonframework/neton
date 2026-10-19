@@ -398,6 +398,75 @@ class BufferedHttpDispatcherContractTest {
         assertEquals("VALIDATION_FAILED", message("/invalid"))
     }
 
+    // ---- 成功响应的 HTTP 状态：handler 设在 ctx.response.status 上的 2xx 原样带出（202 = 已受理、后台处理） ----
+
+    private fun statusRoute(path: String, status: HttpStatus?, value: Any?) = RouteDefinition(
+        pattern = path,
+        method = HttpMethod.POST,
+        allowAnonymous = true,
+        handler = object : RouteHandler {
+            override suspend fun invoke(context: HttpContext, args: neton.core.http.HandlerArgs): Any? {
+                status?.let { context.response.status = it }
+                return value
+            }
+        },
+    )
+
+    @Test
+    fun successStatusSetByTheHandlerIsKeptWithTheEnvelope() = runBlocking {
+        data class Queued(val state: String)
+        val context = NetonContext(emptyArray()).apply {
+            bind(RequestEngine::class, FixedRequestEngine(listOf(
+                statusRoute("/default", null, "done"),
+                statusRoute("/accepted", HttpStatus.ACCEPTED, mapOf("state" to "pending")),
+                statusRoute("/accepted-json", HttpStatus.ACCEPTED, neton.core.http.JsonContent("""{"state":"pending"}""")),
+                statusRoute("/created", HttpStatus.CREATED, 42L),
+                statusRoute("/no-content", HttpStatus.NO_CONTENT, Unit),
+                statusRoute("/no-content-body", HttpStatus.NO_CONTENT, "oops"),
+                statusRoute("/error-status", HttpStatus.CONFLICT, "oops"),
+            )))
+        }
+        val d = BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(context) }
+        fun post(path: String) = runBlocking { d.dispatch(BufferedHttpRequest("POST", path, "", emptyMap(), ByteArray(0))) }
+
+        post("/default").let {
+            assertEquals(200, it.status)
+            assertEquals("""{"code":0,"message":"OK","data":"done"}""", it.body.decodeToString())
+        }
+        post("/accepted").let {
+            assertEquals(202, it.status, "a handler that only queued work answers 202")
+            assertEquals("""{"code":0,"message":"OK","data":{"state":"pending"}}""", it.body.decodeToString())
+            assertTrue(it.headers["Content-Type"]!!.single().startsWith("application/json"))
+        }
+        post("/accepted-json").let {
+            assertEquals(202, it.status, "the slow (kotlinx) envelope path keeps the status too")
+            assertEquals("""{"code":0,"message":"OK","data":{"state":"pending"}}""", it.body.decodeToString())
+        }
+        assertEquals(201, post("/created").status)
+        post("/no-content").let {
+            assertEquals(204, it.status)
+            assertEquals(0, it.body.size, "204 carries no envelope")
+        }
+        // 2xx 以外（或带返回值的 204）配成功信封是 handler 的 bug：明确失败，不偷偷改回 200。
+        listOf("/no-content-body", "/error-status").forEach { path ->
+            val r = post(path)
+            assertEquals(500, r.status, path)
+            assertEquals("""{"code":4,"message":"INTERNAL_ERROR","data":null}""", r.body.decodeToString())
+        }
+    }
+
+    @Test
+    fun successStatusIsReadFromTheLiveResponseToo() = runBlocking {
+        val live = RecordingLiveResponse()
+        val context = NetonContext(emptyArray()).apply {
+            bind(RequestEngine::class, FixedRequestEngine(listOf(statusRoute("/accepted", HttpStatus.ACCEPTED, "queued"))))
+        }
+        val d = BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(context) }
+        val r = d.dispatch(BufferedHttpRequest("POST", "/accepted", "", emptyMap(), ByteArray(0)), live)
+        assertEquals(202, r.status)
+        assertEquals("""{"code":0,"message":"OK","data":"queued"}""", r.body.decodeToString())
+    }
+
     @Test
     fun transportFailuresAreMachineCodes() {
         val d = dispatcherWith()

@@ -800,9 +800,11 @@ public class BufferedHttpDispatcher(
      */
     private fun successResponse(result: Any?, context: BufferedHttpContext?): BufferedHttpResponse {
         val extra = handlerHeaders(context)
+        val status = successStatus(context?.response?.status, result)
+        if (status == HttpStatus.NO_CONTENT) return BufferedHttpResponse(status = status.code, headers = extra)
         if (result !is JsonContent) {
             fastEnvelopeBody(NetonErrorCode.OK, "OK", result)?.let { body ->
-                return BufferedHttpResponse(status = HttpStatus.OK.code, headers = jsonHeaders + extra, body = body)
+                return BufferedHttpResponse(status = status.code, headers = jsonHeaders + extra, body = body)
             }
         }
         val data = when (result) {
@@ -810,7 +812,7 @@ public class BufferedHttpDispatcher(
             is JsonContent -> envelopeJson.parseToJsonElement(result.json)
             else -> valueToJsonElement(result)
         }
-        return envelopeResponse(HttpStatus.OK, ApiEnvelope.ok(data), extra)
+        return envelopeResponse(status, ApiEnvelope.ok(data), extra)
     }
 
     /** handler 设过的响应头，去掉 envelope 自己负责的那些。 */
@@ -952,6 +954,26 @@ public class BufferedHttpDispatcher(
                 }
             }
             return params
+        }
+
+        /**
+         * HTTP status of a successful (envelope) response: what the handler set on `ctx.response.status`, 200 by default.
+         *
+         * A handler that only *accepts* work (queues it for a background job) answers 202 by setting
+         * `response.status = HttpStatus.ACCEPTED` and returning its value as usual; the envelope is unchanged (`code = 0`).
+         * Only 2xx statuses can carry a success envelope: 204 is sent without a body (the handler must return
+         * nothing), and a non-2xx status with a returned value is a handler bug — the envelope would say success
+         * while the status says failure — so it fails loudly ([IllegalStateException] → 500 + error log) instead of
+         * being silently rewritten to 200. Errors go through `throw HttpException(...)`, which owns its status.
+         */
+        internal fun successStatus(set: HttpStatus?, result: Any?): HttpStatus {
+            if (set == null || set == HttpStatus.OK) return HttpStatus.OK
+            if (set == HttpStatus.NO_CONTENT) {
+                check(result == null || result is Unit) { "SUCCESS_STATUS_NO_CONTENT_WITH_BODY" }
+                return set
+            }
+            check(set.code in 200..299 && set.code != 205) { "SUCCESS_STATUS_INVALID" }
+            return set
         }
 
         /**
