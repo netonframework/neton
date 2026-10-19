@@ -1,10 +1,13 @@
 package neton.http.client
 
+import neton.io.net.formatIpAddress
+
 /**
  * An IP address, IPv4 (4 bytes) or IPv6 (16 bytes), as an outbound [OutboundAddressPolicy] sees it.
  *
- * Immutable. [toString] is the canonical text: dotted-decimal IPv4, RFC 5952 IPv6 (lower-case hex, no
- * leading zeros, the longest run of two or more zero groups as `::`, IPv4-mapped as `::ffff:a.b.c.d`).
+ * Immutable. [toString] is the canonical text, as neton-io's [formatIpAddress] writes it: dotted-decimal IPv4,
+ * RFC 5952 IPv6 (lower-case hex, no leading zeros, the longest run of two or more zero groups as `::`,
+ * IPv4-mapped as `::ffff:a.b.c.d`).
  * It is a literal every resolver accepts without a lookup, which is what the built-in client dials after a
  * policy admitted the address, and what rejection messages and logs show.
  */
@@ -42,29 +45,7 @@ class IpAddress private constructor(private val bytes: ByteArray) {
 
     override fun hashCode(): Int = bytes.contentHashCode()
 
-    override fun toString(): String = if (isIpv4) dotted(0) else rfc5952()
-
-    private fun dotted(from: Int): String = "${this[from]}.${this[from + 1]}.${this[from + 2]}.${this[from + 3]}"
-
-    /** RFC 5952 §4 (and §5 for IPv4-mapped addresses). */
-    private fun rfc5952(): String {
-        if ((0 until 10).all { this[it] == 0 } && this[10] == 0xff && this[11] == 0xff) return "::ffff:${dotted(12)}"
-        val groups = IntArray(8) { (this[2 * it] shl 8) or this[2 * it + 1] }
-        // Longest run of zero groups, the first one on a tie; a single zero group is not shortened (§4.2.2).
-        var bestStart = -1
-        var bestLen = 1
-        var i = 0
-        while (i < 8) {
-            if (groups[i] != 0) { i++; continue }
-            val start = i
-            while (i < 8 && groups[i] == 0) i++
-            if (i - start > bestLen) { bestStart = start; bestLen = i - start }
-        }
-        if (bestStart < 0) return groups.joinToString(":") { it.toString(16) }
-        val head = (0 until bestStart).joinToString(":") { groups[it].toString(16) }
-        val tail = (bestStart + bestLen until 8).joinToString(":") { groups[it].toString(16) }
-        return "$head::$tail"
-    }
+    override fun toString(): String = formatIpAddress(bytes)
 
     companion object {
         /** From 4 (IPv4) or 16 (IPv6) bytes. */

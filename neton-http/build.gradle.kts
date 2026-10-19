@@ -32,7 +32,6 @@ kotlin {
         val nativeMain by creating {
             dependsOn(commonMain.get())
             dependencies {
-                implementation(netonstreamIo)
                 implementation(netonstreamHttp)
                 implementation(netonstreamTls)
                 implementation(libs.kotlinx.serialization.json)
@@ -77,6 +76,7 @@ kotlin {
             dependencies {
                 api(project(":neton-core"))
                 implementation(project(":neton-logging"))
+                implementation(netonstreamIo)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
