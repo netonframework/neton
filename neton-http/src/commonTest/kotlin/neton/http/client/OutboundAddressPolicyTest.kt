@@ -95,11 +95,53 @@ class OutboundAddressPolicyTest {
     @Test
     fun canonicalLiteralsParse() {
         assertEquals("127.0.0.1", ip("127.0.0.1").toString())
-        assertEquals("0:0:0:0:0:ffff:7f00:1", ip("[::ffff:127.0.0.1]").toString())
+        assertEquals("::ffff:127.0.0.1", ip("[::ffff:127.0.0.1]").toString())
         assertEquals(ip("::ffff:7f00:1"), ip("::ffff:127.0.0.1"))
         assertEquals(ip("2001:db8:0:0:0:0:0:1"), ip("2001:db8::1"))
         listOf("127.1", "0177.0.0.1", "2130706433", "1.2.3.256", "1:2:3:4:5:6:7:8:9", "1::2::3", "fe80::1%en0", "", "::g")
             .forEach { assertNull(IpAddress.parse(it), it) }
+    }
+
+    @Test
+    fun ipv6PrintsInRfc5952Form() {
+        mapOf(
+            "0:0:0:0:0:0:0:1" to "::1",
+            "0:0:0:0:0:0:0:0" to "::",
+            "2001:0DB8:0000:0000:0000:0000:0000:0001" to "2001:db8::1",
+            // a single zero group is not shortened (§4.2.2)
+            "2001:db8:0:1:1:1:1:1" to "2001:db8:0:1:1:1:1:1",
+            // the longest run wins; on a tie the first one (§4.2.3)
+            "2001:0:0:1:0:0:0:1" to "2001:0:0:1::1",
+            "2001:db8:0:0:1:0:0:1" to "2001:db8::1:0:0:1",
+            "fe80:0:0:0:0:0:0:0" to "fe80::",
+            "0:0:0:0:0:ffff:a9fe:a9fe" to "::ffff:169.254.169.254",
+            "64:ff9b::7f00:1" to "64:ff9b::7f00:1",
+            "1:2:3:4:5:6:7:8" to "1:2:3:4:5:6:7:8",
+        ).forEach { (text, canonical) ->
+            assertEquals(canonical, ip(text).toString(), text)
+            assertEquals(ip(text), ip(canonical), "round trip $canonical")
+        }
+    }
+
+    @Test
+    fun rejectionsNameAddressesInRfc5952Form() = runTest {
+        val policy = OutboundAddressPolicy()
+        val loopback = assertFailsWith<HttpClientException> { policy.admit("http", "[0:0:0:0:0:0:0:1]", 80, noDns) }
+        assertEquals("'::1' resolves to non-public address ::1", (loopback.error as HttpClientError.TargetRejected).message)
+        val port = assertFailsWith<HttpClientException> { policy.admit("http", "[2001:4860:0:0:0:0:0:8888]", 8080, noDns) }
+        assertTrue("2001:4860::8888" in port.error.message, port.error.message)
+        val resolver = TableResolver(mapOf("internal.example" to listOf("fd00:0:0:0:0:0:0:5")))
+        val named = assertFailsWith<HttpClientException> { policy.admit("https", "internal.example", 443, resolver) }
+        assertEquals("'internal.example' resolves to non-public address fd00::5", named.error.message)
+        val proxy = assertFailsWith<HttpClientException> { policy.admitProxy("[::ffff:10.0.0.1]", 3128, noDns) }
+        assertEquals("proxy '::ffff:10.0.0.1' resolves to non-public address ::ffff:10.0.0.1", proxy.error.message)
+    }
+
+    @Test
+    fun allowedIpv6HostsMatchWhateverTheSpelling() = runTest {
+        val policy = OutboundAddressPolicy(allowedHosts = setOf("0:0:0:0:0:0:0:1"))
+        assertEquals(setOf("::1"), policy.allowedHosts)
+        assertEquals(listOf(ip("::1")), policy.admit("http", "[::1]", 18299, noDns))
     }
 
     @Test

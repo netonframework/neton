@@ -80,7 +80,9 @@ class OutboundAddressPolicy(
     allowedHosts: Set<String> = emptySet(),
     val allowedNetworks: List<IpNetwork> = emptyList(),
 ) {
-    val allowedHosts: Set<String> = allowedHosts.map { normalizeHost(it) }.filter { it.isNotEmpty() }.toSet()
+    /** Normalized ([normalizeHost]); IP literals in their canonical text, so `0:0:0:0:0:0:0:1` and `::1` match alike. */
+    val allowedHosts: Set<String> = allowedHosts.map { normalizeHost(it) }.filter { it.isNotEmpty() }
+        .map { IpAddress.parse(it)?.toString() ?: it }.toSet()
 
     init {
         require(allowedPorts.all { it in 1..65535 }) { "allowedPorts must be in 1..65535: $allowedPorts" }
@@ -107,10 +109,12 @@ class OutboundAddressPolicy(
     suspend fun admitEndpoint(host: String, port: Int, resolver: HostResolver): List<IpAddress> {
         val name = normalizeHost(host)
         if (name.isEmpty()) reject(TargetRejection.ADDRESS, "empty host")
-        val hostAllowed = name in allowedHosts
-        if (!hostAllowed && port !in allowedPorts) reject(TargetRejection.PORT, "port $port is not allowed for $name")
-
         val literal = IpAddress.parse(name)
+        // A literal is matched and named by its canonical text (RFC 5952), however the URL spelled it.
+        val shown = literal?.toString() ?: name
+        val hostAllowed = shown in allowedHosts
+        if (!hostAllowed && port !in allowedPorts) reject(TargetRejection.PORT, "port $port is not allowed for $shown")
+
         val addresses: List<IpAddress> = when {
             literal != null -> listOf(literal)
             ':' in name || '%' in name -> reject(TargetRejection.ADDRESS, "malformed IPv6 literal '$name'")
@@ -121,7 +125,7 @@ class OutboundAddressPolicy(
         if (!hostAllowed) {
             for (a in addresses) {
                 if (!isPublic(a) && allowedNetworks.none { a in it }) {
-                    reject(TargetRejection.ADDRESS, "'$name' resolves to non-public address $a")
+                    reject(TargetRejection.ADDRESS, "'$shown' resolves to non-public address $a")
                 }
             }
         }
@@ -138,6 +142,7 @@ class OutboundAddressPolicy(
         val name = normalizeHost(host)
         if (name.isEmpty()) reject(TargetRejection.PROXY, "empty proxy host")
         val literal = IpAddress.parse(name)
+        val shown = literal?.toString() ?: name
         val addresses: List<IpAddress> = when {
             literal != null -> listOf(literal)
             ':' in name || '%' in name -> reject(TargetRejection.PROXY, "malformed IPv6 proxy literal '$name'")
@@ -149,10 +154,10 @@ class OutboundAddressPolicy(
             }
         }
         if (addresses.isEmpty()) reject(TargetRejection.PROXY, "proxy '$name' resolved to no address")
-        if (name !in allowedHosts) {
+        if (shown !in allowedHosts) {
             for (a in addresses) {
                 if (!isPublic(a) && allowedNetworks.none { a in it }) {
-                    reject(TargetRejection.PROXY, "proxy '$name' resolves to non-public address $a")
+                    reject(TargetRejection.PROXY, "proxy '$shown' resolves to non-public address $a")
                 }
             }
         }
