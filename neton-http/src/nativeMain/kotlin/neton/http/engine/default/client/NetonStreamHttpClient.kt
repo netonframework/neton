@@ -156,7 +156,7 @@ internal class NetonStreamHttpClient(
                                     val frame = timed(limits.idle, "read idle") { response.body.nextFrame() } ?: break
                                     if (frame is StreamFrame.Data) body.append(frame.bytes)
                                 }
-                                throw HttpClientException(HttpClientError.Http(status, "HTTP $status", body.join().decodeToString()))
+                                throw HttpClientException(HttpClientError.Http(status, "HTTP $status", body.join().decodeToString(), headers))
                             }
                             events.send(StreamEvent.Head(status, headers))
                             while (true) {

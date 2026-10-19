@@ -150,13 +150,21 @@ public abstract class HttpClientConformanceSuite {
      * "正常结束"。
      */
     public suspend fun checkStreamThrowsHttpErrorForNonSuccessStatus(): Unit = withOrigin(
-        handle = { writeFixed(429, body = """{"error":"slow down"}""".encodeToByteArray()) },
+        handle = {
+            writeFixed(
+                429,
+                headers = HttpHeaders.of("Retry-After" to "7"),
+                body = """{"error":"slow down"}""".encodeToByteArray(),
+            )
+        },
     ) { origin, client ->
         val error = expectFailure { client.stream(get("${origin.baseUrl}/events")).toList() }
         val http = error as? HttpClientError.Http
             ?: error("429 on stream() must surface as HttpClientError.Http, got $error")
         check(http.statusCode == 429) { "status ${http.statusCode}" }
         check(http.body?.contains("slow down") == true) { "error body must be preserved, got '${http.body}'" }
+        // Callers read Location (3xx) / Retry-After off the error: the response headers must travel with it.
+        check(http.headers["Retry-After"] == "7") { "error must carry the response headers, got ${http.headers}" }
     }
 
     public suspend fun checkConnectionRefusedMapsToNetwork() {

@@ -117,7 +117,7 @@ internal class Hyper4kHttpClient(config: HttpClientConfig) : HttpClient {
                                 // flow through an SSE parser as zero events. The body is
                                 // capped: an error page is diagnostics, not payload.
                                 throw HttpClientException(
-                                    HttpClientError.Http(errorStatus, "HTTP $errorStatus", errorBody.join().decodeToString()),
+                                    HttpClientError.Http(errorStatus, "HTTP $errorStatus", errorBody.join().decodeToString(), headers),
                                 )
                             }
                             emit(HttpClientStreamChunk.End(headers))

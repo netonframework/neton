@@ -122,6 +122,7 @@ internal class KtorHttpClient(
                         statusCode = status,
                         message = "HTTP $status",
                         body = errorBody,
+                        headers = response.headers.toNeton(),
                     )
                 )
             }

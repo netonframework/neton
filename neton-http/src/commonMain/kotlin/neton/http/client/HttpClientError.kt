@@ -14,11 +14,16 @@ sealed interface HttpClientError {
         override val cause: Throwable?,
     ) : HttpClientError
 
-    /** HTTP-level error (4xx / 5xx). Body is optional (may be unavailable on streaming responses). */
+    /**
+     * A non-2xx response where the API surfaces it as an error (`stream()`). Body is optional (may be
+     * unavailable on streaming responses). [headers] are the response's header fields, so a caller that
+     * follows redirects by hand can read `Location` off a 3xx.
+     */
     data class Http(
         val statusCode: Int,
         override val message: String,
         val body: String?,
+        val headers: neton.core.http.HttpHeaders = neton.core.http.HttpHeaders.EMPTY,
     ) : HttpClientError {
         override val cause: Throwable? = null
     }
