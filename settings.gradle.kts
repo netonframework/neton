@@ -13,7 +13,7 @@ rootProject.name = "neton"
 include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ 实现（neton.logging.internal，单模块内分层）
 include(":neton-core")       // 主框架模块
 include(":neton-http")       // HTTP 集成与内置 DefaultHttpAdapter
-include(":neton-websocket")  // 可选 WebSocket 模块，包含默认 provider
+include(":neton-websocket")  // 可选 WebSocket 模块（beta 发布），默认 provider 为内置 netonstream websocket
 include(":neton-http-hyper4k") // Hyper4k 适配层（Rust 引擎本体是独立仓库）
 // Experimental adapter only; the Rust engine lives outside this repository.
 if (providers.gradleProperty("geario4k.experimental").orNull == "true") {
@@ -58,9 +58,10 @@ if (useLocalHyper4k) {
     includeBuild("../hyper4k")
 }
 
-// netonstream 协议栈（io / http / tls / openssl / websocket）。WebSocket 集成阶段全部依赖兄弟目录的源码，
-// 不发布版本（neton-docs spec/websocket.md §3）。开关显式写在 gradle.properties，不做隐式探测；
-// 与发布验证用的 netonstream.repository 互斥。恢复发布前按 spec §3.4 关闭。
+// netonstream 协议栈（io / http / tls / openssl / websocket）与 neton-websocket 自 1.0.0-beta24 起都按 beta 发布到
+// Maven Central（neton-docs spec/websocket.md §3）。netonstream.local=true 只是开发期的源码替换：直接用兄弟目录的
+// 源码联调，开关显式写在 gradle.properties，不做隐式探测；与发布验证用的 netonstream.repository 互斥，
+// 发布任务在它开启时拒绝执行（RELEASING.md）。
 val useLocalNetonstream = providers.gradleProperty("netonstream.local").orNull == "true"
 require(!useLocalNetonstream || !providers.gradleProperty("netonstream.repository").isPresent) {
     "Choose netonstream source substitution OR artifact verification, not both."
