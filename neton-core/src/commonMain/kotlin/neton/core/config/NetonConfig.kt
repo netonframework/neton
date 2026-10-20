@@ -15,6 +15,15 @@ interface NetonConfigurer<T : Any> {
     val order: Int
         get() = 0
 
+    /**
+     * 配置来源标识（默认是实现类的全限定名）。
+     *
+     * 组件用它在启动期报告「哪个配置器注册了什么」，并作为显式覆盖的目标名
+     * （例如 security 的 `replaceDefaultAuthenticator(replaces = source, ...)`）。
+     */
+    val source: String
+        get() = this::class.qualifiedName ?: this::class.simpleName ?: "<anonymous>"
+
     fun configure(ctx: NetonContext, target: T)
 }
 
@@ -25,6 +34,7 @@ object NetonConfigurers {
     fun <T : Any> ordered(orderValue: Int, configurer: NetonConfigurer<T>): NetonConfigurer<T> =
         object : NetonConfigurer<T> {
             override val order: Int get() = orderValue
+            override val source: String get() = configurer.source
             override fun configure(ctx: NetonContext, target: T) = configurer.configure(ctx, target)
         }
 }

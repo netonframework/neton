@@ -36,6 +36,77 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
     // Tracks all registered authenticator names across default and groups to enforce uniqueness.
     private val registeredAuthenticatorNames = mutableSetOf<String>()
 
+    /** Who currently holds each registration slot. */
+    private data class SlotOwner(val name: String, val source: String, val order: Int?)
+
+    private val slotOwners = mutableMapOf<String, SlotOwner>()
+
+    private var currentSource: String = DSL_SOURCE
+    private var currentOrder: Int? = null
+
+    /**
+     * Runs [block] with every registration attributed to [source] (a configurer's FQN).
+     * [SecurityComponent.configure] wraps each configurer in this so conflicts name both sides.
+     */
+    internal fun <R> withSource(source: String, order: Int?, block: () -> R): R {
+        val previousSource = currentSource
+        val previousOrder = currentOrder
+        currentSource = source
+        currentOrder = order
+        try {
+            return block()
+        } finally {
+            currentSource = previousSource
+            currentOrder = previousOrder
+        }
+    }
+
+    /** Source that registered [slot], or null when the slot is free. Used for startup audit logs. */
+    internal fun sourceOf(slot: String): String? = slotOwners[slot]?.source
+
+    private fun describe(owner: SlotOwner): String =
+        "${owner.name}@${owner.source}" + (owner.order?.let { "(order=$it)" } ?: "")
+
+    /**
+     * Claims [slot] for the current source. A slot may only be claimed once; replacing requires
+     * [replaces] to name the current owner exactly. Order of assembly never decides who wins.
+     */
+    private fun claimSlot(slot: String, name: String, replaces: String?) {
+        val existing = slotOwners[slot]
+        val incoming = SlotOwner(name, currentSource, currentOrder)
+        if (replaces == null) {
+            if (existing != null) {
+                throw SecurityRegistrationException(
+                    code = SecurityRegistrationException.CONFLICT,
+                    slot = slot,
+                    detail = "existing=${describe(existing)} incoming=${describe(incoming)} " +
+                        "hint=declare replace*(replaces=\"${existing.source}\") from a configurer with a higher order",
+                )
+            }
+        } else {
+            if (existing == null) {
+                throw SecurityRegistrationException(
+                    code = SecurityRegistrationException.REPLACE_TARGET_MISSING,
+                    slot = slot,
+                    detail = "replaces=$replaces incoming=${describe(incoming)} " +
+                        "hint=the replaced configurer must run first (lower order) and register this slot",
+                )
+            }
+            if (existing.source != replaces) {
+                throw SecurityRegistrationException(
+                    code = SecurityRegistrationException.REPLACE_TARGET_MISMATCH,
+                    slot = slot,
+                    detail = "replaces=$replaces existing=${describe(existing)} incoming=${describe(incoming)}",
+                )
+            }
+            logger?.info(
+                "security.registration.replaced",
+                mapOf("slot" to slot, "replaced" to describe(existing), "by" to describe(incoming)),
+            )
+        }
+        slotOwners[slot] = incoming
+    }
+
     private fun validateGroupName(group: String) {
         if (group.isBlank()) {
             throw IllegalArgumentException("Security group name must not be blank")
@@ -60,37 +131,79 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
         }
     }
 
-    override fun setDefaultAuthenticator(auth: neton.core.interfaces.Authenticator?) {
+    private fun putDefaultAuthenticator(auth: neton.core.interfaces.Authenticator?, replaces: String?) {
+        // Clearing a free slot is a no-op; clearing someone else's authenticator is an override.
+        if (auth == null && replaces == null && defaultAuthenticator == null) return
+        claimSlot(SLOT_DEFAULT_AUTHENTICATOR, auth?.name ?: "null", replaces)
         trackAuthenticatorName(auth, defaultAuthenticator)
         defaultAuthenticator = auth
-        logger?.info("security.set.default.authenticator", mapOf("name" to (auth?.name ?: "null")))
+        logger?.info(
+            "security.set.default.authenticator",
+            mapOf("name" to (auth?.name ?: "null"), "source" to currentSource),
+        )
     }
 
-    override fun setDefaultGuard(guard: neton.core.interfaces.Guard) {
-        defaultGuard = guard
-        logger?.info("security.set.default.guard", mapOf("name" to guard.name))
-    }
-
-    override fun setGroupAuthenticator(group: String, auth: neton.core.interfaces.Authenticator?) {
+    private fun putGroupAuthenticator(group: String, auth: neton.core.interfaces.Authenticator?, replaces: String?) {
         validateGroupName(group)
         val existing = authenticatorsByGroup[group]
-        if (existing != null) {
-            logger?.warn("security.group.overwrite", mapOf("group" to group, "field" to "authenticator"))
-        }
+        if (auth == null && replaces == null && existing == null) return
+        claimSlot(groupAuthenticatorSlot(group), auth?.name ?: "null", replaces)
         trackAuthenticatorName(auth, existing)
         if (auth != null) authenticatorsByGroup[group] = auth
         else authenticatorsByGroup.remove(group)
-        logger?.info("security.set.group.authenticator", mapOf("group" to group, "name" to (auth?.name ?: "null")))
+        logger?.info(
+            "security.set.group.authenticator",
+            mapOf("group" to group, "name" to (auth?.name ?: "null"), "source" to currentSource),
+        )
     }
 
-    override fun setGroupGuard(group: String, guard: neton.core.interfaces.Guard) {
-        validateGroupName(group)
-        if (guardsByGroup.containsKey(group)) {
-            logger?.warn("security.group.overwrite", mapOf("group" to group, "field" to "guard"))
-        }
-        guardsByGroup[group] = guard
-        logger?.info("security.set.group.guard", mapOf("group" to group, "name" to guard.name))
+    private fun putDefaultGuard(guard: neton.core.interfaces.Guard, replaces: String?) {
+        claimSlot(SLOT_DEFAULT_GUARD, guard.name, replaces)
+        defaultGuard = guard
+        logger?.info("security.set.default.guard", mapOf("name" to guard.name, "source" to currentSource))
     }
+
+    private fun putGroupGuard(group: String, guard: neton.core.interfaces.Guard, replaces: String?) {
+        validateGroupName(group)
+        claimSlot(groupGuardSlot(group), guard.name, replaces)
+        guardsByGroup[group] = guard
+        logger?.info(
+            "security.set.group.guard",
+            mapOf("group" to group, "name" to guard.name, "source" to currentSource),
+        )
+    }
+
+    private fun putPermissionEvaluator(evaluator: PermissionEvaluator, replaces: String?) {
+        claimSlot(SLOT_PERMISSION_EVALUATOR, evaluator::class.simpleName ?: "permissionEvaluator", replaces)
+        permissionEvaluator = evaluator
+        logger?.info("security.permissionEvaluator.set", mapOf("source" to currentSource))
+    }
+
+    override fun setDefaultAuthenticator(auth: neton.core.interfaces.Authenticator?) =
+        putDefaultAuthenticator(auth, replaces = null)
+
+    override fun setDefaultGuard(guard: neton.core.interfaces.Guard) = putDefaultGuard(guard, replaces = null)
+
+    override fun setGroupAuthenticator(group: String, auth: neton.core.interfaces.Authenticator?) =
+        putGroupAuthenticator(group, auth, replaces = null)
+
+    override fun setGroupGuard(group: String, guard: neton.core.interfaces.Guard) =
+        putGroupGuard(group, guard, replaces = null)
+
+    override fun replaceDefaultAuthenticator(replaces: String, auth: neton.core.interfaces.Authenticator) =
+        putDefaultAuthenticator(auth, replaces)
+
+    override fun replaceGroupAuthenticator(group: String, replaces: String, auth: neton.core.interfaces.Authenticator) =
+        putGroupAuthenticator(group, auth, replaces)
+
+    override fun replaceDefaultGuard(replaces: String, guard: neton.core.interfaces.Guard) =
+        putDefaultGuard(guard, replaces)
+
+    override fun replaceGroupGuard(group: String, replaces: String, guard: neton.core.interfaces.Guard) =
+        putGroupGuard(group, guard, replaces)
+
+    override fun replacePermissionEvaluator(replaces: String, evaluator: PermissionEvaluator) =
+        putPermissionEvaluator(evaluator, replaces)
 
     override fun getGroupConfigSummary(): List<SecurityGroupConfig> {
         val list = mutableListOf<SecurityGroupConfig>()
@@ -98,7 +211,9 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
             SecurityGroupConfig(
                 group = null,
                 authenticator = defaultAuthenticator?.name,
-                guard = defaultGuard?.name ?: "<none>"
+                guard = defaultGuard?.name ?: "<none>",
+                authenticatorSource = sourceOf(SLOT_DEFAULT_AUTHENTICATOR),
+                guardSource = sourceOf(SLOT_DEFAULT_GUARD),
             )
         )
         val allGroups = (authenticatorsByGroup.keys + guardsByGroup.keys).toSet().sorted()
@@ -107,11 +222,24 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
                 SecurityGroupConfig(
                     group = g,
                     authenticator = authenticatorsByGroup[g]?.name,
-                    guard = guardsByGroup[g]?.name ?: "<none>"
+                    guard = guardsByGroup[g]?.name ?: "<none>",
+                    authenticatorSource = authenticatorsByGroup[g]?.let { sourceOf(groupAuthenticatorSlot(g)) },
+                    guardSource = guardsByGroup[g]?.let { sourceOf(groupGuardSlot(g)) },
                 )
             )
         }
         return list
+    }
+
+    companion object {
+        /** Source label for registrations made in the `Neton.run { security { } }` DSL block. */
+        const val DSL_SOURCE: String = "security-dsl"
+
+        internal const val SLOT_DEFAULT_AUTHENTICATOR = "authenticator[default]"
+        internal const val SLOT_DEFAULT_GUARD = "guard[default]"
+        internal const val SLOT_PERMISSION_EVALUATOR = "permissionEvaluator"
+        internal fun groupAuthenticatorSlot(group: String) = "authenticator[$group]"
+        internal fun groupGuardSlot(group: String) = "guard[$group]"
     }
 
     override fun registerMockAuthenticator(userId: String, roles: Set<String>, permissions: Set<String>) {
@@ -193,10 +321,8 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
         logger?.info("security.guard.anonymous")
     }
 
-    override fun setPermissionEvaluator(evaluator: PermissionEvaluator) {
-        permissionEvaluator = evaluator
-        logger?.info("security.permissionEvaluator.set")
-    }
+    override fun setPermissionEvaluator(evaluator: PermissionEvaluator) =
+        putPermissionEvaluator(evaluator, replaces = null)
 
     // ===== 通用方法（委托给 set*） =====
 
@@ -263,6 +389,25 @@ class SecurityBuilderImpl : neton.core.interfaces.SecurityBuilder {
 
     override fun getAuthenticationContext(): AuthenticationContext {
         return AuthenticationContextImpl(allAuthenticators(), allGuards())
+    }
+}
+
+/**
+ * Startup-time security registration error. [code] is a stable machine code; the message is
+ * `"<code> slot=<slot> <detail>"` so a log line names the slot and both sources.
+ */
+class SecurityRegistrationException(
+    val code: String,
+    val slot: String,
+    detail: String,
+) : IllegalStateException("$code slot=$slot $detail") {
+    companion object {
+        /** Two sources registered the same slot without an explicit replace. */
+        const val CONFLICT = "security.registration.conflict"
+        /** replace* named a source but the slot is still free (the replaced configurer did not run first). */
+        const val REPLACE_TARGET_MISSING = "security.replace.target_missing"
+        /** replace* named a source that does not own the slot. */
+        const val REPLACE_TARGET_MISMATCH = "security.replace.target_mismatch"
     }
 }
 

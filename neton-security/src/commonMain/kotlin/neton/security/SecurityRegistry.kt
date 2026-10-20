@@ -15,6 +15,7 @@ class SecurityRegistry {
      * 注册默认认证器
      */
     fun registerAuthenticator(authenticator: Authenticator) {
+        defaultAuthenticator?.let { conflict("authenticator[default]", it.name, authenticator.name) }
         defaultAuthenticator = authenticator
     }
 
@@ -22,6 +23,7 @@ class SecurityRegistry {
      * 注册路由组认证器
      */
     fun registerAuthenticator(routeGroup: String, authenticator: Authenticator) {
+        authenticators[routeGroup]?.let { conflict("authenticator[$routeGroup]", it.name, authenticator.name) }
         authenticators[routeGroup] = authenticator
     }
 
@@ -29,6 +31,7 @@ class SecurityRegistry {
      * 绑定默认守卫
      */
     fun bindGuard(guard: Guard) {
+        defaultGuard?.let { conflict("guard[default]", it.name, guard.name) }
         defaultGuard = guard
     }
 
@@ -36,8 +39,17 @@ class SecurityRegistry {
      * 绑定路由组守卫
      */
     fun bindGuard(routeGroup: String, guard: Guard) {
+        guards[routeGroup]?.let { conflict("guard[$routeGroup]", it.name, guard.name) }
         guards[routeGroup] = guard
     }
+
+    /** Each slot is registered once; a second registration never silently wins. */
+    private fun conflict(slot: String, existing: String, incoming: String): Nothing =
+        throw SecurityRegistrationException(
+            code = SecurityRegistrationException.CONFLICT,
+            slot = slot,
+            detail = "existing=$existing incoming=$incoming",
+        )
 
     /**
      * 获取路由组对应的认证器

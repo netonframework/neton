@@ -31,16 +31,23 @@ object SecurityComponent : NetonComponent<SecurityBuilder> {
 
     override suspend fun configure(ctx: NetonContext) {
         val config = ctx.get<SecurityBuilder>()
+        val impl = config as? SecurityBuilderImpl
         ctx.getOrNull(NetonConfigRegistry::class)?.securityConfigurers
             ?.sortedBy { it.order }
-            ?.forEach { it.configure(ctx, config) }
+            ?.forEach { configurer ->
+                if (impl != null) impl.withSource(configurer.source, configurer.order) { configurer.configure(ctx, config) }
+                else configurer.configure(ctx, config)
+            }
         val log = ctx.getOrNull(LoggerFactory::class)?.get("neton.security")
+        // One line per route group: which authenticator/guard serves it and which configurer registered it.
         config.getGroupConfigSummary().forEach { entry ->
             log?.info(
                 "security.group.config", mapOf(
                     "group" to (entry.group ?: "default"),
                     "authenticator" to (entry.authenticator ?: "<none>"),
-                    "guard" to entry.guard
+                    "authenticatorSource" to (entry.authenticatorSource ?: "<none>"),
+                    "guard" to entry.guard,
+                    "guardSource" to (entry.guardSource ?: "<none>"),
                 )
             )
         }

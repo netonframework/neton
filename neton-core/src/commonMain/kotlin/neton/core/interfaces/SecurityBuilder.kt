@@ -8,13 +8,25 @@ import neton.core.security.AuthenticationContext
 data class SecurityGroupConfig(
     val group: String?,
     val authenticator: String?,
-    val guard: String
+    val guard: String,
+    /** 注册该组认证器的来源（配置器全限定名或 DSL），未注册时为 null。 */
+    val authenticatorSource: String? = null,
+    /** 注册该组守卫的来源，未注册时为 null。 */
+    val guardSource: String? = null,
 )
 
 /**
  * 安全构建器接口 - Core 模块定义的标准接口
  *
  * 使用工厂模式，用户通过方法配置安全组件，而不直接依赖具体实现
+ *
+ * # 注册槽位唯一（不允许按装配顺序静默覆盖）
+ *
+ * 默认认证器、每个路由组的认证器、默认守卫、每个路由组的守卫、权限评估器各是一个槽位。
+ * 一个槽位只能被注册一次：第二次 `set*` / `register*` / `bind*` 在启动期抛
+ * `security.registration.conflict`，消息里同时给出已有与新来的来源。要替换别人注册的实现，
+ * 必须用 `replace*` 显式声明被替换的来源（配置器全限定名，见 [neton.core.config.NetonConfigurer.source]），
+ * 且替换方必须在被替换方之后执行（更大的 order）。
  */
 interface SecurityBuilder {
 
@@ -108,6 +120,33 @@ interface SecurityBuilder {
      * @throws IllegalArgumentException 当 group 为空或非法时 fail-fast
      */
     fun setGroupGuard(group: String, guard: Guard)
+
+    // ===== 显式覆盖（唯一允许替换已占用槽位的入口） =====
+
+    /**
+     * 替换默认认证器。[replaces] 必须等于当前占用该槽位的来源，否则启动失败。
+     */
+    fun replaceDefaultAuthenticator(replaces: String, auth: Authenticator)
+
+    /**
+     * 替换指定组的认证器。[replaces] 必须等于当前占用该槽位的来源，否则启动失败。
+     */
+    fun replaceGroupAuthenticator(group: String, replaces: String, auth: Authenticator)
+
+    /**
+     * 替换默认守卫。[replaces] 必须等于当前占用该槽位的来源，否则启动失败。
+     */
+    fun replaceDefaultGuard(replaces: String, guard: Guard)
+
+    /**
+     * 替换指定组的守卫。[replaces] 必须等于当前占用该槽位的来源，否则启动失败。
+     */
+    fun replaceGroupGuard(group: String, replaces: String, guard: Guard)
+
+    /**
+     * 替换权限评估器。[replaces] 必须等于当前占用该槽位的来源，否则启动失败。
+     */
+    fun replacePermissionEvaluator(replaces: String, evaluator: PermissionEvaluator)
 
     // ===== 通用方法（与 set* 等效，保留兼容） =====
 
