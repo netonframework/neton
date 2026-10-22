@@ -152,7 +152,7 @@ class NetonStreamServerTest {
     /** A dual-stack listener sees an IPv4 client as v4-mapped; the framework gets the plain IPv4 address. */
     @Test
     fun peerAddressOfAnIpv4ClientOnADualStackListenerIsIpv4() = runBlocking {
-        val server = startServer(basicRoutes(), DefaultHttpOptions(host = "::", reactors = 1))
+        val server = startServer(basicRoutes(), DefaultHttpOptions(reactors = 1), host = "::")
         val client = RawClient(server.port)
         try {
             client.send(getRequest("/peer"))
@@ -249,8 +249,8 @@ class NetonStreamServerTest {
     @Test
     fun unreadableCertificateFailsStartWithThePaths() = runBlocking {
         val adapter = DefaultHttpAdapter(
-            HttpServerConfig(port = freePort(), tls = TlsSettings("/nonexistent/cert.pem", "/nonexistent/key.pem")),
-            DefaultHttpOptions(host = "127.0.0.1", reactors = 1),
+            HttpServerConfig(port = freePort(), host = "127.0.0.1", tls = TlsSettings("/nonexistent/cert.pem", "/nonexistent/key.pem")),
+            DefaultHttpOptions(reactors = 1),
         )
         val error = runCatching { adapter.start(fixtureContext(emptyList())) }.exceptionOrNull()
         assertNotNull(error)
@@ -270,7 +270,7 @@ class NetonStreamServerTest {
     fun portInUseFailsStart() = runBlocking {
         val server = startServer(basicRoutes())
         try {
-            val second = DefaultHttpAdapter(HttpServerConfig(port = server.port), DefaultHttpOptions(host = "127.0.0.1", reactors = 1))
+            val second = DefaultHttpAdapter(HttpServerConfig(port = server.port, host = "127.0.0.1"), DefaultHttpOptions(reactors = 1))
             val error = runCatching { second.start(fixtureContext(emptyList())) }.exceptionOrNull()
             assertNotNull(error)
             assertTrue(error.message!!.contains("failed to start"), error.message)
@@ -336,7 +336,7 @@ class NetonStreamServerTest {
 
     @Test
     fun declaredBodyOverTheLimitIs413OnHttp1() = runBlocking {
-        val server = startServer(basicRoutes(), DefaultHttpOptions(host = "127.0.0.1", reactors = 1, maxRequestBodyBytes = 1024))
+        val server = startServer(basicRoutes(), DefaultHttpOptions(reactors = 1, maxRequestBodyBytes = 1024))
         val client = RawClient(server.port)
         try {
             client.send("POST /size HTTP/1.1\r\nHost: x\r\nContent-Length: 2048\r\n\r\n")
@@ -370,7 +370,7 @@ class NetonStreamServerTest {
     /** The connection times an HTTP/1 body that stops arriving; the adapter answers 408 and the connection closes. */
     @Test
     fun bodyThatStopsArrivingIs408OnHttp1() = runBlocking {
-        val server = startServer(basicRoutes(), DefaultHttpOptions(host = "127.0.0.1", reactors = 1, requestBodyTimeoutMillis = 300))
+        val server = startServer(basicRoutes(), DefaultHttpOptions(reactors = 1, requestBodyTimeoutMillis = 300))
         val client = RawClient(server.port)
         try {
             val started = kotlin.time.TimeSource.Monotonic.markNow()
@@ -388,7 +388,7 @@ class NetonStreamServerTest {
 
     @Test
     fun chunkedBodyOverTheLimitIs413OnHttp1() = runBlocking {
-        val server = startServer(basicRoutes(), DefaultHttpOptions(host = "127.0.0.1", reactors = 1, maxRequestBodyBytes = 1024))
+        val server = startServer(basicRoutes(), DefaultHttpOptions(reactors = 1, maxRequestBodyBytes = 1024))
         val client = RawClient(server.port)
         try {
             val chunk = "x".repeat(600)
@@ -411,7 +411,7 @@ class NetonStreamServerTest {
 
     @Test
     fun bodyOverTheLimitIs413OnH2() = runBlocking {
-        val server = startServer(basicRoutes(), DefaultHttpOptions(host = "127.0.0.1", reactors = 1, maxRequestBodyBytes = 1024))
+        val server = startServer(basicRoutes(), DefaultHttpOptions(reactors = 1, maxRequestBodyBytes = 1024))
         try {
             withContext(Dispatchers.Default) {
                 val r = clientRequest(server.port, "/size", h2 = true, method = "POST", body = ByteArray(4096))

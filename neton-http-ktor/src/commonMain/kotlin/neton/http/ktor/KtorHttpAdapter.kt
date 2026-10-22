@@ -110,7 +110,7 @@ class KtorHttpAdapter(
         syncKtorLogLevelToConfig(ktorLevel)
         installPortInUseHandler(port)
         try {
-            embeddedServer = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+            embeddedServer = embeddedServer(CIO, port = port, host = serverConfig.host) {
                 // 不装 ContentNegotiation / IgnoreTrailingSlash / CORS 插件：
                 // envelope、尾斜杠归一、CORS 全部由 BufferedHttpDispatcher 统一处理，
                 // 两个引擎行为一致（旧版插件路径曾与 hyper4k 漂移）。

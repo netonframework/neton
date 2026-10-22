@@ -93,13 +93,14 @@ internal class TestServer(val adapter: DefaultHttpAdapter, val port: Int, privat
 /** Starts the real adapter (reactors on their own threads) and waits until it is serving. */
 internal suspend fun startServer(
     routes: List<RouteDefinition>,
-    options: DefaultHttpOptions = DefaultHttpOptions(host = "127.0.0.1", reactors = 2),
+    options: DefaultHttpOptions = DefaultHttpOptions(reactors = 2),
     cors: CorsConfig? = null,
+    host: String = "127.0.0.1",
     config: (port: Int) -> HttpServerConfig = { HttpServerConfig(port = it) },
 ): TestServer {
     ignoreSigpipe()
     val port = freePort()
-    val adapter = DefaultHttpAdapter(config(port), options)
+    val adapter = DefaultHttpAdapter(config(port).copy(host = host), options)
     val started = CompletableDeferred<Unit>()
     val job = CoroutineScope(Dispatchers.Default).launch {
         adapter.start(fixtureContext(routes, cors)) { started.complete(Unit) }

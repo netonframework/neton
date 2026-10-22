@@ -41,7 +41,7 @@ public class Hyper4kHttpAdapter(
         bindContext(ctx)
         val startedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
         val running = Hyper4kServer(
-            host = "0.0.0.0",
+            host = serverConfig.host,
             port = serverConfig.port,
             maxConcurrentRequests = serverConfig.maxConnections,
             requestTimeoutMillis = serverConfig.timeout,

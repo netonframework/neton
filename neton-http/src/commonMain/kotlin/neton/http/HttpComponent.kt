@@ -43,6 +43,7 @@ class HttpComponent(
             args = ctx.args
         )
         val port = resolveInt(appConfig, "server.port") ?: config.port
+        val host = (ConfigLoader.getConfigValue(appConfig, "server.host") as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: "0.0.0.0"
         val timeout = resolveLong(appConfig, "http.timeout") ?: 30000L
         val maxConnections = resolveInt(appConfig, "http.maxConnections") ?: 1000
         val enableCompression = resolveBoolean(appConfig, "http.enableCompression") ?: true
@@ -52,6 +53,7 @@ class HttpComponent(
         val tls = resolveTls(appConfig) ?: config.tls
         val serverConfig = HttpServerConfig(
             port = port,
+            host = host,
             timeout = timeout,
             maxConnections = maxConnections,
             enableCompression = enableCompression,

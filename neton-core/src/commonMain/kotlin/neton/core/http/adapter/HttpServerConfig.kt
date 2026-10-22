@@ -8,6 +8,8 @@ package neton.core.http.adapter
  */
 data class HttpServerConfig(
     val port: Int,
+    /** Listen address, application.conf `[server] host`. All interfaces by default; `127.0.0.1` for loopback only. */
+    val host: String = "0.0.0.0",
     val timeout: Long = 30000L,
     val maxConnections: Int = 1000,
     val enableCompression: Boolean = true,

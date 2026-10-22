@@ -48,7 +48,7 @@ public class GearioHttpAdapter(
         val ref = StableRef.create(state)
         val startedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
         val running = geario_http_native_h1_start(
-            host = "0.0.0.0",
+            host = serverConfig.host,
             port = serverConfig.port.toUShort(),
             on_request = staticCFunction(::onRequest),
             user_data = ref.asCPointer(),

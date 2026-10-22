@@ -83,7 +83,7 @@ class NetonStreamAdapterTest {
     fun defaultsMatchHyper4k() {
         val options = DefaultHttpOptions()
         assertEquals(16L * 1024 * 1024, options.maxRequestBodyBytes)
-        assertEquals("0.0.0.0", options.host)
+        assertEquals("0.0.0.0", HttpServerConfig(port = 0).host)
         assertTrue(options.reactors >= 1)
     }
 

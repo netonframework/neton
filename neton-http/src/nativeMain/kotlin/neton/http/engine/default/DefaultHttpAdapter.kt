@@ -68,8 +68,6 @@ import neton.http.header.HeaderValue as StreamHeaderValue
  * `http({ DefaultHttpAdapter(it, DefaultHttpOptions(reactors = 2)) }) { }`.
  */
 public class DefaultHttpOptions(
-    /** Listen address (hyper4k listens on 0.0.0.0). */
-    public val host: String = "0.0.0.0",
     /** Reactor threads connections are spread over; one per online core by default. */
     public val reactors: Int = cpuCount(),
     /** How accepted connections reach the reactors (neton-io; ReusePort is Linux/Android only). */
@@ -177,7 +175,7 @@ public class DefaultHttpAdapter(
                 val key = runCatching { readFileBytes(tls.privateKeyPath) }
                 if (certificate.isFailure || key.isFailure) {
                     error(
-                        "netonstream server failed to start on ${options.host}:${serverConfig.port} " +
+                        "netonstream server failed to start on ${serverConfig.host}:${serverConfig.port} " +
                             "(certificate/key unreadable at ${tls.certificatePath} / ${tls.privateKeyPath})",
                     )
                 }
@@ -195,7 +193,7 @@ public class DefaultHttpAdapter(
                 appContext = null
                 if (e is CancellationException) throw e
                 throw IllegalStateException(
-                    "netonstream server failed to start on ${options.host}:${serverConfig.port} (${e.message ?: e})",
+                    "netonstream server failed to start on ${serverConfig.host}:${serverConfig.port} (${e.message ?: e})",
                     e,
                 )
             }
@@ -546,7 +544,7 @@ public class DefaultHttpAdapter(
                     val options = adapter.options
                     val group: TcpServerGroup = try {
                         listenGroup(
-                            host = options.host,
+                            host = adapter.serverConfig.host,
                             port = adapter.serverConfig.port,
                             reactors = options.reactors,
                             acceptMode = options.acceptMode,
