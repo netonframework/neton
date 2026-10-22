@@ -204,6 +204,68 @@ class DomainEventBusTest {
         Unit
     }
 
+    // ---- 发布端筛选 ----
+
+    private class EvenOnly(
+        override val mode: DeliveryMode,
+        override val listenerId: String = "test.even-only",
+        val failFilter: Boolean = false,
+    ) : DomainEventListener<Paid> {
+        override val eventType = Paid::class
+        val seen = mutableListOf<Long>()
+        override fun accepts(event: Paid): Boolean {
+            if (failFilter) throw IllegalStateException("filter boom")
+            return event.id % 2 == 0L
+        }
+        override suspend fun onEvent(event: Paid) { seen += event.id }
+    }
+
+    /** 不接收的事件不调用同步监听者。 */
+    @Test
+    fun syncListenerSkipsEventsItDoesNotAccept() = runBlocking {
+        val listener = EvenOnly(DeliveryMode.SYNC)
+        val bus = DomainEventBus(listOf(listener))
+        (1L..4L).forEach { bus.publish(Paid(it)) }
+        assertEquals(listOf(2L, 4L), listener.seen)
+    }
+
+    /** 可重试监听者不接收的事件不落库：这正是筛选放在发布端的意义（高频事件不产生待投递行）。 */
+    @Test
+    fun retryableListenerDoesNotPersistEventsItDoesNotAccept() = runBlocking {
+        val appended = mutableListOf<PendingEventRecord>()
+        val store = object : DomainEventStore {
+            override suspend fun append(record: PendingEventRecord) { appended += record }
+            override suspend fun claimDue(now: Long, limit: Int, staleBefore: Long) = emptyList<StoredEventRecord>()
+            override suspend fun markDelivered(id: Long, claimToken: String, now: Long) = true
+            override suspend fun markFailed(id: Long, claimToken: String, now: Long, nextAttemptAt: Long?, error: String) = true
+        }
+        val bus = DomainEventBus(listOf(EvenOnly(DeliveryMode.RETRYABLE)), store = store, codec = jsonCodec)
+        (1L..5L).forEach { bus.publish(Paid(it)) }
+        assertEquals(2, appended.size)
+    }
+
+    /** 筛选不影响同一事件的其他监听者。 */
+    @Test
+    fun filterOnlyAffectsItsOwnListener() = runBlocking {
+        val picky = EvenOnly(DeliveryMode.SYNC)
+        val all = Recorder(listenerId = "test.all")
+        val bus = DomainEventBus(listOf(picky, all))
+        bus.publish(Paid(1))
+        assertEquals(emptyList(), picky.seen)
+        assertEquals(listOf(1L), all.seen)
+    }
+
+    /** 筛选抛错：SYNC 上抛（与 onEvent 同一语义）；BEST_EFFORT 记录后视为不接收，不影响发布方。 */
+    @Test
+    fun filterFailureFollowsTheDeliveryMode() = runBlocking {
+        assertFailsWith<IllegalStateException> { DomainEventBus(listOf(EvenOnly(DeliveryMode.SYNC, failFilter = true))).publish(Paid(2)) }
+        val errors = mutableListOf<Throwable>()
+        val lenient = EvenOnly(DeliveryMode.BEST_EFFORT, failFilter = true)
+        DomainEventBus(listOf(lenient), onError = { _, _, e -> errors += e }).publish(Paid(2))
+        assertTrue(lenient.seen.isEmpty())
+        assertEquals(1, errors.size)
+    }
+
     private object NoopStore : DomainEventStore {
         override suspend fun append(record: PendingEventRecord) {}
         override suspend fun claimDue(now: Long, limit: Int, staleBefore: Long) = emptyList<StoredEventRecord>()

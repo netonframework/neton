@@ -74,5 +74,17 @@ interface DomainEventListener<E : DomainEvent> {
      */
     val listenerId: String
 
+    /**
+     * 发布时的筛选：返回 false 的事件不投递给本监听者——同步监听者不调用，[DeliveryMode.RETRYABLE] 的**不落库**。
+     *
+     * 一个事件类型常承载多种情形（`ObjectCounterChanged` 的评论数、收藏数、点赞数……），监听者往往只关心其中一种。
+     * 在 [onEvent] 里再丢弃也正确，但对可重试监听者，每个不关心的事件都已经写了一行待投递记录、占了一次调度——
+     * 高频事件（收藏、点赞）下这就是写放大。筛选放在发布端，不关心的事件不产生任何持久化副作用。
+     *
+     * 只能看事件本身（纯函数、不做 I/O）：它运行在发布方的事务里，发布方为它付出耗时；抛出的异常按 [mode] 处理
+     * （SYNC 上抛，其余记录后视为不接收）。缺省接收全部。
+     */
+    fun accepts(event: E): Boolean = true
+
     suspend fun onEvent(event: E)
 }

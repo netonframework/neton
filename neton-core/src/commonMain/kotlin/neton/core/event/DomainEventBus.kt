@@ -127,12 +127,15 @@ class DomainEventBus(
      * 订阅父类型的监听者应当收到全部子类型。若用精确匹配，这类订阅会**静默失效**：
      * 不报错、也不触发，是最难排查的一类缺陷。
      *
+     * 类型匹配之后再问监听者的 [DomainEventListener.accepts]：不接收的事件既不调用、也不落库。
+     *
      * [DeliveryMode.SYNC] 监听者抛出的异常原样上抛，发布方若在事务中则一并回滚。
      */
     @Suppress("UNCHECKED_CAST")
     suspend fun publish(event: DomainEvent) {
         for (listener in all) {
             if (!listener.eventType.isInstance(event)) continue
+            if (!accepted(listener as DomainEventListener<DomainEvent>, event)) continue
 
             if (listener.mode == DeliveryMode.RETRYABLE) {
                 persist(event, listener)
@@ -140,7 +143,7 @@ class DomainEventBus(
             }
 
             try {
-                (listener as DomainEventListener<DomainEvent>).onEvent(event)
+                listener.onEvent(event)
             } catch (e: CancellationException) {
                 // 取消不是失败：吞掉它会让请求/任务在关闭时无法收敛，还会把取消记成监听者错误
                 throw e
@@ -150,6 +153,18 @@ class DomainEventBus(
             }
         }
     }
+
+    /** 筛选抛错：SYNC 监听者上抛（与它的 onEvent 同一语义），其余记录后视为不接收。 */
+    private fun accepted(listener: DomainEventListener<DomainEvent>, event: DomainEvent): Boolean =
+        try {
+            listener.accepts(event)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            if (listener.mode == DeliveryMode.SYNC) throw e
+            onError(event, listener, e)
+            false
+        }
 
     /**
      * 与发布方同事务落库：发布方回滚则本记录一并消失。
