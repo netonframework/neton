@@ -1,6 +1,7 @@
 package neton.database.adapter.sqlx
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
@@ -84,6 +85,14 @@ class PostgresReleaseGateTest {
                         execute("INSERT INTO $table VALUES (2, 20)")
                         transaction { execute("INSERT INTO $table VALUES (3, 30)") }
                         throw RollbackProbe()
+                    }
+                }
+                assertEquals(listOf(1L), db.fetchAll("SELECT id FROM $table ORDER BY id").map { it.long("id") })
+
+                assertFailsWith<CancellationException> {
+                    db.transaction {
+                        execute("INSERT INTO $table VALUES (6, 60)")
+                        throw CancellationException("intentional gate cancellation")
                     }
                 }
                 assertEquals(listOf(1L), db.fetchAll("SELECT id FROM $table ORDER BY id").map { it.long("id") })

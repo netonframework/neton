@@ -5,6 +5,26 @@ clang and the msys2 sysroot that Kotlin/Native downloads, so no Windows machine 
 
 ## Prerequisites
 
+Publication is not release acceptance. The canonical
+[1.0 release gate](https://netonframework.github.io/zh-hans/spec/release-gate)
+requires evidence from the exact committed candidate, not an edited developer checkout.
+Native macOS, Linux and Windows CI and real Redis/PostgreSQL contracts are necessary;
+they do not replace the public reference application's release-binary migration and
+two-cycle shutdown/resource-release evidence. A private product is never a prerequisite.
+
+The `postgres-contracts` Backend CI job provisions its own PostgreSQL database and runs
+`:neton-database:linuxX64Test` with `NETON_DB_TEST_REQUIRED=true`. This flag makes missing
+credentials a failure, not an optional-test pass. The gate only accepts a loopback URI
+whose database name begins with `neton_gate_`; use a disposable database with no user data.
+It checks numeric decoding, migration replay/checksum drift, commit, nested rollback,
+cancellation propagation and overlapping independent transactions. Reports are retained
+as an artifact named with the candidate commit. This database suite does **not** prove
+application lifecycle shutdown or zero connections after SIGTERM.
+
+Until a public reference integration fixture and its complete evidence are attached,
+1.0 release readiness remains **unverified**, even if Backend CI is green. Never substitute
+downstream product-specific build or deployment results for this missing evidence.
+
 `~/.gradle/gradle.properties`:
 
 ```
