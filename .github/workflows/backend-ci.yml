@@ -10,6 +10,43 @@ on:
       - 'ci/**'
 
 jobs:
+  postgres-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16.6
+        env:
+          POSTGRES_USER: neton_gate
+          POSTGRES_PASSWORD: disposable_gate_only
+          POSTGRES_DB: neton_gate_ci
+        ports:
+          - 16439:5432
+        options: >-
+          --health-cmd "pg_isready -U neton_gate -d neton_gate_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Real PostgreSQL migration and transaction contracts (required)
+        env:
+          NETON_DB_TEST_REQUIRED: "true"
+          NETON_DB_TEST_URI: postgresql://neton_gate:disposable_gate_only@127.0.0.1:16439/neton_gate_ci
+        run: ./gradlew --no-daemon --warning-mode=fail -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :neton-database:linuxX64Test
+      - name: Retain database test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-contracts-${{ github.sha }}
+          path: neton-database/build/test-results/linuxX64Test/
+          if-no-files-found: error
+
   redis-contracts:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

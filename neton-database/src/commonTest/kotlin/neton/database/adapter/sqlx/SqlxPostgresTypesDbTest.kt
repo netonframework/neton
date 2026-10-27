@@ -1,7 +1,6 @@
 package neton.database.adapter.sqlx
 
 import kotlinx.coroutines.runBlocking
-import neton.core.config.getEnv
 import neton.database.config.DatabaseConfig
 import neton.database.config.DatabaseDriver
 import neton.database.dbContext
@@ -17,7 +16,7 @@ import kotlin.test.assertEquals
  */
 class SqlxPostgresTypesDbTest {
 
-    private val uri: String? = getEnv("NETON_DB_TEST_URI")?.takeIf { it.isNotBlank() }
+    private val uri: String? = postgresTestUri()
 
     @Test
     fun numericColumnsDecodeWithoutCrashing() {
