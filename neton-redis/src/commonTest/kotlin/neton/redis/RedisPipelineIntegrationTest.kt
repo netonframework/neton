@@ -10,8 +10,13 @@ import kotlin.time.Duration.Companion.milliseconds
 class RedisPipelineIntegrationTest {
     @Test
     fun orderedBatchPreservesNamespaceAndReportsErrors() = runBlocking {
-        val port = getEnv("NETON_TEST_REDIS_PORT")?.toInt() ?: return@runBlocking
-        val client = DefaultRedisClient(RedisConfig(port = port, keyPrefix = "pipeline-regression"))
+        val configuredPort = getEnv("NETON_TEST_REDIS_PORT")?.toIntOrNull()
+        check(getEnv("NETON_TEST_REDIS_REQUIRED") != "true" || configuredPort != null) {
+            "NETON_TEST_REDIS_REQUIRED=true requires NETON_TEST_REDIS_PORT"
+        }
+        val port = configuredPort ?: return@runBlocking
+        require(port in 1..65535)
+        val client = DefaultRedisClient(RedisConfig(port = port, keyPrefix = "pipeline-regression-${kotlin.random.Random.nextLong(1, Long.MAX_VALUE)}"))
         try {
             client.pipeline {}
             // EX would truncate this to zero seconds and Redis would reject it.
@@ -37,8 +42,12 @@ class RedisPipelineIntegrationTest {
             assertFails { client.pipeline { set("bad", "not-a-number"); incr("bad") } }
             assertEquals("2", client.getValue("counter"))
         } finally {
-            for (key in listOf("counter", "hash", "list", "set", "remove", "bad", "subsecond-text", "subsecond-bytes")) client.delete(key)
-            client.close()
+            try {
+                for (key in listOf("counter", "hash", "list", "set", "remove", "bad", "subsecond-text", "subsecond-bytes")) client.delete(key)
+            } finally {
+                client.close()
+            }
         }
+        println("NETON_REDIS_PIPELINE_EXECUTED")
     }
 }

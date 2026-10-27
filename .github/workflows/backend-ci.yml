@@ -41,8 +41,8 @@ jobs:
         run: ./gradlew --no-daemon --warning-mode=fail -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :neton-database:linuxX64Test
       - name: Reject absent, skipped or failed database contracts
         run: |
-          python3 -m unittest discover -s tools/ci -p 'test_postgres_report.py'
-          python3 tools/ci/verify-postgres-report.py neton-database/build/test-results/linuxX64Test
+          python3 -m unittest discover -s tools/ci -p 'test_integration_report.py'
+          python3 tools/ci/verify-integration-report.py neton-database/build/test-results/linuxX64Test
       - name: Retain database test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,8 +73,18 @@ jobs:
           cache: gradle
       - name: Redis batch contracts against a real server
         env:
+          NETON_TEST_REDIS_REQUIRED: "true"
           NETON_TEST_REDIS_PORT: "16387"
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false :neton-redis:linuxX64Test
+      - name: Verify Redis executed against the real server
+        run: python3 tools/ci/verify-integration-report.py neton-redis/build/test-results/linuxX64Test redis
+      - name: Retain Redis test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-contracts-${{ github.sha }}
+          path: neton-redis/build/test-results/linuxX64Test/
+          if-no-files-found: error
 
   framework-checks:
     runs-on: macos-15

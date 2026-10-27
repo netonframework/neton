@@ -4,7 +4,7 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-spec = importlib.util.spec_from_file_location("gate", pathlib.Path(__file__).with_name("verify-postgres-report.py"))
+spec = importlib.util.spec_from_file_location("gate", pathlib.Path(__file__).with_name("verify-integration-report.py"))
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
 
@@ -22,6 +22,19 @@ class ReportGateTest(unittest.TestCase):
 
     def test_complete_reports_pass(self):
         self.run_report()
+
+    def test_redis_requires_its_own_test_and_execution_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = ET.Element("testsuite")
+            classname, name = next(iter(gate.REDIS_REQUIRED))
+            ET.SubElement(root, "testcase", classname=classname, name=name + "[linuxX64]")
+            report = pathlib.Path(directory) / "TEST-redis.xml"
+            ET.ElementTree(root).write(report)
+            with self.assertRaises(ValueError):
+                gate.verify(directory, gate.REDIS_REQUIRED, gate.REDIS_MARKERS)
+            ET.SubElement(root, "system-out").text = "\n".join(gate.REDIS_MARKERS)
+            ET.ElementTree(root).write(report)
+            gate.verify(directory, gate.REDIS_REQUIRED, gate.REDIS_MARKERS)
 
     def test_missing_reports_fail(self):
         with tempfile.TemporaryDirectory() as directory:

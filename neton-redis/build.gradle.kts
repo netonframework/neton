@@ -34,3 +34,14 @@ kotlin {
         }
     }
 }
+
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>().configureEach {
+    val required = providers.environmentVariable("NETON_TEST_REDIS_REQUIRED").orNull == "true"
+    environment("NETON_TEST_REDIS_REQUIRED", required.toString())
+    providers.environmentVariable("NETON_TEST_REDIS_PORT").orNull?.let {
+        environment("NETON_TEST_REDIS_PORT", it)
+    }
+    inputs.property("redisGateRequired", required)
+    outputs.upToDateWhen { !required }
+    outputs.doNotCacheIf("Real Redis contracts must execute against this run's server") { required }
+}
