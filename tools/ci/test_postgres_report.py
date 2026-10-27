@@ -14,6 +14,7 @@ class ReportGateTest(unittest.TestCase):
         root = ET.Element("testsuite")
         for classname, name in sorted(gate.REQUIRED):
             ET.SubElement(root, "testcase", classname=classname, name=name + "[linuxX64]")
+        ET.SubElement(root, "system-out").text = "\n".join(sorted(gate.MARKERS))
         modify(root)
         with tempfile.TemporaryDirectory() as directory:
             ET.ElementTree(root).write(pathlib.Path(directory) / "TEST-contracts.xml")
@@ -39,6 +40,10 @@ class ReportGateTest(unittest.TestCase):
     def test_duplicate_case_fails(self):
         with self.assertRaises(ValueError):
             self.run_report(lambda root: ET.SubElement(root, "testcase", **root[0].attrib))
+
+    def test_return_without_database_execution_fails(self):
+        with self.assertRaises(ValueError):
+            self.run_report(lambda root: root.remove(root.find("system-out")))
 
     def test_malformed_report_fails(self):
         with tempfile.TemporaryDirectory() as directory:

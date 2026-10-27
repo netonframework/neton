@@ -124,6 +124,7 @@ class PostgresReleaseGateTest {
                 }
                 assertEquals(listOf(1L, 4L), db.fetchAll("SELECT id FROM $table ORDER BY id").map { it.long("id") })
                 assertTrue(!db.inTransaction())
+                println("NETON_POSTGRES_TRANSACTIONS_EXECUTED")
             }
         } finally {
             try {

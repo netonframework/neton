@@ -31,6 +31,7 @@ class SqlxPostgresTypesDbTest {
                 assertEquals(1.5, row.string("n").toDouble())
                 assertEquals(7L, row.string("total").toLong())
                 assertEquals(2.3333, row.string("mean").toDouble(), 0.001)
+                println("NETON_POSTGRES_TYPES_EXECUTED")
             }
         } finally {
             runBlocking { SqlxDatabase.close() }

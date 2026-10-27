@@ -59,3 +59,16 @@ repositories {
     mavenCentral()
     maven("https://jitpack.io")
 }
+
+// Native test processes do not reliably inherit arbitrary Gradle client environment.
+// Pass the opt-in explicitly, and never reuse cached test results for the real-DB gate.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>().configureEach {
+    val required = providers.environmentVariable("NETON_DB_TEST_REQUIRED").orNull == "true"
+    environment("NETON_DB_TEST_REQUIRED", required.toString())
+    providers.environmentVariable("NETON_DB_TEST_URI").orNull?.let {
+        environment("NETON_DB_TEST_URI", it)
+    }
+    inputs.property("postgresGateRequired", required)
+    outputs.upToDateWhen { !required }
+    outputs.doNotCacheIf("Real database contracts must execute against this run's database") { required }
+}
