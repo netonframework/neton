@@ -1,6 +1,7 @@
 name: Backend CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -31,7 +32,7 @@ jobs:
       - name: Redis batch contracts against a real server
         env:
           NETON_TEST_REDIS_PORT: "16387"
-        run: ./gradlew --no-daemon -Pnetonstream.local=false :neton-redis:linuxX64Test
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false :neton-redis:linuxX64Test
 
   framework-checks:
     runs-on: macos-15
@@ -61,7 +62,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Compile framework
-        run: ./gradlew -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all compileKotlinMacosArm64
+        run: ./gradlew --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all compileKotlinMacosArm64
 
       - name: One outbound HTTP path (spec http-engine.md rule 4)
         run: |
@@ -77,13 +78,13 @@ jobs:
           fi
 
       - name: Run foundation tests
-        run: ./gradlew -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-core:macosArm64Test :neton-http:macosArm64Test :neton-database:macosArm64Test :neton-logging:macosArm64Test :neton-security:macosArm64Test :neton-cache:macosArm64Test :neton-jobs:macosArm64Test :neton-routing:macosArm64Test :neton-websocket:macosArm64Test :neton-ksp:test
+        run: ./gradlew --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-core:macosArm64Test :neton-http:macosArm64Test :neton-database:macosArm64Test :neton-logging:macosArm64Test :neton-security:macosArm64Test :neton-cache:macosArm64Test :neton-jobs:macosArm64Test :neton-routing:macosArm64Test :neton-websocket:macosArm64Test :neton-ksp:test
 
       - name: Run HTTP engine conformance suites
-        run: ./gradlew -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-http-ktor:macosArm64Test :neton-http-hyper4k:macosArm64Test :neton-ai:macosArm64Test :neton-storage:macosArm64Test
+        run: ./gradlew --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-http-ktor:macosArm64Test :neton-http-hyper4k:macosArm64Test :neton-ai:macosArm64Test :neton-storage:macosArm64Test
 
       - name: Run logging redaction contract
-        run: ./gradlew -Pnetonstream.local=false :neton-logging:macosArm64Test --tests 'neton.logging.internal.JsonLoggerContractTest.sensitiveRedaction_expandedSensitiveKeys'
+        run: ./gradlew --warning-mode=fail -Pnetonstream.local=false :neton-logging:macosArm64Test --tests 'neton.logging.internal.JsonLoggerContractTest.sensitiveRedaction_expandedSensitiveKeys'
 
   native-core-checks:
     name: Core (${{ matrix.target }})
@@ -116,14 +117,22 @@ jobs:
 
       - name: Run native Core tests
         if: matrix.target != 'mingwX64'
-        run: ${{ matrix.gradle }} --no-daemon -Pnetonstream.local=false :neton-core:${{ matrix.target }}Test :neton-cache:${{ matrix.target }}Test :neton-jobs:${{ matrix.target }}Test :neton-security:${{ matrix.target }}Test
+        run: ${{ matrix.gradle }} --no-daemon --warning-mode=fail -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false :neton-core:${{ matrix.target }}Test :neton-cache:${{ matrix.target }}Test :neton-jobs:${{ matrix.target }}Test :neton-security:${{ matrix.target }}Test
 
       - name: Run native Core tests
         if: matrix.target == 'mingwX64'
         shell: pwsh
         run: |
           $log = Join-Path $env:RUNNER_TEMP "neton-mingw-test.log"
-          & .\gradlew.bat --no-daemon --stacktrace -Pnetonstream.local=false :neton-core:mingwX64Test :neton-cache:mingwX64Test :neton-jobs:mingwX64Test :neton-security:mingwX64Test 2>&1 |
+          # Treat dotted -P arguments as literal strings in PowerShell, not expressions.
+          $gradleArgs = @(
+            '--no-daemon', '--stacktrace', '--warning-mode=fail',
+            '-I', 'tools/ci/require-published-dependencies.init.gradle',
+            '-Pnetonstream.local=false',
+            ':neton-core:mingwX64Test', ':neton-cache:mingwX64Test',
+            ':neton-jobs:mingwX64Test', ':neton-security:mingwX64Test'
+          )
+          & .\gradlew.bat @gradleArgs 2>&1 |
             Tee-Object -FilePath $log
           $exitCode = $LASTEXITCODE
           if ($exitCode -ne 0) {

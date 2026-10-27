@@ -1,0 +1,9 @@
+// Fail before settings resolves included builds. In particular, PowerShell must
+// deliver dotted -P keys intact rather than falling back to gradle.properties.
+gradle.beforeSettings {
+    def actual = gradle.startParameter.projectProperties['netonstream.local']
+    if (actual != 'false') {
+        throw new GradleException('CI requires the explicit command-line property -Pnetonstream.local=false; check shell argument quoting')
+    }
+    println('CI verified: command-line netonstream.local=false')
+}
