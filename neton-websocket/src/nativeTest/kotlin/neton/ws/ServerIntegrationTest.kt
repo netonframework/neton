@@ -28,8 +28,8 @@ class ServerIntegrationTest {
         val temporary = listen("127.0.0.1", 0)
         val port = temporary.localAddress.port
         temporary.close()
-        val adapter = DefaultHttpAdapter(HttpServerConfig(port, timeout = 1000, maxConnections = 1, tls = tls),
-            DefaultHttpOptions(host = "127.0.0.1", reactors = 1))
+        val adapter = DefaultHttpAdapter(HttpServerConfig(port, host = "127.0.0.1", timeout = 1000, maxConnections = 1, tls = tls),
+            DefaultHttpOptions(reactors = 1))
         val ctx = NetonContext(emptyArray())
         val routes = Routes().apply { webSocket("/echo/{room}", inboundPolicy = inboundPolicy, handler = handler) }
         ctx.bind(HttpAdapter::class, adapter)
