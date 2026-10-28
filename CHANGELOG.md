@@ -2,6 +2,27 @@
 
 All notable changes to Neton are documented here.
 
+## 1.0.0-beta26
+
+This is a preview release, not the 1.0.0 stable API freeze approval.
+
+- Fix Windows console-stop handling; verify release migration and two graceful
+  stop cycles on macOS ARM64, Linux x64 and Windows x64.
+- Replace process-global `SecurityContext` identity with request-bound
+  `SecurityContext(context)`. The old security-package name is a deprecated
+  type alias; singleton calls must migrate to request context or `@CurrentUser`.
+- Require explicit opt-in for internal SQLx support APIs, experimental AI APIs
+  and WebSocket engine SPI. Generated database code supplies its own opt-in.
+- Redact SMTP credentials from default string representations.
+- Move hyper4k and Ktor adapters outside the core repository and release gates.
+- Add compiled API/ABI, source compatibility, native KSP incremental, signed
+  candidate artifacts and pinned public `neton-app` acceptance gates.
+
+Implementation candidate: `23e0b543e86f67b4bb0a6ba6c8dea8ee0e7e7e69`;
+[complete candidate CI](https://github.com/netonframework/neton/actions/runs/40665694771).
+Publication was built from that clean revision with `-PnetonVersion=1.0.0-beta26`.
+The release bookkeeping commit changes only this changelog and the default version.
+
 ## 1.0.0-beta15
 
 ### Added
