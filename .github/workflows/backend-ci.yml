@@ -171,16 +171,46 @@ jobs:
           path: ${{ runner.temp }}/neton-reference-evidence/
           if-no-files-found: error
 
+  candidate-artifacts:
+    name: Signed local candidate artifacts
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: gradle/actions/wrapper-validation@v3
+      - name: Prepare isolated gate tooling
+        run: brew install postgresql@16 gnupg
+      - name: Stage, verify and consume candidate without remote publication
+        run: python3 tools/ci/candidate_gate.py --pg-bin "$(brew --prefix postgresql@16)/bin" --output "$RUNNER_TEMP/neton-candidate-evidence"
+      - name: Retain evidence and local candidate repository
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-artifacts-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/neton-candidate-evidence/evidence.json
+            ${{ runner.temp }}/neton-candidate-evidence/*.log
+            ${{ runner.temp }}/neton-candidate-evidence/test-public-key.asc
+            ${{ runner.temp }}/neton-candidate-evidence/repository
+          if-no-files-found: error
+
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==8 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==9 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04

@@ -7,7 +7,21 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-repositories { mavenCentral() }
+val candidateVersion = providers.gradleProperty("candidate.version").orNull
+val candidateRepository = providers.gradleProperty("candidate.repository").orNull
+require((candidateVersion == null) == (candidateRepository == null)) {
+    "Candidate consumer requires both version and repository"
+}
+repositories {
+    mavenCentral()
+    if (candidateRepository != null) {
+        require(file(candidateRepository).isDirectory) { "Missing candidate repository" }
+        exclusiveContent {
+            forRepository { maven { url = uri(candidateRepository) } }
+            filter { includeModuleByRegex("com[.]netonstream", "neton(-.*)?") }
+        }
+    }
+}
 
 val hostTarget = when {
     System.getProperty("os.name").contains("Mac") -> "macosArm64"
@@ -43,7 +57,7 @@ val generateMigrationResources by tasks.registering {
 kotlin {
     listOf(macosArm64(), linuxX64(), linuxArm64(), mingwX64()).forEach { target ->
         target.binaries.executable { entryPoint = "main" }
-        target.binaries.forEach { binary ->
+        if (candidateVersion == null) target.binaries.forEach { binary ->
             binary.linkerOpts("-L${project(":neton-core").file("build/nativeInterop/${target.name}").absolutePath}", "-lenv")
             binary.linkTaskProvider.configure {
                 dependsOn(":neton-core:archivePosixEnv${target.name.replaceFirstChar { it.uppercase() }}")
@@ -54,17 +68,25 @@ kotlin {
         kotlin.srcDir(migrationOutput)
         kotlin.srcDir("build/generated/ksp/$hostTarget/${hostTarget}Main/kotlin")
         dependencies {
-            implementation(project(":neton-core"))
-            implementation(project(":neton-http"))
-            implementation(project(":neton-routing"))
-            implementation(project(":neton-database"))
-            implementation(project(":neton-logging"))
+            if (candidateVersion == null) {
+                implementation(project(":neton-core"))
+                implementation(project(":neton-http"))
+                implementation(project(":neton-routing"))
+                implementation(project(":neton-database"))
+                implementation(project(":neton-logging"))
+            } else {
+                implementation("com.netonstream:neton:$candidateVersion")
+                // Deliberately versionless: the entry module's BOM must align it.
+                implementation("com.netonstream:neton-database")
+            }
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
         }
     }
 }
-dependencies { add("ksp$hostCapital", project(":neton-ksp")) }
+dependencies {
+    add("ksp$hostCapital", candidateVersion?.let { "com.netonstream:neton-ksp:$it" } ?: project(":neton-ksp"))
+}
 ksp { arg("neton.moduleId", "reference") }
 tasks.matching { it.name.startsWith("kspKotlin") }.configureEach { dependsOn(generateMigrationResources) }
 tasks.matching { it.name.startsWith("compileKotlin") || it.name == "compileCommonMainKotlinMetadata" }.configureEach {

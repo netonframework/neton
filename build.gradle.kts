@@ -150,7 +150,9 @@ subprojects {
             // 本地文件仓库：产出可直接打成 Central Portal bundle 的目录树（含签名与校验和）
             maven {
                 name = "stagingLocal"
-                url = uri(rootProject.layout.buildDirectory.dir("staging-repo"))
+                url = rootProject.providers.gradleProperty("neton.stagingRepository").orNull
+                    ?.let { rootProject.uri(it).also { uri -> require(uri.scheme == "file") { "stagingLocal must be a local file repository" } } }
+                    ?: uri(rootProject.layout.buildDirectory.dir("staging-repo"))
             }
             maven {
                 name = "sonatypeCentral"
