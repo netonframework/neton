@@ -1,11 +1,37 @@
 package neton.storage
 
 data class StorageConfig(
-    val sources: MutableList<SourceConfig> = mutableListOf()
+    /** Complete source replacements; use source() for field-level overrides. */
+    val sources: MutableList<SourceConfig> = mutableListOf(),
+    val overrides: MutableList<SourceOverrides> = mutableListOf()
 ) {
-    fun source(name: String, block: SourceConfig.() -> Unit) {
-        sources.add(SourceConfig(name = name).apply(block))
+    fun source(name: String, block: SourceOverrides.() -> Unit) {
+        overrides.add(SourceOverrides(name = name).apply(block).copy())
     }
+}
+
+/** null means inherit; false and empty strings are explicit overrides. */
+data class SourceOverrides(
+    val name: String = "default",
+    var type: String? = null,
+    var baseUrl: String? = null,
+    var basePath: String? = null,
+    var endpoint: String? = null,
+    var region: String? = null,
+    var bucket: String? = null,
+    var accessKey: String? = null,
+    var secretKey: String? = null,
+    var pathStyle: Boolean? = null
+) {
+    internal fun resolve(base: SourceConfig = SourceConfig(name = name)): SourceConfig = SourceConfig(
+        name = name, type = type ?: base.type, baseUrl = baseUrl ?: base.baseUrl,
+        basePath = basePath ?: base.basePath, endpoint = endpoint ?: base.endpoint,
+        region = region ?: base.region, bucket = bucket ?: base.bucket,
+        accessKey = accessKey ?: base.accessKey, secretKey = secretKey ?: base.secretKey,
+        pathStyle = pathStyle ?: base.pathStyle
+    )
+
+    override fun toString(): String = "SourceOverrides(name=$name, type=$type, accessKey=[REDACTED], secretKey=[REDACTED])"
 }
 
 data class SourceConfig(

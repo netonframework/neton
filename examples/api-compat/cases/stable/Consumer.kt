@@ -27,3 +27,11 @@ class StatelessCodec : DomainEventCodec {
     override fun decode(eventType: String, payload: String): DomainEvent? = null
 }
 suspend fun typedRedis(client: RedisClient) = client.setTyped(key = "test", value = 42)
+
+fun storageOptions() = neton.storage.StorageConfig().apply {
+    val configure: neton.storage.SourceOverrides.() -> Unit = { pathStyle = false; baseUrl = "" }
+    source(name = "default", block = configure)
+}
+fun completeStorageOptions() = neton.storage.StorageConfig(
+    sources = mutableListOf(neton.storage.SourceConfig(basePath = "./uploads"))
+).copy()

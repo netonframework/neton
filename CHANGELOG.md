@@ -4,6 +4,11 @@ All notable changes to Neton are documented here.
 
 ## Unreleased — 1.0 contract hardening
 
+- Storage DSL now uses `SourceOverrides`: null inherits, while false, empty
+  strings and default paths override file values. Explicitly typed DSL helpers
+  must change their receiver from `SourceConfig` to `SourceOverrides`.
+  `StorageConfig.sources` entries are complete replacements; use `source { }`
+  for partial overrides. This pre-freeze API change requires recompilation.
 - Reject malformed storage configuration and duplicate names before merging;
   only absent configuration may select the default local storage.
 - Drain accepted jobs before cancelling at the shutdown deadline; reject new

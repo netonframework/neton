@@ -15,6 +15,7 @@ kotlin {
             implementation(project(":neton-ai"))
             implementation(project(":neton-websocket"))
             implementation(project(":neton-redis"))
+            implementation(project(":neton-storage"))
         }
     }
 }

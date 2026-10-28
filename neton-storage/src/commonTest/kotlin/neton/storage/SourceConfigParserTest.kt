@@ -9,6 +9,68 @@ import kotlin.test.assertTrue
 class SourceConfigParserTest {
 
     @Test
+    fun wrongFieldTypesFailWithoutRenderingValues() {
+        for (field in listOf("name", "type", "baseUrl", "basePath", "endpoint", "region", "bucket", "accessKey", "secretKey", "pathStyle")) {
+            val raw = mapOf("sources" to listOf(mapOf("name" to "default", field to listOf("sensitive-value"))))
+            val error = assertFailsWith<IllegalStateException> { SourceConfigParser.parseSourceConfigs(raw) }
+            assertTrue(!error.message.orEmpty().contains("sensitive-value"))
+        }
+    }
+
+    @Test
+    fun explicitDefaultsOverrideEveryFieldAndUnsetFieldsInherit() {
+        val file = SourceConfig(type = "s3", baseUrl = "https://cdn.test", basePath = "/data",
+            endpoint = "https://s3.test", region = "region", bucket = "bucket",
+            accessKey = "access", secretKey = "secret", pathStyle = true)
+        val inherited = StorageConfig().apply { source("default") {} }
+        assertEquals(file, SourceConfigParser.mergeSources(emptyList(), listOf(file), inherited.overrides).single())
+        val explicit = StorageConfig().apply {
+            source("default") {
+                type = "local"; baseUrl = ""; basePath = "./uploads"
+                endpoint = ""; region = ""; bucket = ""
+                accessKey = ""; secretKey = ""; pathStyle = false
+            }
+        }
+        assertEquals(SourceConfig(), SourceConfigParser.mergeSources(emptyList(), listOf(file), explicit.overrides).single())
+        val partial = SourceOverrides(basePath = "./uploads", pathStyle = false)
+        assertEquals(file.copy(basePath = "./uploads", pathStyle = false),
+            SourceConfigParser.mergeSources(emptyList(), listOf(file), listOf(partial)).single())
+        partial.pathStyle = null
+        assertTrue(SourceConfigParser.mergeSources(emptyList(), listOf(file), listOf(partial)).single().pathStyle)
+    }
+
+    @Test
+    fun overrideCopyAndMissingFileAndDuplicateSemantics() {
+        var captured: SourceOverrides? = null
+        val config = StorageConfig().apply { source("default") { captured = this; baseUrl = "" } }
+        captured!!.baseUrl = "changed-after-block"
+        assertEquals(SourceConfig(), StorageComponent.resolveSources(null, config.copy().sources, config.copy().overrides).single())
+        assertFailsWith<IllegalStateException> {
+            StorageComponent.resolveSources(null, listOf(SourceConfig()), config.overrides)
+        }
+        assertFailsWith<IllegalStateException> {
+            StorageComponent.resolveSources(null, emptyList(), config.overrides + config.overrides)
+        }
+        assertFailsWith<IllegalStateException> {
+            StorageComponent.resolveSources(null, emptyList(), listOf(SourceOverrides(name = "")))
+        }
+        assertFailsWith<IllegalStateException> {
+            StorageComponent.resolveSources(emptyMap(), emptyList(), config.overrides)
+        }
+        val file = listOf(SourceConfig(type = "s3", pathStyle = true))
+        assertEquals(SourceConfig(), SourceConfigParser.mergeSources(listOf(SourceConfig()), file).single())
+    }
+
+    @Test
+    fun overrideCredentialsAreRedactedIncludingCopies() {
+        val patch = SourceOverrides(accessKey = "sensitive-access", secretKey = "sensitive-secret")
+        for (rendered in listOf(patch.toString(), patch.copy().toString(),
+            StorageConfig(overrides = mutableListOf(patch)).copy().toString())) {
+            assertTrue(!rendered.contains("sensitive-"))
+        }
+    }
+
+    @Test
     fun invalidConfigurationDoesNotFallbackEvenWhenDslIsValid() {
         for (raw in listOf(emptyMap(), mapOf("sources" to emptyList<Any>()),
             mapOf("sources" to listOf(mapOf("name" to ""))),

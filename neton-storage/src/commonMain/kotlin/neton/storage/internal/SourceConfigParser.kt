@@ -1,6 +1,7 @@
 package neton.storage.internal
 
 import neton.storage.SourceConfig
+import neton.storage.SourceOverrides
 
 internal object SourceConfigParser {
 
@@ -14,22 +15,28 @@ internal object SourceConfigParser {
         return sources.map { item ->
             val m = item as? Map<String, Any?>
                 ?: throw IllegalStateException("storage.conf: invalid source entry")
-            val name = m["name"]?.toString()
+            fun string(key: String, default: String): String {
+                if (!m.containsKey(key)) return default
+                return m[key] as? String
+                    ?: throw IllegalStateException("storage.conf: '$key' must be a string")
+            }
+            val name = m["name"] as? String
                 ?: throw IllegalStateException("storage.conf: source missing 'name'")
             if (name.isBlank()) {
                 throw IllegalStateException("storage.conf: source 'name' cannot be blank")
             }
             SourceConfig(
                 name = name,
-                type = m["type"]?.toString() ?: "local",
-                baseUrl = m["baseUrl"]?.toString() ?: "",
-                basePath = m["basePath"]?.toString() ?: "./uploads",
-                endpoint = m["endpoint"]?.toString() ?: "",
-                region = m["region"]?.toString() ?: "",
-                bucket = m["bucket"]?.toString() ?: "",
-                accessKey = m["accessKey"]?.toString() ?: "",
-                secretKey = m["secretKey"]?.toString() ?: "",
-                pathStyle = m["pathStyle"] as? Boolean ?: false
+                type = string("type", "local"),
+                baseUrl = string("baseUrl", ""),
+                basePath = string("basePath", "./uploads"),
+                endpoint = string("endpoint", ""),
+                region = string("region", ""),
+                bucket = string("bucket", ""),
+                accessKey = string("accessKey", ""),
+                secretKey = string("secretKey", ""),
+                pathStyle = if (!m.containsKey("pathStyle")) false else m["pathStyle"] as? Boolean
+                    ?: throw IllegalStateException("storage.conf: 'pathStyle' must be a boolean")
             )
         }
     }
@@ -53,35 +60,22 @@ internal object SourceConfigParser {
         }
     }
 
-    fun mergeSources(dsl: List<SourceConfig>, file: List<SourceConfig>): List<SourceConfig> {
-        validateNames(dsl)
+    fun mergeSources(dsl: List<SourceConfig>, file: List<SourceConfig>, overrides: List<SourceOverrides> = emptyList()): List<SourceConfig> {
+        validateNames(dsl + overrides.map { SourceConfig(name = it.name) })
         validateNames(file)
         val dslByName = dsl.associateBy { it.name }
         val fileByName = file.associateBy { it.name }
+        val overridesByName = overrides.associateBy { it.name }
         val allNames = LinkedHashSet<String>()
         file.forEach { allNames.add(it.name) }
         dsl.forEach { allNames.add(it.name) }
+        overrides.forEach { allNames.add(it.name) }
 
         return allNames.map { name ->
             val d = dslByName[name]
             val f = fileByName[name]
-            when {
-                d != null && f != null -> SourceConfig(
-                    name = name,
-                    type = if (d.type != "local") d.type else f.type,
-                    baseUrl = d.baseUrl.ifBlank { f.baseUrl },
-                    basePath = if (d.basePath != "./uploads") d.basePath else f.basePath,
-                    endpoint = d.endpoint.ifBlank { f.endpoint },
-                    region = d.region.ifBlank { f.region },
-                    bucket = d.bucket.ifBlank { f.bucket },
-                    accessKey = d.accessKey.ifBlank { f.accessKey },
-                    secretKey = d.secretKey.ifBlank { f.secretKey },
-                    pathStyle = d.pathStyle || f.pathStyle
-                )
-
-                d != null -> d
-                else -> f!!
-            }
+            val base = d ?: f ?: SourceConfig(name = name)
+            overridesByName[name]?.resolve(base) ?: base.copy()
         }
     }
 }

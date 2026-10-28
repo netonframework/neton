@@ -19,7 +19,7 @@ object StorageComponent : NetonComponent<StorageConfig> {
     override suspend fun init(ctx: NetonContext, config: StorageConfig) {
         val logger = ctx.getOrNull(LoggerFactory::class)?.get("neton.storage")
 
-        val merged = resolveSources(loadFromFile(ctx), config.sources.toList())
+        val merged = resolveSources(loadFromFile(ctx), config.sources.toList(), config.overrides.toList())
 
         val operators = merged.associate { src ->
             src.name to createOperator(ctx, src, logger)
@@ -56,10 +56,10 @@ object StorageComponent : NetonComponent<StorageConfig> {
         return raw.takeIf { it.isNotEmpty() || hasFile }
     }
 
-    internal fun resolveSources(raw: Map<String, Any?>?, dsl: List<SourceConfig>): List<SourceConfig> {
+    internal fun resolveSources(raw: Map<String, Any?>?, dsl: List<SourceConfig>, overrides: List<SourceOverrides> = emptyList()): List<SourceConfig> {
         val file = raw?.let(SourceConfigParser::parseSourceConfigs).orEmpty()
-        val merged = if (raw == null && dsl.isEmpty()) listOf(SourceConfig())
-            else SourceConfigParser.mergeSources(dsl, file)
+        val merged = if (raw == null && dsl.isEmpty() && overrides.isEmpty()) listOf(SourceConfig())
+            else SourceConfigParser.mergeSources(dsl, file, overrides)
         SourceConfigParser.validateSources(merged)
         return merged
     }
