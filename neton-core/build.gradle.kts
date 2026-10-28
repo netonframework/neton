@@ -54,7 +54,7 @@ fun kotlinNativeLlvmTool(name: String): String? =
     konanDependencies.listFiles()
         ?.asSequence()
         ?.filter { it.isDirectory && it.name.startsWith("llvm-") }
-        ?.map { File(it, "bin/$name") }
+        ?.map { File(it, "bin/$name${if (isWindows) ".exe" else ""}") }
         ?.filter { it.isFile }
         ?.maxByOrNull { it.lastModified() }
         ?.absolutePath
@@ -84,14 +84,19 @@ fun targetTools(targetName: String): NativeTools? = when {
     )
     isMacOs && targetName == "LinuxX64" -> appleLinuxCrossTools("x86_64", "linuxX64", "NETON_LINUX_X64")
     isMacOs && targetName == "LinuxArm64" -> appleLinuxCrossTools("aarch64", "linuxArm64", "NETON_LINUX_ARM64")
-    isWindows && targetName == "MingwX64" -> NativeTools(
-        compiler = providers.gradleProperty("neton.mingwX64.cc")
-            .orElse(providers.environmentVariable("NETON_MINGW_X64_CC"))
-            .orNull ?: kotlinNativeMingwTool("gcc") ?: "gcc",
-        archiver = providers.gradleProperty("neton.mingwX64.ar")
-            .orElse(providers.environmentVariable("NETON_MINGW_X64_AR"))
-            .orNull ?: kotlinNativeMingwTool("ar") ?: "ar",
-    )
+    isWindows && targetName == "MingwX64" -> {
+        val sysroot = kotlinNativeMingwSysroot()
+            ?: error("Kotlin/Native MinGW sysroot is not installed")
+        // Use the same LLVM compiler as Kotlin/Native; the bundled legacy GCC
+        // crashes while parsing Windows SDK intrinsic headers on Windows runners.
+        NativeTools(
+            compiler = configuredTool("neton.mingwX64.cc", "NETON_MINGW_X64_CC",
+                kotlinNativeLlvmTool("clang") ?: "clang"),
+            archiver = configuredTool("neton.mingwX64.ar", "NETON_MINGW_X64_AR",
+                kotlinNativeLlvmTool("llvm-ar") ?: "llvm-ar"),
+            compilerArgs = listOf("-target", "x86_64-w64-mingw32", "--sysroot=${sysroot.absolutePath}"),
+        )
+    }
     // 非 Windows 主机为 mingw 交叉编译：clang -target x86_64-w64-mingw32 + K/N 已下载的 msys2 sysroot。
     // 这让 macOS / Linux 能产出全部五个 target 的 cinterop klib，成为可以发布根 publication 的主机。
     !isWindows && targetName == "MingwX64" -> {
