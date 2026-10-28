@@ -12,7 +12,11 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/ksp_incremental_gate.py \
 ```
 
 Targets: `macosArm64`, `linuxX64`, `linuxArm64`, `mingwX64`. The database does not
-publish an Intel Mac variant. The runner retains each build log and an evidence
+publish an Intel Mac variant. Kotlin/Native cannot run its compiler on Linux ARM64:
+that target builds on Linux x64 with `--defer-native-execution`, then a native ARM64
+job uses `--run-artifact` to verify SHA, all five binary hashes, and execution.
+Cross-compilation alone leaves `passed: false`; both jobs are mandatory.
+The runner retains each build log and an evidence
 manifest. Its external test source directory is created for this run only; tracked
 sources are not edited. One output tree is reused for clean/no-op/add/modify/delete;
 build-cache restoration is disabled, and no clean occurs between stages.

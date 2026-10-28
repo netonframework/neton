@@ -25,8 +25,9 @@ jobs:
             target: macosArm64
           - os: ubuntu-24.04
             target: linuxX64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-24.04
             target: linuxArm64
+            extra: --defer-native-execution
           - os: windows-2022
             target: mingwX64
     steps:
@@ -45,13 +46,33 @@ jobs:
       - name: Test rejection of stale or missing generated code
         run: python -m unittest discover -s tools/ci -p test_ksp_incremental_gate.py
       - name: Native clean, no-op, add, modify and delete
-        run: python tools/ci/ksp_incremental_gate.py --target ${{ matrix.target }} --output "${{ runner.temp }}/ksp-incremental-evidence"
+        run: python tools/ci/ksp_incremental_gate.py --target ${{ matrix.target }} ${{ matrix.extra }} --output "${{ runner.temp }}/ksp-incremental-evidence"
       - name: Retain incremental evidence and failures
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ksp-incremental-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/ksp-incremental-evidence/
+          if-no-files-found: error
+
+  ksp-arm64-runtime:
+    name: KSP incremental native ARM64 execution
+    needs: ksp-incremental
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ksp-incremental-linuxArm64-${{ github.sha }}
+          path: ${{ runner.temp }}/ksp-cross-artifact
+      - name: Verify and run all five compiled stages on ARM64
+        run: python3 tools/ci/ksp_incremental_gate.py --target linuxArm64 --run-artifact "${{ runner.temp }}/ksp-cross-artifact" --output "${{ runner.temp }}/ksp-native-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ksp-incremental-linuxArm64-native-${{ github.sha }}
+          path: ${{ runner.temp }}/ksp-native-evidence/
           if-no-files-found: error
 
   reference-release:
@@ -86,13 +107,13 @@ jobs:
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==6 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==7 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04
