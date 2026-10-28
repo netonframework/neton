@@ -24,28 +24,27 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCompilerApi::class)
 class ControllerProcessorDiagnosticsTest {
     @Test fun websocketSignatureIsChecked() {
-        assertRejected("@neton.ws.WebSocket(\"/ws\") fun socket(session: neton.ws.WebSocketSession) {}", "requires suspend")
-        assertRejected("@neton.ws.WebSocket(\"/ws\") suspend fun socket() {}", "exactly one")
-        assertRejected("@neton.ws.WebSocket(\"/ws\") suspend fun socket(session: neton.ws.WebSocketSession): String = \"x\"", "Unit return")
-        assertRejected("@Get(\"/ws\") @neton.ws.WebSocket(\"/ws\") suspend fun socket(session: neton.ws.WebSocketSession) {}", "cannot be combined")
+        assertRejected("@neton.websocket.annotations.WebSocket(\"/ws\") fun socket(session: neton.websocket.WebSocketSession) {}", "requires suspend")
+        assertRejected("@neton.websocket.annotations.WebSocket(\"/ws\") suspend fun socket() {}", "exactly one")
+        assertRejected("@neton.websocket.annotations.WebSocket(\"/ws\") suspend fun socket(session: neton.websocket.WebSocketSession): String = \"x\"", "Unit return")
+        assertRejected("@Get(\"/ws\") @neton.websocket.annotations.WebSocket(\"/ws\") suspend fun socket(session: neton.websocket.WebSocketSession) {}", "cannot be combined")
     }
 
     @Test fun websocketBindsParametersBeforeUpgrade() {
         val compiled = compile("""
-            @neton.ws.WebSocket("/ws/{room}", subprotocols = ["chat"], inboundPolicy = neton.ws.InboundPolicy.REJECT_DATA)
-            suspend fun socket(session: neton.ws.WebSocketSession, room: Long) {}
+            @neton.websocket.annotations.WebSocket("/ws/{room}", subprotocols = ["chat"], inboundPolicy = neton.websocket.InboundPolicy.REJECT_DATA)
+            suspend fun socket(session: neton.websocket.WebSocketSession, room: Long) {}
         """)
         // Runtime types are Native-only; full generated-code compilation is covered by websocket-echo.
         assertFalse(compiled.result.messages.contains("Neton @WebSocket requires"), compiled.result.messages)
-        assertContains(compiled.generatedSource, "neton.ws.preparedWebSocketEndpoint(listOf(\"chat\"), inboundPolicy = neton.ws.InboundPolicy.REJECT_DATA)")
+        assertContains(compiled.generatedSource, "neton.websocket.preparedWebSocketEndpoint(listOf(\"chat\"), inboundPolicy = neton.websocket.InboundPolicy.REJECT_DATA)")
         assertContains(compiled.generatedSource, "val wsArg1 =")
         assertContains(compiled.generatedSource, "ctrl.socket(session, wsArg1)")
         assertTrue(compiled.generatedSource.indexOf("val wsArg1 =") < compiled.generatedSource.indexOf("val runSession:"))
     }
     private val websocketApi = SourceFile.kotlin("WebSocketStubs.kt", """
-        package neton.ws
+        package neton.websocket
         enum class InboundPolicy { BACKPRESSURE, REJECT_DATA, DISCARD_DATA }
-        annotation class WebSocket(val value: String = "", val subprotocols: Array<String> = [], val inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE)
         interface WebSocketSession
     """.trimIndent())
 
@@ -110,7 +109,12 @@ class ControllerProcessorDiagnosticsTest {
             """.trimIndent(),
         )
         val compilation = KotlinCompilation().apply {
-            sources = listOf(httpAnnotations, cacheAnnotations, lockAnnotation, websocketApi, fixture)
+            sources = listOf(httpAnnotations, cacheAnnotations, lockAnnotation, websocketApi,
+                SourceFile.kotlin("WebSocketAnnotation.kt", """
+                    package neton.websocket.annotations
+                    import neton.websocket.InboundPolicy
+                    annotation class WebSocket(val value: String = "", val subprotocols: Array<String> = [], val inboundPolicy: InboundPolicy = InboundPolicy.BACKPRESSURE)
+                """.trimIndent()), fixture)
             inheritClassPath = true
             messageOutputStream = java.io.OutputStream.nullOutputStream()
             configureKsp {

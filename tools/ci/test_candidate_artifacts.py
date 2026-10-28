@@ -67,7 +67,7 @@ class CandidateRepositoryTest(unittest.TestCase):
 
     def test_complete_inventory(self):
         report = self.verify()
-        self.assertEqual(report["coordinates"], 85)
+        self.assertEqual(report["coordinates"], 79)
         self.assertGreater(report["signedPayloads"], 300)
 
     def test_missing_native_coordinate_fails(self):

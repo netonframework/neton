@@ -3,10 +3,15 @@
 Optional framework module with a built-in `DefaultWebSocketEngineProvider` wrapping
 `com.netonstream:websocket`. No separate `neton-websocket-netonstream` artifact is needed.
 
+Post-beta26 packages are `neton.websocket`. Import the framework annotation from
+`neton.websocket.annotations.WebSocket` and its configuration from
+`neton.websocket.config.WebSocketConfig`; the same-named root types belong to the
+low-level protocol library. Update KSP and framework together and recompile.
+
 ```kotlin
 import neton.http.http
-import neton.ws.websocket
-import neton.ws.webSocket
+import neton.websocket.websocket
+import neton.websocket.webSocket
 import neton.routing.routing
 import kotlinx.coroutines.flow.collect
 
@@ -104,7 +109,7 @@ The protocol driver yields after at most 32 discard processing turns, each consu
 16 KiB. Empty frames also consume a turn. This bounds individual work batches, not tail
 latency under arbitrary load. Large-scale mixed-load performance acceptance remains pending.
 
-Third-party providers can run `neton.ws.conformance.WebSocketEngineConformanceSuite` with
+Third-party providers can run `neton.websocket.conformance.WebSocketEngineConformanceSuite` with
 an independent peer fixture. Its checks cover text/empty Close, automatic Pong, preallocation
 refusal, frame limits, rejection, validated discard and abort waking a read. Declared capabilities
 must not skip their checks. `RuntimeTest` separately exercises common session policy against
@@ -113,8 +118,8 @@ and platform validation. API/SPI stability is not declared yet.
 
 ## Module boundaries
 
-- `neton.ws.spi`: experimental, engine-neutral provider and connection contracts.
-- `neton.ws.engine.default`: the built-in library bridge; third parties implement the SPI.
+- `neton.websocket.spi`: experimental, engine-neutral provider and connection contracts.
+- `neton.websocket.engine.default`: the built-in library bridge; third parties implement the SPI.
 - `neton-core`: protocol-neutral upgraded transport only.
 - `neton-http`: HTTP framework and built-in default adapter; no WebSocket dependency.
 

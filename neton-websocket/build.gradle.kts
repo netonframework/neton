@@ -5,7 +5,7 @@ plugins {
 repositories { mavenCentral() }
 
 kotlin {
-    compilerOptions { optIn.add("neton.ws.spi.ExperimentalWebSocketEngineApi") }
+    compilerOptions { optIn.add("neton.websocket.spi.ExperimentalWebSocketEngineApi") }
     macosArm64(); macosX64(); linuxX64(); linuxArm64(); mingwX64()
     sourceSets {
         commonMain.dependencies {

@@ -46,7 +46,7 @@ The signing public key must be on a keyserver (`keyserver.ubuntu.com` or `keys.o
 
 ### Candidate API/ABI and generated-code gates
 
-Before any publication, `checkKotlinAbi` compares the compiled APIs of all 15
+Before any publication, `checkKotlinAbi` compares the compiled APIs of all 14
 published Kotlin modules with their committed `api/` dumps. `neton-bom` is
 validated as publication metadata, not an executable ABI; the experimental
 Geario adapter is excluded from publication. ABI target inference is disabled.
@@ -93,7 +93,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/candidate_gate.py \
 ```
 
 The output directory must not already exist. The gate uses a fresh Gradle home
-and an ephemeral test signing key, stages all 85 expected coordinates locally,
+and an ephemeral test signing key, stages all 79 expected coordinates locally,
 verifies signatures/checksums/metadata/BOM, and builds the public reference
 fixture as an independent artifact-only consumer twice. It then runs migrations
 and both shutdown cycles. Its database dependency is intentionally versionless

@@ -4,6 +4,17 @@
 
 Native-first、零反射、编译期生成、结构化日志、工程化 DSL
 
+## AI 原生服务端开发
+
+Neton + [官方 skill](https://github.com/netonframework/netonframework.github.io/tree/main/skills)
+引导 AI 从固定版本的规范出发，实现 KSP 路由、业务服务、显式迁移和可执行验收。
+新服务可基于公开 [neton-app](https://github.com/netonframework/neton-app) 起步。
+skill 辅助遵循标准，不替代测试和评审，也不会随 Gradle 依赖自动安装。
+
+这与运行时调用模型不同：[neton-ai](https://github.com/netonframework/neton-ai)
+是独立版本的官方可选集成；普通服务无需模型密钥。Ktor、Hyper4k、Geario4k
+适配器也独立维护，不属于框架 BOM 或核心发布门禁。
+
 ---
 
 ## 🚀 特性

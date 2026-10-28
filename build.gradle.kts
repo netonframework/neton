@@ -56,9 +56,6 @@ subprojects {
     group = netonGroup
     version = netonVersion
 
-    // This prototype has not passed engine conformance and must not be published.
-    if (path == ":neton-http-geario4k") return@subprojects
-
     // Track the compiled public surface, not a source-text approximation. Baseline
     // updates are explicit review actions; CI only checks the committed dumps.
     listOf("org.jetbrains.kotlin.multiplatform", "org.jetbrains.kotlin.jvm").forEach { pluginId ->

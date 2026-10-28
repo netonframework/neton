@@ -14,11 +14,8 @@ include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ �
 include(":neton-core")       // 主框架模块
 include(":neton-http")       // HTTP 集成与内置 DefaultHttpAdapter
 include(":neton-websocket")  // 可选 WebSocket 模块（beta 发布），默认 provider 为内置 netonstream websocket
-// Experimental adapter only; the Rust engine lives outside this repository.
-if (providers.gradleProperty("geario4k.experimental").orNull == "true") {
-    include(":neton-http-geario4k")
-}
-include(":neton-ai")         // AI 抽象层（generateText/streamText/tool loop/router/usage, OpenAi-compat + Anthropic v0.1）
+// Geario4k, Hyper4k and Ktor adapters live in independent repositories.
+// Optional AI integration is independently versioned in netonframework/neton-ai.
 include(":neton-routing")    // 路由组件模块
 include(":neton-security")   // 安全组件模块
 include(":neton-redis")      // Redis 客户端模块
@@ -40,7 +37,6 @@ include(":examples:cache-demo")
 include(":examples:multigroup")
 include(":examples:mvc")
 include(":examples:backend-app")
-include(":examples:neton-ai-sample")
 include(":examples:bench")
 include(":examples:release-gate")
 include(":examples:ksp-incremental")

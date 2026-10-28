@@ -1,3 +1,0 @@
-{"variant": "before", "release_sha256": "52426a010ba3e34c831d16c5cffd72611ec38c28edfc80e994525907a01f149c", "checked_responses": 30000, "status": "pass", "purpose": "correctness only; no throughput conclusion"}
-{"variant": "headers", "release_sha256": "4e41e09dc9b158d7a77e43540a360ac62412d66cc783f9df3579c046ca0d36f1", "checked_responses": 30000, "status": "pass", "purpose": "correctness only; no throughput conclusion"}
-{"variant": "after", "release_sha256": "b433dd602ad50e058776e6dc363be3379680975fd4039a8f8bfb2fda3b0194e7", "checked_responses": 30000, "status": "pass", "purpose": "correctness only; no throughput conclusion"}

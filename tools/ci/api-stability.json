@@ -4,8 +4,7 @@
   "default": "Public declarations in the compiled ABI are stable unless explicitly internal or experimental below. This does not promise compiler-version-independent KLIB compatibility.",
   "internalMarker": "neton.core.annotations.InternalNetonApi",
   "experimental": {
-    "neton-ai": "neton.ai.ExperimentalNetonAiApi",
-    "neton-websocket:neton.ws.spi": "neton.ws.spi.ExperimentalWebSocketEngineApi"
+    "neton-websocket:neton.websocket.spi": "neton.websocket.spi.ExperimentalWebSocketEngineApi"
   },
   "generatedSupport": "neton.database.adapter.sqlx: InternalNetonApi; only generated code and framework implementation explicitly opt in",
   "testSupport": ["neton.core.mock", "neton.http.conformance"],

@@ -35,3 +35,10 @@ fun storageOptions() = neton.storage.StorageConfig().apply {
 fun completeStorageOptions() = neton.storage.StorageConfig(
     sources = mutableListOf(neton.storage.SourceConfig(basePath = "./uploads"))
 ).copy()
+
+// Ordinary WebSocket use must not require engine SPI opt-in.
+suspend fun sendSocket(session: neton.websocket.WebSocketSession) {
+    session.send(neton.websocket.WebSocketMessage.Text("hello"))
+    session.close(code = 1000, reason = "done")
+}
+fun socketConfig() = neton.websocket.config.WebSocketConfig().apply { maxConnections = 64 }

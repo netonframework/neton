@@ -1,7 +1,7 @@
 plugins { alias(libs.plugins.kotlin.multiplatform) }
 repositories { mavenCentral() }
 val fixture = providers.gradleProperty("compat.case").getOrElse("stable")
-require(fixture in setOf("stable", "opt-in", "internal", "http-internal", "ai", "websocket", "global-identity"))
+require(fixture in setOf("stable", "opt-in", "internal", "http-internal", "websocket", "legacy-websocket", "global-identity"))
 kotlin {
     macosArm64()
     linuxX64()
@@ -12,7 +12,6 @@ kotlin {
             implementation(project(":neton-core"))
             implementation(project(":neton-http"))
             implementation(project(":neton-database"))
-            implementation(project(":neton-ai"))
             implementation(project(":neton-websocket"))
             implementation(project(":neton-redis"))
             implementation(project(":neton-storage"))

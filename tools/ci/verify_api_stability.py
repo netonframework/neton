@@ -14,10 +14,7 @@ def require_markers(file, marker):
 
 def main():
     root = Path(__file__).resolve().parents[2]
-    for file in (root / "neton-ai/src").rglob("*.kt"):
-        if any(part.endswith("Main") for part in file.parts):
-            require_markers(file, "neton.ai.ExperimentalNetonAiApi")
-    for file in (root / "neton-websocket/src/commonMain/kotlin/neton/ws/spi").glob("*.kt"):
+    for file in (root / "neton-websocket/src/commonMain/kotlin/neton/websocket/spi").glob("*.kt"):
         require_markers(file, "ExperimentalWebSocketEngineApi")
     for name in ("SqlxDatabase", "SqlxQueryBuilder", "SqlxTableAdapter"):
         require_markers(root / f"neton-database/src/commonMain/kotlin/neton/database/adapter/sqlx/{name}.kt",

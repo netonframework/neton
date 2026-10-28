@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 MODULES = {
-    "neton", "neton-ai", "neton-cache", "neton-core", "neton-database", "neton-http",
+    "neton", "neton-cache", "neton-core", "neton-database", "neton-http",
     "neton-jobs", "neton-ksp", "neton-logging",
     "neton-redis", "neton-routing", "neton-security", "neton-storage", "neton-validation",
     "neton-websocket",
@@ -32,7 +32,7 @@ def verify_dump(module, text):
 
 def verify(root):
     settings = (root / "settings.gradle.kts").read_text()
-    for adapter in ("neton-http-hyper4k", "neton-http-ktor"):
+    for adapter in ("neton-http-hyper4k", "neton-http-ktor", "neton-http-geario4k", "neton-ai"):
         if re.search(r'include\s*\(\s*":' + adapter + r'"', settings):
             raise ValueError(f"External adapter must not re-enter the framework build: {adapter}")
     actual = {p.parent.parent.name for p in root.glob("*/api/*.api")}

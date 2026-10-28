@@ -1,4 +1,4 @@
-@file:OptIn(neton.ws.spi.ExperimentalWebSocketEngineApi::class)
+@file:OptIn(neton.websocket.spi.ExperimentalWebSocketEngineApi::class)
 
 package example.websocket
 
@@ -7,7 +7,8 @@ import neton.core.Neton
 import neton.core.annotations.Controller
 import neton.http.http
 import neton.routing.routing
-import neton.ws.*
+import neton.websocket.*
+import neton.websocket.annotations.WebSocket
 
 fun main(args: Array<String>) {
     Neton.run(args) {

@@ -6,13 +6,20 @@ Native-first, zero reflection, compile-time code generation, structured logging,
 
 [中文文档](README.zh-CN.md)
 
-## AI-assisted development
+## AI-native server development
 
 Install the [Neton development skill from neton-docs](https://github.com/netonframework/netonframework.github.io/tree/main/skills)
 for version-aware framework development and integration. Skills and specifications
 are maintained centrally; adding a Gradle dependency does not install a skill.
 [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md) retain repository entry points.
 Forks still need project-specific requirements and acceptance tests.
+
+Neton + its skill guides AI assistants through versioned contracts, KSP-generated
+routes, services, migrations and executable acceptance. Start from the public
+[neton-app](https://github.com/netonframework/neton-app). Runtime model integration is
+optional and independently versioned in [neton-ai](https://github.com/netonframework/neton-ai);
+ordinary services require no AI provider or key. Ktor, Hyper4k and Geario4k compatibility
+adapters are independent projects, not framework BOM entries or core release gates.
 
 ## Building This Development Branch
 

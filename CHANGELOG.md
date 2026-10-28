@@ -4,6 +4,12 @@ All notable changes to Neton are documented here.
 
 ## Unreleased — 1.0 contract hardening
 
+- Rename WebSocket packages from `neton.ws` to `neton.websocket`, including
+  generated KSP references. Recompile consumers and update imports before 1.0.
+- Extract `neton-ai` and its sample to https://github.com/netonframework/neton-ai.
+  AI now has independent versions, ABI and release gates; it is not in the
+  framework BOM. Existing beta26 artifacts remain unchanged.
+
 - Storage DSL now uses `SourceOverrides`: null inherits, while false, empty
   strings and default paths override file values. Explicitly typed DSL helpers
   must change their receiver from `SourceConfig` to `SourceOverrides`.

@@ -7,7 +7,8 @@ import subprocess
 
 CASES = {"stable": None, "opt-in": None, "internal": "internal Neton API",
          "http-internal": "internal Neton API",
-         "ai": "Neton AI is experimental", "websocket": "ExperimentalWebSocketEngineApi",
+         "websocket": "ExperimentalWebSocketEngineApi",
+         "legacy-websocket": "Unresolved reference",
          "global-identity": "currentUser"}
 
 def main():

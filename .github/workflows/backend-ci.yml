@@ -378,8 +378,8 @@ jobs:
       - name: Run foundation tests
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-core:macosArm64Test :neton-http:macosArm64Test :neton-database:macosArm64Test :neton-logging:macosArm64Test :neton-security:macosArm64Test :neton-cache:macosArm64Test :neton-jobs:macosArm64Test :neton-routing:macosArm64Test :neton-websocket:macosArm64Test :neton-ksp:test
 
-      - name: Run AI and storage integration tests
-        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-ai:macosArm64Test :neton-storage:macosArm64Test
+      - name: Run storage integration tests
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-storage:macosArm64Test
 
       - name: Run logging redaction contract
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false :neton-logging:macosArm64Test --tests 'neton.logging.internal.JsonLoggerContractTest.sensitiveRedaction_expandedSensitiveKeys'

@@ -395,7 +395,7 @@ ${
     ) {
         val controllerName = controller.qualifiedName!!.asString()
         val methodName = function.simpleName.asString()
-        if (function.annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocket" } &&
+        if (function.annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == "neton.websocket.annotations.WebSocket" } &&
             function.annotations.count { httpAnnotations.containsKey(it.shortName.asString()) } != 1) {
             logger.error("Neton @WebSocket cannot be combined with an HTTP method annotation", function)
             return
@@ -407,13 +407,13 @@ ${
         }
 
         val httpMethod = httpAnnotations[httpAnnotation.shortName.asString()]!!
-        val websocket = httpAnnotation.annotationType.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocket"
+        val websocket = httpAnnotation.annotationType.resolve().declaration.qualifiedName?.asString() == "neton.websocket.annotations.WebSocket"
         if (websocket) {
             if (function.annotations.count { httpAnnotations.containsKey(it.shortName.asString()) } != 1) {
                 logger.error("Neton @WebSocket cannot be combined with an HTTP method annotation", function)
                 return
             }
-            val sessions = function.parameters.filter { it.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession" }
+            val sessions = function.parameters.filter { it.type.resolve().declaration.qualifiedName?.asString() == "neton.websocket.WebSocketSession" }
             if (Modifier.SUSPEND !in function.modifiers || sessions.size != 1 || sessions.single().type.resolve().isMarkedNullable ||
                 function.returnType?.resolve()?.declaration?.qualifiedName?.asString() != "kotlin.Unit") {
                 logger.error("Neton @WebSocket requires suspend fun, Unit return and exactly one non-null WebSocketSession", function)
@@ -539,11 +539,11 @@ ${
             val policy = httpAnnotation.arguments.firstOrNull { it.name?.asString() == "inboundPolicy" }?.enumName() ?: "BACKPRESSURE"
             fun quote(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
             val bindings = function.parameters.mapIndexedNotNull { i, p ->
-                if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession") null
+                if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.websocket.WebSocketSession") null
                 else "val wsArg$i = ${generateMethodCallParameters(function, fullPath, httpMethod, p)}"
             }.joinToString("\n                    ")
             val arguments = function.parameters.mapIndexed { i, p ->
-                if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.ws.WebSocketSession") "session" else "wsArg$i"
+                if (p.type.resolve().declaration.qualifiedName?.asString() == "neton.websocket.WebSocketSession") "session" else "wsArg$i"
             }.joinToString(", ")
             writer.write("""
         engine.registerRoute(RouteDefinition(
@@ -551,10 +551,10 @@ ${
             handler = object : RouteHandler {
                 override suspend fun invoke(context: HttpContext, args: HandlerArgs): Any? = error("Upgrade required")
             },
-            upgrade = neton.ws.preparedWebSocketEndpoint(listOf(${protocols.joinToString(", ") { quote(it) }}), inboundPolicy = neton.ws.InboundPolicy.$policy) { context, args ->
+            upgrade = neton.websocket.preparedWebSocketEndpoint(listOf(${protocols.joinToString(", ") { quote(it) }}), inboundPolicy = neton.websocket.InboundPolicy.$policy) { context, args ->
                 val ctrl = $controllerInstantiation
                 $bindings
-                val runSession: suspend (neton.ws.WebSocketSession) -> Unit = { session -> ctrl.$methodName($arguments) }
+                val runSession: suspend (neton.websocket.WebSocketSession) -> Unit = { session -> ctrl.$methodName($arguments) }
                 runSession
             },
             controllerClass = ${quote(controllerName)}, methodName = ${quote(methodName)},

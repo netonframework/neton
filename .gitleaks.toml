@@ -30,5 +30,5 @@ targetRules = ["jwt", "generic-api-key", "private-key"]
 paths = [
   '''^neton-security/src/commonTest/kotlin/neton/security/jwt/UnifiedTokenTestFixtures\.kt$''',
   '''^neton-security/src/commonTest/kotlin/neton/security/crypto/RsaSha256Test\.kt$''',
-  '''^neton-websocket/src/nativeTest/kotlin/neton/ws/ServerIntegrationTest\.kt$''',
+  '''^neton-websocket/src/nativeTest/kotlin/neton/websocket/ServerIntegrationTest\.kt$''',
 ]
