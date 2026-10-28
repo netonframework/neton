@@ -255,7 +255,7 @@ def main():
         wrapper = str(root / "gradlew.bat") if os.name == "nt" else "./gradlew"
         mode = (["-Pnetonstream.local=true", "-Pnetonstream.local.openssl=true",
                  f"-Pnetonstream.sourcesDir={sources}", "-PnativeTargets=all"]
-                if args.dependencies == "sources" else ["-Pnetonstream.local=false", "-Phyper4k.local=false"])
+                if args.dependencies == "sources" else ["-Pnetonstream.local=false"])
         command = [wrapper, "--no-daemon", "--warning-mode=fail", *mode, "-Pneton.database.driver=postgres", task]
         evidence["buildCommand"] = command
         evidence["smokeCommand"] = ["python3", "tools/ci/reference_gate.py", "--target", args.target,

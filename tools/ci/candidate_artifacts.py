@@ -75,7 +75,7 @@ def verify_repository(repository, version, signature_verifier):
                            for d in root.findall("m:dependencyManagement/m:dependencies/m:dependency", NS)
                            if d.findtext("m:groupId", namespaces=NS) == GROUP}
             # Ktor is deliberately outside the BOM (http-engine spec).
-            require(constraints == MODULES - {"neton", "neton-http-ktor"}, "BOM inventory mismatch")
+            require(constraints == MODULES - {"neton"}, "BOM inventory mismatch")
 
         metadata = json.loads((directory / (prefix + ".module")).read_text())
         component = metadata["component"]

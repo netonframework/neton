@@ -172,10 +172,11 @@ io / http / tls libraries (coroutine reactors, no Rust or Ktor engine underneath
 | SMTP (implicit TLS 465, STARTTLS 587) | built-in transport | `defaultSmtpTransport()` |
 | WebSocket | `neton-websocket`'s default provider (netonstream websocket) | `websocket { }` |
 
-The `neton` umbrella brings all of this; no engine module is needed. `neton-http-hyper4k` and
+The `neton` umbrella brings all of this; no engine module is needed. The independent repositories `neton-http-hyper4k` and
 `neton-http-ktor` remain only as explicit, opt-in alternatives (`http(::Hyper4kHttpAdapter)`,
 `HttpClient.createWith(::createKtorHttpClient)`); adding one never changes a default. Engine
 selection is compile-time application code, not an `application.conf` setting or a runtime registry.
+These compatibility/comparison adapters are outside the framework BOM, ABI inventory and release gates.
 See [default engine](neton-http/DEFAULT_ENGINE.md).
 
 ### Optional WebSocket Engine Integration

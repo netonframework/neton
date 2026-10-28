@@ -31,7 +31,7 @@ jobs:
           python3 -m unittest discover -s tools/ci -p test_abi_policy.py
           python3 tools/ci/verify_abi_policy.py
       - name: Check every published Kotlin library against committed ABI
-        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Phyper4k.local=false checkKotlinAbi
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false checkKotlinAbi
       - name: Check MySQL variant against the same database API
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Pneton.database.driver=mysql :neton-database:checkKotlinAbi
       - name: Check SQLite variant against the same database API
@@ -324,22 +324,21 @@ jobs:
 
       - name: One outbound HTTP path (spec http-engine.md rule 4)
         run: |
-          # Sources: no io.ktor import outside the Ktor engine module.
+          # Ktor compatibility adapters live outside this repository.
           # Build files: no Ktor coordinate or catalog alias either. neton-core once
           # carried five ktor-server dependencies nothing referenced; every binary
           # linked them anyway.
           if grep -rnE "io\.ktor|libs\.ktor" --include='*.kt' --include='*.kts' . \
-               | grep -Ev '^(\./)?(neton-http-ktor|examples)/' \
                | grep -v '/build/'; then
-            echo "::error::Ktor is referenced outside neton-http-ktor. Framework modules must use neton.http.client.HttpClient (spec http-engine.md rule 4)."
+            echo "::error::Ktor is referenced in the framework. Compatibility adapters belong in independent repositories."
             exit 1
           fi
 
       - name: Run foundation tests
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-core:macosArm64Test :neton-http:macosArm64Test :neton-database:macosArm64Test :neton-logging:macosArm64Test :neton-security:macosArm64Test :neton-cache:macosArm64Test :neton-jobs:macosArm64Test :neton-routing:macosArm64Test :neton-websocket:macosArm64Test :neton-ksp:test
 
-      - name: Run HTTP engine conformance suites
-        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-http-ktor:macosArm64Test :neton-http-hyper4k:macosArm64Test :neton-ai:macosArm64Test :neton-storage:macosArm64Test
+      - name: Run AI and storage integration tests
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all :neton-ai:macosArm64Test :neton-storage:macosArm64Test
 
       - name: Run logging redaction contract
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false :neton-logging:macosArm64Test --tests 'neton.logging.internal.JsonLoggerContractTest.sensitiveRedaction_expandedSensitiveKeys'

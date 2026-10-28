@@ -97,7 +97,7 @@ def main():
     capital = args.target[0].upper() + args.target[1:]
     command = [str(root / wrapper) if os.name == "nt" else wrapper,
                "--console=plain", "--warning-mode=fail", "--no-build-cache",
-               "-Pnetonstream.local=false", "-Phyper4k.local=false",
+               "-Pnetonstream.local=false",
                f"-Pgate.target={args.target}", f"-Pgate.sources={sources}",
                "-Pksp.incremental=true",
                f":examples:ksp-incremental:linkReleaseExecutable{capital}"]

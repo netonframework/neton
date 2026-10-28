@@ -25,7 +25,7 @@ class CandidateRepositoryTest(unittest.TestCase):
                 constraints = "<dependencyManagement><dependencies>" + "".join(
                     f"<dependency><groupId>{GROUP}</groupId><artifactId>{m}</artifactId>"
                     f"<version>{self.version}</version></dependency>"
-                    for m in sorted(MODULES - {"neton", "neton-http-ktor"})) + "</dependencies></dependencyManagement>"
+                    for m in sorted(MODULES - {"neton"})) + "</dependencies></dependencyManagement>"
             (directory / (prefix + ".pom")).write_text(
                 '<project xmlns="http://maven.apache.org/POM/4.0.0">'
                 f"<groupId>{GROUP}</groupId><artifactId>{artifact}</artifactId><version>{self.version}</version>"
@@ -67,7 +67,7 @@ class CandidateRepositoryTest(unittest.TestCase):
 
     def test_complete_inventory(self):
         report = self.verify()
-        self.assertEqual(report["coordinates"], 97)
+        self.assertEqual(report["coordinates"], 85)
         self.assertGreater(report["signedPayloads"], 300)
 
     def test_missing_native_coordinate_fails(self):

@@ -35,7 +35,8 @@ Engine options that `HttpServerConfig` does not carry go through a lambda:
 http({ DefaultHttpAdapter(it, DefaultHttpOptions(reactors = 2)) }) { port = 8080 }
 ```
 
-To use Hyper4k, depend on `neton-http-hyper4k` and explicitly select
+Hyper4k and Ktor compatibility adapters live in independent repositories, outside
+the framework BOM and release gates. To use Hyper4k, depend on `neton-http-hyper4k` and explicitly select
 `http(::Hyper4kHttpAdapter) { port = 8080 }` (import `neton.http.hyper4k.Hyper4kHttpAdapter`).
 The former `neton-http-netonstream` module is merged into `neton-http`.
 Replace its dependency with `neton-http`, and replace `NetonStreamHttpAdapter` /

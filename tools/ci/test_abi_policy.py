@@ -34,6 +34,7 @@ class AbiPolicyTest(unittest.TestCase):
     def test_inventory_cannot_silently_drop_or_add_a_module(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "settings.gradle.kts").write_text('rootProject.name = "neton"')
             for module in MODULES:
                 folder = root / module / "api"
                 folder.mkdir(parents=True)
@@ -45,6 +46,11 @@ class AbiPolicyTest(unittest.TestCase):
                         "// Targets: [" + ", ".join(sorted(targets)) + "]\n"
                         + f"// Library unique name: <com.netonstream:{module}>\n")
             verify(root)
+            for adapter in ("neton-http-hyper4k", "neton-http-ktor"):
+                (root / "settings.gradle.kts").write_text(f'include(":{adapter}")')
+                with self.assertRaisesRegex(ValueError, "External adapter"):
+                    verify(root)
+            (root / "settings.gradle.kts").write_text('rootProject.name = "neton"')
             file = root / "neton-ksp/api/neton-ksp.api"
             file.unlink()
             with self.assertRaises(ValueError):

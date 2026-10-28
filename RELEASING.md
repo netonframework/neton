@@ -46,7 +46,7 @@ The signing public key must be on a keyserver (`keyserver.ubuntu.com` or `keys.o
 
 ### Candidate API/ABI and generated-code gates
 
-Before any publication, `checkKotlinAbi` compares the compiled APIs of all 17
+Before any publication, `checkKotlinAbi` compares the compiled APIs of all 15
 published Kotlin modules with their committed `api/` dumps. `neton-bom` is
 validated as publication metadata, not an executable ABI; the experimental
 Geario adapter is excluded from publication. ABI target inference is disabled.
@@ -55,7 +55,7 @@ foreign-target compilation is not a runtime acceptance claim.
 
 ```sh
 python3 tools/ci/verify_abi_policy.py
-./gradlew -Pnetonstream.local=false -Phyper4k.local=false checkKotlinAbi
+./gradlew -Pnetonstream.local=false checkKotlinAbi
 ./gradlew -Pnetonstream.local=false -Pneton.database.driver=mysql :neton-database:checkKotlinAbi
 ./gradlew -Pnetonstream.local=false -Pneton.database.driver=sqlite :neton-database:checkKotlinAbi
 ```
@@ -86,7 +86,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/candidate_gate.py \
 ```
 
 The output directory must not already exist. The gate uses a fresh Gradle home
-and an ephemeral test signing key, stages all 97 expected coordinates locally,
+and an ephemeral test signing key, stages all 85 expected coordinates locally,
 verifies signatures/checksums/metadata/BOM, and builds the public reference
 fixture as an independent artifact-only consumer twice. It then runs migrations
 and both shutdown cycles. Its database dependency is intentionally versionless
@@ -99,7 +99,7 @@ Central. The source-built three-platform runtime matrix remains a separate
 requirement; this consumer rehearsal currently executes on macOS ARM64.
 
 Before release, disable source substitution and run the same tests against the exact
-published dependencies: `-Pnetonstream.local=false -Phyper4k.local=false`.
+published dependencies: `-Pnetonstream.local=false`.
 Publishing tasks reject source substitution, including Maven Local and staging output.
 Do not substitute a sibling checkout to hide an unavailable dependency version.
 
@@ -119,7 +119,7 @@ upload is a single request and cannot split.
 
 ```bash
 # 1. Build, sign and lay out every publication under build/staging-repo
-./gradlew -Pnetonstream.local=false -Phyper4k.local=false publishAllPublicationsToStagingLocalRepository
+./gradlew -Pnetonstream.local=false publishAllPublicationsToStagingLocalRepository
 
 # 2. Bundle it (repository-level metadata is not part of a bundle)
 cd build/staging-repo

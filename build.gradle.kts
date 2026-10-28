@@ -97,9 +97,8 @@ subprojects {
 
     tasks.withType<org.gradle.api.publish.maven.tasks.AbstractPublishToMaven>().configureEach {
         doFirst {
-            require(rootProject.providers.gradleProperty("netonstream.local").orNull != "true" &&
-                rootProject.providers.gradleProperty("hyper4k.local").orNull != "true") {
-                "Publishing requires released dependencies. Disable netonstream.local and hyper4k.local, then validate the artifact build."
+            require(rootProject.providers.gradleProperty("netonstream.local").orNull != "true") {
+                "Publishing requires released dependencies. Disable netonstream.local, then validate the artifact build."
             }
         }
     }

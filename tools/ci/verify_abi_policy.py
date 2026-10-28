@@ -5,7 +5,7 @@ import re
 
 MODULES = {
     "neton", "neton-ai", "neton-cache", "neton-core", "neton-database", "neton-http",
-    "neton-http-hyper4k", "neton-http-ktor", "neton-jobs", "neton-ksp", "neton-logging",
+    "neton-jobs", "neton-ksp", "neton-logging",
     "neton-redis", "neton-routing", "neton-security", "neton-storage", "neton-validation",
     "neton-websocket",
 }
@@ -31,6 +31,10 @@ def verify_dump(module, text):
 
 
 def verify(root):
+    settings = (root / "settings.gradle.kts").read_text()
+    for adapter in ("neton-http-hyper4k", "neton-http-ktor"):
+        if re.search(r'include\s*\(\s*":' + adapter + r'"', settings):
+            raise ValueError(f"External adapter must not re-enter the framework build: {adapter}")
     actual = {p.parent.parent.name for p in root.glob("*/api/*.api")}
     if actual != MODULES:
         raise ValueError(f"ABI inventory mismatch: missing={MODULES - actual}, extra={actual - MODULES}")
@@ -44,4 +48,4 @@ def verify(root):
 
 if __name__ == "__main__":
     verify(Path(__file__).resolve().parents[2])
-    print("All 17 published Kotlin ABI inventories and database boundary rules verified")
+    print(f"All {len(MODULES)} published Kotlin ABI inventories and database boundary rules verified")

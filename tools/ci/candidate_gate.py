@@ -52,7 +52,7 @@ def main():
                            ORG_GRADLE_PROJECT_signingInMemoryKeyPassword='')
                 repository = output / 'repository'
                 common = [str(root / 'gradlew'), '--no-daemon', '--no-configuration-cache',
-                          '--max-workers=2', '-Pnetonstream.local=false', '-Phyper4k.local=false']
+                          '--max-workers=2', '-Pnetonstream.local=false']
                 run_logged(common + [f'-PnetonVersion={version}', f'-Pneton.stagingRepository={repository}',
                     'publishAllPublicationsToStagingLocalRepository'], output / 'publish.log',
                     cwd=root, env=env, timeout=5400)

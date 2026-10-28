@@ -14,12 +14,10 @@ include(":neton-logging")    // 地基模块：Logger API（neton.logging）+ �
 include(":neton-core")       // 主框架模块
 include(":neton-http")       // HTTP 集成与内置 DefaultHttpAdapter
 include(":neton-websocket")  // 可选 WebSocket 模块（beta 发布），默认 provider 为内置 netonstream websocket
-include(":neton-http-hyper4k") // Hyper4k 适配层（Rust 引擎本体是独立仓库）
 // Experimental adapter only; the Rust engine lives outside this repository.
 if (providers.gradleProperty("geario4k.experimental").orNull == "true") {
     include(":neton-http-geario4k")
 }
-include(":neton-http-ktor")    // Ktor 兼容适配层
 include(":neton-ai")         // AI 抽象层（generateText/streamText/tool loop/router/usage, OpenAi-compat + Anthropic v0.1）
 include(":neton-routing")    // 路由组件模块
 include(":neton-security")   // 安全组件模块
@@ -47,18 +45,8 @@ include(":examples:bench")
 include(":examples:release-gate")
 include(":examples:ksp-incremental")
 
-// Rust 引擎仓库。没有 checkout 时本仓其余模块照常构建。
-// hyper4k 是独立发布的库（com.netonstream:hyper4k），默认按坐标从仓库解析——
-// 构建出的产物和使用者拿到的一致。本地联调 hyper4k 时用 -Phyper4k.local=true 打开源码替换；
-// 默认关闭是为了避免「本地改了 hyper4k、neton 构建通过、发布出去却依赖未含该改动的版本」。
-val useLocalHyper4k = providers.gradleProperty("hyper4k.local").orNull == "true"
-require(!useLocalHyper4k || !providers.gradleProperty("hyper4k.repository").isPresent) {
-    "Choose Hyper4k source substitution OR artifact verification, not both."
-}
-if (useLocalHyper4k) {
-    require(file("../hyper4k").isDirectory) { "-Phyper4k.local=true requires ../hyper4k" }
-    includeBuild("../hyper4k")
-}
+// Hyper4k and Ktor compatibility adapters are independent repositories.
+// They consume published Neton contracts and are not framework release gates.
 
 // netonstream 协议栈（io / http / tls / openssl / websocket）与 neton-websocket 自 1.0.0-beta24 起都按 beta 发布到
 // Maven Central（neton-docs spec/websocket.md §3）。netonstream.local=true 只是开发期的源码替换：直接用兄弟目录的

@@ -12,10 +12,7 @@ dependencies {
     constraints {
         rootProject.subprojects
             .filter { it.path != project.path && !it.path.startsWith(":examples") && it.name != "neton" }
-            // Not in the BOM: the Ktor engine is maintenance-only and must be a
-            // deliberate, versioned choice, never something a BOM quietly hands
-            // out next to the default engine (spec http-engine.md §4.2, §九).
-            .filter { it.name != "neton-http-ktor" }
+            // External compatibility adapters have their own release lifecycle.
             .forEach { api("${project.group}:${it.name}:${project.version}") }
     }
 }
