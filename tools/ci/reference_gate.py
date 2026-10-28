@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build and accept the public reference fixture on an isolated native host."""
 import argparse
+import csv
 import hashlib
 import json
 import os
@@ -98,6 +99,18 @@ def smoke(binary, pg_bin, output, evidence):
 
     with tempfile.TemporaryDirectory(prefix="neton-reference-", dir=None if windows else "/tmp") as temporary:
         work = Path(temporary)
+        if windows:
+            # initdb drops administrator privileges. Python's private temporary
+            # directory ACL may name the elevated token owner (Administrators).
+            # Grant only this process's user SID on our owned disposable folder;
+            # do not grant Everyone/Users or modify any parent directory ACL.
+            identity = subprocess.check_output(['whoami', '/user', '/fo', 'csv', '/nh'], text=True)
+            row = next(csv.reader(identity.strip().splitlines()))
+            sid = row[-1]
+            require(sid.startswith('S-1-') and all(part.isdigit() for part in sid[2:].split('-')),
+                    'Could not identify Windows gate user SID')
+            run_logged(['icacls', str(work), '/grant', f'*{sid}:(OI)(CI)M'],
+                       output / 'postgres-work-acl.log', timeout=30)
         data = work / "pgdata"
         sockets = work / "sockets"
         sockets.mkdir()

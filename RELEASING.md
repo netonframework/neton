@@ -75,6 +75,29 @@ is cross-built on a supported compiler host and executed on an ARM64 runner;
 cross-build evidence alone is explicitly incomplete. A failed/skipped platform
 blocks the release aggregate. All of this is independent of downstream products.
 
+### Local signed candidate rehearsal (does not publish)
+
+On a clean macOS ARM64 publisher checkout, run:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 tools/ci/candidate_gate.py \
+  --pg-bin "$(brew --prefix postgresql@16)/bin" \
+  --output /tmp/neton-candidate-evidence
+```
+
+The output directory must not already exist. The gate uses a fresh Gradle home
+and an ephemeral test signing key, stages all 97 expected coordinates locally,
+verifies signatures/checksums/metadata/BOM, and builds the public reference
+fixture as an independent artifact-only consumer twice. It then runs migrations
+and both shutdown cycles. Its database dependency is intentionally versionless
+to exercise the published entry module's BOM. CI retains logs, repository,
+public test key and an evidence manifest, never the private key or Gradle home.
+
+This is a prepublication rehearsal, not production-key approval or proof that
+Central serves those artifacts. It never creates a release tag or uploads to
+Central. The source-built three-platform runtime matrix remains a separate
+requirement; this consumer rehearsal currently executes on macOS ARM64.
+
 Before release, disable source substitution and run the same tests against the exact
 published dependencies: `-Pnetonstream.local=false -Phyper4k.local=false`.
 Publishing tasks reject source substitution, including Maven Local and staging output.
