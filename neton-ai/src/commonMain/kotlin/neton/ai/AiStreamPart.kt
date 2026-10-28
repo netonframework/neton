@@ -10,6 +10,7 @@ import neton.ai.model.AiWarning
  * 流式调用的事件。顺序：每一步以 [StepStart] 开始、[StepFinish] 结束；整次调用以恰好一个 [Finish] 或 [Error] 结束
  * （收集被取消时两者都没有）。文本、推理、工具参数都是 start / delta / end 三段，[id] 标识同一块。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiStreamPart {
     data class StepStart(val stepNumber: Int, val model: AiModelId, val warnings: List<AiWarning>) : AiStreamPart
 
@@ -44,9 +45,11 @@ sealed interface AiStreamPart {
 }
 
 /** 只取正文增量。 */
+@neton.ai.ExperimentalNetonAiApi
 fun Flow<AiStreamPart>.textDeltas(): Flow<String> = filterIsInstance<AiStreamPart.TextDelta>().map { it.text }
 
 /** 收集到结束并返回结果；以 [AiStreamPart.Error] 结束时抛 [AiException]。 */
+@neton.ai.ExperimentalNetonAiApi
 suspend fun Flow<AiStreamPart>.result(): AiResult {
     var result: AiResult? = null
     var error: AiError? = null

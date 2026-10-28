@@ -1,6 +1,7 @@
 // neton-ai/src/commonMain/kotlin/neton/ai/config/AnthropicSpec.kt
 package neton.ai.config
 
+@neton.ai.ExperimentalNetonAiApi
 class AnthropicSpec(override val id: String) : ProviderSpec {
     var baseUrl: String? = null
     var apiKey: String? = null

@@ -4,6 +4,7 @@ package neton.ai.protocol.transport
  * multipart/form-data 的最小处理：只认 `name="…"` 的普通字段，够改写 `model` 一个字段就行。
  * 文件部分原样保留（可能几十 MB 的音频），所以全部按字节操作，不解码。
  */
+@neton.ai.ExperimentalNetonAiApi
 object MultipartForm {
     fun boundary(contentType: String?): String? {
         val ct = contentType ?: return null

@@ -6,11 +6,13 @@ import neton.ai.protocol.ir.*
  * 媒体解析钩子（spec/ai.md §5.4）：目标协议只收内联数据（如 Bedrock Converse）而来源是 URL 时，
  * 由宿主下载并返回 base64。**框架从不自行发起网络请求**；SSRF 防护、大小上限、超时都由宿主负责。
  */
+@neton.ai.ExperimentalNetonAiApi
 fun interface MediaResolver {
     /** 返回内联来源；无法解析时抛出异常（转换随之失败）。 */
     suspend fun resolve(source: MediaSource.Url): MediaSource.Base64
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object MediaResolution {
     /** 需要内联媒体的目标协议。 */
     fun needsInline(target: WireFormat, source: MediaSource): Boolean = source is MediaSource.Url && when (target) {
@@ -36,6 +38,7 @@ object MediaResolution {
 }
 
 /** 带媒体解析的请求转换：解码 → 解析 URL 媒体 → 编码。其余同 [ProtocolConverter.convertRequest]。 */
+@neton.ai.ExperimentalNetonAiApi
 suspend fun ProtocolConverter.convertRequestResolvingMedia(
     body: kotlinx.serialization.json.JsonObject,
     from: WireFormat,

@@ -25,6 +25,7 @@ import neton.security.crypto.RsaSha256
  *
  * HTTP 客户端由宿主传入并负责关闭（neton-http 的所有权约定）。
  */
+@neton.ai.ExperimentalNetonAiApi
 class GoogleAccessTokens(
     private val client: HttpClient,
     private val now: () -> Long = { kotlin.time.Clock.System.now().toEpochMilliseconds() },

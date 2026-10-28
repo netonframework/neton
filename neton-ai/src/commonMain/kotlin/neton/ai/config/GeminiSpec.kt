@@ -1,5 +1,6 @@
 package neton.ai.config
 
+@neton.ai.ExperimentalNetonAiApi
 class GeminiSpec(override val id: String) : ProviderSpec {
     var baseUrl: String? = null
     var apiKey: String? = null

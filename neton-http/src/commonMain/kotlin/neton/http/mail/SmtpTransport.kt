@@ -11,7 +11,9 @@ data class SmtpAccount(
     val password: String,
     val ssl: Boolean,
     val starttls: Boolean,
-)
+) {
+    override fun toString(): String = "SmtpAccount(host=$host, port=$port, username=<redacted>, password=<redacted>, ssl=$ssl, starttls=$starttls)"
+}
 
 data class SmtpMessage(
     val from: String,

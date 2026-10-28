@@ -7,6 +7,7 @@ repositories {
 }
 
 kotlin {
+    compilerOptions { optIn.add("neton.ai.ExperimentalNetonAiApi") }
     listOf(macosArm64(), macosX64(), linuxX64(), linuxArm64(), mingwX64()).forEach { target ->
         target.binaries {
             executable {

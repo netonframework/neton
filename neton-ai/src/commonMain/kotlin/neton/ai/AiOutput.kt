@@ -19,6 +19,7 @@ import neton.ai.protocol.ir.ResponseFormat
  * 结构化输出声明（spec/ai.md §10.2）。放进 [AiRequest.output]，只解析**最后一步**的文本；
  * 工具循环照常进行。流式时持续给出半成品（[AiStreamPart.PartialOutput]），**半成品不是结果**。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed class AiOutput<T> {
     abstract val responseFormat: ResponseFormat?
 
@@ -147,6 +148,7 @@ sealed class AiOutput<T> {
 }
 
 /** 结构化输出的结果：拒绝不是非法输出，截断也不是非法输出，调用方据此决定重试、降级或报错。 */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiOutputResult<out T> {
     data class Success<T>(val value: T) : AiOutputResult<T>
     /** 模型拒绝回答（refusal 内容或内容过滤）。 */
@@ -159,6 +161,7 @@ sealed interface AiOutputResult<out T> {
     data class NotGenerated(val reason: String) : AiOutputResult<Nothing>
 }
 
+@neton.ai.ExperimentalNetonAiApi
 class AiOutputException(val result: AiOutputResult<Nothing>) : RuntimeException(
     when (result) {
         is AiOutputResult.Success -> "output generated"

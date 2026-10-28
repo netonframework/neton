@@ -11,6 +11,7 @@ import neton.ai.provider.*
 import neton.http.client.HttpClient
 
 /** OpenAI 兼容的 API 面：Chat Completions（绝大多数兼容服务）或 Responses（OpenAI、Azure v1 等）。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class OpenAiApi(val format: WireFormat, val path: String) {
     Chat(WireFormat.OPENAI_CHAT, "/chat/completions"),
     Responses(WireFormat.OPENAI_RESPONSES, "/responses"),
@@ -20,6 +21,7 @@ enum class OpenAiApi(val format: WireFormat, val path: String) {
  * OpenAI 及兼容服务。厂商差异由 [profile] 描述（spec §9）：未指定时按 baseUrl 选内置配置，
  * [streamUsage] 非 null 时覆盖配置里的同名项。
  */
+@neton.ai.ExperimentalNetonAiApi
 class OpenAiCompatibleProvider(
     override val id: String,
     private val httpClient: HttpClient,

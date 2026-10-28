@@ -1,5 +1,6 @@
 package neton.ai.usage
 
+@neton.ai.ExperimentalNetonAiApi
 class LoggingAiUsageRecorder(
     val emit: (line: String) -> Unit,
     val metadataAllowlist: Set<String> = DEFAULT_METADATA_ALLOWLIST,

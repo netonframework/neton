@@ -18,10 +18,12 @@ import neton.ai.AiUsage
  * 默认不记录内容：只有 [AiTelemetrySettings.recordInputs] / [AiTelemetrySettings.recordOutputs] 打开时，
  * 事件里才带提示词、工具参数、模型输出与工具结果；凭证与请求头从不进入事件。
  */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiTelemetry {
     suspend fun onEvent(event: AiTelemetryEvent)
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class AiTelemetrySettings(
     /** 事件里带上输入（消息、工具参数）。 */
     val recordInputs: Boolean = false,
@@ -30,6 +32,7 @@ data class AiTelemetrySettings(
 )
 
 /** 被观测的操作。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class AiOperation(val id: String) {
     Generate("generate"), Stream("stream"), Embed("embed"), Image("image"),
     Speech("speech"), Transcribe("transcribe"), Rerank("rerank"),
@@ -39,6 +42,7 @@ enum class AiOperation(val id: String) {
  * 一次操作的上下文，同一操作的所有事件共享。[operationId] 在进程内唯一；
  * [functionId] 与 [metadata] 来自请求（[metadata] 里的 `traceparent` 会被 [GenAiSpans] 用作父 span）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiTelemetryContext(
     val operationId: String,
     val operation: AiOperation,
@@ -46,6 +50,7 @@ data class AiTelemetryContext(
     val metadata: Map<String, String>,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiTelemetryEvent {
     val context: AiTelemetryContext
 

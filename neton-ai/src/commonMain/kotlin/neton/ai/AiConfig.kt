@@ -14,6 +14,7 @@ import neton.ai.routing.RoutingConfig
  * `httpClient` field: required. Borrowed from the application; neton-ai never closes it.
  * and sets this field internally before the DSL block runs.
  */
+@neton.ai.ExperimentalNetonAiApi
 class AiConfig {
     var httpClient: neton.http.client.HttpClient? = null
     internal val providers = mutableMapOf<String, ProviderSpec>()

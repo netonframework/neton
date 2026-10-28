@@ -7,10 +7,12 @@ import kotlinx.serialization.json.JsonObject
  * 有序内容块（spec §4.2）。块的顺序就是上游原始顺序，编解码与转换都必须保持。
  * 每个块都可以挂 [ProviderMetadata]，用于往返保留厂商字段。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface Block {
     val metadata: ProviderMetadata
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class TextBlock(
     val text: String,
     /** 引用，保持来源协议的原始形状。 */
@@ -18,6 +20,7 @@ data class TextBlock(
     override val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
 ) : Block
 
+@neton.ai.ExperimentalNetonAiApi
 data class ImageBlock(
     val source: MediaSource,
     /** OpenAI `image_url.detail`。 */
@@ -26,12 +29,14 @@ data class ImageBlock(
 ) : Block
 
 /** 文档、音频、视频等非图片媒体；种类看 [MediaSource.mediaType]。 */
+@neton.ai.ExperimentalNetonAiApi
 data class FileBlock(
     val source: MediaSource,
     val filename: String? = null,
     override val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
 ) : Block
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface MediaSource {
     val mediaType: String?
 
@@ -49,6 +54,7 @@ sealed interface MediaSource {
  * - [summary]：Responses 的推理摘要段落。
  * Gemini 的 thoughtSignature 放在 `gemini.thoughtSignature` 元数据里，不混用 [signature]。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class ReasoningBlock(
     val text: String = "",
     val signature: String? = null,
@@ -60,9 +66,11 @@ data class ReasoningBlock(
     val redacted: Boolean get() = redactedData != null
 }
 
+@neton.ai.ExperimentalNetonAiApi
 enum class ToolKind { Function, Custom }
 
 /** [arguments]：Function 为 JSON 文本；Custom 为原始输入文本。 */
+@neton.ai.ExperimentalNetonAiApi
 data class ToolCallBlock(
     val id: String,
     val name: String,
@@ -72,6 +80,7 @@ data class ToolCallBlock(
 ) : Block
 
 /** [toolName]：Gemini 的 functionResponse 按名称对应调用，其他协议可为空。 */
+@neton.ai.ExperimentalNetonAiApi
 data class ToolResultBlock(
     val callId: String,
     val content: List<Block>,
@@ -84,6 +93,7 @@ data class ToolResultBlock(
  * 托管工具的调用与结果（Anthropic server_tool_use / web_search_tool_result，Responses web_search_call 等），
  * 按原样保留；只能写回 [sourceFormat]，写到其他协议时丢弃并产生诊断。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class HostedToolBlock(
     val type: String,
     val raw: JsonObject,
@@ -95,6 +105,7 @@ data class HostedToolBlock(
  * IR 没有建模的块（如 Anthropic 的 text 来源 document、container_upload），原样保留，
  * 只能写回 [sourceFormat]；写到其他协议时丢弃并产生 error 级诊断。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class RawBlock(
     val type: String,
     val raw: JsonObject,
@@ -102,12 +113,14 @@ data class RawBlock(
     override val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
 ) : Block
 
+@neton.ai.ExperimentalNetonAiApi
 data class RefusalBlock(
     val text: String,
     override val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
 ) : Block
 
 /** 块里的全部文本（只取 [TextBlock]）。 */
+@neton.ai.ExperimentalNetonAiApi
 fun List<Block>.plainText(separator: String = ""): String =
     filterIsInstance<TextBlock>().joinToString(separator) { it.text }
 

@@ -21,6 +21,7 @@ import neton.logging.LoggerFactory
  *   2. config/ai.conf is loaded and merged (DSL explicit fields preserved)
  *   3. validate() runs; bind on success
  */
+@neton.ai.ExperimentalNetonAiApi
 object AiComponent : NetonComponent<AiConfig> {
 
     override fun defaultConfig(): AiConfig = AiConfig()
@@ -73,6 +74,7 @@ object AiComponent : NetonComponent<AiConfig> {
 }
 
 /** DSL entry: `ai { providers { ... }; routing { ... } }` */
+@neton.ai.ExperimentalNetonAiApi
 fun Neton.LaunchBuilder.ai(block: AiConfig.() -> Unit) {
     install(AiComponent, block)
 }

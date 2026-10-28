@@ -10,6 +10,7 @@ package neton.ai.protocol.transport
  * [decode] 返回到最近完整字符边界为止的已解码文本，未完成的尾部字节留待下一 chunk；
  * [flush] 在流结束时校验无残留（正常结束应为空；截断/非法则抛）。
  */
+@neton.ai.ExperimentalNetonAiApi
 class Utf8StreamDecoder {
     private var pending = ByteArray(0)
 

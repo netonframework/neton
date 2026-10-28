@@ -1,6 +1,7 @@
 package neton.ai.protocol.transport
 
 /** 一个 SSE 事件。[event] 是 `event:` 字段（没有为 null），[data] 是多行 `data:` 以 `\n` 连接后的负载，[id] 是 `id:` 字段（断线续传用）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class SseEvent(val event: String?, val data: String, val id: String? = null)
 
 /**
@@ -13,6 +14,7 @@ data class SseEvent(val event: String?, val data: String, val id: String? = null
  *
  * 判断 `[DONE]` 等终止标记是调用方的事。读写 socket 由宿主完成，框架只做文本处理。
  */
+@neton.ai.ExperimentalNetonAiApi
 class SseFramer {
     private val buf = StringBuilder()
     private var pendingCr = false
@@ -84,6 +86,7 @@ class SseFramer {
 }
 
 /** SSE 输出。 */
+@neton.ai.ExperimentalNetonAiApi
 object SseWriter {
     fun data(data: String): String = "data: $data\n\n"
 
@@ -91,6 +94,7 @@ object SseWriter {
 }
 
 /** 非 SSE 的流帧（如 AWS event-stream）→ SSE 文本的增量解码器；[finish] 返回残留（正常为空）。 */
+@neton.ai.ExperimentalNetonAiApi
 interface ByteStreamDecoder {
     fun feed(bytes: ByteArray): String
     fun finish(): String

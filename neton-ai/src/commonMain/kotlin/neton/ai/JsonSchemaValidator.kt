@@ -15,6 +15,7 @@ import kotlinx.serialization.json.longOrNull
  * additionalProperties（false 或 schema）、enum、const、items、minItems/maxItems、minimum/maximum、
  * minLength/maxLength、anyOf/oneOf。不认识的关键字忽略（放行），不做 $ref 解析。
  */
+@neton.ai.ExperimentalNetonAiApi
 object JsonSchemaValidator {
     /** 返回第一个错误的说明（带路径）；合法返回 null。 */
     fun validate(schema: JsonObject, value: JsonElement): String? = check(schema, value, "$")

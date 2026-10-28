@@ -6,6 +6,10 @@
 // - Show declarations: true
 
 // Library unique name: <com.netonstream:neton-ai>
+open annotation class neton.ai/ExperimentalNetonAiApi : kotlin/Annotation { // neton.ai/ExperimentalNetonAiApi|null[0]
+    constructor <init>() // neton.ai/ExperimentalNetonAiApi.<init>|<init>(){}[0]
+}
+
 final enum class neton.ai.adapter.openaicompatible/OpenAiApi : kotlin/Enum<neton.ai.adapter.openaicompatible/OpenAiApi> { // neton.ai.adapter.openaicompatible/OpenAiApi|null[0]
     enum entry Chat // neton.ai.adapter.openaicompatible/OpenAiApi.Chat|null[0]
     enum entry Responses // neton.ai.adapter.openaicompatible/OpenAiApi.Responses|null[0]

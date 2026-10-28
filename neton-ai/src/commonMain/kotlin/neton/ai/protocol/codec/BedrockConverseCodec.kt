@@ -29,6 +29,7 @@ import neton.ai.protocol.usage.UsageCompleteness
  * - `cachePoint` 块表示「在此之前的内容可缓存」：解码时挂到前一个块的 `bedrock.cachePoint` 元数据上，
  *   编码时在带 `bedrock.cachePoint` 或 Anthropic `cache_control` 的块后面补一个 cachePoint。
  */
+@neton.ai.ExperimentalNetonAiApi
 object BedrockConverseCodec : ProtocolCodec {
     override val format = WireFormat.BEDROCK_CONVERSE
     private val F = WireFormat.BEDROCK_CONVERSE

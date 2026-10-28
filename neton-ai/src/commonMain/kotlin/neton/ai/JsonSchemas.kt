@@ -27,6 +27,7 @@ import kotlinx.serialization.serializer
  * [strict] 为 true 时按 OpenAI strict 结构化输出的要求生成：每个对象 `additionalProperties: false`，
  * 所有字段都进 required，可选字段改为可空。
  */
+@neton.ai.ExperimentalNetonAiApi
 object JsonSchemas {
     inline fun <reified T> of(strict: Boolean = false): JsonObject = of(serializer<T>(), strict)
 

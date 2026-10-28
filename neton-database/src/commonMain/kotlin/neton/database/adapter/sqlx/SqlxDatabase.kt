@@ -24,6 +24,7 @@ import neton.database.sql.SqliteDialect
  *
  *   切换 variant: `./gradlew -Pneton.database.driver=sqlite <target>`
  */
+@neton.core.annotations.InternalNetonApi
 object SqlxDatabase {
     private var db: QueryExecutor? = null
     private var closeDriver: (suspend () -> Unit)? = null

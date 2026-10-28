@@ -8,6 +8,7 @@ import neton.ai.protocol.transport.aws.SigV4
  * 托管上游（spec §3.2）：协议不变，只换鉴权、路径与帧。这里只放协议事实，
  * 渠道配置（region、project、部署名从哪来）由宿主决定。
  */
+@neton.ai.ExperimentalNetonAiApi
 object BedrockUpstream {
     const val SERVICE = "bedrock"
     const val ANTHROPIC_VERSION = "bedrock-2023-05-31"
@@ -35,6 +36,7 @@ object BedrockUpstream {
     fun streamDecoder(): ByteStreamDecoder = neton.ai.protocol.transport.aws.EventStreamDecoder()
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object VertexUpstream {
     const val ANTHROPIC_VERSION = "vertex-2023-10-16"
 
@@ -55,11 +57,13 @@ object VertexUpstream {
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object GeminiUpstream {
     fun path(model: String, stream: Boolean): String =
         "/v1beta/models/$model:" + if (stream) "streamGenerateContent?alt=sse" else "generateContent"
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object AzureUpstream {
     const val DEFAULT_API_VERSION = "2024-10-21"
 

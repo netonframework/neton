@@ -27,6 +27,7 @@ import neton.ai.protocol.usage.UsageCompleteness
  * 块顺序原样保留（thinking → text → tool_use 交错都可以）；thinking 签名、redacted thinking、
  * `cache_control`（含 TTL）、托管工具块都能写回本协议（spec §4.4）。
  */
+@neton.ai.ExperimentalNetonAiApi
 object AnthropicCodec : ProtocolCodec {
     override val format = WireFormat.ANTHROPIC
     private val F = WireFormat.ANTHROPIC

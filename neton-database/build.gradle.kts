@@ -27,6 +27,7 @@ val nDbDriverLib = when (nDbDriver) {
 }
 
 kotlin {
+    compilerOptions { optIn.add("neton.core.annotations.InternalNetonApi") }
     macosArm64()
     linuxX64()
     linuxArm64()

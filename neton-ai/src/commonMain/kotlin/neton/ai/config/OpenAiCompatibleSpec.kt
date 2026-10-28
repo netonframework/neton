@@ -5,6 +5,7 @@ package neton.ai.config
  * All fields nullable to distinguish "not set in DSL" from "set to default value", per spec §4.2.
  * Effective config applies defaults after file merge (see Task 16).
  */
+@neton.ai.ExperimentalNetonAiApi
 class OpenAiCompatibleSpec(override val id: String) : ProviderSpec {
     var baseUrl: String? = null
     var apiKey: String? = null

@@ -19,6 +19,7 @@ import neton.ai.protocol.usage.Usage
  * 一端 WebSocket 文本消息通道的抽象（spec/ai.md §3.4）。框架不持有 socket：
  * 宿主用 neton-websocket（或任何实现）把客户端连接与上游连接各包成一个通道。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface RealtimeChannel {
     /** 下一条文本消息；对端关闭时返回 null。 */
     suspend fun receive(): String?
@@ -27,6 +28,7 @@ interface RealtimeChannel {
 }
 
 /** 宿主对客户端事件的处理结果。 */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface ClientEventDecision {
     /** 原样或改写后转发给上游。 */
     data class Forward(val event: JsonObject) : ClientEventDecision
@@ -43,6 +45,7 @@ sealed interface ClientEventDecision {
  *   提取用量交给 [onUsage]——计费只依据上游给出的事实；
  * - 任一端关闭或出错，关闭另一端；取消照常传播。
  */
+@neton.ai.ExperimentalNetonAiApi
 class RealtimeBridge(
     private val client: RealtimeChannel,
     private val upstream: RealtimeChannel,
@@ -110,6 +113,7 @@ class RealtimeBridge(
 }
 
 /** 实时协议的用量提取。 */
+@neton.ai.ExperimentalNetonAiApi
 object RealtimeUsage {
     /** `response.done`（Realtime）或 `response.completed`（Responses WebSocket）里的用量；其他事件返回 null。 */
     fun fromEvent(event: JsonObject): Usage? {

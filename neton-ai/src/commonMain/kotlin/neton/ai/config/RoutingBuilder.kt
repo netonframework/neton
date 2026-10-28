@@ -5,6 +5,7 @@ import neton.ai.AiModelId
 import neton.ai.routing.ModelPolicy
 import neton.ai.routing.RoutingConfig
 
+@neton.ai.ExperimentalNetonAiApi
 class RoutingBuilder internal constructor() {
     var defaultModel: String? = null
     private val policies = mutableMapOf<String, ModelPolicy>()

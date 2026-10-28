@@ -28,6 +28,7 @@ import neton.ai.protocol.usage.UsageCompleteness
  *   **调用方必须已经通过 `isBypassVerified` 确认该接口、模型与渠道有验证记录**，编解码器不做这个判断。
  * @property requireSignatures 目标型号是否校验签名；null 时按 `request.model` 推断（gemini-3 及之后）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class GeminiEncodeOptions(
     val signatureBypass: Boolean = false,
     val requireSignatures: Boolean? = null,
@@ -39,6 +40,7 @@ data class GeminiEncodeOptions(
  * 模型名与是否流式在 URL 上，不在报文里：解码得到的 `model` 为 null、`stream` 为 false，由调用方补上。
  * 读取同时接受 camelCase 与 snake_case，写出用 camelCase。
  */
+@neton.ai.ExperimentalNetonAiApi
 object GeminiCodec : ProtocolCodec {
     override val format = WireFormat.GEMINI
     private val F = WireFormat.GEMINI

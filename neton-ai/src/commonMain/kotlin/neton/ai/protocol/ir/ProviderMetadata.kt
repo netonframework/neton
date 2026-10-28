@@ -13,6 +13,7 @@ import kotlinx.serialization.json.contentOrNull
  *   如 `anthropic.cacheControl`、`gemini.thoughtSignature`、`openai.itemId`；
  * - 报文命名空间 `wire:<WireFormat.id>`（[wireExtra]）：IR 没有建模的原始字段，只在编回同一协议时补回。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class ProviderMetadata(val namespaces: Map<String, JsonObject> = emptyMap()) {
 
     fun isEmpty(): Boolean = namespaces.isEmpty()

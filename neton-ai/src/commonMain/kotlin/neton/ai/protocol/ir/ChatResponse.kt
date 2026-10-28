@@ -5,8 +5,10 @@ import neton.ai.protocol.usage.Usage
 /**
  * 结束原因。[raw] 保留上游原始字符串：编回同一协议时优先写回它。
  */
+@neton.ai.ExperimentalNetonAiApi
 enum class FinishReason { Stop, Length, ToolCalls, ContentFilter, Refusal, PauseTurn, Error, Other }
 
+@neton.ai.ExperimentalNetonAiApi
 data class ChatResponse(
     val id: String? = null,
     val model: String? = null,

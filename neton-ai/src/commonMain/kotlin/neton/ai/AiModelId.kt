@@ -3,6 +3,7 @@ package neton.ai
 /**
  * "provider:model" identifier. Split at FIRST ':'; model name may contain '/', ':', '-', '.'.
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiModelId(val providerId: String, val modelName: String) {
     override fun toString(): String = "$providerId:$modelName"
 

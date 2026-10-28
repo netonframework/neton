@@ -1,5 +1,6 @@
 package neton.ai
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiError {
     val message: String
     val cause: Throwable?
@@ -38,6 +39,7 @@ sealed interface AiError {
 }
 
 /** Stable string for telemetry (refactor-safe; do not use class.simpleName). */
+@neton.ai.ExperimentalNetonAiApi
 val AiError.kind: String
     get() = when (this) {
         is AiError.Network -> "Network"
@@ -59,6 +61,7 @@ val AiError.kind: String
  *  Network / Timeout / RateLimited / ServerError(5xx) → eligible
  *  everything else → not eligible (auth, semantic, ModelNotFound)
  */
+@neton.ai.ExperimentalNetonAiApi
 fun AiError.isFallbackEligible(): Boolean = when (this) {
     is AiError.Network -> true
     is AiError.Timeout -> true

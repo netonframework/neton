@@ -15,6 +15,7 @@ import neton.ai.protocol.ir.StreamEvent
  * - 失败抛 [neton.ai.AiException]（携带分类后的 [neton.ai.AiError]）；
  * - [stream] 返回的事件流是冷流：连接与鉴权错误在收集时抛出（调用方据此在首个事件前重试或回退）。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface AiLanguageModel {
     val provider: String
     val modelId: String
@@ -24,6 +25,7 @@ interface AiLanguageModel {
 }
 
 /** 每次模型调用的传输层选项（不进入报文语义）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiModelCallOptions(
     /** 额外请求头，覆盖同名的默认头。 */
     val headers: Map<String, String> = emptyMap(),
@@ -33,6 +35,7 @@ data class AiModelCallOptions(
     val timeoutMillis: Long? = null,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class AiModelResult(
     val response: ChatResponse,
     val warnings: List<AiWarning> = emptyList(),
@@ -40,6 +43,7 @@ data class AiModelResult(
     val responseHeaders: Map<String, String> = emptyMap(),
 )
 
+@neton.ai.ExperimentalNetonAiApi
 class AiModelStream(
     /** 编码请求时就已确定的警告（目标协议表达不了的参数等）。 */
     val warnings: List<AiWarning>,
@@ -50,6 +54,7 @@ class AiModelStream(
  * 调用警告：请求能发出去，但有设置没有按原样生效。来自协议层诊断：
  * error 级 → [Type.UNSUPPORTED]（行为会变），warning 级 → [Type.COMPATIBILITY]（近似实现）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiWarning(val type: Type, val feature: String, val message: String) {
     enum class Type { UNSUPPORTED, COMPATIBILITY, DEPRECATED, OTHER }
 

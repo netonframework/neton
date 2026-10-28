@@ -1,3 +1,5 @@
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
+
 import kotlinx.coroutines.runBlocking
 import neton.core.Neton
 import neton.core.config.ConfigLoader

@@ -13,6 +13,7 @@ import neton.ai.protocol.ir.ToolKind
  * 供没有 custom 工具的目标协议（Anthropic、Gemini、Bedrock）的流式编码器使用，写法与非流式转换一致。
  * 文本逐段转义后直接输出，不需要缓冲；块结束时补上收尾的 `"}`。
  */
+@neton.ai.ExperimentalNetonAiApi
 class CustomToolCallsAsFunctions(private val d: Diagnostics) {
     private val open = HashSet<Int>()
 

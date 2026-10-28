@@ -12,6 +12,7 @@ import neton.ai.protocol.ir.StreamEvent
  * 同时有多个打开的块，按 index 寻址；需要连续输出的目标协议由 [SequentialBlocks] 重新排好。
  * `exclusive = true`（文本、推理这类天然先后出现的块）在打开前关掉其他所有打开的块。
  */
+@neton.ai.ExperimentalNetonAiApi
 class BlockSequencer {
     private var nextIndex = 0
     private val open = LinkedHashMap<Any, Int>()
@@ -53,6 +54,7 @@ class BlockSequencer {
  * 供要求块连续的目标协议（Anthropic、Responses）的编码器使用。非块事件直接放行；
  * Finish / Error 之前先把排队的块全部交出。
  */
+@neton.ai.ExperimentalNetonAiApi
 class SequentialBlocks {
     private var current: Int? = null
     private val queued = LinkedHashMap<Int, MutableList<StreamEvent>>()

@@ -8,6 +8,7 @@ repositories {
 }
 
 kotlin {
+    compilerOptions { optIn.add("neton.ai.ExperimentalNetonAiApi") }
     macosArm64()
     macosX64()
     linuxX64()

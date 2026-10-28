@@ -5,10 +5,11 @@ import neton.core.http.adapter.HttpAdapter
 import neton.core.http.upgrade.UpgradedConnection
 
 /** Engine integration is experimental until the framework runtime conformance suite is complete. */
-@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+@RequiresOptIn(level = RequiresOptIn.Level.ERROR)
 annotation class ExperimentalWebSocketEngineApi
 
 /** This is NOT a declaration that the HTTP adapter already supports WebSocket routes. */
+@ExperimentalWebSocketEngineApi
 enum class WebSocketEngineCapability {
     MESSAGE_LIMITS,
     /** Reserve payload bytes before allocating/reassembling data; not an RSS or copy-overhead limit. */
@@ -17,6 +18,7 @@ enum class WebSocketEngineCapability {
     VALIDATED_DISCARD,
 }
 
+@ExperimentalWebSocketEngineApi
 data class EngineLimits(
     val maxMessageBytes: Int = 1024 * 1024,
     val maxFrameBytes: Int = 1024 * 1024,
@@ -32,6 +34,7 @@ data class EngineLimits(
 }
 
 /** Immutable handshake snapshot. Values preserve repeated headers for protocol validation. */
+@ExperimentalWebSocketEngineApi
 class HandshakeRequest(
     val method: String,
     val target: String,
@@ -41,11 +44,14 @@ class HandshakeRequest(
     val headers: Map<String, List<String>> = headers.mapValues { it.value.toList() }
 }
 
+@ExperimentalWebSocketEngineApi
 class HandshakeOffer(val subprotocol: String? = null)
 
 /** Opaque negotiated state must only be consumed by the provider that produced it. */
+@ExperimentalWebSocketEngineApi
 interface Negotiated
 
+@ExperimentalWebSocketEngineApi
 sealed interface HandshakeResult {
     class Accepted(val headers: Map<String, List<String>>, val negotiated: Negotiated) : HandshakeResult
     class Rejected(val status: Int, val reason: String, val headers: Map<String, List<String>> = emptyMap()) : HandshakeResult
@@ -65,6 +71,7 @@ interface WebSocketEngineProvider {
     suspend fun open(connection: UpgradedConnection, negotiated: Negotiated, limits: EngineLimits): WebSocketEngineConnection
 }
 
+@ExperimentalWebSocketEngineApi
 sealed interface WebSocketEngineEvent {
     data object DataRejected : WebSocketEngineEvent
     class Text(val text: String, val lease: BudgetLease = BudgetLease(UnlimitedByteBudget, 0)) : WebSocketEngineEvent

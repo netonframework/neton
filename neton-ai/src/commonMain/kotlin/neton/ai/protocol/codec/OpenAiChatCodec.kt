@@ -27,6 +27,7 @@ import neton.ai.protocol.usage.UsageCompleteness
  * 方言：推理内容读 `reasoning_content` 与 `reasoning`（兼容服务的两种写法），写 `reasoning_content`；
  * Gemini 签名走官方 OpenAI 兼容字段 `extra_content.google.thought_signature`（spec §4.5.1 载体 A）。
  */
+@neton.ai.ExperimentalNetonAiApi
 object OpenAiChatCodec : ProtocolCodec {
     override val format = WireFormat.OPENAI_CHAT
     private val F = WireFormat.OPENAI_CHAT
@@ -915,6 +916,7 @@ object OpenAiChatCodec : ProtocolCodec {
 }
 
 /** 推理强度与预算的互换（主流约定；目标协议需要预算而只有强度时使用）。 */
+@neton.ai.ExperimentalNetonAiApi
 object Reasoning {
     /** 推理档位占输出上限的比例（主流 SDK 的约定）。 */
     private val SHARE = mapOf("minimal" to 0.02, "low" to 0.1, "medium" to 0.3, "high" to 0.6, "xhigh" to 0.9, "max" to 0.95)

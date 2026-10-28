@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonObject
  * 多步循环：每一步调用一次模型；模型请求了本地工具时执行它们并进入下一步，直到
  * 没有待执行的工具、出现需要调用方处理的情况（审批、无执行器）、或 [stopWhen] 任一条件满足。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiRequest(
     /** 显式模型；为空时按 [modelPolicy] 或默认模型路由。 */
     val model: AiModelId? = null,
@@ -54,6 +55,7 @@ data class AiRequest(
 }
 
 /** 采样与长度等调用参数。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiCallSettings(
     val maxOutputTokens: Int? = null,
     val temperature: Double? = null,
@@ -70,6 +72,7 @@ data class AiCallSettings(
 )
 
 /** 推理档位（与主流厂商的取值对齐）。[ProviderDefault] 不发送任何推理参数。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class AiReasoning(val effort: String?) {
     ProviderDefault(null), None("none"), Minimal("minimal"), Low("low"), Medium("medium"), High("high"), XHigh("xhigh"), Max("max")
 }
@@ -82,6 +85,7 @@ enum class AiReasoning(val effort: String?) {
  * `timeoutMillis`；为 null 时用 provider 的值（默认 60s）。它与应用共享的出站 HttpClient 的默认超时无关——
  * AI 调用总是带着自己的超时发出，长生成不必为此放宽整个应用的出站超时。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiTimeout(
     val totalMs: Long? = null,
     val stepMs: Long? = null,
@@ -96,6 +100,7 @@ data class AiTimeout(
 }
 
 /** 停止条件：在每一步结束、且循环本来会继续时检查，任一为 true 即停止。 */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiStopCondition {
     fun shouldStop(steps: List<AiStep>): Boolean
 
@@ -115,6 +120,7 @@ fun interface AiStopCondition {
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class AiStepContext(
     val stepNumber: Int,
     val steps: List<AiStep>,
@@ -128,6 +134,7 @@ data class AiStepContext(
  * - 只作用于这一步：[model]、[toolChoice]、[activeTools]、[settings]、[providerOptions]（与请求级按命名空间合并）；
  * - 延续到后续步骤：[instructions]、[messages]（替换后成为之后的历史，如压缩上下文）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiStepOverrides(
     val model: AiModelId? = null,
     val toolChoice: ToolChoice? = null,
@@ -138,6 +145,7 @@ data class AiStepOverrides(
     val providerOptions: Map<String, JsonObject>? = null,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiPrepareStep {
     suspend fun prepare(context: AiStepContext): AiStepOverrides?
 }
@@ -148,6 +156,7 @@ fun interface AiPrepareStep {
  * 顺序（每一步）：onStepStart → onModelCallStart → onModelCallEnd →（每个工具）onToolExecutionStart →
  * onToolExecutionEnd → onStepEnd；整次调用以 onEnd 结束（失败时 onError）。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface AiCallbacks {
     suspend fun onStart(request: AiRequest) {}
     suspend fun onStepStart(context: AiStepContext) {}
@@ -161,6 +170,7 @@ interface AiCallbacks {
 }
 
 /** 请求构建 DSL。 */
+@neton.ai.ExperimentalNetonAiApi
 class AiRequestBuilder {
     var model: String? = null
     var modelPolicy: String? = null
@@ -251,4 +261,5 @@ class AiRequestBuilder {
     )
 }
 
+@neton.ai.ExperimentalNetonAiApi
 fun aiRequest(block: AiRequestBuilder.() -> Unit): AiRequest = AiRequestBuilder().apply(block).build()

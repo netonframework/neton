@@ -28,6 +28,7 @@ import neton.ai.protocol.usage.UsageCompleteness
  * 合成一条 IR assistant 消息，item ID 存在 `openai.itemId`，加密推理存在 [ReasoningBlock.encryptedContent]，
  * 编回本协议时原样写回（spec §4.4）。
  */
+@neton.ai.ExperimentalNetonAiApi
 object OpenAiResponsesCodec : ProtocolCodec {
     override val format = WireFormat.OPENAI_RESPONSES
     private val F = WireFormat.OPENAI_RESPONSES

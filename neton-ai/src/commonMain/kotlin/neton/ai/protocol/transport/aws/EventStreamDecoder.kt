@@ -10,6 +10,7 @@ import neton.ai.protocol.transport.ByteStreamDecoder
  * Bedrock 的 chunk 事件 payload 是 `{"bytes":"<base64 的 Anthropic 事件 JSON>"}`，解出来按
  * `event: <type>\ndata: <json>\n\n` 放出；异常帧（:exception-type）转成 error 事件。CRC 不校验：TCP 已保证完整性。
  */
+@neton.ai.ExperimentalNetonAiApi
 class EventStreamDecoder : ByteStreamDecoder {
     // 增长式缓冲 + 读偏移：一条长回复有上千帧，按帧整体拷贝缓冲是 O(n²)；这里只在缓冲不够时扩容，
     // 消费过的字节等到偏移越过一半再整体前移一次。

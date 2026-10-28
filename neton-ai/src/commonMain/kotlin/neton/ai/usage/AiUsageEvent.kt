@@ -3,6 +3,7 @@ package neton.ai.usage
 import neton.ai.AiFinishReason
 import neton.ai.AiUsage
 
+@neton.ai.ExperimentalNetonAiApi
 data class AiUsageEvent(
     val requestId: String?,
     val providerId: String,

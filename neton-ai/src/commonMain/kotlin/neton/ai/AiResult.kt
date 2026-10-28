@@ -8,6 +8,7 @@ import neton.ai.protocol.usage.UsageCompleteness
  * Token 用量（spec/ai.md §7）。口径：[inputTokens] 是全部输入（含缓存读写），[outputTokens] 是全部输出（含推理）。
  * 字段为 null 表示未知，**未知不当 0**。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiUsage(
     val inputTokens: Long? = null,
     val inputTokenDetails: InputDetails = InputDetails(),
@@ -56,6 +57,7 @@ data class AiUsage(
 }
 
 /** 一步的性能指标。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiStepPerformance(
     /** 整步耗时（模型调用 + 工具执行）。 */
     val stepTimeMs: Long,
@@ -70,6 +72,7 @@ data class AiStepPerformance(
 )
 
 /** 一步：一次模型调用，以及它触发的工具执行。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiStep(
     /** 从 1 开始。 */
     val stepNumber: Int,
@@ -94,6 +97,7 @@ data class AiStep(
 /**
  * 一次调用的结果。文本、结束原因等取自**最后一步**；工具调用与结果、警告、来源跨步汇总；[usage] 是全部步骤之和。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiResult(
     val steps: List<AiStep>,
     /** 应追加到历史的全部消息（含调用开始时处理审批产生的 tool 消息）。下一轮把它们接在原消息后面即可。 */

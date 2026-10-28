@@ -8,6 +8,7 @@ import neton.security.digest.Sha256
  * 规范见 docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html；
  * 非 S3 服务的 canonical URI 要对路径段做两次 URI 编码（模型 id 里的冒号：`%3A` → `%253A`）。
  */
+@neton.ai.ExperimentalNetonAiApi
 object SigV4 {
     data class Credentials(val accessKeyId: String, val secretAccessKey: String, val sessionToken: String? = null)
 

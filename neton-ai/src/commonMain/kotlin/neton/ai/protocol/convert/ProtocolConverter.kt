@@ -18,8 +18,10 @@ import neton.ai.protocol.usage.Usage
 import neton.ai.protocol.usage.UsageCompleteness
 
 /** 转换质量（spec §5.1）。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class ConversionQuality { IDENTITY, GOOD, FAIR }
 
+@neton.ai.ExperimentalNetonAiApi
 data class ConversionResult<T>(
     val value: T,
     val source: WireFormat,
@@ -33,6 +35,7 @@ data class ConversionResult<T>(
  *
  * 需要在 IR 上做宿主处理（如网关的签名状态引用）时，传 `transform`；同协议时 transform 不会被调用。
  */
+@neton.ai.ExperimentalNetonAiApi
 object ProtocolConverter {
 
     fun quality(from: WireFormat, to: WireFormat): ConversionQuality = when {
@@ -109,6 +112,7 @@ object ProtocolConverter {
  *
  * 同协议时原样透传，同时解码一遍以记录用量与终止状态（便于宿主统一计量）。
  */
+@neton.ai.ExperimentalNetonAiApi
 class StreamConverter internal constructor(
     val from: WireFormat,
     val to: WireFormat,

@@ -14,6 +14,7 @@ import neton.http.client.HttpClient
  * Google Gemini（generateContent）。鉴权用 `x-goog-api-key`；模型名在 URL 上。
  * 多轮工具调用的 thought signature 随 [neton.ai.AiContent] 的元数据原样往返（spec §4.5）。
  */
+@neton.ai.ExperimentalNetonAiApi
 class GeminiProvider(
     override val id: String,
     private val httpClient: HttpClient,

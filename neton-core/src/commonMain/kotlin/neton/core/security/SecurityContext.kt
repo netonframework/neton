@@ -1,20 +1,23 @@
 package neton.core.security
 
 import neton.core.interfaces.Identity
+import neton.core.interfaces.SecurityAttributes
+import neton.core.http.HttpContext
 
 /**
- * 安全上下文 - 全局用户访问
+ * Request-bound identity view. Never retain this object beyond its request lifetime.
  */
-object SecurityContext {
-    private var currentIdentity: Identity? = null
+class SecurityContext(private val context: HttpContext) : AuthenticationContext {
 
     fun setIdentity(identity: Identity?) {
-        currentIdentity = identity
+        if (identity == null) clear() else context.setAttribute(SecurityAttributes.IDENTITY, identity)
     }
 
-    fun currentUser(): Identity? = currentIdentity
+    override fun currentUser(): Identity? = context.getAttribute(SecurityAttributes.IDENTITY) as? Identity
 
-    fun isAuthenticated(): Boolean = currentIdentity != null
+    fun currentIdentity(): Identity? = currentUser()
+
+    fun isAuthenticated(): Boolean = currentUser() != null
 
     fun hasRole(role: String): Boolean = currentUser()?.hasRole(role) ?: false
     fun hasAnyRole(vararg roles: String): Boolean = currentUser()?.hasAnyRole(*roles) ?: false
@@ -29,7 +32,7 @@ object SecurityContext {
     fun userPermissions(): Set<String> = currentUser()?.permissions ?: emptySet()
 
     fun clear() {
-        currentIdentity = null
+        context.removeAttribute(SecurityAttributes.IDENTITY)
     }
 
     fun requireAuthenticated(): Identity {

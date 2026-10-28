@@ -15,6 +15,7 @@ import neton.ai.protocol.ir.ReasoningOptions
  *
  * 是否启用由应用决定；模型名本身以这些词结尾时（如某些厂商的 `*-high` 正式型号），应用应先查自己的模型表再决定是否解析。
  */
+@neton.ai.ExperimentalNetonAiApi
 object ReasoningSuffix {
     data class Parsed(val model: String, val reasoning: ReasoningOptions?)
 

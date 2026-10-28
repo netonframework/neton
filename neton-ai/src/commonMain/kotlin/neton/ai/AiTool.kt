@@ -16,6 +16,7 @@ import neton.ai.internal.Jsons
  * - [AiToolKind.Dynamic]：运行时才知道 schema 的工具（如 MCP），结果按 JSON 处理；
  * - [AiToolKind.Provider]：厂商托管工具（web search、code execution 等），由上游执行，原样把参数交给厂商。
  */
+@neton.ai.ExperimentalNetonAiApi
 class AiTool(
     val name: String,
     val description: String? = null,
@@ -55,6 +56,7 @@ class AiTool(
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiToolKind {
     data object Function : AiToolKind
     data object Dynamic : AiToolKind
@@ -64,15 +66,18 @@ sealed interface AiToolKind {
 }
 
 /** 工具执行器：输入是校验（与改写）后的参数。 */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiToolExecutor {
     suspend fun execute(input: JsonElement, context: AiToolCallContext): AiToolOutput
 }
 
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiNeedsApproval {
     suspend fun needsApproval(input: JsonElement, context: AiToolCallContext): Boolean
 }
 
 /** 工具执行时可见的上下文。 */
+@neton.ai.ExperimentalNetonAiApi
 class AiToolCallContext(
     val call: AiToolCall,
     val stepNumber: Int,
@@ -93,6 +98,7 @@ class AiToolCallContext(
  * - [Denied]：没有执行（拒绝批准或未授权）；
  * - [Content]：多模态结果（文本 + 图片/文件），不支持的协议会降级为文本。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiToolOutput {
     val isError: Boolean get() = this is ErrorText || this is ErrorJson || this is Denied
 
@@ -115,6 +121,7 @@ sealed interface AiToolOutput {
 }
 
 /** 常用工具构造。 */
+@neton.ai.ExperimentalNetonAiApi
 object AiTools {
     /** 返回文本的函数工具；执行器拿到原始 JSON 参数。 */
     fun function(
@@ -182,6 +189,7 @@ object AiTools {
 }
 
 /** 工具检索的配置。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiToolSearch(
     val maxResults: Int = 5,
     val search: (suspend (query: String, tools: List<AiTool>) -> List<String>)? = null,
@@ -193,6 +201,7 @@ data class AiToolSearch(
  * 发起调用的主体。[identity] 接 Neton 安全体系的身份（neton-security 认证后得到），
  * 授权可以直接按其角色与权限判断（见 [AiToolAuthorizers]）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiPrincipal(
     val id: String,
     val attributes: Map<String, String> = emptyMap(),
@@ -206,6 +215,7 @@ data class AiPrincipal(
 /**
  * 审批状态（spec/ai.md §10.3）。授权回答「这个主体能不能用这个工具」，审批回答「是否同意这一次具体的调用」。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiApproval {
     /** 不需要审批，直接执行。 */
     data object NotApplicable : AiApproval
@@ -218,6 +228,7 @@ sealed interface AiApproval {
 }
 
 /** 审批策略：对每个工具调用给出 [AiApproval]。 */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiToolApproval {
     suspend fun approve(tool: AiTool, input: JsonElement, context: AiToolCallContext): AiApproval
 
@@ -228,6 +239,7 @@ fun interface AiToolApproval {
 }
 
 /** 授权：没有通过的调用不执行，模型收到 [AiToolOutput.Denied]。 */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiToolAuthorizer {
     suspend fun authorize(tool: AiTool, context: AiToolCallContext): AiApproval
 }
@@ -236,6 +248,7 @@ fun interface AiToolAuthorizer {
  * 基于 Neton 身份的常用授权（与 `@Permission` / `@RolesAllowed` 同一套字符串）。
  * 没有列出的工具放行；列出的工具要求主体具备对应权限或角色。
  */
+@neton.ai.ExperimentalNetonAiApi
 object AiToolAuthorizers {
     fun requirePermissions(byTool: Map<String, String>) = AiToolAuthorizer { tool, ctx ->
         val required = byTool[tool.name] ?: return@AiToolAuthorizer AiApproval.NotApplicable
@@ -260,10 +273,12 @@ object AiToolAuthorizers {
  * 工具调用修复：调用的工具不存在或参数不合法时调用。返回修复后的调用（只再校验一次），返回 null 表示不修复。
  * 修复失败的调用不会让整个请求失败：它以错误结果交给模型，由模型自己改正。
  */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiToolCallRepair {
     suspend fun repair(call: AiToolCall, error: AiToolCallError, tools: List<AiTool>, messages: List<AiMessage>): AiToolCall?
 }
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiToolCallError {
     val message: String
 

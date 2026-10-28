@@ -13,6 +13,7 @@ import neton.ai.protocol.usage.Usage
 import neton.ai.protocol.usage.UsageCompleteness
 
 /** OpenAI 系的非文本端点（spec/ai.md §3.3：报文同协议透传，框架只负责用量提取）。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class Endpoint(val path: String) {
     EMBEDDINGS("/v1/embeddings"),
     IMAGES_GENERATIONS("/v1/images/generations"),
@@ -32,6 +33,7 @@ enum class Endpoint(val path: String) {
  * 非文本端点的用量事实：token（有就给，未知为 null）加上按件计量的单位。
  * 单位名见 [UNIT_IMAGES] 等常量；没有出现的单位表示上游没给出、也推不出来，**不是 0**。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class EndpointUsage(val tokens: Usage?, val units: Map<String, Double> = emptyMap()) {
     companion object {
         const val UNIT_IMAGES = "images"
@@ -43,6 +45,7 @@ data class EndpointUsage(val tokens: Usage?, val units: Map<String, Double> = em
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object EndpointUsageExtractor {
     private val json = Json { ignoreUnknownKeys = true }
 

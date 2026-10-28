@@ -8,6 +8,7 @@ import neton.ai.protocol.usage.Usage
  * 流式事件 IR（spec §6）。块按 [BlockStart]/[BlockDelta]/[BlockStop] 开闭，`index` 是本条消息内
  * 从 0 递增的块序号；同一时刻最多一个块处于打开状态（先关后开），工具调用并行时依次开闭。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface StreamEvent {
     data class MessageStart(
         val id: String? = null,
@@ -33,6 +34,7 @@ sealed interface StreamEvent {
     data class Error(val error: ProtocolError) : StreamEvent
 }
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface Delta {
     data class Text(val text: String) : Delta
     data class Reasoning(val text: String) : Delta

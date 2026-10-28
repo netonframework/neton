@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.JsonObject
 import neton.ai.protocol.ir.*
 
+@neton.ai.ExperimentalNetonAiApi
 enum class AiCallMode { GENERATE, STREAM }
 
 /**
@@ -12,6 +13,7 @@ enum class AiCallMode { GENERATE, STREAM }
  * - [transformRequest]：改写请求（两种调用模式都会经过）；
  * - [wrapGenerate] / [wrapStream]：包住实际调用，可改写结果，也可以用另一种模式实现（如模拟流式）。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface AiModelMiddleware {
     suspend fun transformRequest(request: ChatRequest, mode: AiCallMode, model: AiLanguageModel): ChatRequest = request
 
@@ -30,9 +32,11 @@ interface AiModelMiddleware {
 /**
  * 给模型套上中间件。列表中的**第一个**最先改写请求、最外层包住调用；最后一个紧贴模型。
  */
+@neton.ai.ExperimentalNetonAiApi
 fun AiLanguageModel.withMiddleware(middleware: List<AiModelMiddleware>): AiLanguageModel =
     middleware.asReversed().fold(this) { inner, m -> MiddlewareModel(inner, m) }
 
+@neton.ai.ExperimentalNetonAiApi
 fun AiLanguageModel.withMiddleware(vararg middleware: AiModelMiddleware): AiLanguageModel = withMiddleware(middleware.toList())
 
 private class MiddlewareModel(private val inner: AiLanguageModel, private val m: AiModelMiddleware) : AiLanguageModel {
@@ -51,6 +55,7 @@ private class MiddlewareModel(private val inner: AiLanguageModel, private val m:
 }
 
 /** 内置中间件。 */
+@neton.ai.ExperimentalNetonAiApi
 object AiMiddlewares {
 
     /** 请求里没有设置的选项用这里的默认值补上（请求显式给出的值优先；厂商选项按命名空间合并）。 */
@@ -308,6 +313,7 @@ private object SimulateStreaming : AiModelMiddleware {
 }
 
 /** 把一次完整响应展开成流式事件（每块一个 start / delta / stop）。 */
+@neton.ai.ExperimentalNetonAiApi
 fun responseAsEvents(response: ChatResponse): Flow<StreamEvent> = flow {
     emit(StreamEvent.MessageStart(response.id, response.model, response.created))
     response.content.forEachIndexed { i, b ->

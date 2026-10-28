@@ -1,0 +1,19 @@
+{
+  "targetRelease": "1.0.0",
+  "status": "freeze-candidate-pending-green-release-gates",
+  "default": "Public declarations in the compiled ABI are stable unless explicitly internal or experimental below. This does not promise compiler-version-independent KLIB compatibility.",
+  "internalMarker": "neton.core.annotations.InternalNetonApi",
+  "experimental": {
+    "neton-ai": "neton.ai.ExperimentalNetonAiApi",
+    "neton-websocket:neton.ws.spi": "neton.ws.spi.ExperimentalWebSocketEngineApi"
+  },
+  "generatedSupport": "neton.database.adapter.sqlx: InternalNetonApi; only generated code and framework implementation explicitly opt in",
+  "testSupport": ["neton.core.mock", "neton.http.conformance"],
+  "ksp": "Generated source shape, options and service entry point are the contract; processor implementation classes are not application extension points",
+  "compatibility": ["source fixtures", "compiled ABI", "behavioral tests", "native KSP incremental fixtures"],
+  "breakingChangesFromBeta25": [
+    "SecurityContext is request-bound and requires HttpContext; process-global access is removed",
+    "SQL adapter internals require explicit opt-in",
+    "AI and WebSocket engine SPI require explicit experimental opt-in"
+  ]
+}

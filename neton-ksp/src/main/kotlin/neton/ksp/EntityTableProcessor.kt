@@ -185,6 +185,7 @@ class EntityTableProcessor(
             w.write(
                 """
 // AUTO-GENERATED - DO NOT EDIT
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
 package $pkg
 
 import neton.database.api.EntityMeta
@@ -241,6 +242,7 @@ internal object ${entityName}Meta : EntityMeta<$entityRef> {
             w.write(
                 """
 // AUTO-GENERATED - DO NOT EDIT
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
 package $pkg
 
 import neton.database.api.EntityMapper
@@ -310,6 +312,7 @@ internal object ${entityName}RowMapper : EntityMapper<$entityRef> {
                     """
 // AUTO-GENERATED - DO NOT EDIT
 // 用户已手写 ${entityName}Table Facade，此处仅生成内部实现
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
 package $pkg
 
 import neton.database.api.Table
@@ -334,6 +337,7 @@ internal object ${entityName}TableImpl : Table<$entityRef, $idType> by SqlxTable
                     """
 // AUTO-GENERATED - DO NOT EDIT
 // 对外只暴露 Table<User, ID> 接口，不暴露底层实现，便于未来换引擎
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
 package $pkg
 
 import neton.database.api.Table
@@ -379,6 +383,7 @@ object ${entityName}Table : Table<$entityRef, $idType> by SqlxTableAdapter<$enti
 // AUTO-GENERATED - DO NOT EDIT
 // 定型 API：UserTable.get(id) / UserTable.destroy(id) / UserTable.update(id){ } / UserTable.query{ }
 // update(id){ } 为 mutate 风格：lambda 内直接赋值，copy 由框架内部生成
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
 package $pkg
 
 import neton.database.api.Predicate
@@ -452,6 +457,7 @@ suspend fun ${entityName}Table.update(id: $idType, block: ${entityName}UpdateSco
             w.write(
                 """
 // AUTO-GENERATED - DO NOT EDIT
+@file:OptIn(neton.core.annotations.InternalNetonApi::class)
 package $pkg
 
 import kotlin.reflect.KProperty1

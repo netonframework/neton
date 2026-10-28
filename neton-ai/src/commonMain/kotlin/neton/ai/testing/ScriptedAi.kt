@@ -21,6 +21,7 @@ import neton.ai.usage.NoopAiUsageRecorder
  * 一轮模型输出的脚本（spec/ai.md §10.4：测试替身）。内容直接用协议层 IR 块描述。
  * 流式时文本按 [chunkSize] 切成增量，事件之间等待 [delayMillis]，用来验证取消与时序。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiScript {
     data class Reply(
         val content: List<Block>,
@@ -50,6 +51,7 @@ sealed interface AiScript {
  * 按顺序回放脚本的 provider：每次模型调用消费一条脚本（用完后重复最后一条）。
  * [requests] 记录收到的全部请求（IR），便于断言「发了什么」。
  */
+@neton.ai.ExperimentalNetonAiApi
 class ScriptedAiProvider(
     override val id: String = "scripted",
     private val scripts: List<AiScript>,

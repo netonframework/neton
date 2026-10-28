@@ -4,6 +4,7 @@ package neton.ai.config
 import neton.ai.AiModelId
 import neton.ai.routing.ModelPolicy
 
+@neton.ai.ExperimentalNetonAiApi
 class PolicyBuilder internal constructor() {
     private val prefer = mutableListOf<AiModelId>()
     private val fallback = mutableListOf<AiModelId>()

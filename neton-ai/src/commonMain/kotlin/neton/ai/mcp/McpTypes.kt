@@ -3,6 +3,7 @@ package neton.ai.mcp
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
+@neton.ai.ExperimentalNetonAiApi
 data class McpTool(
     val name: String,
     val description: String?,
@@ -12,10 +13,13 @@ data class McpTool(
     val annotations: JsonObject? = null,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class McpResource(val uri: String, val name: String?, val description: String?, val mimeType: String?)
 
+@neton.ai.ExperimentalNetonAiApi
 data class McpPrompt(val name: String, val description: String?, val arguments: List<String>)
 
+@neton.ai.ExperimentalNetonAiApi
 data class McpToolResult(
     /** 文本内容拼接（非文本内容以类型占位）。 */
     val text: String,
@@ -24,15 +28,19 @@ data class McpToolResult(
     val raw: JsonObject,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class McpServerInfo(val name: String, val version: String)
 
 /** 服务端发来的通知（进度、日志、列表变更等）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class McpNotification(val method: String, val params: JsonObject)
 
 /** 协议世代：2026-07-28 起是无状态的 modern；之前是 initialize 握手 + 会话的 legacy。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class McpProtocolEra { Modern, Legacy }
 
 /** MCP 错误分类。工具自己报告的失败（`isError`）不是异常，见 [McpToolResult.isError]。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class McpErrorKind {
     /** 连接失败、断流、响应被截断。 */
     Transport,
@@ -58,6 +66,7 @@ enum class McpErrorKind {
  * MCP 调用失败。[outcomeUnknown] 为 true 表示请求可能已被服务端执行（断流、超时）：
  * 对有副作用的工具调用不要盲目重试。协程取消不会被包装成这个异常。
  */
+@neton.ai.ExperimentalNetonAiApi
 class McpException(
     val kind: McpErrorKind,
     message: String,

@@ -3,6 +3,7 @@ package neton.ai.protocol.error
 import neton.ai.protocol.ir.WireFormat
 
 /** 错误类别，与 SDK 的 AiError 一一对应，便于双方映射（spec §8）。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class ErrorKind {
     InvalidRequest, Unauthorized, Forbidden, NotFound, RateLimited, ContextLengthExceeded,
     ContentFilter, Overloaded, ServerError, Timeout, Network, Unknown;
@@ -16,6 +17,7 @@ enum class ErrorKind {
  * 协议无关的错误。[rawBody] 保留上游原始错误体：同协议原样透传，跨协议时按客户端协议重新渲染。
  * [message] 必须是可以给客户端看的文本，**不得**包含内部异常详情（spec §8）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class ProtocolError(
     val kind: ErrorKind,
     val message: String,

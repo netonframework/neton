@@ -2067,6 +2067,29 @@ final class neton.core.security/RequireIdentityGuard : neton.core.interfaces/Gua
     final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.core.security/RequireIdentityGuard.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
 }
 
+final class neton.core.security/SecurityContext : neton.core.security/AuthenticationContext { // neton.core.security/SecurityContext|null[0]
+    constructor <init>(neton.core.http/HttpContext) // neton.core.security/SecurityContext.<init>|<init>(neton.core.http.HttpContext){}[0]
+
+    final fun clear() // neton.core.security/SecurityContext.clear|clear(){}[0]
+    final fun currentIdentity(): neton.core.interfaces/Identity? // neton.core.security/SecurityContext.currentIdentity|currentIdentity(){}[0]
+    final fun currentUser(): neton.core.interfaces/Identity? // neton.core.security/SecurityContext.currentUser|currentUser(){}[0]
+    final fun hasAllPermissions(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAllPermissions|hasAllPermissions(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasAllRoles(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAllRoles|hasAllRoles(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasAnyPermission(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAnyPermission|hasAnyPermission(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasAnyRole(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAnyRole|hasAnyRole(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasPermission(kotlin/String): kotlin/Boolean // neton.core.security/SecurityContext.hasPermission|hasPermission(kotlin.String){}[0]
+    final fun hasRole(kotlin/String): kotlin/Boolean // neton.core.security/SecurityContext.hasRole|hasRole(kotlin.String){}[0]
+    final fun isAuthenticated(): kotlin/Boolean // neton.core.security/SecurityContext.isAuthenticated|isAuthenticated(){}[0]
+    final fun requireAnyRole(kotlin/Array<out kotlin/String>...) // neton.core.security/SecurityContext.requireAnyRole|requireAnyRole(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun requireAuthenticated(): neton.core.interfaces/Identity // neton.core.security/SecurityContext.requireAuthenticated|requireAuthenticated(){}[0]
+    final fun requirePermission(kotlin/String) // neton.core.security/SecurityContext.requirePermission|requirePermission(kotlin.String){}[0]
+    final fun requireRole(kotlin/String) // neton.core.security/SecurityContext.requireRole|requireRole(kotlin.String){}[0]
+    final fun setIdentity(neton.core.interfaces/Identity?) // neton.core.security/SecurityContext.setIdentity|setIdentity(neton.core.interfaces.Identity?){}[0]
+    final fun userId(): kotlin/String? // neton.core.security/SecurityContext.userId|userId(){}[0]
+    final fun userPermissions(): kotlin.collections/Set<kotlin/String> // neton.core.security/SecurityContext.userPermissions|userPermissions(){}[0]
+    final fun userRoles(): kotlin.collections/Set<kotlin/String> // neton.core.security/SecurityContext.userRoles|userRoles(){}[0]
+}
+
 final class neton.core/KotlinApplication { // neton.core/KotlinApplication|null[0]
     constructor <init>(kotlin/Int, neton.core.component/NetonContext? = ...) // neton.core/KotlinApplication.<init>|<init>(kotlin.Int;neton.core.component.NetonContext?){}[0]
 
@@ -2464,26 +2487,6 @@ final object neton.core.http/ValidationCode { // neton.core.http/ValidationCode|
 final object neton.core.interfaces/SecurityAttributes { // neton.core.interfaces/SecurityAttributes|null[0]
     final const val IDENTITY // neton.core.interfaces/SecurityAttributes.IDENTITY|{}IDENTITY[0]
         final fun <get-IDENTITY>(): kotlin/String // neton.core.interfaces/SecurityAttributes.IDENTITY.<get-IDENTITY>|<get-IDENTITY>(){}[0]
-}
-
-final object neton.core.security/SecurityContext { // neton.core.security/SecurityContext|null[0]
-    final fun clear() // neton.core.security/SecurityContext.clear|clear(){}[0]
-    final fun currentUser(): neton.core.interfaces/Identity? // neton.core.security/SecurityContext.currentUser|currentUser(){}[0]
-    final fun hasAllPermissions(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAllPermissions|hasAllPermissions(kotlin.Array<out|kotlin.String>...){}[0]
-    final fun hasAllRoles(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAllRoles|hasAllRoles(kotlin.Array<out|kotlin.String>...){}[0]
-    final fun hasAnyPermission(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAnyPermission|hasAnyPermission(kotlin.Array<out|kotlin.String>...){}[0]
-    final fun hasAnyRole(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.core.security/SecurityContext.hasAnyRole|hasAnyRole(kotlin.Array<out|kotlin.String>...){}[0]
-    final fun hasPermission(kotlin/String): kotlin/Boolean // neton.core.security/SecurityContext.hasPermission|hasPermission(kotlin.String){}[0]
-    final fun hasRole(kotlin/String): kotlin/Boolean // neton.core.security/SecurityContext.hasRole|hasRole(kotlin.String){}[0]
-    final fun isAuthenticated(): kotlin/Boolean // neton.core.security/SecurityContext.isAuthenticated|isAuthenticated(){}[0]
-    final fun requireAnyRole(kotlin/Array<out kotlin/String>...) // neton.core.security/SecurityContext.requireAnyRole|requireAnyRole(kotlin.Array<out|kotlin.String>...){}[0]
-    final fun requireAuthenticated(): neton.core.interfaces/Identity // neton.core.security/SecurityContext.requireAuthenticated|requireAuthenticated(){}[0]
-    final fun requirePermission(kotlin/String) // neton.core.security/SecurityContext.requirePermission|requirePermission(kotlin.String){}[0]
-    final fun requireRole(kotlin/String) // neton.core.security/SecurityContext.requireRole|requireRole(kotlin.String){}[0]
-    final fun setIdentity(neton.core.interfaces/Identity?) // neton.core.security/SecurityContext.setIdentity|setIdentity(neton.core.interfaces.Identity?){}[0]
-    final fun userId(): kotlin/String? // neton.core.security/SecurityContext.userId|userId(){}[0]
-    final fun userPermissions(): kotlin.collections/Set<kotlin/String> // neton.core.security/SecurityContext.userPermissions|userPermissions(){}[0]
-    final fun userRoles(): kotlin.collections/Set<kotlin/String> // neton.core.security/SecurityContext.userRoles|userRoles(){}[0]
 }
 
 final val neton.core.http/MACHINE_CODE_REGEX // neton.core.http/MACHINE_CODE_REGEX|{}MACHINE_CODE_REGEX[0]

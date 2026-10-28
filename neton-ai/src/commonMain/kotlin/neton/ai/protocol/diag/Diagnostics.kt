@@ -2,6 +2,7 @@ package neton.ai.protocol.diag
 
 import neton.ai.protocol.ir.WireFormat
 
+@neton.ai.ExperimentalNetonAiApi
 enum class Severity {
     /** 展示层面的差异，或厂商官方明确为非必需的信息丢失。 */
     WARNING,
@@ -10,6 +11,7 @@ enum class Severity {
 }
 
 /** 一条转换诊断（spec §5.2）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class Diagnostic(
     val code: String,
     val path: String,
@@ -20,6 +22,7 @@ data class Diagnostic(
 )
 
 /** 诊断收集器。编解码器只往里写，是否拒绝由 [LossPolicy] 决定。 */
+@neton.ai.ExperimentalNetonAiApi
 class Diagnostics(val source: WireFormat? = null, val target: WireFormat? = null) {
     private val list = mutableListOf<Diagnostic>()
     val items: List<Diagnostic> get() = list
@@ -38,6 +41,7 @@ class Diagnostics(val source: WireFormat? = null, val target: WireFormat? = null
 }
 
 /** 常用诊断代码。应用可以按代码配置 [LossPolicy.Safe.allowedLosses]。 */
+@neton.ai.ExperimentalNetonAiApi
 object DiagnosticCodes {
     const val HOSTED_TOOL_OMITTED = "hosted_tool_omitted"
     const val CACHE_CONTROL_DROPPED = "cache_control_dropped"
@@ -59,6 +63,7 @@ object DiagnosticCodes {
 }
 
 /** 损耗策略（spec §5.3）。只作用于请求阶段；响应与流式在三种策略下都完成转换并返回诊断。 */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface LossPolicy {
     /** 完成转换并返回诊断（默认）。 */
     data object Allow : LossPolicy
@@ -77,5 +82,6 @@ sealed interface LossPolicy {
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 class ConversionRejectedException(val violations: List<Diagnostic>) :
     RuntimeException("conversion rejected by loss policy: " + violations.joinToString { "${it.code}@${it.path}" })

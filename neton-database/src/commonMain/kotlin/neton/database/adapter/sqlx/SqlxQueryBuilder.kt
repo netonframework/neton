@@ -8,6 +8,7 @@ import neton.database.api.*
  * SqlxTable 的 QueryBuilder 实现
  * 基于 sqlx4k findAll 后在内存过滤；可扩展为 SQL 生成
  */
+@neton.core.annotations.InternalNetonApi
 class SqlxQueryBuilder<T : Any>(
     private val fetchAll: suspend () -> List<T>
 ) : QueryBuilder<T> {
@@ -99,6 +100,7 @@ class SqlxQueryBuilder<T : Any>(
 }
 
 /** 可求值为 (T) -> Boolean 的 QueryCondition */
+@neton.core.annotations.InternalNetonApi
 class LambdaQueryCondition<T>(val predicate: (T) -> Boolean) : QueryCondition {
     override infix fun and(other: QueryCondition): QueryCondition {
         val o = other as? LambdaQueryCondition<T> ?: return this
@@ -111,14 +113,17 @@ class LambdaQueryCondition<T>(val predicate: (T) -> Boolean) : QueryCondition {
 }
 
 /** Typed OrderBy，持有 Comparator */
+@neton.core.annotations.InternalNetonApi
 class TypedOrderBy<T : Any, V>(val comparator: Comparator<T>) : OrderBy<T, V>
 
 /** Typed QueryContext，KProperty1 -> Lambda 条件 */
+@neton.core.annotations.InternalNetonApi
 class TypedQueryContext<T : Any> : QueryContext<T> {
     override fun <V> field(property: KProperty1<T, V>): FieldRef<T, V> = TypedFieldRef(property)
 }
 
 /** Typed FieldRef，构建 LambdaQueryCondition */
+@neton.core.annotations.InternalNetonApi
 class TypedFieldRef<T : Any, V>(private val property: KProperty1<T, V>) : FieldRef<T, V> {
     private fun pred(f: (V?) -> Boolean): QueryCondition = LambdaQueryCondition<T> { entity -> f(property.get(entity)) }
 

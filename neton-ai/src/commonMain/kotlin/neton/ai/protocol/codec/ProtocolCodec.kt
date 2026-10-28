@@ -15,6 +15,7 @@ import neton.ai.protocol.transport.SseEvent
  * 解码保留 IR 没建模的字段（`ProviderMetadata.wireExtra`），编回同一协议时补回，所以
  * `encode(decode(x))` 与 x 语义等价。编到别的协议时，目标表达不了的内容写入 [Diagnostics]。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface ProtocolCodec {
     val format: WireFormat
 
@@ -34,6 +35,7 @@ interface ProtocolCodec {
 }
 
 /** 上游 SSE 事件 → IR 事件。上游结束后**必须**调用 [finish]（spec §6）。 */
+@neton.ai.ExperimentalNetonAiApi
 interface StreamDecoder {
     /** 是否已见到协议级终止标记；上游 EOF 时仍为 false 即截断（用量记 PARTIAL）。 */
     val completed: Boolean
@@ -45,11 +47,13 @@ interface StreamDecoder {
  * IR 事件 → 客户端 SSE 文本。上游结束后**必须**调用 [finish]：部分协议在这一步补发终止事件与最终用量；
  * [finish] 的 `truncated` 为 true 表示上游没有给出终止事件（取消或截断）。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface StreamEncoder {
     fun encode(event: StreamEvent): String
     fun finish(truncated: Boolean = false): String
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object ProtocolCodecs {
     fun of(format: WireFormat): ProtocolCodec = when (format) {
         WireFormat.OPENAI_CHAT -> OpenAiChatCodec

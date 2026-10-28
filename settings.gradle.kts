@@ -44,6 +44,7 @@ include(":examples:neton-ai-sample")
 include(":examples:bench")
 include(":examples:release-gate")
 include(":examples:ksp-incremental")
+include(":examples:api-compat")
 
 // Hyper4k and Ktor compatibility adapters are independent repositories.
 // They consume published Neton contracts and are not framework release gates.

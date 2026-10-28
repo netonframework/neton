@@ -61,6 +61,13 @@ python3 tools/ci/verify_abi_policy.py
 ```
 
 `updateKotlinAbi` is a developer review operation, never a CI repair step. Review
+the stability policy in `tools/ci/api-stability.json` and run
+`python3 tools/ci/verify_api_stability.py` plus
+`python3 tools/ci/source_compat_gate.py --target macosArm64`. Source compatibility
+includes mandatory rejection of internal/experimental APIs without opt-in and of
+process-global identity access. ABI dumps alone do not cover these contracts.
+
+Review
 signature changes and downstream consumers before updating a dump. The initial
 beta25 snapshots establish a candidate comparison point, not a declaration that
 1.0 is ready or a promise that every beta signature will survive stable review.

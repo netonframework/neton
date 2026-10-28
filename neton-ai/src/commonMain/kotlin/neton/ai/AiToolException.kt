@@ -7,6 +7,7 @@ package neton.ai
  * 数据库错误、内部地址、凭据片段都可能出现在异常消息里，不能原样发往外部 provider（spec/ai.md §8）。
  * 需要让模型据此调整（例如"城市名无效，请换一个"）时，抛出本异常并写好面向模型的 [publicMessage]。
  */
+@neton.ai.ExperimentalNetonAiApi
 class AiToolException(
     val publicMessage: String,
     /** 稳定的错误码，便于模型与日志识别。 */
@@ -15,6 +16,7 @@ class AiToolException(
 ) : RuntimeException(publicMessage, cause)
 
 /** 工具失败时发给模型的内容。 */
+@neton.ai.ExperimentalNetonAiApi
 object AiToolFailure {
     const val GENERIC_CODE = "tool_execution_failed"
     const val GENERIC_MESSAGE = "The tool failed to execute."

@@ -30,6 +30,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tools/ci -p test_abi_policy.py
           python3 tools/ci/verify_abi_policy.py
+          python3 tools/ci/verify_api_stability.py
       - name: Check every published Kotlin library against committed ABI
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false checkKotlinAbi
       - name: Check MySQL variant against the same database API
@@ -38,6 +39,8 @@ jobs:
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Pneton.database.driver=sqlite :neton-database:checkKotlinAbi
       - name: Baselines must not be rewritten by CI
         run: git diff --exit-code -- '**/api/**'
+      - name: Stable consumer syntax and opt-in rejection contracts
+        run: python3 tools/ci/source_compat_gate.py --target macosArm64
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -45,6 +48,7 @@ jobs:
           path: |
             **/build/reports/abi/**
             **/build/kotlin/abi/**
+            build/source-compat/**
           if-no-files-found: error
 
   ksp-incremental:
@@ -205,16 +209,53 @@ jobs:
             ${{ runner.temp }}/neton-candidate-evidence/repository
           if-no-files-found: error
 
+  public-app:
+    name: Public app candidate (${{ matrix.target }})
+    needs: candidate-artifacts
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, target: macosArm64 }
+          - { os: ubuntu-24.04, target: linuxX64 }
+          - { os: windows-2022, target: mingwX64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-artifacts-${{ github.sha }}
+          path: ${{ runner.temp }}/candidate
+      - name: Build twice and run pinned application twice
+        shell: bash
+        run: python tools/ci/neton_app_gate.py --target '${{ matrix.target }}' --candidate "$RUNNER_TEMP/candidate" --output "$RUNNER_TEMP/public-app"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-app-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/public-app/*.log
+            ${{ runner.temp }}/public-app/evidence.json
+            ${{ runner.temp }}/public-app/runtime/
+
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts, public-app]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==9 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==10 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04

@@ -3,6 +3,7 @@ package neton.ai.protocol.usage
 import kotlinx.serialization.json.JsonObject
 import neton.ai.protocol.ir.WireFormat
 
+@neton.ai.ExperimentalNetonAiApi
 enum class UsageCompleteness {
     /** 上游给出了终态用量。 */
     COMPLETE,
@@ -13,6 +14,7 @@ enum class UsageCompleteness {
 }
 
 /** 上游原始 usage JSON 与来源协议，供应用按上游规则计费。 */
+@neton.ai.ExperimentalNetonAiApi
 data class RawUsage(val format: WireFormat, val json: JsonObject)
 
 /**
@@ -25,6 +27,7 @@ data class RawUsage(val format: WireFormat, val json: JsonObject)
  *
  * 字段为 null 表示未知；**未知绝不当 0**。框架不推算 total。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class Usage(
     val inputTokens: Long? = null,
     val outputTokens: Long? = null,

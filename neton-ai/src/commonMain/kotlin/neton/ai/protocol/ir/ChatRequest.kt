@@ -3,9 +3,11 @@ package neton.ai.protocol.ir
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
+@neton.ai.ExperimentalNetonAiApi
 enum class Role { System, Developer, User, Assistant, Tool }
 
 /** 系统指令（spec §4.2：独立字段，不混在消息列表里）。[role] 区分 OpenAI 的 system 与 developer。 */
+@neton.ai.ExperimentalNetonAiApi
 data class Instruction(
     val text: String,
     val role: Role = Role.System,
@@ -16,6 +18,7 @@ data class Instruction(
  * 消息。工具结果用 [ToolResultBlock] 表达：OpenAI Chat 解码为 role=Tool 的消息，Anthropic/Gemini 解码为
  * role=User 的消息，各协议编码时按自己的规则摆放。对话中途出现的 system/developer 消息保留为消息。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class Message(
     val role: Role,
     val content: List<Block>,
@@ -24,10 +27,12 @@ data class Message(
     val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface ToolSpec {
     val metadata: ProviderMetadata
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class FunctionTool(
     val name: String,
     val description: String? = null,
@@ -38,6 +43,7 @@ data class FunctionTool(
 ) : ToolSpec
 
 /** OpenAI custom tool（自由文本输入，可带语法约束）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class CustomTool(
     val name: String,
     val description: String? = null,
@@ -46,6 +52,7 @@ data class CustomTool(
 ) : ToolSpec
 
 /** 厂商托管工具（web search、code execution 等），原样保留，只能写回 [sourceFormat]。 */
+@neton.ai.ExperimentalNetonAiApi
 data class HostedTool(
     val type: String,
     val raw: JsonObject,
@@ -53,6 +60,7 @@ data class HostedTool(
     override val metadata: ProviderMetadata = ProviderMetadata.EMPTY,
 ) : ToolSpec
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface ToolChoice {
     data object Auto : ToolChoice
     data object None : ToolChoice
@@ -60,6 +68,7 @@ sealed interface ToolChoice {
     data class Named(val name: String) : ToolChoice
 }
 
+@neton.ai.ExperimentalNetonAiApi
 sealed interface ResponseFormat {
     data object Text : ResponseFormat
     data object JsonObject : ResponseFormat
@@ -71,9 +80,11 @@ sealed interface ResponseFormat {
     ) : ResponseFormat
 }
 
+@neton.ai.ExperimentalNetonAiApi
 enum class ReasoningMode { Disabled, Enabled, Adaptive }
 
 /** 推理意图（spec §4.3）。[effort] 用 OpenAI 的取值：minimal/low/medium/high/xhigh 等，原样传递。 */
+@neton.ai.ExperimentalNetonAiApi
 data class ReasoningOptions(
     val mode: ReasoningMode? = null,
     val effort: String? = null,
@@ -82,6 +93,7 @@ data class ReasoningOptions(
 )
 
 /** 公共调用选项（spec §4.3）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class CallOptions(
     val maxOutputTokens: Int? = null,
     val temperature: Double? = null,
@@ -103,6 +115,7 @@ data class CallOptions(
     val providerOptions: Map<String, JsonObject> = emptyMap(),
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class ChatRequest(
     val model: String? = null,
     val instructions: List<Instruction> = emptyList(),

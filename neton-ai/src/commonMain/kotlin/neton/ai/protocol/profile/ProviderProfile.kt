@@ -12,6 +12,7 @@ import neton.ai.protocol.ir.WireFormat
  *
  * 只作用于 OpenAI Chat Completions 族（其他协议的报文由各自的编解码器按官方规范生成）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class ProviderProfile(
     val name: String,
     /** 官方主机名；`*.` 前缀表示任意子域。 */
@@ -40,6 +41,7 @@ data class ProviderProfile(
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 object ProviderProfiles {
     /** developers.openai.com/api/reference/resources/chat：流式只有 include_usage 时尾包才有 usage；max_tokens 已废弃，推理模型拒收。 */
     val OPENAI = ProviderProfile("openai", listOf("api.openai.com", "*.api.openai.com"),

@@ -5,6 +5,7 @@ package neton.ai
  * - Assistant：按顺序放文本、推理、[AiContent.ToolCall] 与 [AiContent.ToolApprovalRequest]；
  * - Tool：放 [AiContent.ToolResult] 与 [AiContent.ToolApprovalResponse]（一条消息可以有多个）。
  */
+@neton.ai.ExperimentalNetonAiApi
 data class AiMessage(
     val role: AiRole,
     val content: List<AiContent> = emptyList(),

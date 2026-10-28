@@ -55,6 +55,7 @@ import kotlin.time.TimeSource
  * legacy 服务端发来的请求中 `ping` 回空结果，其他（sampling、elicitation、roots）回"不支持"。
  * HTTP 客户端由宿主提供并负责关闭。
  */
+@neton.ai.ExperimentalNetonAiApi
 class McpClient(
     private val http: HttpClient,
     private val url: String,

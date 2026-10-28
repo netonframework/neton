@@ -5,6 +5,7 @@ import neton.ai.AiUsage
 import neton.ai.model.AiWarning
 
 /** 嵌入模型。 */
+@neton.ai.ExperimentalNetonAiApi
 interface AiEmbeddingModel {
     val provider: String
     val modelId: String
@@ -16,6 +17,7 @@ interface AiEmbeddingModel {
     suspend fun embed(values: List<String>, options: EmbedOptions = EmbedOptions()): EmbedResult
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class EmbedOptions(
     val dimensions: Int? = null,
     val headers: Map<String, String> = emptyMap(),
@@ -23,9 +25,11 @@ data class EmbedOptions(
     val metadata: Map<String, String> = emptyMap(),
 )
 
+@neton.ai.ExperimentalNetonAiApi
 class EmbedResult(val embeddings: List<FloatArray>, val usage: AiUsage, val warnings: List<AiWarning> = emptyList())
 
 /** 图片生成模型。 */
+@neton.ai.ExperimentalNetonAiApi
 interface AiImageModel {
     val provider: String
     val modelId: String
@@ -33,6 +37,7 @@ interface AiImageModel {
     suspend fun generate(options: ImageOptions): ImageResult
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class ImageOptions(
     val prompt: String,
     val n: Int = 1,
@@ -46,17 +51,21 @@ data class ImageOptions(
 )
 
 /** [images] 为原始字节；[mediaType] 是厂商声明或嗅探出的类型。 */
+@neton.ai.ExperimentalNetonAiApi
 class GeneratedFile(val bytes: ByteArray, val mediaType: String)
 
+@neton.ai.ExperimentalNetonAiApi
 class ImageResult(val images: List<GeneratedFile>, val usage: AiUsage = AiUsage.UNKNOWN, val warnings: List<AiWarning> = emptyList())
 
 /** 语音合成模型。 */
+@neton.ai.ExperimentalNetonAiApi
 interface AiSpeechModel {
     val provider: String
     val modelId: String
     suspend fun generate(options: SpeechOptions): SpeechResult
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class SpeechOptions(
     val text: String,
     val voice: String? = null,
@@ -68,15 +77,18 @@ data class SpeechOptions(
     val headers: Map<String, String> = emptyMap(),
 )
 
+@neton.ai.ExperimentalNetonAiApi
 class SpeechResult(val audio: GeneratedFile, val warnings: List<AiWarning> = emptyList())
 
 /** 语音识别模型。 */
+@neton.ai.ExperimentalNetonAiApi
 interface AiTranscriptionModel {
     val provider: String
     val modelId: String
     suspend fun transcribe(options: TranscriptionOptions): TranscriptionResult
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class TranscriptionOptions(
     val audio: ByteArray,
     val mediaType: String,
@@ -86,8 +98,10 @@ data class TranscriptionOptions(
     val headers: Map<String, String> = emptyMap(),
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class TranscriptSegment(val text: String, val startSecond: Double, val endSecond: Double)
 
+@neton.ai.ExperimentalNetonAiApi
 class TranscriptionResult(
     val text: String,
     val segments: List<TranscriptSegment> = emptyList(),
@@ -98,12 +112,15 @@ class TranscriptionResult(
 )
 
 /** 重排序模型。 */
+@neton.ai.ExperimentalNetonAiApi
 interface AiRerankingModel {
     val provider: String
     val modelId: String
     suspend fun rerank(query: String, documents: List<String>, topN: Int? = null, headers: Map<String, String> = emptyMap()): RerankResult
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class RankedDocument(val index: Int, val score: Double)
 
+@neton.ai.ExperimentalNetonAiApi
 class RerankResult(val ranking: List<RankedDocument>, val warnings: List<AiWarning> = emptyList())

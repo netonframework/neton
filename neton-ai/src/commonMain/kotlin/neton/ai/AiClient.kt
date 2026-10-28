@@ -15,6 +15,7 @@ import neton.ai.provider.TranscriptionResult
  * Lightweight log sink — a function that accepts a sanitized log line. Decoupled from
  * neton-logging so standalone usage doesn't pull in the logging runtime.
  */
+@neton.ai.ExperimentalNetonAiApi
 typealias AiLogSink = (line: String) -> Unit
 
 /**
@@ -22,6 +23,7 @@ typealias AiLogSink = (line: String) -> Unit
  *
  * 两种用法：独立使用 `AiClient.create { … }`；或作为 Neton 组件 `ai { … }`，下游从上下文取得。
  */
+@neton.ai.ExperimentalNetonAiApi
 interface AiClient {
     /** 生成（多步工具循环）。provider 错误在重试与回退后仍失败时抛 [AiException]。 */
     suspend fun generate(request: AiRequest): AiResult
@@ -56,6 +58,7 @@ interface AiClient {
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 data class EmbeddingRequest(
     val model: AiModelId,
     val values: List<String>,
@@ -73,6 +76,7 @@ data class EmbeddingRequest(
     }
 }
 
+@neton.ai.ExperimentalNetonAiApi
 class EmbeddingResult(
     /** 与 [EmbeddingRequest.values] 同序。 */
     val embeddings: List<FloatArray>,
@@ -81,6 +85,7 @@ class EmbeddingResult(
     val model: AiModelId,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class ImageRequest(
     val model: AiModelId,
     val prompt: String,
@@ -95,6 +100,7 @@ data class ImageRequest(
     val headers: Map<String, String> = emptyMap(),
 )
 
+@neton.ai.ExperimentalNetonAiApi
 class ImageGenerationResult(val images: List<GeneratedFile>, val usage: AiUsage, val warnings: List<AiWarning>) {
     val image: GeneratedFile get() = images.first()
 }

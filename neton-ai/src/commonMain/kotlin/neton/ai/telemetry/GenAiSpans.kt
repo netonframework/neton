@@ -19,6 +19,7 @@ import kotlin.random.Random
 import kotlin.time.Clock
 
 /** 一个结束了的 span，属性名按 OpenTelemetry GenAI 语义约定（[GenAiSpans.SEMCONV_VERSION]）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiSpan(
     /** 32 位十六进制。 */
     val traceId: String,
@@ -37,11 +38,14 @@ data class AiSpan(
     val statusMessage: String? = null,
 )
 
+@neton.ai.ExperimentalNetonAiApi
 data class AiSpanEvent(val name: String, val epochNanos: Long, val attributes: Map<String, Any>)
 
+@neton.ai.ExperimentalNetonAiApi
 enum class AiSpanKind { Internal, Client }
 
 /** span 导出：宿主把 [AiSpan] 转成自己的追踪后端格式（OTLP 等）。在调用协程里执行，耗时操作请自行排队。 */
+@neton.ai.ExperimentalNetonAiApi
 fun interface AiSpanExporter {
     suspend fun export(span: AiSpan)
 }
@@ -58,6 +62,7 @@ fun interface AiSpanExporter {
  *
  * 语义约定仍在演进，字段名只在这个适配器里出现；版本见 [SEMCONV_VERSION]。
  */
+@neton.ai.ExperimentalNetonAiApi
 class GenAiSpans(
     private val exporter: AiSpanExporter,
     private val clockNanos: () -> Long = { Clock.System.now().let { it.epochSeconds * 1_000_000_000 + it.nanosecondsOfSecond } },

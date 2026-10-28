@@ -1,6 +1,7 @@
 // neton-ai/src/commonMain/kotlin/neton/ai/config/ProvidersBuilder.kt
 package neton.ai.config
 
+@neton.ai.ExperimentalNetonAiApi
 class ProvidersBuilder internal constructor(internal val target: MutableMap<String, ProviderSpec>) {
     private val idPattern = Regex("[a-zA-Z0-9._-]+")
 

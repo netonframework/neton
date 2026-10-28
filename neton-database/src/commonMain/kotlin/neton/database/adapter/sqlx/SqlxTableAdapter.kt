@@ -16,6 +16,7 @@ import neton.database.dsl.TableMeta
 private fun currentTimeMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
 
 /** Single-table adapter. All execution goes through the transaction-aware [DbContext]. */
+@neton.core.annotations.InternalNetonApi
 class SqlxTableAdapter<T : Any, ID : Any>(
     private val meta: EntityMeta<T>,
     private val dbProvider: () -> DbContext = { SqlxDatabase.requireContext() },

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.emitAll
  * Agent 无状态：历史由调用方保存，每次把完整消息传进来，再把 [AiResult.responseMessages] 接到历史后面。
  * 默认最多 20 步。
  */
+@neton.ai.ExperimentalNetonAiApi
 class AiAgent(
     private val client: AiClient,
     /** 模板：除 messages 外的所有设置。 */
@@ -29,5 +30,6 @@ class AiAgent(
 }
 
 /** `client.agent { model = "openai:gpt-5"; instructions = "..."; tools(...) }` */
+@neton.ai.ExperimentalNetonAiApi
 fun AiClient.agent(prepareCall: (suspend (AiRequest) -> AiRequest)? = null, block: AiRequestBuilder.() -> Unit): AiAgent =
     AiAgent(this, aiRequest(block), prepareCall)

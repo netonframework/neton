@@ -10,6 +10,7 @@ import neton.ai.provider.AiProvider
 import neton.http.client.HttpClient
 
 /** Anthropic Messages。鉴权用 `x-api-key`，不用 Bearer。 */
+@neton.ai.ExperimentalNetonAiApi
 class AnthropicProvider(
     override val id: String,
     private val httpClient: HttpClient,

@@ -12,6 +12,7 @@ import neton.ai.protocol.ir.ProviderMetadata
  * （Anthropic 开启 thinking 时，带工具调用的 assistant 消息缺了前面的 thinking 块会被拒绝）。
  * [ProviderMetadata] 保存需要往返的厂商字段（如 Gemini thoughtSignature），调用方通常不用关心。
  */
+@neton.ai.ExperimentalNetonAiApi
 sealed interface AiContent {
     data class Text(
         val text: String,
@@ -87,6 +88,7 @@ sealed interface AiContent {
 }
 
 /** 工具调用：[argumentsJson] 是模型给出的原始参数文本，[input] 是解析后的值（解析失败为空对象）。 */
+@neton.ai.ExperimentalNetonAiApi
 data class AiToolCall(val id: String, val name: String, val argumentsJson: String) {
     val input: JsonElement by lazy {
         runCatching { neton.ai.internal.Jsons.lenient.parseToJsonElement(argumentsJson.ifBlank { "{}" }) }.getOrElse { JsonObject(emptyMap()) }

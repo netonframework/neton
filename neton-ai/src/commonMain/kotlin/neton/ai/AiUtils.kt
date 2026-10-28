@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.flow
 import kotlin.math.sqrt
 
 /** 消息裁剪的范围。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class AiPrune { None, All, BeforeLastMessage }
 
 /**
@@ -16,6 +17,7 @@ enum class AiPrune { None, All, BeforeLastMessage }
  *
  * 注意：带签名的推理（Anthropic thinking）在仍需回传的工具轮次里不能去掉，裁剪只应作用于已结束的轮次。
  */
+@neton.ai.ExperimentalNetonAiApi
 fun pruneMessages(
     messages: List<AiMessage>,
     reasoning: AiPrune = AiPrune.None,
@@ -59,12 +61,14 @@ fun pruneMessages(
 }
 
 /** 平滑流的切分方式。 */
+@neton.ai.ExperimentalNetonAiApi
 enum class AiChunking { Word, Line }
 
 /**
  * 平滑输出：把文本与推理增量按词（或行）重新切分并按 [delayMs] 匀速发出，其他事件先冲刷缓冲再原样通过。
  * 只改变展示节奏，不改变内容。
  */
+@neton.ai.ExperimentalNetonAiApi
 fun Flow<AiStreamPart>.smooth(delayMs: Long = 10, chunking: AiChunking = AiChunking.Word): Flow<AiStreamPart> = flow {
     var buffer = StringBuilder()
     var bufferedId: String? = null
@@ -99,6 +103,7 @@ fun Flow<AiStreamPart>.smooth(delayMs: Long = 10, chunking: AiChunking = AiChunk
 }
 
 /** 余弦相似度；长度不同抛 [IllegalArgumentException]，零向量返回 0。 */
+@neton.ai.ExperimentalNetonAiApi
 fun cosineSimilarity(a: FloatArray, b: FloatArray): Double {
     require(a.size == b.size) { "vectors must have the same length (${a.size} vs ${b.size})" }
     var dot = 0.0
