@@ -4,10 +4,10 @@ kotlinx-io = "0.9.1"
 ksp = "2.3.12"
 kctfork = "0.14.0"  # Kotlin Compile Testing，跑 KSP 编译契约测试；对齐 Kotlin 2.4.20
 kotlinx-coroutines = "1.11.0"
-kotlinx-serialization = "1.11.0"
+kotlinx-serialization = "1.12.0"
 kotlinx-datetime = "0.8.0"
 kotlinx-coroutines-test = "1.11.0"
-sqlx4k = "1.16.0"
+sqlx4k = "1.17.0"
 konform = "0.11.1"
 
 [libraries]

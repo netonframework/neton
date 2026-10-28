@@ -2,7 +2,14 @@
 
 All notable changes to Neton are documented here.
 
-## Unreleased — 1.0 contract hardening
+## 1.0.0 — release preparation (not yet published)
+
+- Upgrade sqlx4k from 1.16.0 to 1.17.0 and kotlinx-serialization from
+  1.11.0 to 1.12.0. Keep the Kotlin compiler at 2.4.20 and KSP at 2.3.12.
+  The dependency upgrade requires fresh native, database and artifact gates;
+  previous candidate results do not certify this release commit.
+- Use the project's OpenSSL 4 wrapper across HTTP/TLS, Security and Storage,
+  preserving password-hash and SecretBox storage compatibility.
 
 - Rename WebSocket packages from `neton.ws` to `neton.websocket`, including
   generated KSP references. Recompile consumers and update imports before 1.0.
