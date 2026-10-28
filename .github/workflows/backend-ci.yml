@@ -13,6 +13,47 @@ on:
       - 'ci/**'
 
 jobs:
+  ksp-incremental:
+    name: KSP incremental (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: macosArm64
+          - os: ubuntu-24.04
+            target: linuxX64
+          - os: ubuntu-24.04-arm
+            target: linuxArm64
+          - os: windows-2022
+            target: mingwX64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Use the accepted Apple toolchain
+        if: runner.os == 'macOS'
+        run: echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Test rejection of stale or missing generated code
+        run: python -m unittest discover -s tools/ci -p test_ksp_incremental_gate.py
+      - name: Native clean, no-op, add, modify and delete
+        run: python tools/ci/ksp_incremental_gate.py --target ${{ matrix.target }} --output "${{ runner.temp }}/ksp-incremental-evidence"
+      - name: Retain incremental evidence and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ksp-incremental-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ runner.temp }}/ksp-incremental-evidence/
+          if-no-files-found: error
+
   reference-release:
     name: Reference release (macosArm64)
     runs-on: macos-15
@@ -45,13 +86,13 @@ jobs:
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==5 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==6 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04
