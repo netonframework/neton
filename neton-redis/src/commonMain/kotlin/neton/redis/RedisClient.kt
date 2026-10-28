@@ -5,7 +5,7 @@ import kotlin.time.Duration
 /**
  * 全框架唯一 Redis 入口（Laravel/Ktor 风格，非 Spring Template）
  *
- * - redis.get<User>("user:1") / redis.set("user:1", user)
+ * - redis.get<User>("user:1") / redis.setTyped("user:1", user)
  * - redis.remember("user:$id", 5.minutes) { UserTable.get(id) }
  * - redis.pipeline { set("a", 1); set("b", 2); incr("counter") }
  *

@@ -76,10 +76,10 @@ val raw2: String? = redis.getValue("key")    // 接口方法
 
 // 类型安全（扩展：反序列化 JSON / 基本类型）
 val user: User? = redis.get<User>("user:1")
-redis.set("user:1", user)
+user?.let { redis.setTyped("user:1", it, ttl = 5.minutes) }
 
 // Laravel 风格 remember：有缓存则反序列化返回，否则执行 block 并写入缓存
-val u: User = redis.remember("user:$id", 5.minutes) { UserTable.get(id) }
+val u: User = redis.remember("user:$id", 5.minutes) { requireNotNull(UserTable.get(id)) }
 
 // Pipeline（批量命令，减少 RTT）
 redis.pipeline {
@@ -109,7 +109,7 @@ val set = redis.smembers("set")
 | Hash     | `hset` / `hget` / `hgetAll` | |
 | List     | `lpush` / `rpush` / `lpop` / `lrange(start, end)` | |
 | Set      | `sadd` / `smembers` | |
-| Cache    | `remember<T>(key, ttl) { block }` | 扩展：先读缓存再解码，否则 block + set |
+| Cache    | `remember<T>(key, ttl) { block }` | 扩展：先读缓存再解码，否则 block + setTyped |
 | Pipeline | `pipeline { set(...); incr(...); ... }` | 块内排队，块结束顺序执行 |
 
 ## 架构简述
