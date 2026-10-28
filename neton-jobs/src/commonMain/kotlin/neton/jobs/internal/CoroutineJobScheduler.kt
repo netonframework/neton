@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import neton.core.component.NetonContext
 import neton.jobs.ExecutionMode
 import neton.jobs.JobContext
@@ -30,6 +31,10 @@ internal class CoroutineJobScheduler(
 ) : JobScheduler {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val executionJob = SupervisorJob()
+    private val executionScope = CoroutineScope(executionJob + Dispatchers.Default)
+    private val lifecycleMutex = Mutex()
+    private var stopping = false
     private val lockManager: LockManager? = ctx.getOrNull(LockManager::class)
     private val listener: JobExecutionListener? = ctx.getOrNull(JobExecutionListener::class)
     private val loggerFactory: LoggerFactory = ctx.get(LoggerFactory::class)
@@ -54,9 +59,9 @@ internal class CoroutineJobScheduler(
         }
     }
 
-    override suspend fun start() {
-        check(scope.isActive) { "Job scheduler has been shut down" }
-        if (!started.compareAndSet(false, true)) return
+    override suspend fun start() = lifecycleMutex.withLock {
+        check(!stopping) { "Job scheduler has been shut down" }
+        if (!started.compareAndSet(false, true)) return@withLock
         val enabledJobs = definitions.filter { it.enabled }
         logger.info(
             "job.scheduler.start", mapOf(
@@ -75,22 +80,38 @@ internal class CoroutineJobScheduler(
 
     override suspend fun shutdown(timeout: Duration) {
         val effectiveTimeout = if (timeout == 30.seconds) shutdownTimeout else timeout
-        scope.coroutineContext[Job]?.cancel()
-        withTimeoutOrNull(effectiveTimeout) {
-            scope.coroutineContext[Job]?.join()
+        require(effectiveTimeout > Duration.ZERO && effectiveTimeout.isFinite()) { "Shutdown timeout must be positive and finite" }
+        lifecycleMutex.withLock {
+            stopping = true
+            // Stop scheduling without cancelling accepted executions.
+            scope.cancel()
+            executionJob.complete()
         }
-        scope.cancel()
+        try {
+            withTimeoutOrNull(effectiveTimeout) { executionJob.join() }
+        } finally {
+            // Cooperative cancellation after the drain deadline (or caller cancellation).
+            executionJob.cancel()
+        }
         logger.info("job.scheduler.shutdown", emptyMap())
     }
 
     override suspend fun trigger(jobId: String) {
-        check(scope.isActive) { "Job scheduler has been shut down" }
         val def = definitions.find { it.id == jobId }
             ?: throw IllegalArgumentException("Job not found: $jobId")
         val jobLogger = loggerFactory.get("neton.jobs.${def.id}")
-        scope.launch {
-            executeJob(def, jobLogger, skipEnabledCheck = true)
+        lifecycleMutex.withLock {
+            check(!stopping) { "Job scheduler has been shut down" }
+            executionScope.launch { executeJob(def, jobLogger, skipEnabledCheck = true) }
         }
+    }
+
+    private suspend fun executeScheduled(def: JobDefinition, logger: Logger) {
+        val execution = lifecycleMutex.withLock {
+            if (stopping) null else executionScope.async { executeJob(def, logger, skipEnabledCheck = false) }
+        }
+        // Cancelling the scheduling waiter does not cancel this separately owned execution.
+        execution?.await()
     }
 
     override fun snapshot(): List<JobStatus> {
@@ -107,7 +128,7 @@ internal class CoroutineJobScheduler(
                 }
                 while (currentCoroutineContext().isActive) {
                     updateNextFireTime(def, schedule)
-                    executeJob(def, jobLogger, skipEnabledCheck = false)
+                    executeScheduled(def, jobLogger)
                     delay(schedule.intervalMs)
                 }
             }
@@ -127,7 +148,7 @@ internal class CoroutineJobScheduler(
                     if (delayMs > 0) {
                         delay(delayMs)
                     }
-                    executeJob(def, jobLogger, skipEnabledCheck = false)
+                    executeScheduled(def, jobLogger)
                 }
             }
         }

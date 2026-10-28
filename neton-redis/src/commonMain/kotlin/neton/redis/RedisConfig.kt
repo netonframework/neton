@@ -17,6 +17,7 @@ data class RedisConfig(
     /** 全局 key 前缀，如 "neton"；最终 key = keyPrefix + ":" + key。neton-cache 默认用 "neton:cache:*"。 */
     var keyPrefix: String = "neton",
 ) {
+    override fun toString(): String = "RedisConfig(host=$host, port=$port, database=$database, password=[REDACTED])"
     fun validate(): List<String> {
         val errors = mutableListOf<String>()
         if (host.isBlank()) errors.add("Redis host cannot be blank")

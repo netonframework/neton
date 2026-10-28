@@ -119,12 +119,16 @@ internal const val DEFAULT_PROVIDER_TIMEOUT_MS = 60_000L
 internal data class EffectiveOpenAiCompatibleConfig(
     val id: String, val baseUrl: String, val apiKey: String,
     val organization: String?, val timeoutMillis: Long, val defaultHeaders: Map<String, String>,
-)
+) {
+    override fun toString() = "EffectiveOpenAiCompatibleConfig(id=$id, apiKey=[REDACTED], defaultHeaders=[REDACTED])"
+}
 
 internal data class EffectiveAnthropicConfig(
     val id: String, val baseUrl: String, val apiKey: String, val version: String,
     val beta: List<String>, val timeoutMillis: Long, val defaultHeaders: Map<String, String>,
-)
+) {
+    override fun toString() = "EffectiveAnthropicConfig(id=$id, apiKey=[REDACTED], defaultHeaders=[REDACTED])"
+}
 
 internal fun OpenAiCompatibleSpec.toEffective(): EffectiveOpenAiCompatibleConfig =
     EffectiveOpenAiCompatibleConfig(

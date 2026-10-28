@@ -9,6 +9,34 @@ import kotlin.test.assertTrue
 class SourceConfigParserTest {
 
     @Test
+    fun invalidConfigurationDoesNotFallbackEvenWhenDslIsValid() {
+        for (raw in listOf(emptyMap(), mapOf("sources" to emptyList<Any>()),
+            mapOf("sources" to listOf(mapOf("name" to ""))),
+            mapOf("sources" to listOf(mapOf("name" to "default"), mapOf("name" to "default"))))) {
+            assertFailsWith<IllegalStateException> { StorageComponent.resolveSources(raw, listOf(SourceConfig())) }
+        }
+        assertEquals("local", StorageComponent.resolveSources(null, emptyList()).single().type)
+        assertEquals("default", StorageComponent.resolveSources(null, listOf(SourceConfig())).single().name)
+    }
+
+    @Test
+    fun duplicatesMustNotDisappearDuringMerge() {
+        val duplicate = listOf(SourceConfig(), SourceConfig())
+        assertFailsWith<IllegalStateException> { SourceConfigParser.mergeSources(duplicate, emptyList()) }
+        assertFailsWith<IllegalStateException> { SourceConfigParser.mergeSources(emptyList(), duplicate) }
+        assertEquals(1, SourceConfigParser.mergeSources(listOf(SourceConfig()), listOf(SourceConfig())).size)
+    }
+
+    @Test
+    fun credentialsAreNotRendered() {
+        val source = SourceConfig(accessKey = "access-test-secret", secretKey = "private-test-secret")
+        for (rendered in listOf(source.toString(), source.copy().toString(), StorageConfig(mutableListOf(source)).toString())) {
+            assertTrue(!rendered.contains("access-test-secret"))
+            assertTrue(!rendered.contains("private-test-secret"))
+        }
+    }
+
+    @Test
     fun `missing sources fails`() {
         assertFailsWith<IllegalStateException> {
             SourceConfigParser.parseSourceConfigs(emptyMap())

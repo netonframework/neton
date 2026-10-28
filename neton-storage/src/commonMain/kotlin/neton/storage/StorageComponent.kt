@@ -3,6 +3,7 @@ package neton.storage
 import neton.core.component.NetonComponent
 import neton.core.component.NetonContext
 import neton.core.config.ConfigLoader
+import neton.core.config.readConfigFile
 import neton.logging.Logger
 import neton.logging.LoggerFactory
 import neton.storage.internal.DefaultStorageManager
@@ -18,15 +19,7 @@ object StorageComponent : NetonComponent<StorageConfig> {
     override suspend fun init(ctx: NetonContext, config: StorageConfig) {
         val logger = ctx.getOrNull(LoggerFactory::class)?.get("neton.storage")
 
-        val fileSources = loadFromFile(ctx)
-        val dslSources = config.sources.toList()
-        val merged = if (fileSources.isNotEmpty() || dslSources.isNotEmpty()) {
-            SourceConfigParser.mergeSources(dslSources, fileSources)
-        } else {
-            dslSources.ifEmpty { listOf(SourceConfig()) }
-        }
-
-        SourceConfigParser.validateSources(merged)
+        val merged = resolveSources(loadFromFile(ctx), config.sources.toList())
 
         val operators = merged.associate { src ->
             src.name to createOperator(ctx, src, logger)
@@ -48,19 +41,27 @@ object StorageComponent : NetonComponent<StorageConfig> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun loadFromFile(ctx: NetonContext): List<SourceConfig> {
+    private fun loadFromFile(ctx: NetonContext): Map<String, Any?>? {
+        val environment = ConfigLoader.resolveEnvironment(ctx.args)
         val raw = ConfigLoader.loadModuleConfig(
             "storage",
             configPath = "config",
-            environment = ConfigLoader.resolveEnvironment(ctx.args),
+            environment = environment,
             args = ctx.args
-        ) ?: return emptyList()
+        ) ?: return null
+        // ConfigLoader returns an empty map for an absent module. An existing empty
+        // file is still invalid storage configuration, not permission to fall back.
+        val hasFile = readConfigFile("config/storage.conf") != null ||
+            (environment != null && readConfigFile("config/storage.$environment.conf") != null)
+        return raw.takeIf { it.isNotEmpty() || hasFile }
+    }
 
-        return try {
-            SourceConfigParser.parseSourceConfigs(raw)
-        } catch (_: Exception) {
-            emptyList()
-        }
+    internal fun resolveSources(raw: Map<String, Any?>?, dsl: List<SourceConfig>): List<SourceConfig> {
+        val file = raw?.let(SourceConfigParser::parseSourceConfigs).orEmpty()
+        val merged = if (raw == null && dsl.isEmpty()) listOf(SourceConfig())
+            else SourceConfigParser.mergeSources(dsl, file)
+        SourceConfigParser.validateSources(merged)
+        return merged
     }
 
     private fun createOperator(ctx: NetonContext, src: SourceConfig, logger: Logger?): StorageOperator {

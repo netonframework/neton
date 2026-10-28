@@ -2,6 +2,7 @@ package neton.redis
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import kotlinx.serialization.SerializationException
 import neton.core.component.NetonContext
 import kotlin.time.Duration
 
@@ -16,41 +17,33 @@ suspend inline fun <reified T> RedisClient.get(key: String): T? {
     val s = getValue(key) ?: return null
     return when (T::class) {
         String::class -> s as T
-        Int::class -> s.toIntOrNull() as T
-        Long::class -> s.toLongOrNull() as T
-        Double::class -> s.toDoubleOrNull() as T
-        Float::class -> s.toFloatOrNull() as T
-        Boolean::class -> s.toBooleanStrictOrNull() as T
+        Int::class -> s.toIntOrNull() as T?
+        Long::class -> s.toLongOrNull() as T?
+        Double::class -> s.toDoubleOrNull() as T?
+        Float::class -> s.toFloatOrNull() as T?
+        Boolean::class -> s.toBooleanStrictOrNull() as T?
         else -> try {
             Json.decodeFromString(serializer(), s)
-        } catch (e: Exception) {
-            println("[neton-redis] WARNING: Failed to deserialize key '$key' as ${T::class.simpleName}: ${e.message}")
+        } catch (_: SerializationException) {
+            // A corrupt value is a miss. Never log keys or decoder input fragments.
             null
         }
     }
 }
 
+/** Typed counterpart of get<T>. Raw set(Any) retains its legacy string conversion. */
+suspend inline fun <reified T> RedisClient.setTyped(key: String, value: T, ttl: Duration? = null) {
+    val encoded = when (T::class) {
+        String::class, Int::class, Long::class, Double::class, Float::class, Boolean::class -> value.toString()
+        else -> Json.encodeToString(serializer<T>(), value)
+    }
+    set(key, encoded, ttl)
+}
+
 /** 类型安全 remember：redis.remember<User>("user:$id", 5.minutes) { UserTable.get(id) } */
 suspend inline fun <reified T> RedisClient.remember(key: String, ttl: Duration, noinline block: suspend () -> T): T {
-    val s = getValue(key)
-    if (s != null) {
-        val decoded: T? = when (T::class) {
-            String::class -> s as T
-            Int::class -> s.toIntOrNull() as T
-            Long::class -> s.toLongOrNull() as T
-            Double::class -> s.toDoubleOrNull() as T
-            Float::class -> s.toFloatOrNull() as T
-            Boolean::class -> s.toBooleanStrictOrNull() as T
-            else -> try {
-                Json.decodeFromString(serializer(), s)
-            } catch (e: Exception) {
-                println("[neton-redis] WARNING: Failed to deserialize key '$key' as ${T::class.simpleName}: ${e.message}")
-                null
-            }
-        }
-        if (decoded != null) return decoded
-    }
+    get<T>(key)?.let { return it }
     val value = block()
-    set(key, value as Any, ttl)
+    setTyped(key, value, ttl)
     return value
 }

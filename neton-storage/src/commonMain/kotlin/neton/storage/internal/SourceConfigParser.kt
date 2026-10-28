@@ -34,7 +34,7 @@ internal object SourceConfigParser {
         }
     }
 
-    fun validateSources(sources: List<SourceConfig>) {
+    private fun validateNames(sources: List<SourceConfig>) {
         val names = mutableSetOf<String>()
         for (src in sources) {
             if (src.name.isBlank()) {
@@ -44,12 +44,18 @@ internal object SourceConfigParser {
                 throw IllegalStateException("storage.conf: duplicate source name '${src.name}'")
             }
         }
-        if ("default" !in names) {
+    }
+
+    fun validateSources(sources: List<SourceConfig>) {
+        validateNames(sources)
+        if (sources.none { it.name == "default" }) {
             throw IllegalStateException("storage.conf: missing source with name='default'")
         }
     }
 
     fun mergeSources(dsl: List<SourceConfig>, file: List<SourceConfig>): List<SourceConfig> {
+        validateNames(dsl)
+        validateNames(file)
         val dslByName = dsl.associateBy { it.name }
         val fileByName = file.associateBy { it.name }
         val allNames = LinkedHashSet<String>()

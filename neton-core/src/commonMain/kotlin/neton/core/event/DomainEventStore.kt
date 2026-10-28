@@ -87,9 +87,12 @@ data class StoredEventRecord(
  * 事件内容的编解码。
  *
  * 由应用层实现：只有应用知道自己有哪些事件类型、如何序列化它们。
- * 框架不做序列化选型，也不依赖任何序列化库。
+ * 端口不强制序列化选型；可显式选用 SerializerDomainEventCodec。
  */
 interface DomainEventCodec {
+
+    /** End startup registration. Stateless codecs need no action; mutable codecs must reject later changes. */
+    fun seal() {}
 
     /** 序列化事件内容；返回 null 表示该事件不支持持久化投递。 */
     fun encode(event: DomainEvent): String?

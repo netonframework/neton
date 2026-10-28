@@ -35,4 +35,6 @@ data class SourceConfig(
     var accessKey: String = "",
     var secretKey: String = "",
     var pathStyle: Boolean = false
-)
+) {
+    override fun toString(): String = "SourceConfig(name=$name, type=$type, accessKey=[REDACTED], secretKey=[REDACTED])"
+}

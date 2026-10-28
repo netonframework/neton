@@ -2,6 +2,22 @@
 
 All notable changes to Neton are documented here.
 
+## Unreleased — 1.0 contract hardening
+
+- Reject malformed storage configuration and duplicate names before merging;
+  only absent configuration may select the default local storage.
+- Drain accepted jobs before cancelling at the shutdown deadline; reject new
+  scheduling and manual triggers once shutdown starts.
+- Add explicit `RedisClient.setTyped<T>` and use it in `remember<T>`; preserve
+  the raw `set(Any)` wire format. Corrupt values are misses without payload logs.
+- Seal event codecs with the event bus, preserve serializer registrations on
+  conflicts, and return registration snapshots. Stateless custom codecs retain
+  source compatibility through the default `DomainEventCodec.seal()` method.
+- Redact storage, Redis, database and AI configuration string representations.
+
+These changes are not included in the already published beta26 and do not
+authorize a new preview or stable release.
+
 ## 1.0.0-beta26
 
 This is a preview release, not the 1.0.0 stable API freeze approval.

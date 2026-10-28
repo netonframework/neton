@@ -20,14 +20,19 @@ class SerializerDomainEventCodec(
     private val json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
 ) : DomainEventCodec {
     private val byType = mutableMapOf<String, KSerializer<out DomainEvent>>()
+    private var sealed = false
 
     fun <E : DomainEvent> register(type: KClass<E>, serializer: KSerializer<E>) {
+        check(!sealed) { "Event codec registration is sealed" }
         val key = type.qualifiedName ?: error("事件类 $type 没有全限定名，不能登记为可落库事件")
-        val previous = byType.put(key, serializer)
+        val previous = byType[key]
         require(previous == null || previous == serializer) { "事件 $key 重复登记了不同的序列化器" }
+        byType[key] = serializer
     }
 
-    fun registered(): Set<String> = byType.keys
+    fun registered(): Set<String> = byType.keys.toSet()
+
+    override fun seal() { sealed = true }
 
     @Suppress("UNCHECKED_CAST")
     override fun encode(event: DomainEvent): String? {

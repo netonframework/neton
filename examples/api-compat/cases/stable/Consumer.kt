@@ -6,6 +6,10 @@ import neton.database.api.DbContext
 import neton.database.api.Table
 import neton.http.client.HttpClientConfig
 import neton.http.mail.SmtpAccount
+import neton.core.event.DomainEvent
+import neton.core.event.DomainEventCodec
+import neton.redis.RedisClient
+import neton.redis.setTyped
 
 // These consumer spellings are fixtures, not generated from current signatures.
 fun user(context: Ctx): String? = SecurityContext(context = context).userId()
@@ -16,3 +20,10 @@ suspend fun <T : Any> get(table: Table<T, Long>, id: Long) = table.get(id = id)
 
 data class User(val id: Long, val name: String)
 suspend fun rename(table: Table<User, Long>) = table.query { }.update { set(User::name, "updated") }
+
+// Existing stateless codecs remain source-compatible with the default seal hook.
+class StatelessCodec : DomainEventCodec {
+    override fun encode(event: DomainEvent): String? = null
+    override fun decode(eventType: String, payload: String): DomainEvent? = null
+}
+suspend fun typedRedis(client: RedisClient) = client.setTyped(key = "test", value = 42)

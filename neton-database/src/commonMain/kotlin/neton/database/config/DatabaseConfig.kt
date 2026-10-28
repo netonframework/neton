@@ -35,6 +35,7 @@ data class DatabaseConfig(
      */
     val connectionTimeout: Long = 30000
 ) {
+    override fun toString(): String = "DatabaseConfig(driver=$driver, uri=[REDACTED], maxConnections=$maxConnections)"
     
     /**
      * 解析数据库 URI 为具体配置
@@ -148,7 +149,9 @@ data class PostgresUriInfo(
     val password: String,
     override val database: String,
     override val options: Map<String, String>
-) : DatabaseUriInfo()
+) : DatabaseUriInfo() {
+    override fun toString(): String = "PostgresUriInfo(host=$host, port=$port, username=[REDACTED], password=[REDACTED], options=[REDACTED])"
+}
 
 /**
  * MySQL URI 信息  
@@ -160,7 +163,9 @@ data class MysqlUriInfo(
     val password: String,
     override val database: String,
     override val options: Map<String, String>
-) : DatabaseUriInfo()
+) : DatabaseUriInfo() {
+    override fun toString(): String = "MysqlUriInfo(host=$host, port=$port, username=[REDACTED], password=[REDACTED], options=[REDACTED])"
+}
 
 /**
  * SQLite URI 信息
@@ -256,4 +261,4 @@ object MemoryUriParser {
     fun parse(uri: String): MemoryUriInfo {
         return MemoryUriInfo()
     }
-} 
+}

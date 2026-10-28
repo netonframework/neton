@@ -94,6 +94,7 @@ class DomainEventBus(
                     "或把这些监听者改成 SYNC / BEST_EFFORT。"
             )
         }
+        codec?.seal()
         sealed = true
     }
 

@@ -418,6 +418,7 @@ abstract interface neton.core.event/DomainEvent // neton.core.event/DomainEvent|
 abstract interface neton.core.event/DomainEventCodec { // neton.core.event/DomainEventCodec|null[0]
     abstract fun decode(kotlin/String, kotlin/String): neton.core.event/DomainEvent? // neton.core.event/DomainEventCodec.decode|decode(kotlin.String;kotlin.String){}[0]
     abstract fun encode(neton.core.event/DomainEvent): kotlin/String? // neton.core.event/DomainEventCodec.encode|encode(neton.core.event.DomainEvent){}[0]
+    open fun seal() // neton.core.event/DomainEventCodec.seal|seal(){}[0]
 }
 
 abstract interface neton.core.event/DomainEventStore { // neton.core.event/DomainEventStore|null[0]
@@ -1025,6 +1026,7 @@ final class neton.core.event/SerializerDomainEventCodec : neton.core.event/Domai
     final fun decode(kotlin/String, kotlin/String): neton.core.event/DomainEvent? // neton.core.event/SerializerDomainEventCodec.decode|decode(kotlin.String;kotlin.String){}[0]
     final fun encode(neton.core.event/DomainEvent): kotlin/String? // neton.core.event/SerializerDomainEventCodec.encode|encode(neton.core.event.DomainEvent){}[0]
     final fun registered(): kotlin.collections/Set<kotlin/String> // neton.core.event/SerializerDomainEventCodec.registered|registered(){}[0]
+    final fun seal() // neton.core.event/SerializerDomainEventCodec.seal|seal(){}[0]
 }
 
 final class neton.core.event/StoredEventRecord { // neton.core.event/StoredEventRecord|null[0]

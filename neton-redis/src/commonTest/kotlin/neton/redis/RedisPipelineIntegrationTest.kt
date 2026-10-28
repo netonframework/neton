@@ -8,6 +8,39 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /** Run against an isolated Redis with NETON_TEST_REDIS_PORT set. */
 class RedisPipelineIntegrationTest {
+    @kotlinx.serialization.Serializable
+    data class User(val id: Int, val name: String)
+
+    @Test
+    fun typedValuesRoundTripAndCorruptionRefills() = runBlocking {
+        val port = getEnv("NETON_TEST_REDIS_PORT")?.toIntOrNull()
+        check(getEnv("NETON_TEST_REDIS_REQUIRED") != "true" || port != null)
+        if (port == null) return@runBlocking
+        val client = DefaultRedisClient(RedisConfig(port = port, keyPrefix = "typed-regression-${kotlin.random.Random.nextLong(1, Long.MAX_VALUE)}"))
+        try {
+            val user = User(7, "quoted \"name\"")
+            var calls = 0
+            repeat(2) { assertEquals(user, client.remember("user", 60.seconds) { calls++; user }) }
+            assertEquals(1, calls)
+            assertEquals(user, client.get<User>("user"))
+            client.setTyped("user", user.copy(id = 8), 60.seconds)
+            assertEquals(8, client.get<User>("user")!!.id)
+            client.set("user", "malformed", 60.seconds)
+            assertEquals(user, client.remember("user", 60.seconds) { calls++; user })
+            assertEquals(2, calls)
+            client.set("number", "not an integer", 60.seconds)
+            assertNull(client.get<Int>("number"))
+            assertEquals(42, client.remember("number", 60.seconds) { 42 })
+            client.setTyped("text", "raw text", 60.seconds)
+            assertEquals("raw text", client.getValue("text"))
+            client.setTyped("expires", user, 1.milliseconds)
+            kotlinx.coroutines.delay(30)
+            assertNull(client.get<User>("expires"))
+        } finally {
+            try { for (key in listOf("user", "number", "text", "expires")) client.delete(key) }
+            finally { client.close() }
+        }
+    }
     @Test
     fun orderedBatchPreservesNamespaceAndReportsErrors() = runBlocking {
         val configuredPort = getEnv("NETON_TEST_REDIS_PORT")?.toIntOrNull()

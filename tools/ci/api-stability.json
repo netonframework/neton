@@ -1,6 +1,6 @@
 {
   "targetRelease": "1.0.0",
-  "status": "freeze-candidate-pending-green-release-gates",
+  "status": "freeze-candidate-requires-contract-review-and-green-release-gates",
   "default": "Public declarations in the compiled ABI are stable unless explicitly internal or experimental below. This does not promise compiler-version-independent KLIB compatibility.",
   "internalMarker": "neton.core.annotations.InternalNetonApi",
   "experimental": {
