@@ -321,12 +321,9 @@ cd examples/helloworld && ./build/bin/macosArm64/debugExecutable/helloworld.kexe
 
 ### Cross-compiling Linux on macOS
 
-Linux executables can be built on macOS when a Linux GCC cross toolchain is available. The default executable names are provided by Homebrew's `macos-cross-toolchains` packages:
-
-```bash
-brew tap messense/macos-cross-toolchains
-brew install x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
-```
+Linux executables can be built on macOS. The small C bridge uses Kotlin/Native's
+downloaded Linux sysroot, Clang and LLVM archiver by default; a third-party Homebrew
+tap is not required. Kotlin/Native's dependency preparation runs before the bridge.
 
 Custom toolchain paths can be supplied through `NETON_LINUX_X64_CC`, `NETON_LINUX_X64_AR`, `NETON_LINUX_ARM64_CC`, and `NETON_LINUX_ARM64_AR`, or the corresponding Gradle properties `neton.linuxX64.cc`, `neton.linuxX64.ar`, `neton.linuxArm64.cc`, and `neton.linuxArm64.ar`.
 

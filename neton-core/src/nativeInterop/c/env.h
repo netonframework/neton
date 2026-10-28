@@ -11,7 +11,8 @@ extern "C" {
  */
 char **neton_get_environ(void);
 
-void neton_install_shutdown_signals(void);
+/* Returns nonzero only when all platform shutdown handlers were installed. */
+int neton_install_shutdown_signals(void);
 int neton_shutdown_signal_received(void);
 void neton_reset_shutdown_signals(void);
 

@@ -24,6 +24,13 @@ class ReferenceGateTest(unittest.TestCase):
         result = observe_shutdown(self.process(), lambda: False, lambda: 0)
         self.assertTrue(result["observedBeforeTeardown"])
 
+    def test_platform_graceful_signal_is_sent_without_forced_termination(self):
+        process = self.process()
+        observe_shutdown(process, lambda: False, lambda: 0, shutdown_signal=12345)
+        process.send_signal.assert_called_once_with(12345)
+        process.kill.assert_not_called()
+        process.terminate.assert_not_called()
+
     def test_nonzero_exit_fails(self):
         for code in (1, -15, -9):
             with self.subTest(code=code), self.assertRaises(GateFailure):

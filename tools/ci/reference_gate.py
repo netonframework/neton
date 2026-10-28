@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and accept the public reference fixture on an isolated native POSIX host."""
+"""Build and accept the public reference fixture on an isolated native host."""
 import argparse
 import hashlib
 import json
@@ -43,16 +43,16 @@ def parse_connections(result):
     return int(value)
 
 
-def observe_shutdown(process, is_port_open, connections, timeout=30):
+def observe_shutdown(process, is_port_open, connections, timeout=30, shutdown_signal=signal.SIGTERM):
     # Observation only: never clean up first and mistake cleanup for graceful shutdown.
-    require(process.poll() is None, "Process exited before SIGTERM")
+    require(process.poll() is None, "Process exited before graceful shutdown")
     started = time.monotonic()
-    process.send_signal(signal.SIGTERM)
+    process.send_signal(shutdown_signal)
     try:
         code = process.wait(timeout=timeout)
     except subprocess.TimeoutExpired as error:
-        raise GateFailure("SIGTERM shutdown timed out") from error
-    require(code == 0, f"Nonzero exit after SIGTERM: {code}")
+        raise GateFailure("Graceful shutdown timed out") from error
+    require(code == 0, f"Nonzero exit after graceful shutdown: {code}")
     elapsed = time.monotonic() - started
     require(elapsed <= timeout, "Shutdown exceeded deadline")
     require(not is_port_open(), "HTTP port remains open after exit")
@@ -92,7 +92,11 @@ def health(port):
 def smoke(binary, pg_bin, output, evidence):
     # Every run owns a PostgreSQL cluster, not just a schema on a developer server.
     # Keep Unix socket paths below macOS's sockaddr_un length limit.
-    with tempfile.TemporaryDirectory(prefix="neton-reference-", dir="/tmp") as temporary:
+    windows = os.name == "nt"
+    def pg_exe(tool):
+        return str(pg_bin / (tool + ".exe" if windows else tool))
+
+    with tempfile.TemporaryDirectory(prefix="neton-reference-", dir=None if windows else "/tmp") as temporary:
         work = Path(temporary)
         data = work / "pgdata"
         sockets = work / "sockets"
@@ -104,11 +108,12 @@ def smoke(binary, pg_bin, output, evidence):
         env = {key: value for key, value in os.environ.items()
                if not key.startswith(("PG", "NETON_")) and key not in ("ENV", "NODE_ENV")}
         env.update(PGHOST="127.0.0.1", PGPORT=str(db_port), PGUSER="neton_gate", PGDATABASE="postgres")
+        env["PATH"] = str(pg_bin) + os.pathsep + env.get("PATH", "")
         started = False
         process = None
 
         def pg(tool, *args, **kwargs):
-            return subprocess.run([str(pg_bin / tool), *args], env=env, text=True,
+            return subprocess.run([pg_exe(tool), *args], env=env, text=True,
                                   capture_output=True, timeout=30, **kwargs)
 
         def connections():
@@ -116,12 +121,13 @@ def smoke(binary, pg_bin, output, evidence):
                 f"SELECT count(*) FROM pg_stat_activity WHERE datname = '{database}'"))
 
         try:
-            run_logged([str(pg_bin / "initdb"), "-D", str(data), "-U", "neton_gate",
+            run_logged([pg_exe("initdb"), "-D", str(data), "-U", "neton_gate",
                         "--auth=trust", "--no-locale", "-E", "UTF8"], output / "postgres-init.log", env=env, timeout=60)
             # PG is bound only to loopback; its trust credentials exist only in this disposable cluster.
             started = True  # also attempt cleanup if pg_ctl starts but its readiness wait fails
-            run_logged([str(pg_bin / "pg_ctl"), "-D", str(data), "-l", str(output / "postgres.log"),
-                        "-o", f"-h 127.0.0.1 -p {db_port} -k {sockets}", "-w", "start"],
+            options = f"-h 127.0.0.1 -p {db_port}" + ("" if windows else f" -k {sockets}")
+            run_logged([pg_exe("pg_ctl"), "-D", str(data), "-l", str(output / "postgres.log"),
+                        "-o", options, "-w", "start"],
                        output / "postgres-start.log", env=env, timeout=60)
             pg("createdb", database, check=True)
             config = work / "config"
@@ -135,7 +141,7 @@ def smoke(binary, pg_bin, output, evidence):
             for index, command in enumerate(("up", "up", "status", "verify")):
                 log = output / f"migration-{index}-{command}.log"
                 run_logged([str(binary), "migrate", command], log, cwd=work, env=env, timeout=60)
-                require(f"NETON_REFERENCE_MIGRATION_{command.upper()}_OK" in log.read_text(),
+                require(f"NETON_REFERENCE_MIGRATION_{command.upper()}_OK" in log.read_text(encoding="utf-8"),
                         "Migration success marker missing")
                 require(connections() == 0, "Migration process leaked a database connection")
                 evidence["migrations"].append({"command": command, "exitCode": 0, "connectionsAfterExit": 0})
@@ -144,7 +150,9 @@ def smoke(binary, pg_bin, output, evidence):
                 require(not port_open(http_port), "HTTP port already occupied before launch")
                 with (output / f"cycle-{cycle}.log").open("w") as log:
                     process = subprocess.Popen([str(binary)], cwd=work, env=env, stdout=log,
-                                               stderr=subprocess.STDOUT, start_new_session=True)
+                                               stderr=subprocess.STDOUT,
+                                               start_new_session=not windows,
+                                               creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0)
                     deadline = time.monotonic() + 60
                     while True:
                         require(process.poll() is None, "Reference process exited before readiness")
@@ -163,7 +171,9 @@ def smoke(binary, pg_bin, output, evidence):
                         health(http_port)
                         time.sleep(1)
                     held = time.monotonic() - healthy_since
-                    result = observe_shutdown(process, lambda: port_open(http_port), connections)
+                    result = observe_shutdown(process, lambda: port_open(http_port), connections,
+                                              shutdown_signal=signal.CTRL_BREAK_EVENT if windows else signal.SIGTERM)
+                    result["shutdownSignal"] = "CTRL_BREAK_EVENT" if windows else "SIGTERM"
                     result.update(cycle=cycle, healthySeconds=held, health=response, connectionsWhileServing=active)
                     evidence["cycles"].append(result)
                     process = None
@@ -171,7 +181,10 @@ def smoke(binary, pg_bin, output, evidence):
         finally:
             # These actions are cleanup, never acceptance evidence.
             if process is not None and process.poll() is None:
-                os.killpg(process.pid, signal.SIGKILL)
+                if windows:
+                    process.kill()
+                else:
+                    os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=10)
             if started:
                 result = pg("pg_ctl", "-D", str(data), "-m", "immediate", "-w", "stop")
@@ -180,7 +193,8 @@ def smoke(binary, pg_bin, output, evidence):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target", choices=("macosArm64", "linuxX64", "linuxArm64"), required=True)
+    parser.add_argument("--target", choices=("macosArm64", "linuxX64", "linuxArm64", "mingwX64"), required=True)
+    parser.add_argument("--dependencies", choices=("sources", "published"), default="sources")
     parser.add_argument("--pg-bin", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -189,39 +203,56 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     evidence = {"passed": False, "fixture": "examples/release-gate", "target": args.target,
                 "repository": "https://github.com/netonframework/neton", "host": platform.platform()}
+    owned_console = False
     try:
+        if os.name == "nt":
+            # Hosted Windows runners may start Python without a console. Allocate
+            # one for this harness and its owned process groups only; never send
+            # an event to process-group zero (which would affect unrelated jobs).
+            import ctypes
+            kernel = ctypes.windll.kernel32
+            if kernel.GetConsoleCP() == 0:
+                require(kernel.AllocConsole() != 0, "Cannot allocate the gate's Windows control console")
+                owned_console = True
         for tool in ("initdb", "pg_ctl", "psql", "createdb"):
-            require((args.pg_bin / tool).is_file(), f"Missing PostgreSQL tool: {tool}")
+            require((args.pg_bin / (tool + ".exe" if os.name == "nt" else tool)).is_file(), f"Missing PostgreSQL tool: {tool}")
         require((platform.system(), platform.machine()) in {
             "macosArm64": ("Darwin", "arm64"), "linuxX64": ("Linux", "x86_64"),
             "linuxArm64": ("Linux", "aarch64"),
+            "mingwX64": ("Windows", "AMD64"),
         }.values(), "Unsupported host")
         expected_host = {"macosArm64": ("Darwin", "arm64"), "linuxX64": ("Linux", "x86_64"),
-                         "linuxArm64": ("Linux", "aarch64")}[args.target]
+                         "linuxArm64": ("Linux", "aarch64"), "mingwX64": ("Windows", "AMD64")}[args.target]
         require((platform.system(), platform.machine()) == expected_host, "Target must match the native runner")
         evidence["revision"] = clean_revision(root)
         require(not (root / "examples/release-gate/build").exists(),
                 "Reference gate requires a fresh checkout/output directory")
         evidence["postgresVersion"] = subprocess.check_output(
-            [str(args.pg_bin / "postgres"), "--version"], text=True).strip()
+            [str(args.pg_bin / ("postgres.exe" if os.name == "nt" else "postgres")), "--version"], text=True).strip()
         sources = Path(os.environ.get("NETON_PROTOCOL_SOURCES_DIR", str(root.parent))).resolve()
         evidence["dependencies"] = {}
-        for line in (root / "tools/ci/protocol-sources.lock").read_text().splitlines():
-            name, revision = line.split()
-            require(clean_revision(sources / name) == revision, f"Protocol pin mismatch: {name}")
-            evidence["dependencies"][name] = revision
+        evidence["dependencyMode"] = args.dependencies
+        evidence["versionCatalogSha256"] = hashlib.sha256((root / "gradle/libs.versions.toml").read_bytes()).hexdigest()
+        if args.dependencies == "sources":
+            for line in (root / "tools/ci/protocol-sources.lock").read_text().splitlines():
+                name, revision = line.split()
+                require(clean_revision(sources / name) == revision, f"Protocol pin mismatch: {name}")
+                evidence["dependencies"][name] = revision
         task = f":examples:release-gate:linkReleaseExecutable{args.target[0].upper() + args.target[1:]}"
-        command = ["./gradlew", "--no-daemon", "--warning-mode=fail", "-Pnetonstream.local=true",
-                   "-Pnetonstream.local.openssl=true", f"-Pnetonstream.sourcesDir={sources}",
-                   "-PnativeTargets=all", "-Pneton.database.driver=postgres", task]
+        wrapper = str(root / "gradlew.bat") if os.name == "nt" else "./gradlew"
+        mode = (["-Pnetonstream.local=true", "-Pnetonstream.local.openssl=true",
+                 f"-Pnetonstream.sourcesDir={sources}", "-PnativeTargets=all"]
+                if args.dependencies == "sources" else ["-Pnetonstream.local=false", "-Phyper4k.local=false"])
+        command = [wrapper, "--no-daemon", "--warning-mode=fail", *mode, "-Pneton.database.driver=postgres", task]
         evidence["buildCommand"] = command
         evidence["smokeCommand"] = ["python3", "tools/ci/reference_gate.py", "--target", args.target,
-                                    "--pg-bin", str(args.pg_bin), "--output", str(output)]
+                                    "--pg-bin", str(args.pg_bin), "--output", str(output), "--dependencies", args.dependencies]
         # A fresh CI checkout supplies clean output; the second build must succeed without clean.
         for attempt in (1, 2):
             print(f"Building reference release binary (pass {attempt})", flush=True)
             run_logged(command, output / f"build-{attempt}.log", cwd=root, timeout=2400)
-        binary = root / f"examples/release-gate/build/bin/{args.target}/releaseExecutable/release-gate.kexe"
+        binary = root / f"examples/release-gate/build/bin/{args.target}/releaseExecutable" / (
+            "release-gate.exe" if os.name == "nt" else "release-gate.kexe")
         require(binary.is_file(), "Release binary missing")
         evidence["binarySha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
         smoke(binary, args.pg_bin.resolve(), output, evidence)
@@ -235,6 +266,8 @@ def main():
         raise
     finally:
         (output / "evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
+        if owned_console:
+            kernel.FreeConsole()
 
 
 if __name__ == "__main__":

@@ -26,10 +26,6 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
-      - name: Provide documented Linux cross-compilers on the disposable ABI runner
-        run: |
-          brew tap messense/macos-cross-toolchains
-          brew install x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
       - name: Require complete ABI inventory and database boundary
         run: |
           python3 -m unittest discover -s tools/ci -p test_abi_policy.py
@@ -117,31 +113,61 @@ jobs:
           if-no-files-found: error
 
   reference-release:
-    name: Reference release (macosArm64)
-    runs-on: macos-15
+    name: Reference release (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 65
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: macosArm64
+          - os: ubuntu-24.04
+            target: linuxX64
+          - os: windows-2022
+            target: mingwX64
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout pinned protocol sources
-        run: bash tools/ci/checkout-protocols.sh
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-      - name: Provide isolated PostgreSQL tooling
-        run: brew list --versions postgresql@16 || brew install postgresql@16
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Provide macOS PostgreSQL tooling
+        if: runner.os == 'macOS'
+        run: |
+          echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> "$GITHUB_ENV"
+          brew list --versions postgresql@16 || brew install postgresql@16
+          echo "GATE_PG_BIN=$(brew --prefix postgresql@16)/bin" >> "$GITHUB_ENV"
+      - name: Provide Linux PostgreSQL tooling
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          echo "GATE_PG_BIN=/usr/lib/postgresql/16/bin" >> "$GITHUB_ENV"
+      - name: Extract verified Windows PostgreSQL tooling (no system service)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'postgresql-16.15-5.zip'
+          Invoke-WebRequest 'https://get.enterprisedb.com/postgresql/postgresql-16.15-5-windows-x64-binaries.zip' -OutFile $archive
+          # Vendor checksum: https://github.com/EnterpriseDB/edb-installers/issues/731
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '43bb45f173a6f08cf1d29a97a6d8deb119e8e8093a24c00d2d1001a0ccaa8281') { throw 'PostgreSQL archive checksum mismatch' }
+          $destination = Join-Path $env:RUNNER_TEMP 'postgresql-tooling'
+          Expand-Archive $archive -DestinationPath $destination
+          "GATE_PG_BIN=$destination\pgsql\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Verify smoke harness failure paths
-        run: python3 -m unittest discover -s tools/ci -p 'test_reference_gate.py'
+        run: python -m unittest discover -s tools/ci -p test_reference_gate.py
       - name: Build release twice and verify migration and two shutdown cycles
-        run: python3 tools/ci/reference_gate.py --target macosArm64 --pg-bin "$(brew --prefix postgresql@16)/bin" --output "$RUNNER_TEMP/neton-reference-evidence"
+        run: python tools/ci/reference_gate.py --target ${{ matrix.target }} --dependencies published --pg-bin "${{ env.GATE_PG_BIN }}" --output "${{ runner.temp }}/neton-reference-evidence"
       - name: Retain reference release evidence (including failures)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reference-release-macosArm64-${{ github.sha }}
+          name: reference-release-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/neton-reference-evidence/
           if-no-files-found: error
 

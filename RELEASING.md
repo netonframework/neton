@@ -22,12 +22,13 @@ as an artifact named with the candidate commit. This database suite does **not**
 application lifecycle shutdown or zero connections after SIGTERM.
 
 The public fixture is [examples/release-gate](examples/release-gate/README.md). The
-`Reference release (macosArm64)` job builds it twice, migrates an isolated PostgreSQL cluster,
-and checks two healthy start/SIGTERM cycles and zero connections before teardown. The
-`Neton release gates` aggregate requires this job and all framework/service/native jobs on
+`Reference release` matrix requires macOS ARM64, Linux x64 and Windows x64. Each builds twice,
+migrates an isolated PostgreSQL cluster, and checks two healthy start/graceful-stop cycles and
+zero connections before teardown. The
+`Neton release gates` aggregate requires this matrix and all framework/service/native jobs on
 the same commit; failed or skipped prerequisites cannot pass. Evidence is retained under
-the candidate SHA. This macOS fixture result does not claim Linux/Windows application runtime
-acceptance or Maven Central publication acceptance. Never substitute downstream product-specific
+the candidate SHA. Each platform needs its own passing evidence; the historical macOS-only
+result cannot satisfy the expanded matrix or Maven Central publication acceptance. Never substitute downstream product-specific
 build or deployment results for missing reference evidence.
 
 `~/.gradle/gradle.properties`:
@@ -49,7 +50,7 @@ Before any publication, `checkKotlinAbi` compares the compiled APIs of all 17
 published Kotlin modules with their committed `api/` dumps. `neton-bom` is
 validated as publication metadata, not an executable ABI; the experimental
 Geario adapter is excluded from publication. ABI target inference is disabled.
-The complete check runs on macOS with the documented Linux cross-compilers;
+The complete check runs on macOS with Kotlin/Native's bundled Linux cross-toolchain;
 foreign-target compilation is not a runtime acceptance claim.
 
 ```sh

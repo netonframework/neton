@@ -59,19 +59,31 @@ fun kotlinNativeLlvmTool(name: String): String? =
         ?.maxByOrNull { it.lastModified() }
         ?.absolutePath
 
+/** Reuse Kotlin/Native's pinned sysroot instead of requiring a third-party brew tap. */
+fun appleLinuxCrossTools(architecture: String, target: String, environment: String): NativeTools {
+    val cc = providers.gradleProperty("neton.$target.cc").orElse(providers.environmentVariable("${environment}_CC")).orNull
+    if (cc != null) return NativeTools(cc, configuredTool("neton.$target.ar", "${environment}_AR", "$architecture-linux-gnu-ar"))
+    val triple = "$architecture-unknown-linux-gnu"
+    val sysroot = konanDependencies.listFiles()
+        ?.filter { it.isDirectory && it.name.startsWith("$triple-gcc-") }
+        ?.maxByOrNull { it.lastModified() }
+        ?.resolve("$triple/sysroot")
+        ?: error("Kotlin/Native Linux sysroot is not installed for $target")
+    check(sysroot.isDirectory) { "Kotlin/Native Linux sysroot is not installed for $target" }
+    return NativeTools(
+        kotlinNativeLlvmTool("clang") ?: "clang",
+        configuredTool("neton.$target.ar", "${environment}_AR", kotlinNativeLlvmTool("llvm-ar") ?: "llvm-ar"),
+        listOf("--target=$triple", "--sysroot=${sysroot.absolutePath}"),
+    )
+}
+
 fun targetTools(targetName: String): NativeTools? = when {
     isLinux && targetName == "LinuxArm64" && System.getProperty("os.arch") !in listOf("aarch64", "arm64") -> NativeTools(
         compiler = configuredTool("neton.linuxArm64.cc", "NETON_LINUX_ARM64_CC", "aarch64-linux-gnu-gcc"),
         archiver = configuredTool("neton.linuxArm64.ar", "NETON_LINUX_ARM64_AR", "aarch64-linux-gnu-ar"),
     )
-    isMacOs && targetName == "LinuxX64" -> NativeTools(
-        compiler = configuredTool("neton.linuxX64.cc", "NETON_LINUX_X64_CC", "x86_64-linux-gnu-gcc"),
-        archiver = configuredTool("neton.linuxX64.ar", "NETON_LINUX_X64_AR", "x86_64-linux-gnu-ar"),
-    )
-    isMacOs && targetName == "LinuxArm64" -> NativeTools(
-        compiler = configuredTool("neton.linuxArm64.cc", "NETON_LINUX_ARM64_CC", "aarch64-linux-gnu-gcc"),
-        archiver = configuredTool("neton.linuxArm64.ar", "NETON_LINUX_ARM64_AR", "aarch64-linux-gnu-ar"),
-    )
+    isMacOs && targetName == "LinuxX64" -> appleLinuxCrossTools("x86_64", "linuxX64", "NETON_LINUX_X64")
+    isMacOs && targetName == "LinuxArm64" -> appleLinuxCrossTools("aarch64", "linuxArm64", "NETON_LINUX_ARM64")
     isWindows && targetName == "MingwX64" -> NativeTools(
         compiler = providers.gradleProperty("neton.mingwX64.cc")
             .orElse(providers.environmentVariable("NETON_MINGW_X64_CC"))
@@ -118,8 +130,8 @@ fun resolveCommand(command: String): String? {
         ?.absolutePath
 }
 
-// macOS 上用交叉 gcc 即可为 Linux 目标交叉编译（恢复 2026-07-02 aeda47b 前的 macOS 交叉编译能力）；
-// 交叉 gcc 缺失时 compilePosixEnv 任务会以明确错误失败（而非静默产错架构）。
+// macOS 默认使用 Kotlin/Native 的 LLVM + Linux sysroot；显式 GCC 配置仍可覆盖。
+// 缺少工具链时明确失败，不能静默产出宿主架构的对象文件。
 fun canBuildTarget(targetName: String): Boolean = when (targetName) {
     "MacosArm64", "MacosX64" -> isMacOs
     "LinuxX64", "LinuxArm64" -> isLinux || isMacOs
@@ -254,7 +266,7 @@ for (target in nativeTargets) {
         inputs.files("src/nativeInterop/c/env.c", "src/nativeInterop/c/env.h")
         outputs.file("$outDir/env.o")
         onlyIf { canBuildTarget(target.name) }
-        if (target.name == "MingwX64") {
+        if (target.name == "MingwX64" || (isMacOs && target.name.startsWith("Linux"))) {
             dependsOn("downloadKotlinNativeDistribution")
         }
         doFirst {
