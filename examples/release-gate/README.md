@@ -20,7 +20,7 @@ database-driver target. Do not point the gate at an existing database.
 
 ```sh
 bash tools/ci/checkout-protocols.sh
-python3 -m unittest discover -s tools/ci -p 'test_reference_gate.py'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/ci -p 'test_reference_gate.py'
 python3 tools/ci/reference_gate.py --target macosArm64 \
   --pg-bin /absolute/path/to/postgresql/bin --output /new/absolute/evidence-directory
 ```
