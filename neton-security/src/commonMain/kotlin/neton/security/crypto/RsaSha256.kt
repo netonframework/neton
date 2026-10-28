@@ -1,8 +1,6 @@
 package neton.security.crypto
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.RSA
-import dev.whyoleg.cryptography.algorithms.SHA256
+import neton.security.internal.NativeCrypto
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -28,11 +26,7 @@ object RsaSha256 {
         Base64.encode(sign(privateKey, data))
 
     fun sign(privateKey: String, data: ByteArray): ByteArray =
-        CryptographyProvider.Default.get(RSA.PKCS1)
-            .privateKeyDecoder(SHA256)
-            .decodeFromByteArrayBlocking(RSA.PrivateKey.Format.DER, decodeKey(privateKey))
-            .signatureGenerator()
-            .generateSignatureBlocking(data)
+        NativeCrypto.rsaSign(decodeKey(privateKey), data)
 
     /**
      * 用对方公钥验签。
@@ -43,11 +37,7 @@ object RsaSha256 {
      * @param publicKey X.509 公钥，PEM 或裸 base64
      */
     fun verifyBase64(publicKey: String, data: ByteArray, signatureBase64: String): Boolean = try {
-        CryptographyProvider.Default.get(RSA.PKCS1)
-            .publicKeyDecoder(SHA256)
-            .decodeFromByteArrayBlocking(RSA.PublicKey.Format.DER, decodeKey(publicKey))
-            .signatureVerifier()
-            .tryVerifySignatureBlocking(data, Base64.decode(signatureBase64))
+        NativeCrypto.rsaVerify(decodeKey(publicKey), data, Base64.decode(signatureBase64))
     } catch (_: Throwable) {
         false
     }

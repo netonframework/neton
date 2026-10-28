@@ -1,8 +1,7 @@
 package neton.security.jwt
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.RSA
-import dev.whyoleg.cryptography.algorithms.SHA256
+import neton.security.internal.NativeCrypto
+import neton.security.internal.rsaJwkSpki
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -74,7 +73,7 @@ public class RsaJwtVerifier(
             return fail(VerifyError.SignatureInvalid)
         }
         val ok = try {
-            publicKey.signatureVerifier().tryVerifySignatureBlocking(signingInput, signature)
+            NativeCrypto.rsaVerify(publicKey, signingInput, signature)
         } catch (_: Throwable) {
             return fail(VerifyError.SignatureInvalid)
         }
@@ -138,14 +137,9 @@ public class RsaJwtVerifier(
 
     // ───────────────────────── 内部工具 ─────────────────────────
 
-    private fun loadRsaPublicKey(jwk: JwkRsaMaterial): RSA.PKCS1.PublicKey {
-        val jwkJson = """
-            {"kty":"${jwk.kty}","alg":"${jwk.alg}","use":"${jwk.use}","n":"${jwk.n}","e":"${jwk.e}"}
-        """.trimIndent()
-        val provider = CryptographyProvider.Default
-        val rsa = provider.get(RSA.PKCS1)
-        return rsa.publicKeyDecoder(SHA256)
-            .decodeFromByteArrayBlocking(RSA.PublicKey.Format.JWK, jwkJson.encodeToByteArray())
+    private fun loadRsaPublicKey(jwk: JwkRsaMaterial): ByteArray {
+        require(jwk.kty == "RSA" && jwk.alg == "RS256" && jwk.use == "sig")
+        return rsaJwkSpki(jwk.n, jwk.e)
     }
 
     private fun parseJsonObjectOrNull(bytes: ByteArray): Map<String, JsonElement>? = try {

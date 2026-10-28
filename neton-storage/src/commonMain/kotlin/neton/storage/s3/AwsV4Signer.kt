@@ -1,12 +1,12 @@
 package neton.storage.s3
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.HMAC
-import dev.whyoleg.cryptography.algorithms.SHA256
+import neton.openssl.Crypto
+import neton.openssl.DigestAlgorithm
+import neton.openssl.OpenSsl
 import kotlin.time.Duration
 
 /**
- * AWS Signature V4 signing (pure Kotlin, using cryptography-kotlin).
+ * AWS Signature V4 signing using the shared Neton OpenSSL 4 runtime.
  */
 internal object AwsV4Signer {
 
@@ -125,17 +125,11 @@ internal object AwsV4Signer {
     // --- Crypto helpers ---
 
     internal fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
-        val provider = CryptographyProvider.Default
-        val hmac = provider.get(HMAC)
-        val decoder = hmac.keyDecoder(SHA256)
-        val hmacKey = decoder.decodeFromByteArrayBlocking(HMAC.Key.Format.RAW, key)
-        return hmacKey.signatureGenerator().generateSignatureBlocking(data)
+        return ByteArray(32).also { Crypto.hmac(DigestAlgorithm.SHA256, key, data, it) }
     }
 
     internal fun sha256(data: ByteArray): ByteArray {
-        val provider = CryptographyProvider.Default
-        val digest = provider.get(SHA256)
-        return digest.hasher().hashBlocking(data)
+        return OpenSsl.sha256(data)
     }
 
     internal fun hexEncode(bytes: ByteArray): String {

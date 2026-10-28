@@ -1,7 +1,6 @@
 [versions]
 kotlin = "2.4.20"
-cryptography-kotlin = "0.6.0"
-kotlinx-io = "0.9.1"  # kotlinx-io-bytestring，与 cryptography-kotlin 的 kotlinx-io-core 对齐
+kotlinx-io = "0.9.1"
 ksp = "2.3.12"
 kctfork = "0.14.0"  # Kotlin Compile Testing，跑 KSP 编译契约测试；对齐 Kotlin 2.4.20
 kotlinx-coroutines = "1.11.0"
@@ -36,9 +35,6 @@ rethis = { module = "eu.vendeli:rethis", version = "0.4.4" }
 # Konform (validation, internal to neton-validation)
 konform = { module = "io.konform:konform", version.ref = "konform" }
 
-# cryptography-kotlin (KMP crypto, Native via CommonCrypto/OpenSSL)
-cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography-kotlin" }
-cryptography-provider-optimal = { module = "dev.whyoleg.cryptography:cryptography-provider-optimal", version.ref = "cryptography-kotlin" }
 kotlinx-io-bytestring = { module = "org.jetbrains.kotlinx:kotlinx-io-bytestring", version.ref = "kotlinx-io" }
 
 [plugins]

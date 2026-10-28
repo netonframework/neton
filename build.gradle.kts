@@ -51,6 +51,14 @@ val netonVersion: String by project
 val netonGroup: String by project
 
 subprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            require(!requested.name.contains("openssl3", ignoreCase = true) &&
+                requested.group != "dev.whyoleg.cryptography") {
+                "Neton uses its own OpenSSL 4 runtime; incompatible crypto dependency: $requested"
+            }
+        }
+    }
     if (path.startsWith(":examples")) return@subprojects
 
     group = netonGroup
@@ -72,10 +80,7 @@ subprojects {
 
     // Apple 目标链接 Swift 互操作库所需的搜索路径。
     //
-    // cryptography-kotlin 在 Apple 上把 AES-GCM 解析到 CryptoKit，其实现是 Swift；链接时需要
-    // SDK 里的 Swift 运行时存根（libswift_Builtin_float 等）。Kotlin/Native 不会把该目录传给 ld，
-    // Xcode 15.x 上会以 "Could not find or use auto-linked library 'swift_*'" 链接失败。
-    // CommonCrypto 没有 GCM，换 provider 行不通，因此在链接期补上 SDK 的 swift 目录。
+    // 保留 Apple 依赖可能使用的 Swift SDK 搜索路径；加密本身已统一为 OpenSSL 4。
     plugins.withId("org.jetbrains.kotlin.multiplatform") {
         val swiftLibDir = appleSwiftLibDir
         if (swiftLibDir != null) {

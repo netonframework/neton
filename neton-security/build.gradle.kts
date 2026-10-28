@@ -15,6 +15,12 @@ kotlin {
     mingwX64()
 
     sourceSets {
+        val nativeMain by creating { dependsOn(commonMain.get()) }
+        val macosArm64Main by getting { dependsOn(nativeMain) }
+        val macosX64Main by getting { dependsOn(nativeMain) }
+        val linuxX64Main by getting { dependsOn(nativeMain) }
+        val linuxArm64Main by getting { dependsOn(nativeMain) }
+        val mingwX64Main by getting { dependsOn(nativeMain) }
         val commonMain by getting {
             dependencies {
                 implementation(project(":neton-core"))
@@ -23,9 +29,8 @@ kotlin {
                 // Kotlin协程 Native版本
                 implementation(libs.kotlinx.coroutines.core)
 
-                // cryptography-kotlin (HS256 for JWT, Native via CommonCrypto/OpenSSL)
-                implementation(libs.cryptography.core)
-                implementation(libs.cryptography.provider.optimal)
+                // One OpenSSL runtime for HTTP/TLS and application cryptography.
+                implementation("com.netonstream:openssl:4.0.2-3")
                 // JWT payload JSON 解析
                 implementation(libs.kotlinx.serialization.json)
             }
@@ -35,6 +40,8 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+                // Regression: Security and the real HTTP/TLS dependency graph must link together.
+                implementation(project(":neton-http"))
             }
         }
     }

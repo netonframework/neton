@@ -1,8 +1,7 @@
 package neton.security.jwt
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.RSA
-import dev.whyoleg.cryptography.algorithms.SHA256
+import neton.security.internal.NativeCrypto
+import neton.security.internal.rsaJwkSpki
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,7 +11,7 @@ import kotlin.test.assertTrue
  * RS256-on-Native PoC（spec TOKEN_UNIFICATION_SPEC v1.3 Phase A · Plan H Risk #1）。
  *
  * 这层测试**不是**正式 verifier；目的只有一个：在每个 native target 实证
- * `cryptography-kotlin` 0.6.0 能把 JWKS 里的 `(n, e)` 转成 RSA public key
+ * `Neton OpenSSL 4` 0.6.0 能把 JWKS 里的 `(n, e)` 转成 RSA public key
  * 并验证 RSASSA-PKCS1-v1_5 + SHA-256 的 JWT 签名。
  *
  * 通过 = Step 3 可以放心写正式 [neton.security.jwt.RsaJwtVerifier]；
@@ -71,8 +70,7 @@ class RsaJwtVerifierPoCTest {
         assertEquals(256, signature.size)
 
         val publicKey = loadRsaPublicKeyFromJwkComponents(publicJwkN, publicJwkE)
-        val ok = publicKey.signatureVerifier()
-            .tryVerifySignatureBlocking(signingInput, signature)
+        val ok = NativeCrypto.rsaVerify(publicKey, signingInput, signature)
 
         assertTrue(ok, "RS256 verify must succeed for golden JWT")
     }
@@ -88,8 +86,7 @@ class RsaJwtVerifierPoCTest {
         sigBytes[sigBytes.lastIndex] = (sigBytes.last().toInt() xor 0x01).toByte()
 
         val publicKey = loadRsaPublicKeyFromJwkComponents(publicJwkN, publicJwkE)
-        val ok = publicKey.signatureVerifier()
-            .tryVerifySignatureBlocking(signingInput, sigBytes)
+        val ok = NativeCrypto.rsaVerify(publicKey, signingInput, sigBytes)
 
         assertFalse(ok, "tampered signature must NOT verify")
     }
@@ -105,34 +102,18 @@ class RsaJwtVerifierPoCTest {
         val signingInput = "$h.$tamperedPayload".encodeToByteArray()
 
         val publicKey = loadRsaPublicKeyFromJwkComponents(publicJwkN, publicJwkE)
-        val ok = publicKey.signatureVerifier()
-            .tryVerifySignatureBlocking(signingInput, signature)
+        val ok = NativeCrypto.rsaVerify(publicKey, signingInput, signature)
 
         assertFalse(ok, "tampered payload must NOT verify")
     }
 
     // ─────────────────────── PoC helpers (no production claim) ───────────────────────
 
-    /**
-     * 把 JWK 里的 `n` / `e` 组装成 cryptography-kotlin 可消费的 JWK JSON，再走
-     * `RSA.PKCS1` 的 `publicKeyDecoder(SHA256)` 解码。
-     *
-     * Phase A 正式实现时这段会搬到 `RsaJwtVerifier`；PoC 阶段写在 test 里就行。
-     */
-    private fun loadRsaPublicKeyFromJwkComponents(
-        n: String,
-        e: String,
-    ): RSA.PKCS1.PublicKey {
-        val jwk = """{"kty":"RSA","alg":"RS256","use":"sig","n":"$n","e":"$e"}"""
-        val provider = CryptographyProvider.Default
-        val rsa = provider.get(RSA.PKCS1)
-        return rsa.publicKeyDecoder(SHA256)
-            .decodeFromByteArrayBlocking(RSA.PublicKey.Format.JWK, jwk.encodeToByteArray())
-    }
+    private fun loadRsaPublicKeyFromJwkComponents(n: String, e: String): ByteArray = rsaJwkSpki(n, e)
 
     /**
      * base64url-no-pad 解码。Native target 上没有现成的 stdlib 实现；写一份最小版本即可。
-     * 正式实现可以走 cryptography-kotlin 自己的 base64url helper，PoC 不引依赖。
+     * 正式实现可以走 Neton OpenSSL 4 自己的 base64url helper，PoC 不引依赖。
      */
     private fun base64UrlDecode(s: String): ByteArray {
         val pad = (4 - s.length % 4) % 4

@@ -1,11 +1,8 @@
 package neton.security.crypto
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.HMAC
-import dev.whyoleg.cryptography.algorithms.SHA1
+import neton.security.internal.NativeCrypto
 
 /** RFC 6238 SHA-1 profile used by authenticator apps. */
-@OptIn(dev.whyoleg.cryptography.DelicateCryptographyApi::class)
 object Totp {
     private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
     fun base32(bytes: ByteArray): String {
@@ -31,9 +28,7 @@ object Totp {
     fun code(secret: ByteArray, step: Long, digits: Int = 6): String {
         require(step >= 0 && digits in 6..8)
         val data = ByteArray(8) { (step ushr ((7 - it) * 8)).toByte() }
-        val key = CryptographyProvider.Default.get(HMAC).keyDecoder(SHA1)
-            .decodeFromByteArrayBlocking(HMAC.Key.Format.RAW, secret)
-        val digest = key.signatureGenerator().generateSignatureBlocking(data)
+        val digest = NativeCrypto.hmac("SHA1", secret, data, 20)
         val offset = digest.last().toInt() and 15
         var value = digest[offset].toInt() and 127
         for (i in 1..3) value = (value shl 8) or (digest[offset + i].toInt() and 255)

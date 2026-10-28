@@ -1,8 +1,6 @@
 package neton.security.crypto
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.DelicateCryptographyApi
-import dev.whyoleg.cryptography.algorithms.AES
+import neton.security.internal.NativeCrypto
 
 /**
  * AES-GCM，**由调用方提供 nonce 与附加认证数据（AAD）**。
@@ -15,7 +13,6 @@ import dev.whyoleg.cryptography.algorithms.AES
  * GCM 的 nonce 绝不可在同一密钥下重复：重复会同时毁掉机密性与完整性。
  * 本类只做解密，不提供加密入口，正是为了不给"自己造 nonce"留口子。
  */
-@OptIn(DelicateCryptographyApi::class)
 object AesGcm {
 
     /**
@@ -35,11 +32,7 @@ object AesGcm {
         ciphertext: ByteArray,
         associatedData: ByteArray? = null,
     ): ByteArray? = try {
-        CryptographyProvider.Default.get(AES.GCM)
-            .keyDecoder()
-            .decodeFromByteArrayBlocking(AES.Key.Format.RAW, key)
-            .cipher()
-            .decryptWithIvBlocking(nonce, ciphertext, associatedData)
+        NativeCrypto.gcm(key, nonce, ciphertext, associatedData ?: byteArrayOf(), false)
     } catch (_: Throwable) {
         null
     }

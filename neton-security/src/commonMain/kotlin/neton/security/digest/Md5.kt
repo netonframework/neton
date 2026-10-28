@@ -1,8 +1,6 @@
 package neton.security.digest
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.DelicateCryptographyApi
-import dev.whyoleg.cryptography.algorithms.MD5
+import neton.security.internal.NativeCrypto
 
 /**
  * MD5 摘要。
@@ -14,12 +12,9 @@ import dev.whyoleg.cryptography.algorithms.MD5
  *
  * 自研协议一律用 [Sha256] 或 HMAC。
  */
-@OptIn(DelicateCryptographyApi::class)
 object Md5 {
 
-    private val hasher by lazy { CryptographyProvider.Default.get(MD5).hasher() }
-
-    fun hash(data: ByteArray): ByteArray = hasher.hashBlocking(data)
+    fun hash(data: ByteArray): ByteArray = NativeCrypto.digest("MD5", data, 16)
 
     @OptIn(ExperimentalStdlibApi::class)
     fun hex(data: ByteArray): String = hash(data).toHexString()

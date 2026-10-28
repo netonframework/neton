@@ -2,7 +2,7 @@
 
 ## 依赖
 
-- **cryptography-kotlin** (cryptography-core + cryptography-provider-optimal)：HS256 验签，Native 通过 CommonCrypto/OpenSSL，使用 Blocking API（decodeFromByteArrayBlocking / generateSignatureBlocking）纯 ByteArray
+- **Neton OpenSSL 4** (`com.netonstream:openssl:4.0.2-3`)：与 HTTP/TLS 共用同一原生加密运行时；RSA、摘要、HMAC、PBKDF2、AES-GCM、TOTP 和安全随机数不再混入 OpenSSL 3。公开 API 保持 ByteArray/String，现有密码哈希与 SecretBox 密文无需迁移。
 
 ## 概述
 

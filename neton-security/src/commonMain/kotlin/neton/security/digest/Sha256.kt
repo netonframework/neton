@@ -1,10 +1,9 @@
 package neton.security.digest
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.SHA256
+import neton.openssl.OpenSsl
 
 /**
- * 通用 SHA-256 摘要（hex 小写）。使用 cryptography-kotlin，不手写 crypto。
+ * 通用 SHA-256 摘要（hex 小写）。使用 Neton OpenSSL 4，不手写 crypto。
  * NewGate 网关令牌哈希等场景使用。
  */
 object Sha256 {
@@ -12,5 +11,5 @@ object Sha256 {
 
     @OptIn(ExperimentalStdlibApi::class)
     fun hex(input: ByteArray): String =
-        CryptographyProvider.Default.get(SHA256).hasher().hashBlocking(input).toHexString()
+        OpenSsl.sha256(input).toHexString()
 }

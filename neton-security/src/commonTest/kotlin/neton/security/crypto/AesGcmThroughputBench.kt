@@ -1,7 +1,7 @@
 package neton.security.crypto
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.AES
+import neton.security.internal.NativeCrypto
+import neton.security.random.SecureRandom
 import kotlin.test.Test
 import kotlin.time.Clock
 
@@ -13,22 +13,20 @@ import kotlin.time.Clock
  */
 class AesGcmThroughputBench {
 
-    private fun gcm(key: ByteArray) = CryptographyProvider.Default
-        .get(AES.GCM).keyDecoder().decodeFromByteArrayBlocking(AES.Key.Format.RAW, key)
-        .cipher()
+    private fun encrypt(key: ByteArray, data: ByteArray) =
+        NativeCrypto.gcm(key, SecureRandom.bytes(12), data, byteArrayOf(), true)
 
     @Test
     fun measure_attachment_sized_payloads() {
         val key = ByteArray(32) { (it * 7 + 1).toByte() }
-        val cipher = gcm(key)
         // 覆盖真实附件档位：头像 / 聊天图 / 高清图 / 短视频
         listOf(64 * 1024 to "64KB 头像", 512 * 1024 to "512KB 聊天图",
                3 * 1024 * 1024 to "3MB 高清图", 20 * 1024 * 1024 to "20MB 短视频").forEach { (size, label) ->
             val data = ByteArray(size) { (it and 0xFF).toByte() }
-            cipher.encryptBlocking(data) // 预热，排除首次初始化
+            encrypt(key, data) // 预热，排除首次初始化
             val rounds = if (size <= 512 * 1024) 20 else 5
             val t0 = Clock.System.now()
-            repeat(rounds) { cipher.encryptBlocking(data) }
+            repeat(rounds) { encrypt(key, data) }
             val ms = (Clock.System.now() - t0).inWholeMicroseconds / 1000.0
             val perOp = ms / rounds
             val mbPerSec = (size / 1024.0 / 1024.0) / (perOp / 1000.0)

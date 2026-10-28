@@ -1,20 +1,19 @@
 package neton.security.random
 
-import dev.whyoleg.cryptography.random.CryptographyRandom
+import neton.openssl.OpenSsl
 
 /**
  * 密码学安全随机源（CSPRNG）。
  *
  * `kotlin.random.Random` 是可预测的 PRNG，**不得**用于 API 令牌、会话/结算标识、盐等安全敏感场景
- * （给定若干输出即可推断内部状态并预测后续值）。本对象基于 cryptography-kotlin 的
- * [CryptographyRandom]（Native 走平台 CSPRNG：Darwin CommonCrypto / Linux OpenSSL）。
+ * 本对象统一通过自有 OpenSSL 4 封装调用 CSPRNG，失败时抛错而不返回部分结果。
  */
 object SecureRandom {
 
     /** [size] 字节的密码学安全随机数据。 */
     fun bytes(size: Int): ByteArray {
         require(size > 0) { "size must be positive" }
-        return CryptographyRandom.nextBytes(size)
+        return OpenSsl.randomBytes(size)
     }
 
     /** [byteLength] 字节随机数据的小写 hex（长度为 `byteLength * 2`）。 */

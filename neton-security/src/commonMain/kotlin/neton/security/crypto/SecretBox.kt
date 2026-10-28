@@ -1,7 +1,7 @@
 package neton.security.crypto
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.algorithms.AES
+import neton.security.internal.NativeCrypto
+import neton.security.random.SecureRandom
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -17,12 +17,15 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 @OptIn(ExperimentalEncodingApi::class)
 class SecretBox(masterKey: ByteArray, private val version: Int = 1) {
 
-    private val key: ByteArray = masterKey.also {
+    private val key: ByteArray = masterKey.copyOf().also {
         require(it.size == 32) { "master key must be 32 bytes (AES-256), got ${it.size}" }
     }
 
-    fun seal(plaintext: String): String =
-        PREFIX + version + ":" + Base64.encode(gcm(key).encryptBlocking(plaintext.encodeToByteArray()))
+    fun seal(plaintext: String): String {
+        val nonce = SecureRandom.bytes(12)
+        val ciphertext = NativeCrypto.gcm(key, nonce, plaintext.encodeToByteArray(), byteArrayOf(), true)
+        return PREFIX + version + ":" + Base64.encode(nonce + ciphertext)
+    }
 
     /**
      * 解开密文；[stored] 若不是本工具产生的密文则原样返回，便于「加密上线前已存明文」的平滑迁移。
@@ -30,7 +33,10 @@ class SecretBox(masterKey: ByteArray, private val version: Int = 1) {
     fun open(stored: String): String {
         if (!isEncrypted(stored)) return stored
         val payload = stored.substringAfter(':', "").substringAfter(':', "")
-        return gcm(key).decryptBlocking(Base64.decode(payload)).decodeToString()
+        val box = Base64.decode(payload)
+        require(box.size >= 28) { "Invalid encrypted payload" }
+        return NativeCrypto.gcm(key, box.copyOfRange(0, 12), box.copyOfRange(12, box.size),
+            byteArrayOf(), false).decodeToString()
     }
 
     companion object {
@@ -44,10 +50,5 @@ class SecretBox(masterKey: ByteArray, private val version: Int = 1) {
         fun fromBase64(masterKeyBase64: String, version: Int = 1): SecretBox =
             SecretBox(Base64.decode(masterKeyBase64), version)
 
-        private fun gcm(key: ByteArray) =
-            CryptographyProvider.Default.get(AES.GCM)
-                .keyDecoder()
-                .decodeFromByteArrayBlocking(AES.Key.Format.RAW, key)
-                .cipher()
     }
 }
