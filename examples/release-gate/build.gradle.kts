@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+repositories { mavenCentral() }
+
 val hostTarget = when {
     System.getProperty("os.name").contains("Mac") -> "macosArm64"
     System.getProperty("os.name").contains("Windows") -> "mingwX64"
