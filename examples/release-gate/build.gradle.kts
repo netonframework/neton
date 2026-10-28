@@ -1,4 +1,5 @@
 import java.security.MessageDigest
+import java.util.Base64
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -20,7 +21,7 @@ val generateMigrationResources by tasks.registering {
     outputs.dir(migrationOutput)
     doLast {
         val bytes = sql.asFile.readBytes()
-        val encoded = java.util.Base64.getEncoder().encodeToString(bytes)
+        val encoded = Base64.getEncoder().encodeToString(bytes)
         val checksum = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         val output = migrationOutput.get().file("init/generated/ReferenceMigrationResources.kt").asFile
         output.parentFile.mkdirs()
