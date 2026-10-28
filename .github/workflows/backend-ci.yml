@@ -13,6 +13,44 @@ on:
       - 'ci/**'
 
 jobs:
+  api-abi:
+    name: Compiled API ABI baseline
+    runs-on: macos-15
+    timeout-minutes: 65
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Provide documented Linux cross-compilers on the disposable ABI runner
+        run: |
+          brew tap messense/macos-cross-toolchains
+          brew install x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+      - name: Require complete ABI inventory and database boundary
+        run: |
+          python3 -m unittest discover -s tools/ci -p test_abi_policy.py
+          python3 tools/ci/verify_abi_policy.py
+      - name: Check every published Kotlin library against committed ABI
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Phyper4k.local=false checkKotlinAbi
+      - name: Check MySQL variant against the same database API
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Pneton.database.driver=mysql :neton-database:checkKotlinAbi
+      - name: Check SQLite variant against the same database API
+        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Pneton.database.driver=sqlite :neton-database:checkKotlinAbi
+      - name: Baselines must not be rewritten by CI
+        run: git diff --exit-code -- '**/api/**'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: abi-reports-${{ github.sha }}
+          path: |
+            **/build/reports/abi/**
+            **/build/kotlin/abi/**
+          if-no-files-found: error
+
   ksp-incremental:
     name: KSP incremental (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -43,6 +81,9 @@ jobs:
       - name: Use the accepted Apple toolchain
         if: runner.os == 'macOS'
         run: echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Provide ARM64 C bridge cross-compiler
+        if: matrix.target == 'linuxArm64'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
       - name: Test rejection of stale or missing generated code
         run: python -m unittest discover -s tools/ci -p test_ksp_incremental_gate.py
       - name: Native clean, no-op, add, modify and delete
@@ -107,13 +148,13 @@ jobs:
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==7 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==8 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04

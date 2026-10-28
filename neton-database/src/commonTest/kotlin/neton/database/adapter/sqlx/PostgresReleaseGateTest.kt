@@ -48,6 +48,7 @@ class PostgresReleaseGateTest {
         val suffix = Random.nextLong(1, Long.MAX_VALUE).toString(16)
         val table = "neton_gate_rows_$suffix"
         val history = "neton_gate_history_$suffix"
+        val ddlProbe = "neton_gate_ddl_$suffix"
         val sql = "CREATE TABLE $table (id BIGINT PRIMARY KEY, value BIGINT NOT NULL);"
         val script = MigrationScript("001", "gate_rows", sql, Checksum.sha256Hex(sql.encodeToByteArray()))
         val sources = listOf(MigrationSource("neton-reference", MigrationDialect.POSTGRESQL, listOf(script)))
@@ -88,6 +89,19 @@ class PostgresReleaseGateTest {
                     }
                 }
                 assertEquals(listOf(1L), db.fetchAll("SELECT id FROM $table ORDER BY id").map { it.long("id") })
+
+                // The public DDL helper must not escape the coroutine's transaction
+                // through a global raw driver executor.
+                assertFailsWith<RollbackProbe> {
+                    db.transaction {
+                        SqlxDatabase.executeDdl("CREATE TABLE $ddlProbe (id BIGINT)")
+                        throw RollbackProbe()
+                    }
+                }
+                assertEquals(0L, db.fetchAll(
+                    "SELECT count(*) AS n FROM pg_class WHERE relname = :name",
+                    mapOf("name" to ddlProbe),
+                ).single().long("n"))
 
                 assertFailsWith<CancellationException> {
                     db.transaction {
@@ -130,6 +144,7 @@ class PostgresReleaseGateTest {
             try {
                 db.execute("DROP TABLE IF EXISTS $table")
                 db.execute("DROP TABLE IF EXISTS $history")
+                db.execute("DROP TABLE IF EXISTS $ddlProbe")
             } finally {
                 SqlxDatabase.close()
             }

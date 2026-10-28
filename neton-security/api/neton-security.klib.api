@@ -1,0 +1,919 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-security>
+abstract interface neton.security.identity/Identity : neton.core.interfaces/Identity { // neton.security.identity/Identity|null[0]
+    abstract val userId // neton.security.identity/Identity.userId|{}userId[0]
+        abstract fun <get-userId>(): neton.security.identity/UserId // neton.security.identity/Identity.userId.<get-userId>|<get-userId>(){}[0]
+    open val id // neton.security.identity/Identity.id|{}id[0]
+        open fun <get-id>(): kotlin/String // neton.security.identity/Identity.id.<get-id>|<get-id>(){}[0]
+}
+
+abstract interface neton.security.jwt/JwksFetcher { // neton.security.jwt/JwksFetcher|null[0]
+    abstract suspend fun fetch(): kotlin.collections/List<neton.security.jwt/JwkRsaMaterial> // neton.security.jwt/JwksFetcher.fetch|fetch(){}[0]
+}
+
+abstract interface neton.security.jwt/JwksKeyProvider { // neton.security.jwt/JwksKeyProvider|null[0]
+    abstract suspend fun resolve(kotlin/String): neton.security.jwt/JwkRsaMaterial? // neton.security.jwt/JwksKeyProvider.resolve|resolve(kotlin.String){}[0]
+}
+
+abstract interface neton.security.jwt/SessionVersionCache { // neton.security.jwt/SessionVersionCache|null[0]
+    abstract suspend fun get(kotlin/Long, kotlin/String): kotlin/Long? // neton.security.jwt/SessionVersionCache.get|get(kotlin.Long;kotlin.String){}[0]
+    abstract suspend fun set(kotlin/Long, kotlin/String, kotlin/Long, kotlin/Long) // neton.security.jwt/SessionVersionCache.set|set(kotlin.Long;kotlin.String;kotlin.Long;kotlin.Long){}[0]
+}
+
+abstract interface neton.security.jwt/UnifiedTokenIntrospector { // neton.security.jwt/UnifiedTokenIntrospector|null[0]
+    abstract suspend fun introspect(kotlin/String): neton.security.jwt/IntrospectionResult // neton.security.jwt/UnifiedTokenIntrospector.introspect|introspect(kotlin.String){}[0]
+}
+
+abstract interface neton.security/Authenticator { // neton.security/Authenticator|null[0]
+    abstract val name // neton.security/Authenticator.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // neton.security/Authenticator.name.<get-name>|<get-name>(){}[0]
+
+    abstract suspend fun authenticate(neton.security/RequestContext): neton.core.interfaces/Identity? // neton.security/Authenticator.authenticate|authenticate(neton.security.RequestContext){}[0]
+}
+
+abstract interface neton.security/RequestContext { // neton.security/RequestContext|null[0]
+    abstract val headers // neton.security/RequestContext.headers|{}headers[0]
+        abstract fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.security/RequestContext.headers.<get-headers>|<get-headers>(){}[0]
+    abstract val method // neton.security/RequestContext.method|{}method[0]
+        abstract fun <get-method>(): kotlin/String // neton.security/RequestContext.method.<get-method>|<get-method>(){}[0]
+    abstract val path // neton.security/RequestContext.path|{}path[0]
+        abstract fun <get-path>(): kotlin/String // neton.security/RequestContext.path.<get-path>|<get-path>(){}[0]
+    abstract val routeGroup // neton.security/RequestContext.routeGroup|{}routeGroup[0]
+        abstract fun <get-routeGroup>(): kotlin/String? // neton.security/RequestContext.routeGroup.<get-routeGroup>|<get-routeGroup>(){}[0]
+
+    abstract fun getQueryParameter(kotlin/String): kotlin/String? // neton.security/RequestContext.getQueryParameter|getQueryParameter(kotlin.String){}[0]
+    abstract fun getQueryParameters(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.security/RequestContext.getQueryParameters|getQueryParameters(){}[0]
+    abstract fun getRemoteAddress(): kotlin/String? // neton.security/RequestContext.getRemoteAddress|getRemoteAddress(){}[0]
+    abstract fun getSessionId(): kotlin/String? // neton.security/RequestContext.getSessionId|getSessionId(){}[0]
+    abstract suspend fun getBodyAsString(): kotlin/String? // neton.security/RequestContext.getBodyAsString|getBodyAsString(){}[0]
+}
+
+final class neton.security.crypto/SecretBox { // neton.security.crypto/SecretBox|null[0]
+    constructor <init>(kotlin/ByteArray, kotlin/Int = ...) // neton.security.crypto/SecretBox.<init>|<init>(kotlin.ByteArray;kotlin.Int){}[0]
+
+    final fun open(kotlin/String): kotlin/String // neton.security.crypto/SecretBox.open|open(kotlin.String){}[0]
+    final fun seal(kotlin/String): kotlin/String // neton.security.crypto/SecretBox.seal|seal(kotlin.String){}[0]
+
+    final object Companion { // neton.security.crypto/SecretBox.Companion|null[0]
+        final fun fromBase64(kotlin/String, kotlin/Int = ...): neton.security.crypto/SecretBox // neton.security.crypto/SecretBox.Companion.fromBase64|fromBase64(kotlin.String;kotlin.Int){}[0]
+        final fun isEncrypted(kotlin/String): kotlin/Boolean // neton.security.crypto/SecretBox.Companion.isEncrypted|isEncrypted(kotlin.String){}[0]
+    }
+}
+
+final class neton.security.identity/AuthenticationException : kotlin/RuntimeException { // neton.security.identity/AuthenticationException|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String = ...) // neton.security.identity/AuthenticationException.<init>|<init>(kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val code // neton.security.identity/AuthenticationException.code|{}code[0]
+        final fun <get-code>(): kotlin/String // neton.security.identity/AuthenticationException.code.<get-code>|<get-code>(){}[0]
+    final val message // neton.security.identity/AuthenticationException.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.security.identity/AuthenticationException.message.<get-message>|<get-message>(){}[0]
+    final val path // neton.security.identity/AuthenticationException.path|{}path[0]
+        final fun <get-path>(): kotlin/String // neton.security.identity/AuthenticationException.path.<get-path>|<get-path>(){}[0]
+}
+
+final class neton.security.identity/IdentityUser : neton.security.identity/Identity { // neton.security.identity/IdentityUser|null[0]
+    constructor <init>(neton.security.identity/UserId, kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ...) // neton.security.identity/IdentityUser.<init>|<init>(neton.security.identity.UserId;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>){}[0]
+
+    final val permissions // neton.security.identity/IdentityUser.permissions|{}permissions[0]
+        final fun <get-permissions>(): kotlin.collections/Set<kotlin/String> // neton.security.identity/IdentityUser.permissions.<get-permissions>|<get-permissions>(){}[0]
+    final val roles // neton.security.identity/IdentityUser.roles|{}roles[0]
+        final fun <get-roles>(): kotlin.collections/Set<kotlin/String> // neton.security.identity/IdentityUser.roles.<get-roles>|<get-roles>(){}[0]
+    final val userId // neton.security.identity/IdentityUser.userId|{}userId[0]
+        final fun <get-userId>(): neton.security.identity/UserId // neton.security.identity/IdentityUser.userId.<get-userId>|<get-userId>(){}[0]
+
+    final fun component1(): neton.security.identity/UserId // neton.security.identity/IdentityUser.component1|component1(){}[0]
+    final fun component2(): kotlin.collections/Set<kotlin/String> // neton.security.identity/IdentityUser.component2|component2(){}[0]
+    final fun component3(): kotlin.collections/Set<kotlin/String> // neton.security.identity/IdentityUser.component3|component3(){}[0]
+    final fun copy(neton.security.identity/UserId = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ...): neton.security.identity/IdentityUser // neton.security.identity/IdentityUser.copy|copy(neton.security.identity.UserId;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.identity/IdentityUser.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.identity/IdentityUser.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.identity/IdentityUser.toString|toString(){}[0]
+}
+
+final class neton.security.jwt/DispatchingJwtAuthenticator : neton.security/Authenticator { // neton.security.jwt/DispatchingJwtAuthenticator|null[0]
+    constructor <init>(neton.security/Authenticator, neton.security.jwt/UnifiedTokenAuthenticator?, kotlin/Boolean, kotlin/Boolean, kotlin/String = ..., kotlin/String = ..., kotlin/String = ...) // neton.security.jwt/DispatchingJwtAuthenticator.<init>|<init>(neton.security.Authenticator;neton.security.jwt.UnifiedTokenAuthenticator?;kotlin.Boolean;kotlin.Boolean;kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val name // neton.security.jwt/DispatchingJwtAuthenticator.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security.jwt/DispatchingJwtAuthenticator.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.security/RequestContext): neton.core.interfaces/Identity? // neton.security.jwt/DispatchingJwtAuthenticator.authenticate|authenticate(neton.security.RequestContext){}[0]
+
+    final object Companion { // neton.security.jwt/DispatchingJwtAuthenticator.Companion|null[0]
+        final fun peekIssOrNull(kotlin/String): kotlin/String? // neton.security.jwt/DispatchingJwtAuthenticator.Companion.peekIssOrNull|peekIssOrNull(kotlin.String){}[0]
+    }
+}
+
+final class neton.security.jwt/InMemorySessionVersionCache : neton.security.jwt/SessionVersionCache { // neton.security.jwt/InMemorySessionVersionCache|null[0]
+    constructor <init>(kotlin.time/Clock = ...) // neton.security.jwt/InMemorySessionVersionCache.<init>|<init>(kotlin.time.Clock){}[0]
+
+    final suspend fun get(kotlin/Long, kotlin/String): kotlin/Long? // neton.security.jwt/InMemorySessionVersionCache.get|get(kotlin.Long;kotlin.String){}[0]
+    final suspend fun set(kotlin/Long, kotlin/String, kotlin/Long, kotlin/Long) // neton.security.jwt/InMemorySessionVersionCache.set|set(kotlin.Long;kotlin.String;kotlin.Long;kotlin.Long){}[0]
+    final suspend fun size(): kotlin/Int // neton.security.jwt/InMemorySessionVersionCache.size|size(){}[0]
+}
+
+final class neton.security.jwt/IntrospectionResult { // neton.security.jwt/IntrospectionResult|null[0]
+    constructor <init>(kotlin/Boolean, kotlin/Long? = ..., kotlin/String? = ..., kotlin/Long? = ..., kotlin.collections/List<kotlin/String>? = ..., kotlin.collections/List<kotlin/String>? = ..., kotlin/Long? = ..., kotlin/String? = ..., kotlin/String? = ...) // neton.security.jwt/IntrospectionResult.<init>|<init>(kotlin.Boolean;kotlin.Long?;kotlin.String?;kotlin.Long?;kotlin.collections.List<kotlin.String>?;kotlin.collections.List<kotlin.String>?;kotlin.Long?;kotlin.String?;kotlin.String?){}[0]
+
+    final val active // neton.security.jwt/IntrospectionResult.active|{}active[0]
+        final fun <get-active>(): kotlin/Boolean // neton.security.jwt/IntrospectionResult.active.<get-active>|<get-active>(){}[0]
+    final val audience // neton.security.jwt/IntrospectionResult.audience|{}audience[0]
+        final fun <get-audience>(): kotlin.collections/List<kotlin/String>? // neton.security.jwt/IntrospectionResult.audience.<get-audience>|<get-audience>(){}[0]
+    final val deviceId // neton.security.jwt/IntrospectionResult.deviceId|{}deviceId[0]
+        final fun <get-deviceId>(): kotlin/String? // neton.security.jwt/IntrospectionResult.deviceId.<get-deviceId>|<get-deviceId>(){}[0]
+    final val expiresAt // neton.security.jwt/IntrospectionResult.expiresAt|{}expiresAt[0]
+        final fun <get-expiresAt>(): kotlin/Long? // neton.security.jwt/IntrospectionResult.expiresAt.<get-expiresAt>|<get-expiresAt>(){}[0]
+    final val jti // neton.security.jwt/IntrospectionResult.jti|{}jti[0]
+        final fun <get-jti>(): kotlin/String? // neton.security.jwt/IntrospectionResult.jti.<get-jti>|<get-jti>(){}[0]
+    final val reason // neton.security.jwt/IntrospectionResult.reason|{}reason[0]
+        final fun <get-reason>(): kotlin/String? // neton.security.jwt/IntrospectionResult.reason.<get-reason>|<get-reason>(){}[0]
+    final val scope // neton.security.jwt/IntrospectionResult.scope|{}scope[0]
+        final fun <get-scope>(): kotlin.collections/List<kotlin/String>? // neton.security.jwt/IntrospectionResult.scope.<get-scope>|<get-scope>(){}[0]
+    final val sessionVersion // neton.security.jwt/IntrospectionResult.sessionVersion|{}sessionVersion[0]
+        final fun <get-sessionVersion>(): kotlin/Long? // neton.security.jwt/IntrospectionResult.sessionVersion.<get-sessionVersion>|<get-sessionVersion>(){}[0]
+    final val userId // neton.security.jwt/IntrospectionResult.userId|{}userId[0]
+        final fun <get-userId>(): kotlin/Long? // neton.security.jwt/IntrospectionResult.userId.<get-userId>|<get-userId>(){}[0]
+
+    final fun component1(): kotlin/Boolean // neton.security.jwt/IntrospectionResult.component1|component1(){}[0]
+    final fun component2(): kotlin/Long? // neton.security.jwt/IntrospectionResult.component2|component2(){}[0]
+    final fun component3(): kotlin/String? // neton.security.jwt/IntrospectionResult.component3|component3(){}[0]
+    final fun component4(): kotlin/Long? // neton.security.jwt/IntrospectionResult.component4|component4(){}[0]
+    final fun component5(): kotlin.collections/List<kotlin/String>? // neton.security.jwt/IntrospectionResult.component5|component5(){}[0]
+    final fun component6(): kotlin.collections/List<kotlin/String>? // neton.security.jwt/IntrospectionResult.component6|component6(){}[0]
+    final fun component7(): kotlin/Long? // neton.security.jwt/IntrospectionResult.component7|component7(){}[0]
+    final fun component8(): kotlin/String? // neton.security.jwt/IntrospectionResult.component8|component8(){}[0]
+    final fun component9(): kotlin/String? // neton.security.jwt/IntrospectionResult.component9|component9(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/Long? = ..., kotlin/String? = ..., kotlin/Long? = ..., kotlin.collections/List<kotlin/String>? = ..., kotlin.collections/List<kotlin/String>? = ..., kotlin/Long? = ..., kotlin/String? = ..., kotlin/String? = ...): neton.security.jwt/IntrospectionResult // neton.security.jwt/IntrospectionResult.copy|copy(kotlin.Boolean;kotlin.Long?;kotlin.String?;kotlin.Long?;kotlin.collections.List<kotlin.String>?;kotlin.collections.List<kotlin.String>?;kotlin.Long?;kotlin.String?;kotlin.String?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/IntrospectionResult.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.jwt/IntrospectionResult.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.jwt/IntrospectionResult.toString|toString(){}[0]
+}
+
+final class neton.security.jwt/JwkRsaMaterial { // neton.security.jwt/JwkRsaMaterial|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin/String = ..., kotlin/String = ..., kotlin/String = ...) // neton.security.jwt/JwkRsaMaterial.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val alg // neton.security.jwt/JwkRsaMaterial.alg|{}alg[0]
+        final fun <get-alg>(): kotlin/String // neton.security.jwt/JwkRsaMaterial.alg.<get-alg>|<get-alg>(){}[0]
+    final val e // neton.security.jwt/JwkRsaMaterial.e|{}e[0]
+        final fun <get-e>(): kotlin/String // neton.security.jwt/JwkRsaMaterial.e.<get-e>|<get-e>(){}[0]
+    final val kid // neton.security.jwt/JwkRsaMaterial.kid|{}kid[0]
+        final fun <get-kid>(): kotlin/String // neton.security.jwt/JwkRsaMaterial.kid.<get-kid>|<get-kid>(){}[0]
+    final val kty // neton.security.jwt/JwkRsaMaterial.kty|{}kty[0]
+        final fun <get-kty>(): kotlin/String // neton.security.jwt/JwkRsaMaterial.kty.<get-kty>|<get-kty>(){}[0]
+    final val n // neton.security.jwt/JwkRsaMaterial.n|{}n[0]
+        final fun <get-n>(): kotlin/String // neton.security.jwt/JwkRsaMaterial.n.<get-n>|<get-n>(){}[0]
+    final val use // neton.security.jwt/JwkRsaMaterial.use|{}use[0]
+        final fun <get-use>(): kotlin/String // neton.security.jwt/JwkRsaMaterial.use.<get-use>|<get-use>(){}[0]
+
+    final fun component1(): kotlin/String // neton.security.jwt/JwkRsaMaterial.component1|component1(){}[0]
+    final fun component2(): kotlin/String // neton.security.jwt/JwkRsaMaterial.component2|component2(){}[0]
+    final fun component3(): kotlin/String // neton.security.jwt/JwkRsaMaterial.component3|component3(){}[0]
+    final fun component4(): kotlin/String // neton.security.jwt/JwkRsaMaterial.component4|component4(){}[0]
+    final fun component5(): kotlin/String // neton.security.jwt/JwkRsaMaterial.component5|component5(){}[0]
+    final fun component6(): kotlin/String // neton.security.jwt/JwkRsaMaterial.component6|component6(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ...): neton.security.jwt/JwkRsaMaterial // neton.security.jwt/JwkRsaMaterial.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/JwkRsaMaterial.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.jwt/JwkRsaMaterial.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.jwt/JwkRsaMaterial.toString|toString(){}[0]
+}
+
+final class neton.security.jwt/JwksHttpProvider : neton.security.jwt/JwksKeyProvider { // neton.security.jwt/JwksHttpProvider|null[0]
+    constructor <init>(neton.security.jwt/JwksFetcher, kotlin.time/Clock = ..., kotlin/Long = ..., kotlin/Long = ...) // neton.security.jwt/JwksHttpProvider.<init>|<init>(neton.security.jwt.JwksFetcher;kotlin.time.Clock;kotlin.Long;kotlin.Long){}[0]
+
+    final suspend fun cachedKids(): kotlin.collections/List<kotlin/String> // neton.security.jwt/JwksHttpProvider.cachedKids|cachedKids(){}[0]
+    final suspend fun forceRefresh() // neton.security.jwt/JwksHttpProvider.forceRefresh|forceRefresh(){}[0]
+    final suspend fun resolve(kotlin/String): neton.security.jwt/JwkRsaMaterial? // neton.security.jwt/JwksHttpProvider.resolve|resolve(kotlin.String){}[0]
+
+    final object Companion { // neton.security.jwt/JwksHttpProvider.Companion|null[0]
+        final const val DEFAULT_CACHE_TTL_MILLIS // neton.security.jwt/JwksHttpProvider.Companion.DEFAULT_CACHE_TTL_MILLIS|{}DEFAULT_CACHE_TTL_MILLIS[0]
+            final fun <get-DEFAULT_CACHE_TTL_MILLIS>(): kotlin/Long // neton.security.jwt/JwksHttpProvider.Companion.DEFAULT_CACHE_TTL_MILLIS.<get-DEFAULT_CACHE_TTL_MILLIS>|<get-DEFAULT_CACHE_TTL_MILLIS>(){}[0]
+        final const val DEFAULT_REFRESH_THROTTLE_MILLIS // neton.security.jwt/JwksHttpProvider.Companion.DEFAULT_REFRESH_THROTTLE_MILLIS|{}DEFAULT_REFRESH_THROTTLE_MILLIS[0]
+            final fun <get-DEFAULT_REFRESH_THROTTLE_MILLIS>(): kotlin/Long // neton.security.jwt/JwksHttpProvider.Companion.DEFAULT_REFRESH_THROTTLE_MILLIS.<get-DEFAULT_REFRESH_THROTTLE_MILLIS>|<get-DEFAULT_REFRESH_THROTTLE_MILLIS>(){}[0]
+    }
+}
+
+final class neton.security.jwt/JwtAuthenticator : neton.security/Authenticator { // neton.security.jwt/JwtAuthenticator|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ..., kotlin/String = ...) // neton.security.jwt/JwtAuthenticator.<init>|<init>(kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val name // neton.security.jwt/JwtAuthenticator.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security.jwt/JwtAuthenticator.name.<get-name>|<get-name>(){}[0]
+
+    final fun createToken(neton.security.identity/UserId, kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/Any> = ...): kotlin/String // neton.security.jwt/JwtAuthenticator.createToken|createToken(neton.security.identity.UserId;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.Any>){}[0]
+    final fun verifyToken(kotlin/String): neton.security.jwt/VerifiedJwtToken // neton.security.jwt/JwtAuthenticator.verifyToken|verifyToken(kotlin.String){}[0]
+    final suspend fun authenticate(neton.security/RequestContext): neton.security.identity/IdentityUser? // neton.security.jwt/JwtAuthenticator.authenticate|authenticate(neton.security.RequestContext){}[0]
+}
+
+final class neton.security.jwt/RsaJwtVerifier { // neton.security.jwt/RsaJwtVerifier|null[0]
+    constructor <init>(neton.security.jwt/JwksKeyProvider, kotlin/String = ..., kotlin/String = ..., kotlin/Long = ..., kotlin.time/Clock = ...) // neton.security.jwt/RsaJwtVerifier.<init>|<init>(neton.security.jwt.JwksKeyProvider;kotlin.String;kotlin.String;kotlin.Long;kotlin.time.Clock){}[0]
+
+    final suspend fun verify(kotlin/String, kotlin/String = ...): neton.security.jwt/VerifyResult // neton.security.jwt/RsaJwtVerifier.verify|verify(kotlin.String;kotlin.String){}[0]
+
+    final object Companion { // neton.security.jwt/RsaJwtVerifier.Companion|null[0]
+        final const val ALG_RS256 // neton.security.jwt/RsaJwtVerifier.Companion.ALG_RS256|{}ALG_RS256[0]
+            final fun <get-ALG_RS256>(): kotlin/String // neton.security.jwt/RsaJwtVerifier.Companion.ALG_RS256.<get-ALG_RS256>|<get-ALG_RS256>(){}[0]
+        final const val DEFAULT_ISSUER // neton.security.jwt/RsaJwtVerifier.Companion.DEFAULT_ISSUER|{}DEFAULT_ISSUER[0]
+            final fun <get-DEFAULT_ISSUER>(): kotlin/String // neton.security.jwt/RsaJwtVerifier.Companion.DEFAULT_ISSUER.<get-DEFAULT_ISSUER>|<get-DEFAULT_ISSUER>(){}[0]
+        final const val DEFAULT_LEEWAY_SECONDS // neton.security.jwt/RsaJwtVerifier.Companion.DEFAULT_LEEWAY_SECONDS|{}DEFAULT_LEEWAY_SECONDS[0]
+            final fun <get-DEFAULT_LEEWAY_SECONDS>(): kotlin/Long // neton.security.jwt/RsaJwtVerifier.Companion.DEFAULT_LEEWAY_SECONDS.<get-DEFAULT_LEEWAY_SECONDS>|<get-DEFAULT_LEEWAY_SECONDS>(){}[0]
+        final const val DEFAULT_REQUIRED_AUDIENCE // neton.security.jwt/RsaJwtVerifier.Companion.DEFAULT_REQUIRED_AUDIENCE|{}DEFAULT_REQUIRED_AUDIENCE[0]
+            final fun <get-DEFAULT_REQUIRED_AUDIENCE>(): kotlin/String // neton.security.jwt/RsaJwtVerifier.Companion.DEFAULT_REQUIRED_AUDIENCE.<get-DEFAULT_REQUIRED_AUDIENCE>|<get-DEFAULT_REQUIRED_AUDIENCE>(){}[0]
+        final const val TYP_ACCESS // neton.security.jwt/RsaJwtVerifier.Companion.TYP_ACCESS|{}TYP_ACCESS[0]
+            final fun <get-TYP_ACCESS>(): kotlin/String // neton.security.jwt/RsaJwtVerifier.Companion.TYP_ACCESS.<get-TYP_ACCESS>|<get-TYP_ACCESS>(){}[0]
+        final const val TYP_REFRESH // neton.security.jwt/RsaJwtVerifier.Companion.TYP_REFRESH|{}TYP_REFRESH[0]
+            final fun <get-TYP_REFRESH>(): kotlin/String // neton.security.jwt/RsaJwtVerifier.Companion.TYP_REFRESH.<get-TYP_REFRESH>|<get-TYP_REFRESH>(){}[0]
+
+        final fun base64UrlDecodeOrNull(kotlin/String): kotlin/ByteArray? // neton.security.jwt/RsaJwtVerifier.Companion.base64UrlDecodeOrNull|base64UrlDecodeOrNull(kotlin.String){}[0]
+    }
+}
+
+final class neton.security.jwt/UnifiedIdentity { // neton.security.jwt/UnifiedIdentity|null[0]
+    constructor <init>(kotlin/Long, kotlin/String, kotlin/Long, kotlin.collections/List<kotlin/String>, kotlin.collections/List<kotlin/String>, kotlin/Long, kotlin/String, kotlin/String) // neton.security.jwt/UnifiedIdentity.<init>|<init>(kotlin.Long;kotlin.String;kotlin.Long;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>;kotlin.Long;kotlin.String;kotlin.String){}[0]
+
+    final val audience // neton.security.jwt/UnifiedIdentity.audience|{}audience[0]
+        final fun <get-audience>(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedIdentity.audience.<get-audience>|<get-audience>(){}[0]
+    final val deviceId // neton.security.jwt/UnifiedIdentity.deviceId|{}deviceId[0]
+        final fun <get-deviceId>(): kotlin/String // neton.security.jwt/UnifiedIdentity.deviceId.<get-deviceId>|<get-deviceId>(){}[0]
+    final val expiresAt // neton.security.jwt/UnifiedIdentity.expiresAt|{}expiresAt[0]
+        final fun <get-expiresAt>(): kotlin/Long // neton.security.jwt/UnifiedIdentity.expiresAt.<get-expiresAt>|<get-expiresAt>(){}[0]
+    final val jti // neton.security.jwt/UnifiedIdentity.jti|{}jti[0]
+        final fun <get-jti>(): kotlin/String // neton.security.jwt/UnifiedIdentity.jti.<get-jti>|<get-jti>(){}[0]
+    final val kid // neton.security.jwt/UnifiedIdentity.kid|{}kid[0]
+        final fun <get-kid>(): kotlin/String // neton.security.jwt/UnifiedIdentity.kid.<get-kid>|<get-kid>(){}[0]
+    final val scope // neton.security.jwt/UnifiedIdentity.scope|{}scope[0]
+        final fun <get-scope>(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedIdentity.scope.<get-scope>|<get-scope>(){}[0]
+    final val sessionVersion // neton.security.jwt/UnifiedIdentity.sessionVersion|{}sessionVersion[0]
+        final fun <get-sessionVersion>(): kotlin/Long // neton.security.jwt/UnifiedIdentity.sessionVersion.<get-sessionVersion>|<get-sessionVersion>(){}[0]
+    final val userId // neton.security.jwt/UnifiedIdentity.userId|{}userId[0]
+        final fun <get-userId>(): kotlin/Long // neton.security.jwt/UnifiedIdentity.userId.<get-userId>|<get-userId>(){}[0]
+
+    final fun component1(): kotlin/Long // neton.security.jwt/UnifiedIdentity.component1|component1(){}[0]
+    final fun component2(): kotlin/String // neton.security.jwt/UnifiedIdentity.component2|component2(){}[0]
+    final fun component3(): kotlin/Long // neton.security.jwt/UnifiedIdentity.component3|component3(){}[0]
+    final fun component4(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedIdentity.component4|component4(){}[0]
+    final fun component5(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedIdentity.component5|component5(){}[0]
+    final fun component6(): kotlin/Long // neton.security.jwt/UnifiedIdentity.component6|component6(){}[0]
+    final fun component7(): kotlin/String // neton.security.jwt/UnifiedIdentity.component7|component7(){}[0]
+    final fun component8(): kotlin/String // neton.security.jwt/UnifiedIdentity.component8|component8(){}[0]
+    final fun copy(kotlin/Long = ..., kotlin/String = ..., kotlin/Long = ..., kotlin.collections/List<kotlin/String> = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/Long = ..., kotlin/String = ..., kotlin/String = ...): neton.security.jwt/UnifiedIdentity // neton.security.jwt/UnifiedIdentity.copy|copy(kotlin.Long;kotlin.String;kotlin.Long;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>;kotlin.Long;kotlin.String;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/UnifiedIdentity.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.jwt/UnifiedIdentity.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.jwt/UnifiedIdentity.toString|toString(){}[0]
+}
+
+final class neton.security.jwt/UnifiedTokenAuthenticator { // neton.security.jwt/UnifiedTokenAuthenticator|null[0]
+    constructor <init>(neton.security.jwt/RsaJwtVerifier, neton.security.jwt/UnifiedTokenIntrospector, neton.security.jwt/SessionVersionCache, kotlin/Long = ...) // neton.security.jwt/UnifiedTokenAuthenticator.<init>|<init>(neton.security.jwt.RsaJwtVerifier;neton.security.jwt.UnifiedTokenIntrospector;neton.security.jwt.SessionVersionCache;kotlin.Long){}[0]
+
+    final suspend fun authenticate(kotlin/String): neton.security.jwt/AuthOutcome // neton.security.jwt/UnifiedTokenAuthenticator.authenticate|authenticate(kotlin.String){}[0]
+
+    final object Companion { // neton.security.jwt/UnifiedTokenAuthenticator.Companion|null[0]
+        final const val DEFAULT_SESSION_CACHE_TTL_SECONDS // neton.security.jwt/UnifiedTokenAuthenticator.Companion.DEFAULT_SESSION_CACHE_TTL_SECONDS|{}DEFAULT_SESSION_CACHE_TTL_SECONDS[0]
+            final fun <get-DEFAULT_SESSION_CACHE_TTL_SECONDS>(): kotlin/Long // neton.security.jwt/UnifiedTokenAuthenticator.Companion.DEFAULT_SESSION_CACHE_TTL_SECONDS.<get-DEFAULT_SESSION_CACHE_TTL_SECONDS>|<get-DEFAULT_SESSION_CACHE_TTL_SECONDS>(){}[0]
+    }
+}
+
+final class neton.security.jwt/UnifiedTokenClaims { // neton.security.jwt/UnifiedTokenClaims|null[0]
+    constructor <init>(kotlin/String, kotlin/Long, kotlin/String, kotlin/Long, kotlin.collections/List<kotlin/String>, kotlin.collections/List<kotlin/String>, kotlin/Long, kotlin/Long, kotlin/String, kotlin/String, kotlin/String) // neton.security.jwt/UnifiedTokenClaims.<init>|<init>(kotlin.String;kotlin.Long;kotlin.String;kotlin.Long;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>;kotlin.Long;kotlin.Long;kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val audience // neton.security.jwt/UnifiedTokenClaims.audience|{}audience[0]
+        final fun <get-audience>(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedTokenClaims.audience.<get-audience>|<get-audience>(){}[0]
+    final val deviceId // neton.security.jwt/UnifiedTokenClaims.deviceId|{}deviceId[0]
+        final fun <get-deviceId>(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.deviceId.<get-deviceId>|<get-deviceId>(){}[0]
+    final val expiresAt // neton.security.jwt/UnifiedTokenClaims.expiresAt|{}expiresAt[0]
+        final fun <get-expiresAt>(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.expiresAt.<get-expiresAt>|<get-expiresAt>(){}[0]
+    final val issuedAt // neton.security.jwt/UnifiedTokenClaims.issuedAt|{}issuedAt[0]
+        final fun <get-issuedAt>(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.issuedAt.<get-issuedAt>|<get-issuedAt>(){}[0]
+    final val issuer // neton.security.jwt/UnifiedTokenClaims.issuer|{}issuer[0]
+        final fun <get-issuer>(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.issuer.<get-issuer>|<get-issuer>(){}[0]
+    final val jti // neton.security.jwt/UnifiedTokenClaims.jti|{}jti[0]
+        final fun <get-jti>(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.jti.<get-jti>|<get-jti>(){}[0]
+    final val kid // neton.security.jwt/UnifiedTokenClaims.kid|{}kid[0]
+        final fun <get-kid>(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.kid.<get-kid>|<get-kid>(){}[0]
+    final val scope // neton.security.jwt/UnifiedTokenClaims.scope|{}scope[0]
+        final fun <get-scope>(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedTokenClaims.scope.<get-scope>|<get-scope>(){}[0]
+    final val sessionVersion // neton.security.jwt/UnifiedTokenClaims.sessionVersion|{}sessionVersion[0]
+        final fun <get-sessionVersion>(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.sessionVersion.<get-sessionVersion>|<get-sessionVersion>(){}[0]
+    final val tokenType // neton.security.jwt/UnifiedTokenClaims.tokenType|{}tokenType[0]
+        final fun <get-tokenType>(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.tokenType.<get-tokenType>|<get-tokenType>(){}[0]
+    final val userId // neton.security.jwt/UnifiedTokenClaims.userId|{}userId[0]
+        final fun <get-userId>(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.userId.<get-userId>|<get-userId>(){}[0]
+
+    final fun component1(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.component1|component1(){}[0]
+    final fun component10(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.component10|component10(){}[0]
+    final fun component11(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.component11|component11(){}[0]
+    final fun component2(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.component2|component2(){}[0]
+    final fun component3(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.component3|component3(){}[0]
+    final fun component4(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.component4|component4(){}[0]
+    final fun component5(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedTokenClaims.component5|component5(){}[0]
+    final fun component6(): kotlin.collections/List<kotlin/String> // neton.security.jwt/UnifiedTokenClaims.component6|component6(){}[0]
+    final fun component7(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.component7|component7(){}[0]
+    final fun component8(): kotlin/Long // neton.security.jwt/UnifiedTokenClaims.component8|component8(){}[0]
+    final fun component9(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.component9|component9(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Long = ..., kotlin/String = ..., kotlin/Long = ..., kotlin.collections/List<kotlin/String> = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ...): neton.security.jwt/UnifiedTokenClaims // neton.security.jwt/UnifiedTokenClaims.copy|copy(kotlin.String;kotlin.Long;kotlin.String;kotlin.Long;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>;kotlin.Long;kotlin.Long;kotlin.String;kotlin.String;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/UnifiedTokenClaims.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.jwt/UnifiedTokenClaims.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.jwt/UnifiedTokenClaims.toString|toString(){}[0]
+}
+
+final class neton.security.jwt/VerifiedJwtToken { // neton.security.jwt/VerifiedJwtToken|null[0]
+    constructor <init>(neton.security.identity/IdentityUser, kotlinx.serialization.json/JsonObject) // neton.security.jwt/VerifiedJwtToken.<init>|<init>(neton.security.identity.IdentityUser;kotlinx.serialization.json.JsonObject){}[0]
+
+    final val claims // neton.security.jwt/VerifiedJwtToken.claims|{}claims[0]
+        final fun <get-claims>(): kotlinx.serialization.json/JsonObject // neton.security.jwt/VerifiedJwtToken.claims.<get-claims>|<get-claims>(){}[0]
+    final val identity // neton.security.jwt/VerifiedJwtToken.identity|{}identity[0]
+        final fun <get-identity>(): neton.security.identity/IdentityUser // neton.security.jwt/VerifiedJwtToken.identity.<get-identity>|<get-identity>(){}[0]
+
+    final fun claimString(kotlin/String): kotlin/String? // neton.security.jwt/VerifiedJwtToken.claimString|claimString(kotlin.String){}[0]
+    final fun component1(): neton.security.identity/IdentityUser // neton.security.jwt/VerifiedJwtToken.component1|component1(){}[0]
+    final fun component2(): kotlinx.serialization.json/JsonObject // neton.security.jwt/VerifiedJwtToken.component2|component2(){}[0]
+    final fun copy(neton.security.identity/IdentityUser = ..., kotlinx.serialization.json/JsonObject = ...): neton.security.jwt/VerifiedJwtToken // neton.security.jwt/VerifiedJwtToken.copy|copy(neton.security.identity.IdentityUser;kotlinx.serialization.json.JsonObject){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifiedJwtToken.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.jwt/VerifiedJwtToken.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.jwt/VerifiedJwtToken.toString|toString(){}[0]
+}
+
+final class neton.security.password/PasswordVerificationResult { // neton.security.password/PasswordVerificationResult|null[0]
+    constructor <init>(kotlin/Boolean, kotlin/Boolean) // neton.security.password/PasswordVerificationResult.<init>|<init>(kotlin.Boolean;kotlin.Boolean){}[0]
+
+    final val needsRehash // neton.security.password/PasswordVerificationResult.needsRehash|{}needsRehash[0]
+        final fun <get-needsRehash>(): kotlin/Boolean // neton.security.password/PasswordVerificationResult.needsRehash.<get-needsRehash>|<get-needsRehash>(){}[0]
+    final val verified // neton.security.password/PasswordVerificationResult.verified|{}verified[0]
+        final fun <get-verified>(): kotlin/Boolean // neton.security.password/PasswordVerificationResult.verified.<get-verified>|<get-verified>(){}[0]
+
+    final fun component1(): kotlin/Boolean // neton.security.password/PasswordVerificationResult.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // neton.security.password/PasswordVerificationResult.component2|component2(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/Boolean = ...): neton.security.password/PasswordVerificationResult // neton.security.password/PasswordVerificationResult.copy|copy(kotlin.Boolean;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.password/PasswordVerificationResult.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.password/PasswordVerificationResult.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.password/PasswordVerificationResult.toString|toString(){}[0]
+}
+
+final class neton.security/AdminGuard : neton.core.interfaces/Guard { // neton.security/AdminGuard|null[0]
+    constructor <init>() // neton.security/AdminGuard.<init>|<init>(){}[0]
+
+    final val name // neton.security/AdminGuard.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/AdminGuard.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/AdminGuard.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/AdminGuardImpl : neton.core.interfaces/Guard { // neton.security/AdminGuardImpl|null[0]
+    constructor <init>() // neton.security/AdminGuardImpl.<init>|<init>(){}[0]
+
+    final val name // neton.security/AdminGuardImpl.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/AdminGuardImpl.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/AdminGuardImpl.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/AnonymousAuthenticator : neton.security/Authenticator { // neton.security/AnonymousAuthenticator|null[0]
+    constructor <init>() // neton.security/AnonymousAuthenticator.<init>|<init>(){}[0]
+
+    final val name // neton.security/AnonymousAuthenticator.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/AnonymousAuthenticator.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.security/RequestContext): neton.core.interfaces/Identity? // neton.security/AnonymousAuthenticator.authenticate|authenticate(neton.security.RequestContext){}[0]
+}
+
+final class neton.security/AnonymousGuardImpl : neton.core.interfaces/Guard { // neton.security/AnonymousGuardImpl|null[0]
+    constructor <init>() // neton.security/AnonymousGuardImpl.<init>|<init>(){}[0]
+
+    final val name // neton.security/AnonymousGuardImpl.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/AnonymousGuardImpl.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/AnonymousGuardImpl.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/AuthenticationContextImpl : neton.core.security/AuthenticationContext { // neton.security/AuthenticationContextImpl|null[0]
+    constructor <init>(kotlin.collections/List<neton.core.interfaces/Authenticator>, kotlin.collections/List<neton.core.interfaces/Guard>) // neton.security/AuthenticationContextImpl.<init>|<init>(kotlin.collections.List<neton.core.interfaces.Authenticator>;kotlin.collections.List<neton.core.interfaces.Guard>){}[0]
+
+    final fun currentUser(): kotlin/Any? // neton.security/AuthenticationContextImpl.currentUser|currentUser(){}[0]
+}
+
+final class neton.security/BasicAuthenticator : neton.security/Authenticator { // neton.security/BasicAuthenticator|null[0]
+    constructor <init>(kotlin.coroutines/SuspendFunction2<kotlin/String, kotlin/String, neton.core.interfaces/Identity?>) // neton.security/BasicAuthenticator.<init>|<init>(kotlin.coroutines.SuspendFunction2<kotlin.String,kotlin.String,neton.core.interfaces.Identity?>){}[0]
+
+    final val name // neton.security/BasicAuthenticator.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/BasicAuthenticator.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.security/RequestContext): neton.core.interfaces/Identity? // neton.security/BasicAuthenticator.authenticate|authenticate(neton.security.RequestContext){}[0]
+}
+
+final class neton.security/BasicAuthenticatorAdapter : neton.core.interfaces/Authenticator { // neton.security/BasicAuthenticatorAdapter|null[0]
+    constructor <init>(kotlin.coroutines/SuspendFunction2<kotlin/String, kotlin/String, neton.core.interfaces/Identity?>) // neton.security/BasicAuthenticatorAdapter.<init>|<init>(kotlin.coroutines.SuspendFunction2<kotlin.String,kotlin.String,neton.core.interfaces.Identity?>){}[0]
+
+    final val name // neton.security/BasicAuthenticatorAdapter.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/BasicAuthenticatorAdapter.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.core.interfaces/RequestContext): neton.core.interfaces/Identity? // neton.security/BasicAuthenticatorAdapter.authenticate|authenticate(neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/CustomGuard : neton.core.interfaces/Guard { // neton.security/CustomGuard|null[0]
+    constructor <init>(kotlin/String, kotlin.coroutines/SuspendFunction2<neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext, kotlin/Boolean>) // neton.security/CustomGuard.<init>|<init>(kotlin.String;kotlin.coroutines.SuspendFunction2<neton.core.interfaces.Identity?,neton.core.interfaces.RequestContext,kotlin.Boolean>){}[0]
+
+    final val name // neton.security/CustomGuard.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/CustomGuard.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/CustomGuard.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/DefaultGuard : neton.core.interfaces/Guard { // neton.security/DefaultGuard|null[0]
+    constructor <init>() // neton.security/DefaultGuard.<init>|<init>(){}[0]
+
+    final val name // neton.security/DefaultGuard.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/DefaultGuard.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/DefaultGuard.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/DefaultGuardImpl : neton.core.interfaces/Guard { // neton.security/DefaultGuardImpl|null[0]
+    constructor <init>() // neton.security/DefaultGuardImpl.<init>|<init>(){}[0]
+
+    final val name // neton.security/DefaultGuardImpl.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/DefaultGuardImpl.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/DefaultGuardImpl.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/DefaultRequestContext : neton.security/RequestContext { // neton.security/DefaultRequestContext|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String>, kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ...) // neton.security/DefaultRequestContext.<init>|<init>(kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
+
+    final val headers // neton.security/DefaultRequestContext.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.security/DefaultRequestContext.headers.<get-headers>|<get-headers>(){}[0]
+    final val method // neton.security/DefaultRequestContext.method|{}method[0]
+        final fun <get-method>(): kotlin/String // neton.security/DefaultRequestContext.method.<get-method>|<get-method>(){}[0]
+    final val path // neton.security/DefaultRequestContext.path|{}path[0]
+        final fun <get-path>(): kotlin/String // neton.security/DefaultRequestContext.path.<get-path>|<get-path>(){}[0]
+    final val routeGroup // neton.security/DefaultRequestContext.routeGroup|{}routeGroup[0]
+        final fun <get-routeGroup>(): kotlin/String? // neton.security/DefaultRequestContext.routeGroup.<get-routeGroup>|<get-routeGroup>(){}[0]
+
+    final fun getQueryParameter(kotlin/String): kotlin/String? // neton.security/DefaultRequestContext.getQueryParameter|getQueryParameter(kotlin.String){}[0]
+    final fun getQueryParameters(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.security/DefaultRequestContext.getQueryParameters|getQueryParameters(){}[0]
+    final fun getRemoteAddress(): kotlin/String? // neton.security/DefaultRequestContext.getRemoteAddress|getRemoteAddress(){}[0]
+    final fun getSessionId(): kotlin/String? // neton.security/DefaultRequestContext.getSessionId|getSessionId(){}[0]
+    final suspend fun getBodyAsString(): kotlin/String? // neton.security/DefaultRequestContext.getBodyAsString|getBodyAsString(){}[0]
+}
+
+final class neton.security/JwtAuthenticatorAdapter : neton.core.interfaces/Authenticator { // neton.security/JwtAuthenticatorAdapter|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ..., kotlin/String = ...) // neton.security/JwtAuthenticatorAdapter.<init>|<init>(kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val name // neton.security/JwtAuthenticatorAdapter.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/JwtAuthenticatorAdapter.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.core.interfaces/RequestContext): neton.core.interfaces/Identity? // neton.security/JwtAuthenticatorAdapter.authenticate|authenticate(neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/MockAuthenticator : neton.security/Authenticator { // neton.security/MockAuthenticator|null[0]
+    constructor <init>(neton.core.interfaces/Identity = ...) // neton.security/MockAuthenticator.<init>|<init>(neton.core.interfaces.Identity){}[0]
+
+    final val name // neton.security/MockAuthenticator.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/MockAuthenticator.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.security/RequestContext): neton.core.interfaces/Identity // neton.security/MockAuthenticator.authenticate|authenticate(neton.security.RequestContext){}[0]
+}
+
+final class neton.security/MockAuthenticatorAdapter : neton.core.interfaces/Authenticator { // neton.security/MockAuthenticatorAdapter|null[0]
+    constructor <init>(kotlin/String, kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/Set<kotlin/String> = ...) // neton.security/MockAuthenticatorAdapter.<init>|<init>(kotlin.String;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>){}[0]
+
+    final val name // neton.security/MockAuthenticatorAdapter.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/MockAuthenticatorAdapter.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun authenticate(neton.core.interfaces/RequestContext): neton.core.interfaces/Identity // neton.security/MockAuthenticatorAdapter.authenticate|authenticate(neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/PublicGuard : neton.core.interfaces/Guard { // neton.security/PublicGuard|null[0]
+    constructor <init>() // neton.security/PublicGuard.<init>|<init>(){}[0]
+
+    final val name // neton.security/PublicGuard.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/PublicGuard.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/PublicGuard.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/RoleGuard : neton.core.interfaces/Guard { // neton.security/RoleGuard|null[0]
+    constructor <init>(kotlin.collections/List<kotlin/String>, kotlin/Boolean = ...) // neton.security/RoleGuard.<init>|<init>(kotlin.collections.List<kotlin.String>;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Array<out kotlin/String>..., kotlin/Boolean = ...) // neton.security/RoleGuard.<init>|<init>(kotlin.Array<out|kotlin.String>...;kotlin.Boolean){}[0]
+
+    final val name // neton.security/RoleGuard.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/RoleGuard.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/RoleGuard.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/RoleGuardImpl : neton.core.interfaces/Guard { // neton.security/RoleGuardImpl|null[0]
+    constructor <init>(kotlin/Array<out kotlin/String>...) // neton.security/RoleGuardImpl.<init>|<init>(kotlin.Array<out|kotlin.String>...){}[0]
+
+    final val name // neton.security/RoleGuardImpl.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.security/RoleGuardImpl.name.<get-name>|<get-name>(){}[0]
+
+    final suspend fun checkPermission(neton.core.interfaces/Identity?, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.security/RoleGuardImpl.checkPermission|checkPermission(neton.core.interfaces.Identity?;neton.core.interfaces.RequestContext){}[0]
+}
+
+final class neton.security/SecurityBuilder { // neton.security/SecurityBuilder|null[0]
+    constructor <init>() // neton.security/SecurityBuilder.<init>|<init>(){}[0]
+
+    final fun bindGuard(kotlin/String, neton.core.interfaces/Guard) // neton.security/SecurityBuilder.bindGuard|bindGuard(kotlin.String;neton.core.interfaces.Guard){}[0]
+    final fun bindGuard(neton.core.interfaces/Guard) // neton.security/SecurityBuilder.bindGuard|bindGuard(neton.core.interfaces.Guard){}[0]
+    final fun registerAuthenticator(kotlin/String, neton.security/Authenticator) // neton.security/SecurityBuilder.registerAuthenticator|registerAuthenticator(kotlin.String;neton.security.Authenticator){}[0]
+    final fun registerAuthenticator(neton.security/Authenticator) // neton.security/SecurityBuilder.registerAuthenticator|registerAuthenticator(neton.security.Authenticator){}[0]
+}
+
+final class neton.security/SecurityBuilderImpl : neton.core.interfaces/SecurityBuilder { // neton.security/SecurityBuilderImpl|null[0]
+    constructor <init>() // neton.security/SecurityBuilderImpl.<init>|<init>(){}[0]
+
+    final fun bindAdminGuard() // neton.security/SecurityBuilderImpl.bindAdminGuard|bindAdminGuard(){}[0]
+    final fun bindAnonymousGuard() // neton.security/SecurityBuilderImpl.bindAnonymousGuard|bindAnonymousGuard(){}[0]
+    final fun bindDefaultGuard() // neton.security/SecurityBuilderImpl.bindDefaultGuard|bindDefaultGuard(){}[0]
+    final fun bindGuard(kotlin/String, neton.core.interfaces/Guard) // neton.security/SecurityBuilderImpl.bindGuard|bindGuard(kotlin.String;neton.core.interfaces.Guard){}[0]
+    final fun bindGuard(neton.core.interfaces/Guard) // neton.security/SecurityBuilderImpl.bindGuard|bindGuard(neton.core.interfaces.Guard){}[0]
+    final fun bindNamedRoleGuard(kotlin/String, kotlin/Array<out kotlin/String>...) // neton.security/SecurityBuilderImpl.bindNamedRoleGuard|bindNamedRoleGuard(kotlin.String;kotlin.Array<out|kotlin.String>...){}[0]
+    final fun bindRoleGuard(kotlin/Array<out kotlin/String>...) // neton.security/SecurityBuilderImpl.bindRoleGuard|bindRoleGuard(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun build(): neton.core.interfaces/SecurityConfiguration // neton.security/SecurityBuilderImpl.build|build(){}[0]
+    final fun getAuthenticationContext(): neton.core.security/AuthenticationContext // neton.security/SecurityBuilderImpl.getAuthenticationContext|getAuthenticationContext(){}[0]
+    final fun getGroupConfigSummary(): kotlin.collections/List<neton.core.interfaces/SecurityGroupConfig> // neton.security/SecurityBuilderImpl.getGroupConfigSummary|getGroupConfigSummary(){}[0]
+    final fun registerAuthenticator(kotlin/String, neton.core.interfaces/Authenticator) // neton.security/SecurityBuilderImpl.registerAuthenticator|registerAuthenticator(kotlin.String;neton.core.interfaces.Authenticator){}[0]
+    final fun registerAuthenticator(neton.core.interfaces/Authenticator) // neton.security/SecurityBuilderImpl.registerAuthenticator|registerAuthenticator(neton.core.interfaces.Authenticator){}[0]
+    final fun registerBasicAuthenticator(kotlin.coroutines/SuspendFunction2<kotlin/String, kotlin/String, neton.core.interfaces/Identity?>) // neton.security/SecurityBuilderImpl.registerBasicAuthenticator|registerBasicAuthenticator(kotlin.coroutines.SuspendFunction2<kotlin.String,kotlin.String,neton.core.interfaces.Identity?>){}[0]
+    final fun registerJwtAuthenticator(kotlin/String, kotlin/String, kotlin/String) // neton.security/SecurityBuilderImpl.registerJwtAuthenticator|registerJwtAuthenticator(kotlin.String;kotlin.String;kotlin.String){}[0]
+    final fun registerMockAuthenticator(kotlin/String, kotlin.collections/Set<kotlin/String>, kotlin.collections/Set<kotlin/String>) // neton.security/SecurityBuilderImpl.registerMockAuthenticator|registerMockAuthenticator(kotlin.String;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>){}[0]
+    final fun registerMockAuthenticator(kotlin/String, kotlin/String, kotlin.collections/Set<kotlin/String>, kotlin.collections/Set<kotlin/String>) // neton.security/SecurityBuilderImpl.registerMockAuthenticator|registerMockAuthenticator(kotlin.String;kotlin.String;kotlin.collections.Set<kotlin.String>;kotlin.collections.Set<kotlin.String>){}[0]
+    final fun registerSessionAuthenticator(kotlin/String) // neton.security/SecurityBuilderImpl.registerSessionAuthenticator|registerSessionAuthenticator(kotlin.String){}[0]
+    final fun replaceDefaultAuthenticator(kotlin/String, neton.core.interfaces/Authenticator) // neton.security/SecurityBuilderImpl.replaceDefaultAuthenticator|replaceDefaultAuthenticator(kotlin.String;neton.core.interfaces.Authenticator){}[0]
+    final fun replaceDefaultGuard(kotlin/String, neton.core.interfaces/Guard) // neton.security/SecurityBuilderImpl.replaceDefaultGuard|replaceDefaultGuard(kotlin.String;neton.core.interfaces.Guard){}[0]
+    final fun replaceGroupAuthenticator(kotlin/String, kotlin/String, neton.core.interfaces/Authenticator) // neton.security/SecurityBuilderImpl.replaceGroupAuthenticator|replaceGroupAuthenticator(kotlin.String;kotlin.String;neton.core.interfaces.Authenticator){}[0]
+    final fun replaceGroupGuard(kotlin/String, kotlin/String, neton.core.interfaces/Guard) // neton.security/SecurityBuilderImpl.replaceGroupGuard|replaceGroupGuard(kotlin.String;kotlin.String;neton.core.interfaces.Guard){}[0]
+    final fun replacePermissionEvaluator(kotlin/String, neton.core.interfaces/PermissionEvaluator) // neton.security/SecurityBuilderImpl.replacePermissionEvaluator|replacePermissionEvaluator(kotlin.String;neton.core.interfaces.PermissionEvaluator){}[0]
+    final fun setDefaultAuthenticator(neton.core.interfaces/Authenticator?) // neton.security/SecurityBuilderImpl.setDefaultAuthenticator|setDefaultAuthenticator(neton.core.interfaces.Authenticator?){}[0]
+    final fun setDefaultGuard(neton.core.interfaces/Guard) // neton.security/SecurityBuilderImpl.setDefaultGuard|setDefaultGuard(neton.core.interfaces.Guard){}[0]
+    final fun setGroupAuthenticator(kotlin/String, neton.core.interfaces/Authenticator?) // neton.security/SecurityBuilderImpl.setGroupAuthenticator|setGroupAuthenticator(kotlin.String;neton.core.interfaces.Authenticator?){}[0]
+    final fun setGroupGuard(kotlin/String, neton.core.interfaces/Guard) // neton.security/SecurityBuilderImpl.setGroupGuard|setGroupGuard(kotlin.String;neton.core.interfaces.Guard){}[0]
+    final fun setLogger(neton.logging/Logger?) // neton.security/SecurityBuilderImpl.setLogger|setLogger(neton.logging.Logger?){}[0]
+    final fun setPermissionEvaluator(neton.core.interfaces/PermissionEvaluator) // neton.security/SecurityBuilderImpl.setPermissionEvaluator|setPermissionEvaluator(neton.core.interfaces.PermissionEvaluator){}[0]
+
+    final object Companion { // neton.security/SecurityBuilderImpl.Companion|null[0]
+        final const val DSL_SOURCE // neton.security/SecurityBuilderImpl.Companion.DSL_SOURCE|{}DSL_SOURCE[0]
+            final fun <get-DSL_SOURCE>(): kotlin/String // neton.security/SecurityBuilderImpl.Companion.DSL_SOURCE.<get-DSL_SOURCE>|<get-DSL_SOURCE>(){}[0]
+    }
+}
+
+final class neton.security/SecurityConfig { // neton.security/SecurityConfig|null[0]
+    constructor <init>(kotlin/Boolean = ..., kotlin/String = ...) // neton.security/SecurityConfig.<init>|<init>(kotlin.Boolean;kotlin.String){}[0]
+
+    final val defaultAuth // neton.security/SecurityConfig.defaultAuth|{}defaultAuth[0]
+        final fun <get-defaultAuth>(): kotlin/String // neton.security/SecurityConfig.defaultAuth.<get-defaultAuth>|<get-defaultAuth>(){}[0]
+    final val enabled // neton.security/SecurityConfig.enabled|{}enabled[0]
+        final fun <get-enabled>(): kotlin/Boolean // neton.security/SecurityConfig.enabled.<get-enabled>|<get-enabled>(){}[0]
+
+    final fun component1(): kotlin/Boolean // neton.security/SecurityConfig.component1|component1(){}[0]
+    final fun component2(): kotlin/String // neton.security/SecurityConfig.component2|component2(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/String = ...): neton.security/SecurityConfig // neton.security/SecurityConfig.copy|copy(kotlin.Boolean;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security/SecurityConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security/SecurityConfig.hashCode|hashCode(){}[0]
+    final fun printSummary() // neton.security/SecurityConfig.printSummary|printSummary(){}[0]
+    final fun toString(): kotlin/String // neton.security/SecurityConfig.toString|toString(){}[0]
+}
+
+final class neton.security/SecurityRegistrationException : kotlin/IllegalStateException { // neton.security/SecurityRegistrationException|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String) // neton.security/SecurityRegistrationException.<init>|<init>(kotlin.String;kotlin.String;kotlin.String){}[0]
+
+    final val code // neton.security/SecurityRegistrationException.code|{}code[0]
+        final fun <get-code>(): kotlin/String // neton.security/SecurityRegistrationException.code.<get-code>|<get-code>(){}[0]
+    final val slot // neton.security/SecurityRegistrationException.slot|{}slot[0]
+        final fun <get-slot>(): kotlin/String // neton.security/SecurityRegistrationException.slot.<get-slot>|<get-slot>(){}[0]
+
+    final object Companion { // neton.security/SecurityRegistrationException.Companion|null[0]
+        final const val CONFLICT // neton.security/SecurityRegistrationException.Companion.CONFLICT|{}CONFLICT[0]
+            final fun <get-CONFLICT>(): kotlin/String // neton.security/SecurityRegistrationException.Companion.CONFLICT.<get-CONFLICT>|<get-CONFLICT>(){}[0]
+        final const val REPLACE_TARGET_MISMATCH // neton.security/SecurityRegistrationException.Companion.REPLACE_TARGET_MISMATCH|{}REPLACE_TARGET_MISMATCH[0]
+            final fun <get-REPLACE_TARGET_MISMATCH>(): kotlin/String // neton.security/SecurityRegistrationException.Companion.REPLACE_TARGET_MISMATCH.<get-REPLACE_TARGET_MISMATCH>|<get-REPLACE_TARGET_MISMATCH>(){}[0]
+        final const val REPLACE_TARGET_MISSING // neton.security/SecurityRegistrationException.Companion.REPLACE_TARGET_MISSING|{}REPLACE_TARGET_MISSING[0]
+            final fun <get-REPLACE_TARGET_MISSING>(): kotlin/String // neton.security/SecurityRegistrationException.Companion.REPLACE_TARGET_MISSING.<get-REPLACE_TARGET_MISSING>|<get-REPLACE_TARGET_MISSING>(){}[0]
+    }
+}
+
+final class neton.security/SecurityRegistry { // neton.security/SecurityRegistry|null[0]
+    constructor <init>() // neton.security/SecurityRegistry.<init>|<init>(){}[0]
+
+    final fun bindGuard(kotlin/String, neton.core.interfaces/Guard) // neton.security/SecurityRegistry.bindGuard|bindGuard(kotlin.String;neton.core.interfaces.Guard){}[0]
+    final fun bindGuard(neton.core.interfaces/Guard) // neton.security/SecurityRegistry.bindGuard|bindGuard(neton.core.interfaces.Guard){}[0]
+    final fun clear() // neton.security/SecurityRegistry.clear|clear(){}[0]
+    final fun getAllAuthenticators(): kotlin.collections/Map<kotlin/String, neton.security/Authenticator> // neton.security/SecurityRegistry.getAllAuthenticators|getAllAuthenticators(){}[0]
+    final fun getAllGuards(): kotlin.collections/Map<kotlin/String, neton.core.interfaces/Guard> // neton.security/SecurityRegistry.getAllGuards|getAllGuards(){}[0]
+    final fun getAllRouteGroups(): kotlin.collections/Set<kotlin/String> // neton.security/SecurityRegistry.getAllRouteGroups|getAllRouteGroups(){}[0]
+    final fun getAuthenticator(kotlin/String?): neton.security/Authenticator? // neton.security/SecurityRegistry.getAuthenticator|getAuthenticator(kotlin.String?){}[0]
+    final fun getGuard(kotlin/String?): neton.core.interfaces/Guard? // neton.security/SecurityRegistry.getGuard|getGuard(kotlin.String?){}[0]
+    final fun hasAnyAuthenticator(): kotlin/Boolean // neton.security/SecurityRegistry.hasAnyAuthenticator|hasAnyAuthenticator(){}[0]
+    final fun hasAnyGuard(): kotlin/Boolean // neton.security/SecurityRegistry.hasAnyGuard|hasAnyGuard(){}[0]
+    final fun registerAuthenticator(kotlin/String, neton.security/Authenticator) // neton.security/SecurityRegistry.registerAuthenticator|registerAuthenticator(kotlin.String;neton.security.Authenticator){}[0]
+    final fun registerAuthenticator(neton.security/Authenticator) // neton.security/SecurityRegistry.registerAuthenticator|registerAuthenticator(neton.security.Authenticator){}[0]
+}
+
+final value class neton.security.identity/UserId { // neton.security.identity/UserId|null[0]
+    constructor <init>(kotlin/ULong) // neton.security.identity/UserId.<init>|<init>(kotlin.ULong){}[0]
+
+    final val value // neton.security.identity/UserId.value|{}value[0]
+        final fun <get-value>(): kotlin/ULong // neton.security.identity/UserId.value.<get-value>|<get-value>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.identity/UserId.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.security.identity/UserId.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.security.identity/UserId.toString|toString(){}[0]
+
+    final object Companion { // neton.security.identity/UserId.Companion|null[0]
+        final fun parse(kotlin/String): neton.security.identity/UserId // neton.security.identity/UserId.Companion.parse|parse(kotlin.String){}[0]
+    }
+}
+
+sealed class neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason|null[0]
+    final class Other : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.Other|null[0]
+        constructor <init>(kotlin/String) // neton.security.jwt/AuthFailureReason.Other.<init>|<init>(kotlin.String){}[0]
+
+        final val reason // neton.security.jwt/AuthFailureReason.Other.reason|{}reason[0]
+            final fun <get-reason>(): kotlin/String // neton.security.jwt/AuthFailureReason.Other.reason.<get-reason>|<get-reason>(){}[0]
+
+        final fun component1(): kotlin/String // neton.security.jwt/AuthFailureReason.Other.component1|component1(){}[0]
+        final fun copy(kotlin/String = ...): neton.security.jwt/AuthFailureReason.Other // neton.security.jwt/AuthFailureReason.Other.copy|copy(kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.Other.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.Other.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.Other.toString|toString(){}[0]
+    }
+
+    final object AudienceMismatch : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.AudienceMismatch|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.AudienceMismatch.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.AudienceMismatch.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.AudienceMismatch.toString|toString(){}[0]
+    }
+
+    final object Companion { // neton.security.jwt/AuthFailureReason.Companion|null[0]
+        final fun fromIntrospectReason(kotlin/String?): neton.security.jwt/AuthFailureReason // neton.security.jwt/AuthFailureReason.Companion.fromIntrospectReason|fromIntrospectReason(kotlin.String?){}[0]
+    }
+
+    final object Expired : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.Expired|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.Expired.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.Expired.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.Expired.toString|toString(){}[0]
+    }
+
+    final object IntrospectFailed : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.IntrospectFailed|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.IntrospectFailed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.IntrospectFailed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.IntrospectFailed.toString|toString(){}[0]
+    }
+
+    final object InvalidAlgorithm : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.InvalidAlgorithm|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.InvalidAlgorithm.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.InvalidAlgorithm.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.InvalidAlgorithm.toString|toString(){}[0]
+    }
+
+    final object InvalidType : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.InvalidType|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.InvalidType.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.InvalidType.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.InvalidType.toString|toString(){}[0]
+    }
+
+    final object IssuerMismatch : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.IssuerMismatch|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.IssuerMismatch.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.IssuerMismatch.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.IssuerMismatch.toString|toString(){}[0]
+    }
+
+    final object Malformed : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.Malformed|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.Malformed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.Malformed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.Malformed.toString|toString(){}[0]
+    }
+
+    final object MissingKid : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.MissingKid|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.MissingKid.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.MissingKid.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.MissingKid.toString|toString(){}[0]
+    }
+
+    final object NotFound : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.NotFound|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.NotFound.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.NotFound.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.NotFound.toString|toString(){}[0]
+    }
+
+    final object Revoked : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.Revoked|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.Revoked.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.Revoked.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.Revoked.toString|toString(){}[0]
+    }
+
+    final object SessionVersionMismatch : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.SessionVersionMismatch|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.SessionVersionMismatch.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.SessionVersionMismatch.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.SessionVersionMismatch.toString|toString(){}[0]
+    }
+
+    final object SignatureInvalid : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.SignatureInvalid|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.SignatureInvalid.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.SignatureInvalid.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.SignatureInvalid.toString|toString(){}[0]
+    }
+
+    final object UnknownKid : neton.security.jwt/AuthFailureReason { // neton.security.jwt/AuthFailureReason.UnknownKid|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthFailureReason.UnknownKid.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthFailureReason.UnknownKid.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthFailureReason.UnknownKid.toString|toString(){}[0]
+    }
+}
+
+sealed class neton.security.jwt/AuthOutcome { // neton.security.jwt/AuthOutcome|null[0]
+    final class Failure : neton.security.jwt/AuthOutcome { // neton.security.jwt/AuthOutcome.Failure|null[0]
+        constructor <init>(neton.security.jwt/AuthFailureReason) // neton.security.jwt/AuthOutcome.Failure.<init>|<init>(neton.security.jwt.AuthFailureReason){}[0]
+
+        final val reason // neton.security.jwt/AuthOutcome.Failure.reason|{}reason[0]
+            final fun <get-reason>(): neton.security.jwt/AuthFailureReason // neton.security.jwt/AuthOutcome.Failure.reason.<get-reason>|<get-reason>(){}[0]
+
+        final fun component1(): neton.security.jwt/AuthFailureReason // neton.security.jwt/AuthOutcome.Failure.component1|component1(){}[0]
+        final fun copy(neton.security.jwt/AuthFailureReason = ...): neton.security.jwt/AuthOutcome.Failure // neton.security.jwt/AuthOutcome.Failure.copy|copy(neton.security.jwt.AuthFailureReason){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthOutcome.Failure.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthOutcome.Failure.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthOutcome.Failure.toString|toString(){}[0]
+    }
+
+    final class Success : neton.security.jwt/AuthOutcome { // neton.security.jwt/AuthOutcome.Success|null[0]
+        constructor <init>(neton.security.jwt/UnifiedIdentity) // neton.security.jwt/AuthOutcome.Success.<init>|<init>(neton.security.jwt.UnifiedIdentity){}[0]
+
+        final val identity // neton.security.jwt/AuthOutcome.Success.identity|{}identity[0]
+            final fun <get-identity>(): neton.security.jwt/UnifiedIdentity // neton.security.jwt/AuthOutcome.Success.identity.<get-identity>|<get-identity>(){}[0]
+
+        final fun component1(): neton.security.jwt/UnifiedIdentity // neton.security.jwt/AuthOutcome.Success.component1|component1(){}[0]
+        final fun copy(neton.security.jwt/UnifiedIdentity = ...): neton.security.jwt/AuthOutcome.Success // neton.security.jwt/AuthOutcome.Success.copy|copy(neton.security.jwt.UnifiedIdentity){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/AuthOutcome.Success.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/AuthOutcome.Success.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/AuthOutcome.Success.toString|toString(){}[0]
+    }
+}
+
+sealed class neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError|null[0]
+    final object AudienceMismatch : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.AudienceMismatch|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.AudienceMismatch.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.AudienceMismatch.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.AudienceMismatch.toString|toString(){}[0]
+    }
+
+    final object Expired : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.Expired|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.Expired.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.Expired.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.Expired.toString|toString(){}[0]
+    }
+
+    final object InvalidAlgorithm : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.InvalidAlgorithm|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.InvalidAlgorithm.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.InvalidAlgorithm.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.InvalidAlgorithm.toString|toString(){}[0]
+    }
+
+    final object InvalidType : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.InvalidType|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.InvalidType.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.InvalidType.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.InvalidType.toString|toString(){}[0]
+    }
+
+    final object IssuerMismatch : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.IssuerMismatch|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.IssuerMismatch.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.IssuerMismatch.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.IssuerMismatch.toString|toString(){}[0]
+    }
+
+    final object Malformed : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.Malformed|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.Malformed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.Malformed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.Malformed.toString|toString(){}[0]
+    }
+
+    final object MissingKid : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.MissingKid|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.MissingKid.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.MissingKid.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.MissingKid.toString|toString(){}[0]
+    }
+
+    final object SignatureInvalid : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.SignatureInvalid|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.SignatureInvalid.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.SignatureInvalid.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.SignatureInvalid.toString|toString(){}[0]
+    }
+
+    final object UnknownKid : neton.security.jwt/VerifyError { // neton.security.jwt/VerifyError.UnknownKid|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyError.UnknownKid.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyError.UnknownKid.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyError.UnknownKid.toString|toString(){}[0]
+    }
+}
+
+sealed class neton.security.jwt/VerifyResult { // neton.security.jwt/VerifyResult|null[0]
+    final class Failure : neton.security.jwt/VerifyResult { // neton.security.jwt/VerifyResult.Failure|null[0]
+        constructor <init>(neton.security.jwt/VerifyError) // neton.security.jwt/VerifyResult.Failure.<init>|<init>(neton.security.jwt.VerifyError){}[0]
+
+        final val error // neton.security.jwt/VerifyResult.Failure.error|{}error[0]
+            final fun <get-error>(): neton.security.jwt/VerifyError // neton.security.jwt/VerifyResult.Failure.error.<get-error>|<get-error>(){}[0]
+
+        final fun component1(): neton.security.jwt/VerifyError // neton.security.jwt/VerifyResult.Failure.component1|component1(){}[0]
+        final fun copy(neton.security.jwt/VerifyError = ...): neton.security.jwt/VerifyResult.Failure // neton.security.jwt/VerifyResult.Failure.copy|copy(neton.security.jwt.VerifyError){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyResult.Failure.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyResult.Failure.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyResult.Failure.toString|toString(){}[0]
+    }
+
+    final class Success : neton.security.jwt/VerifyResult { // neton.security.jwt/VerifyResult.Success|null[0]
+        constructor <init>(neton.security.jwt/UnifiedTokenClaims) // neton.security.jwt/VerifyResult.Success.<init>|<init>(neton.security.jwt.UnifiedTokenClaims){}[0]
+
+        final val claims // neton.security.jwt/VerifyResult.Success.claims|{}claims[0]
+            final fun <get-claims>(): neton.security.jwt/UnifiedTokenClaims // neton.security.jwt/VerifyResult.Success.claims.<get-claims>|<get-claims>(){}[0]
+
+        final fun component1(): neton.security.jwt/UnifiedTokenClaims // neton.security.jwt/VerifyResult.Success.component1|component1(){}[0]
+        final fun copy(neton.security.jwt/UnifiedTokenClaims = ...): neton.security.jwt/VerifyResult.Success // neton.security.jwt/VerifyResult.Success.copy|copy(neton.security.jwt.UnifiedTokenClaims){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.security.jwt/VerifyResult.Success.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.security.jwt/VerifyResult.Success.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.security.jwt/VerifyResult.Success.toString|toString(){}[0]
+    }
+}
+
+final object neton.security.crypto/AesGcm { // neton.security.crypto/AesGcm|null[0]
+    final fun decrypt(kotlin/ByteArray, kotlin/ByteArray, kotlin/ByteArray, kotlin/ByteArray? = ...): kotlin/ByteArray? // neton.security.crypto/AesGcm.decrypt|decrypt(kotlin.ByteArray;kotlin.ByteArray;kotlin.ByteArray;kotlin.ByteArray?){}[0]
+}
+
+final object neton.security.crypto/HmacSha256 { // neton.security.crypto/HmacSha256|null[0]
+    final fun sign(kotlin/ByteArray, kotlin/ByteArray): kotlin/ByteArray // neton.security.crypto/HmacSha256.sign|sign(kotlin.ByteArray;kotlin.ByteArray){}[0]
+    final fun signHex(kotlin/ByteArray, kotlin/ByteArray): kotlin/String // neton.security.crypto/HmacSha256.signHex|signHex(kotlin.ByteArray;kotlin.ByteArray){}[0]
+    final fun verify(kotlin/ByteArray, kotlin/ByteArray, kotlin/ByteArray): kotlin/Boolean // neton.security.crypto/HmacSha256.verify|verify(kotlin.ByteArray;kotlin.ByteArray;kotlin.ByteArray){}[0]
+    final fun verifyHex(kotlin/ByteArray, kotlin/ByteArray, kotlin/String): kotlin/Boolean // neton.security.crypto/HmacSha256.verifyHex|verifyHex(kotlin.ByteArray;kotlin.ByteArray;kotlin.String){}[0]
+}
+
+final object neton.security.crypto/RsaSha256 { // neton.security.crypto/RsaSha256|null[0]
+    final fun sign(kotlin/String, kotlin/ByteArray): kotlin/ByteArray // neton.security.crypto/RsaSha256.sign|sign(kotlin.String;kotlin.ByteArray){}[0]
+    final fun signBase64(kotlin/String, kotlin/ByteArray): kotlin/String // neton.security.crypto/RsaSha256.signBase64|signBase64(kotlin.String;kotlin.ByteArray){}[0]
+    final fun verifyBase64(kotlin/String, kotlin/ByteArray, kotlin/String): kotlin/Boolean // neton.security.crypto/RsaSha256.verifyBase64|verifyBase64(kotlin.String;kotlin.ByteArray;kotlin.String){}[0]
+}
+
+final object neton.security.crypto/Totp { // neton.security.crypto/Totp|null[0]
+    final fun base32(kotlin/ByteArray): kotlin/String // neton.security.crypto/Totp.base32|base32(kotlin.ByteArray){}[0]
+    final fun code(kotlin/ByteArray, kotlin/Long, kotlin/Int = ...): kotlin/String // neton.security.crypto/Totp.code|code(kotlin.ByteArray;kotlin.Long;kotlin.Int){}[0]
+    final fun decode(kotlin/String): kotlin/ByteArray // neton.security.crypto/Totp.decode|decode(kotlin.String){}[0]
+    final fun match(kotlin/String, kotlin/String, kotlin/Long, kotlin/Long): kotlin/Long? // neton.security.crypto/Totp.match|match(kotlin.String;kotlin.String;kotlin.Long;kotlin.Long){}[0]
+}
+
+final object neton.security.digest/Md5 { // neton.security.digest/Md5|null[0]
+    final fun hash(kotlin/ByteArray): kotlin/ByteArray // neton.security.digest/Md5.hash|hash(kotlin.ByteArray){}[0]
+    final fun hex(kotlin/ByteArray): kotlin/String // neton.security.digest/Md5.hex|hex(kotlin.ByteArray){}[0]
+    final fun hex(kotlin/String): kotlin/String // neton.security.digest/Md5.hex|hex(kotlin.String){}[0]
+}
+
+final object neton.security.digest/Sha256 { // neton.security.digest/Sha256|null[0]
+    final fun hex(kotlin/ByteArray): kotlin/String // neton.security.digest/Sha256.hex|hex(kotlin.ByteArray){}[0]
+    final fun hex(kotlin/String): kotlin/String // neton.security.digest/Sha256.hex|hex(kotlin.String){}[0]
+}
+
+final object neton.security.jwt/NoopSessionVersionCache : neton.security.jwt/SessionVersionCache { // neton.security.jwt/NoopSessionVersionCache|null[0]
+    final suspend fun get(kotlin/Long, kotlin/String): kotlin/Long? // neton.security.jwt/NoopSessionVersionCache.get|get(kotlin.Long;kotlin.String){}[0]
+    final suspend fun set(kotlin/Long, kotlin/String, kotlin/Long, kotlin/Long) // neton.security.jwt/NoopSessionVersionCache.set|set(kotlin.Long;kotlin.String;kotlin.Long;kotlin.Long){}[0]
+}
+
+final object neton.security.password/PasswordHasher { // neton.security.password/PasswordHasher|null[0]
+    final fun hash(kotlin/String): kotlin/String // neton.security.password/PasswordHasher.hash|hash(kotlin.String){}[0]
+    final fun needsRehash(kotlin/String): kotlin/Boolean // neton.security.password/PasswordHasher.needsRehash|needsRehash(kotlin.String){}[0]
+    final fun verify(kotlin/String, kotlin/String): neton.security.password/PasswordVerificationResult // neton.security.password/PasswordHasher.verify|verify(kotlin.String;kotlin.String){}[0]
+}
+
+final object neton.security.random/SecureRandom { // neton.security.random/SecureRandom|null[0]
+    final fun bytes(kotlin/Int): kotlin/ByteArray // neton.security.random/SecureRandom.bytes|bytes(kotlin.Int){}[0]
+    final fun hex(kotlin/Int): kotlin/String // neton.security.random/SecureRandom.hex|hex(kotlin.Int){}[0]
+    final fun string(kotlin/Int, kotlin/String): kotlin/String // neton.security.random/SecureRandom.string|string(kotlin.Int;kotlin.String){}[0]
+}
+
+final object neton.security/SecurityComponent : neton.core.component/NetonComponent<neton.core.interfaces/SecurityBuilder> { // neton.security/SecurityComponent|null[0]
+    final fun defaultConfig(): neton.core.interfaces/SecurityBuilder // neton.security/SecurityComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun configure(neton.core.component/NetonContext) // neton.security/SecurityComponent.configure|configure(neton.core.component.NetonContext){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.core.interfaces/SecurityBuilder) // neton.security/SecurityComponent.init|init(neton.core.component.NetonContext;neton.core.interfaces.SecurityBuilder){}[0]
+}
+
+final object neton.security/SecurityContext : neton.core.security/AuthenticationContext { // neton.security/SecurityContext|null[0]
+    final fun clear() // neton.security/SecurityContext.clear|clear(){}[0]
+    final fun currentIdentity(): neton.core.interfaces/Identity? // neton.security/SecurityContext.currentIdentity|currentIdentity(){}[0]
+    final fun currentUser(): kotlin/Any? // neton.security/SecurityContext.currentUser|currentUser(){}[0]
+    final fun hasAllPermissions(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.security/SecurityContext.hasAllPermissions|hasAllPermissions(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasAllRoles(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.security/SecurityContext.hasAllRoles|hasAllRoles(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasAnyPermission(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.security/SecurityContext.hasAnyPermission|hasAnyPermission(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasAnyRole(kotlin/Array<out kotlin/String>...): kotlin/Boolean // neton.security/SecurityContext.hasAnyRole|hasAnyRole(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun hasPermission(kotlin/String): kotlin/Boolean // neton.security/SecurityContext.hasPermission|hasPermission(kotlin.String){}[0]
+    final fun hasRole(kotlin/String): kotlin/Boolean // neton.security/SecurityContext.hasRole|hasRole(kotlin.String){}[0]
+    final fun isAuthenticated(): kotlin/Boolean // neton.security/SecurityContext.isAuthenticated|isAuthenticated(){}[0]
+    final fun requireAnyRole(kotlin/Array<out kotlin/String>...) // neton.security/SecurityContext.requireAnyRole|requireAnyRole(kotlin.Array<out|kotlin.String>...){}[0]
+    final fun requireAuthenticated(): neton.core.interfaces/Identity // neton.security/SecurityContext.requireAuthenticated|requireAuthenticated(){}[0]
+    final fun requirePermission(kotlin/String) // neton.security/SecurityContext.requirePermission|requirePermission(kotlin.String){}[0]
+    final fun requireRole(kotlin/String) // neton.security/SecurityContext.requireRole|requireRole(kotlin.String){}[0]
+    final fun setIdentity(neton.core.interfaces/Identity?) // neton.security/SecurityContext.setIdentity|setIdentity(neton.core.interfaces.Identity?){}[0]
+    final fun userId(): kotlin/String? // neton.security/SecurityContext.userId|userId(){}[0]
+    final fun userPermissions(): kotlin.collections/Set<kotlin/String> // neton.security/SecurityContext.userPermissions|userPermissions(){}[0]
+    final fun userRoles(): kotlin.collections/Set<kotlin/String> // neton.security/SecurityContext.userRoles|userRoles(){}[0]
+}
+
+final fun (neton.core/Neton.LaunchBuilder).neton.security/security(kotlin/Function1<neton.core.interfaces/SecurityBuilder, kotlin/Unit>) // neton.security/security|security@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.core.interfaces.SecurityBuilder,kotlin.Unit>){}[0]
+final fun neton.security/security(kotlin/Function1<neton.security/SecurityBuilder, kotlin/Unit>): neton.security/SecurityRegistry // neton.security/security|security(kotlin.Function1<neton.security.SecurityBuilder,kotlin.Unit>){}[0]

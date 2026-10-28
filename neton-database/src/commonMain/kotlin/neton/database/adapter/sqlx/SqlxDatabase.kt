@@ -45,10 +45,6 @@ object SqlxDatabase {
         return SqlxDbContext(provider).also { context = it }
     }
 
-    fun require(): QueryExecutor = db ?: throw IllegalStateException(
-        "SqlxDatabase 未初始化，请先调用 database { } (or SqlxDatabase.initialize(config))"
-    )
-
     fun currentDriver(): DatabaseDriver = driver
 
     internal fun requireContext(): DbContext = context
@@ -59,7 +55,7 @@ object SqlxDatabase {
 
     /** 执行 DDL，由业务按需调用 */
     suspend fun executeDdl(ddl: String) {
-        require().execute(ddl).getOrThrow()
+        requireContext().execute(ddl)
     }
 
     suspend fun close() {

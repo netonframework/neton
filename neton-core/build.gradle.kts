@@ -60,6 +60,10 @@ fun kotlinNativeLlvmTool(name: String): String? =
         ?.absolutePath
 
 fun targetTools(targetName: String): NativeTools? = when {
+    isLinux && targetName == "LinuxArm64" && System.getProperty("os.arch") !in listOf("aarch64", "arm64") -> NativeTools(
+        compiler = configuredTool("neton.linuxArm64.cc", "NETON_LINUX_ARM64_CC", "aarch64-linux-gnu-gcc"),
+        archiver = configuredTool("neton.linuxArm64.ar", "NETON_LINUX_ARM64_AR", "aarch64-linux-gnu-ar"),
+    )
     isMacOs && targetName == "LinuxX64" -> NativeTools(
         compiler = configuredTool("neton.linuxX64.cc", "NETON_LINUX_X64_CC", "x86_64-linux-gnu-gcc"),
         archiver = configuredTool("neton.linuxX64.ar", "NETON_LINUX_X64_AR", "x86_64-linux-gnu-ar"),

@@ -1,0 +1,149 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-cache>
+open annotation class neton.cache/CacheEvict : kotlin/Annotation { // neton.cache/CacheEvict|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ..., kotlin/Boolean = ...) // neton.cache/CacheEvict.<init>|<init>(kotlin.String;kotlin.String;kotlin.Boolean){}[0]
+
+    final val allEntries // neton.cache/CacheEvict.allEntries|{}allEntries[0]
+        final fun <get-allEntries>(): kotlin/Boolean // neton.cache/CacheEvict.allEntries.<get-allEntries>|<get-allEntries>(){}[0]
+    final val key // neton.cache/CacheEvict.key|{}key[0]
+        final fun <get-key>(): kotlin/String // neton.cache/CacheEvict.key.<get-key>|<get-key>(){}[0]
+    final val name // neton.cache/CacheEvict.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.cache/CacheEvict.name.<get-name>|<get-name>(){}[0]
+}
+
+open annotation class neton.cache/CachePut : kotlin/Annotation { // neton.cache/CachePut|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ..., kotlin/Long = ...) // neton.cache/CachePut.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long){}[0]
+
+    final val key // neton.cache/CachePut.key|{}key[0]
+        final fun <get-key>(): kotlin/String // neton.cache/CachePut.key.<get-key>|<get-key>(){}[0]
+    final val name // neton.cache/CachePut.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.cache/CachePut.name.<get-name>|<get-name>(){}[0]
+    final val ttlMs // neton.cache/CachePut.ttlMs|{}ttlMs[0]
+        final fun <get-ttlMs>(): kotlin/Long // neton.cache/CachePut.ttlMs.<get-ttlMs>|<get-ttlMs>(){}[0]
+}
+
+open annotation class neton.cache/Cacheable : kotlin/Annotation { // neton.cache/Cacheable|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ..., kotlin/Long = ...) // neton.cache/Cacheable.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long){}[0]
+
+    final val key // neton.cache/Cacheable.key|{}key[0]
+        final fun <get-key>(): kotlin/String // neton.cache/Cacheable.key.<get-key>|<get-key>(){}[0]
+    final val name // neton.cache/Cacheable.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.cache/Cacheable.name.<get-name>|<get-name>(){}[0]
+    final val ttlMs // neton.cache/Cacheable.ttlMs|{}ttlMs[0]
+        final fun <get-ttlMs>(): kotlin/Long // neton.cache/Cacheable.ttlMs.<get-ttlMs>|<get-ttlMs>(){}[0]
+}
+
+final enum class neton.cache/CacheCodecKind : kotlin/Enum<neton.cache/CacheCodecKind> { // neton.cache/CacheCodecKind|null[0]
+    enum entry JSON // neton.cache/CacheCodecKind.JSON|null[0]
+    enum entry PROTOBUF // neton.cache/CacheCodecKind.PROTOBUF|null[0]
+
+    final val entries // neton.cache/CacheCodecKind.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.cache/CacheCodecKind> // neton.cache/CacheCodecKind.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.cache/CacheCodecKind // neton.cache/CacheCodecKind.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.cache/CacheCodecKind> // neton.cache/CacheCodecKind.values|values#static(){}[0]
+}
+
+abstract interface <#A: kotlin/Any?, #B: kotlin/Any?> neton.cache/Cache { // neton.cache/Cache|null[0]
+    abstract suspend fun clear() // neton.cache/Cache.clear|clear(){}[0]
+    abstract suspend fun delete(#A) // neton.cache/Cache.delete|delete(1:0){}[0]
+    abstract suspend fun get(#A): #B? // neton.cache/Cache.get|get(1:0){}[0]
+    abstract suspend fun getOrPut(#A, kotlin.time/Duration? = ..., kotlin.coroutines/SuspendFunction0<#B?>): #B? // neton.cache/Cache.getOrPut|getOrPut(1:0;kotlin.time.Duration?;kotlin.coroutines.SuspendFunction0<1:1?>){}[0]
+    abstract suspend fun put(#A, #B, kotlin.time/Duration? = ...) // neton.cache/Cache.put|put(1:0;1:1;kotlin.time.Duration?){}[0]
+}
+
+abstract interface neton.cache/CacheManager { // neton.cache/CacheManager|null[0]
+    abstract fun getCacheNames(): kotlin.collections/Set<kotlin/String> // neton.cache/CacheManager.getCacheNames|getCacheNames(){}[0]
+    abstract suspend fun <#A1: kotlin/Any> getCache(kotlin/String, kotlinx.serialization/KSerializer<#A1>): neton.cache/Cache<kotlin/String, #A1> // neton.cache/CacheManager.getCache|getCache(kotlin.String;kotlinx.serialization.KSerializer<0:0>){0§<kotlin.Any>}[0]
+    abstract suspend fun evict(kotlin/String, kotlin/String) // neton.cache/CacheManager.evict|evict(kotlin.String;kotlin.String){}[0]
+    abstract suspend fun evictAll(kotlin/String) // neton.cache/CacheManager.evictAll|evictAll(kotlin.String){}[0]
+}
+
+final class neton.cache/CacheConfig { // neton.cache/CacheConfig|null[0]
+    constructor <init>(kotlin/String, neton.cache/CacheCodecKind = ..., kotlin.time/Duration = ..., kotlin.time/Duration? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // neton.cache/CacheConfig.<init>|<init>(kotlin.String;neton.cache.CacheCodecKind;kotlin.time.Duration;kotlin.time.Duration?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean){}[0]
+
+    final val allowKeysClear // neton.cache/CacheConfig.allowKeysClear|{}allowKeysClear[0]
+        final fun <get-allowKeysClear>(): kotlin/Boolean // neton.cache/CacheConfig.allowKeysClear.<get-allowKeysClear>|<get-allowKeysClear>(){}[0]
+    final val codec // neton.cache/CacheConfig.codec|{}codec[0]
+        final fun <get-codec>(): neton.cache/CacheCodecKind // neton.cache/CacheConfig.codec.<get-codec>|<get-codec>(){}[0]
+    final val enableL1 // neton.cache/CacheConfig.enableL1|{}enableL1[0]
+        final fun <get-enableL1>(): kotlin/Boolean // neton.cache/CacheConfig.enableL1.<get-enableL1>|<get-enableL1>(){}[0]
+    final val maxSize // neton.cache/CacheConfig.maxSize|{}maxSize[0]
+        final fun <get-maxSize>(): kotlin/Int? // neton.cache/CacheConfig.maxSize.<get-maxSize>|<get-maxSize>(){}[0]
+    final val name // neton.cache/CacheConfig.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.cache/CacheConfig.name.<get-name>|<get-name>(){}[0]
+    final val nullTtl // neton.cache/CacheConfig.nullTtl|{}nullTtl[0]
+        final fun <get-nullTtl>(): kotlin.time/Duration? // neton.cache/CacheConfig.nullTtl.<get-nullTtl>|<get-nullTtl>(){}[0]
+    final val ttl // neton.cache/CacheConfig.ttl|{}ttl[0]
+        final fun <get-ttl>(): kotlin.time/Duration // neton.cache/CacheConfig.ttl.<get-ttl>|<get-ttl>(){}[0]
+
+    final fun component1(): kotlin/String // neton.cache/CacheConfig.component1|component1(){}[0]
+    final fun component2(): neton.cache/CacheCodecKind // neton.cache/CacheConfig.component2|component2(){}[0]
+    final fun component3(): kotlin.time/Duration // neton.cache/CacheConfig.component3|component3(){}[0]
+    final fun component4(): kotlin.time/Duration? // neton.cache/CacheConfig.component4|component4(){}[0]
+    final fun component5(): kotlin/Int? // neton.cache/CacheConfig.component5|component5(){}[0]
+    final fun component6(): kotlin/Boolean // neton.cache/CacheConfig.component6|component6(){}[0]
+    final fun component7(): kotlin/Boolean // neton.cache/CacheConfig.component7|component7(){}[0]
+    final fun copy(kotlin/String = ..., neton.cache/CacheCodecKind = ..., kotlin.time/Duration = ..., kotlin.time/Duration? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): neton.cache/CacheConfig // neton.cache/CacheConfig.copy|copy(kotlin.String;neton.cache.CacheCodecKind;kotlin.time.Duration;kotlin.time.Duration?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.cache/CacheConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.cache/CacheConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.cache/CacheConfig.toString|toString(){}[0]
+}
+
+final class neton.cache/CacheSettings { // neton.cache/CacheSettings|null[0]
+    constructor <init>() // neton.cache/CacheSettings.<init>|<init>(){}[0]
+
+    final var debug // neton.cache/CacheSettings.debug|{}debug[0]
+        final fun <get-debug>(): kotlin/Boolean // neton.cache/CacheSettings.debug.<get-debug>|<get-debug>(){}[0]
+        final fun <set-debug>(kotlin/Boolean) // neton.cache/CacheSettings.debug.<set-debug>|<set-debug>(kotlin.Boolean){}[0]
+
+    final fun cache(kotlin/String, kotlin/Function1<neton.cache/CacheSpec, kotlin/Unit> = ...) // neton.cache/CacheSettings.cache|cache(kotlin.String;kotlin.Function1<neton.cache.CacheSpec,kotlin.Unit>){}[0]
+}
+
+final class neton.cache/CacheSpec { // neton.cache/CacheSpec|null[0]
+    final var allowKeysClear // neton.cache/CacheSpec.allowKeysClear|{}allowKeysClear[0]
+        final fun <get-allowKeysClear>(): kotlin/Boolean // neton.cache/CacheSpec.allowKeysClear.<get-allowKeysClear>|<get-allowKeysClear>(){}[0]
+        final fun <set-allowKeysClear>(kotlin/Boolean) // neton.cache/CacheSpec.allowKeysClear.<set-allowKeysClear>|<set-allowKeysClear>(kotlin.Boolean){}[0]
+    final var codec // neton.cache/CacheSpec.codec|{}codec[0]
+        final fun <get-codec>(): neton.cache/CacheCodecKind // neton.cache/CacheSpec.codec.<get-codec>|<get-codec>(){}[0]
+        final fun <set-codec>(neton.cache/CacheCodecKind) // neton.cache/CacheSpec.codec.<set-codec>|<set-codec>(neton.cache.CacheCodecKind){}[0]
+    final var enableL1 // neton.cache/CacheSpec.enableL1|{}enableL1[0]
+        final fun <get-enableL1>(): kotlin/Boolean // neton.cache/CacheSpec.enableL1.<get-enableL1>|<get-enableL1>(){}[0]
+        final fun <set-enableL1>(kotlin/Boolean) // neton.cache/CacheSpec.enableL1.<set-enableL1>|<set-enableL1>(kotlin.Boolean){}[0]
+    final var maxSize // neton.cache/CacheSpec.maxSize|{}maxSize[0]
+        final fun <get-maxSize>(): kotlin/Int? // neton.cache/CacheSpec.maxSize.<get-maxSize>|<get-maxSize>(){}[0]
+        final fun <set-maxSize>(kotlin/Int?) // neton.cache/CacheSpec.maxSize.<set-maxSize>|<set-maxSize>(kotlin.Int?){}[0]
+    final var nullTtl // neton.cache/CacheSpec.nullTtl|{}nullTtl[0]
+        final fun <get-nullTtl>(): kotlin.time/Duration? // neton.cache/CacheSpec.nullTtl.<get-nullTtl>|<get-nullTtl>(){}[0]
+        final fun <set-nullTtl>(kotlin.time/Duration?) // neton.cache/CacheSpec.nullTtl.<set-nullTtl>|<set-nullTtl>(kotlin.time.Duration?){}[0]
+    final var ttl // neton.cache/CacheSpec.ttl|{}ttl[0]
+        final fun <get-ttl>(): kotlin.time/Duration // neton.cache/CacheSpec.ttl.<get-ttl>|<get-ttl>(){}[0]
+        final fun <set-ttl>(kotlin.time/Duration) // neton.cache/CacheSpec.ttl.<set-ttl>|<set-ttl>(kotlin.time.Duration){}[0]
+}
+
+final class neton.cache/DefaultCacheManager : neton.cache/CacheManager { // neton.cache/DefaultCacheManager|null[0]
+    constructor <init>(neton.redis/RedisClient, kotlin.collections/Map<kotlin/String, neton.cache/CacheConfig>) // neton.cache/DefaultCacheManager.<init>|<init>(neton.redis.RedisClient;kotlin.collections.Map<kotlin.String,neton.cache.CacheConfig>){}[0]
+
+    final fun getCacheNames(): kotlin.collections/Set<kotlin/String> // neton.cache/DefaultCacheManager.getCacheNames|getCacheNames(){}[0]
+    final suspend fun <#A1: kotlin/Any> getCache(kotlin/String, kotlinx.serialization/KSerializer<#A1>): neton.cache/Cache<kotlin/String, #A1> // neton.cache/DefaultCacheManager.getCache|getCache(kotlin.String;kotlinx.serialization.KSerializer<0:0>){0§<kotlin.Any>}[0]
+    final suspend fun evict(kotlin/String, kotlin/String) // neton.cache/DefaultCacheManager.evict|evict(kotlin.String;kotlin.String){}[0]
+    final suspend fun evictAll(kotlin/String) // neton.cache/DefaultCacheManager.evictAll|evictAll(kotlin.String){}[0]
+}
+
+final object neton.cache/CacheComponent : neton.core.component/NetonComponent<neton.cache/CacheSettings> { // neton.cache/CacheComponent|null[0]
+    final fun defaultConfig(): neton.cache/CacheSettings // neton.cache/CacheComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.cache/CacheSettings) // neton.cache/CacheComponent.init|init(neton.core.component.NetonContext;neton.cache.CacheSettings){}[0]
+}
+
+final object neton.cache/CacheKeyHash { // neton.cache/CacheKeyHash|null[0]
+    final fun stableHash(neton.core.http/HandlerArgs, kotlin.collections/List<kotlin/String>): kotlin/String // neton.cache/CacheKeyHash.stableHash|stableHash(neton.core.http.HandlerArgs;kotlin.collections.List<kotlin.String>){}[0]
+}
+
+final fun (neton.core/Neton.LaunchBuilder).neton.cache/cache(kotlin/Function1<neton.cache/CacheSettings, kotlin/Unit> = ...) // neton.cache/cache|cache@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.cache.CacheSettings,kotlin.Unit>){}[0]
+final suspend inline fun <#A: reified kotlin/Any> (neton.cache/CacheManager).neton.cache/getCache(kotlin/String): neton.cache/Cache<kotlin/String, #A> // neton.cache/getCache|getCache@neton.cache.CacheManager(kotlin.String){0§<kotlin.Any>}[0]

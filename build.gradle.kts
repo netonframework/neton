@@ -65,7 +65,10 @@ subprojects {
         plugins.withId(pluginId) {
             extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension> {
                 @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
-                abiValidation()
+                abiValidation {
+                    // A release check must not synthesize an uncompiled target's ABI.
+                    keepLocallyUnsupportedTargets.set(false)
+                }
             }
         }
     }

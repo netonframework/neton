@@ -1,0 +1,74 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-validation>
+open annotation class neton.validation.annotations/Email : kotlin/Annotation { // neton.validation.annotations/Email|null[0]
+    constructor <init>(kotlin/String = ...) // neton.validation.annotations/Email.<init>|<init>(kotlin.String){}[0]
+
+    final val message // neton.validation.annotations/Email.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/Email.message.<get-message>|<get-message>(){}[0]
+}
+
+open annotation class neton.validation.annotations/Max : kotlin/Annotation { // neton.validation.annotations/Max|null[0]
+    constructor <init>(kotlin/Long, kotlin/String = ...) // neton.validation.annotations/Max.<init>|<init>(kotlin.Long;kotlin.String){}[0]
+
+    final val message // neton.validation.annotations/Max.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/Max.message.<get-message>|<get-message>(){}[0]
+    final val value // neton.validation.annotations/Max.value|{}value[0]
+        final fun <get-value>(): kotlin/Long // neton.validation.annotations/Max.value.<get-value>|<get-value>(){}[0]
+}
+
+open annotation class neton.validation.annotations/Min : kotlin/Annotation { // neton.validation.annotations/Min|null[0]
+    constructor <init>(kotlin/Long, kotlin/String = ...) // neton.validation.annotations/Min.<init>|<init>(kotlin.Long;kotlin.String){}[0]
+
+    final val message // neton.validation.annotations/Min.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/Min.message.<get-message>|<get-message>(){}[0]
+    final val value // neton.validation.annotations/Min.value|{}value[0]
+        final fun <get-value>(): kotlin/Long // neton.validation.annotations/Min.value.<get-value>|<get-value>(){}[0]
+}
+
+open annotation class neton.validation.annotations/NotBlank : kotlin/Annotation { // neton.validation.annotations/NotBlank|null[0]
+    constructor <init>(kotlin/String = ...) // neton.validation.annotations/NotBlank.<init>|<init>(kotlin.String){}[0]
+
+    final val message // neton.validation.annotations/NotBlank.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/NotBlank.message.<get-message>|<get-message>(){}[0]
+}
+
+open annotation class neton.validation.annotations/NotNull : kotlin/Annotation { // neton.validation.annotations/NotNull|null[0]
+    constructor <init>(kotlin/String = ...) // neton.validation.annotations/NotNull.<init>|<init>(kotlin.String){}[0]
+
+    final val message // neton.validation.annotations/NotNull.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/NotNull.message.<get-message>|<get-message>(){}[0]
+}
+
+open annotation class neton.validation.annotations/Pattern : kotlin/Annotation { // neton.validation.annotations/Pattern|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ...) // neton.validation.annotations/Pattern.<init>|<init>(kotlin.String;kotlin.String){}[0]
+
+    final val message // neton.validation.annotations/Pattern.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/Pattern.message.<get-message>|<get-message>(){}[0]
+    final val regex // neton.validation.annotations/Pattern.regex|{}regex[0]
+        final fun <get-regex>(): kotlin/String // neton.validation.annotations/Pattern.regex.<get-regex>|<get-regex>(){}[0]
+}
+
+open annotation class neton.validation.annotations/Size : kotlin/Annotation { // neton.validation.annotations/Size|null[0]
+    constructor <init>(kotlin/Long = ..., kotlin/Long = ..., kotlin/String = ...) // neton.validation.annotations/Size.<init>|<init>(kotlin.Long;kotlin.Long;kotlin.String){}[0]
+
+    final val max // neton.validation.annotations/Size.max|{}max[0]
+        final fun <get-max>(): kotlin/Long // neton.validation.annotations/Size.max.<get-max>|<get-max>(){}[0]
+    final val message // neton.validation.annotations/Size.message|{}message[0]
+        final fun <get-message>(): kotlin/String // neton.validation.annotations/Size.message.<get-message>|<get-message>(){}[0]
+    final val min // neton.validation.annotations/Size.min|{}min[0]
+        final fun <get-min>(): kotlin/Long // neton.validation.annotations/Size.min.<get-min>|<get-min>(){}[0]
+}
+
+open annotation class neton.validation.annotations/Valid : kotlin/Annotation { // neton.validation.annotations/Valid|null[0]
+    constructor <init>() // neton.validation.annotations/Valid.<init>|<init>(){}[0]
+}
+
+abstract fun interface <#A: kotlin/Any> neton.validation/Validator { // neton.validation/Validator|null[0]
+    abstract fun validate(#A): kotlin.collections/List<neton.core.http/ValidationError> // neton.validation/Validator.validate|validate(1:0){}[0]
+}

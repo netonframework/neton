@@ -1,0 +1,22 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-http-ktor>
+final class neton.http.ktor/KtorHttpAdapter : neton.core.http.adapter/HttpAdapter { // neton.http.ktor/KtorHttpAdapter|null[0]
+    constructor <init>(neton.core.http.adapter/HttpServerConfig) // neton.http.ktor/KtorHttpAdapter.<init>|<init>(neton.core.http.adapter.HttpServerConfig){}[0]
+
+    final val capabilities // neton.http.ktor/KtorHttpAdapter.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): kotlin.collections/Set<neton.core.http.adapter/HttpCapability> // neton.http.ktor/KtorHttpAdapter.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+
+    final fun adapterName(): kotlin/String // neton.http.ktor/KtorHttpAdapter.adapterName|adapterName(){}[0]
+    final fun port(): kotlin/Int // neton.http.ktor/KtorHttpAdapter.port|port(){}[0]
+    final suspend fun start(neton.core.component/NetonContext, kotlin.coroutines/SuspendFunction1<kotlin/Long, kotlin/Unit>?) // neton.http.ktor/KtorHttpAdapter.start|start(neton.core.component.NetonContext;kotlin.coroutines.SuspendFunction1<kotlin.Long,kotlin.Unit>?){}[0]
+    final suspend fun stop() // neton.http.ktor/KtorHttpAdapter.stop|stop(){}[0]
+}
+
+final fun (neton.http.client/HttpClient.Companion).neton.http.client/createWithEngine(io.ktor.client.engine/HttpClientEngineFactory<*>, kotlin/Function1<neton.http.client/HttpClientConfig, kotlin/Unit> = ...): neton.http.client/HttpClient // neton.http.client/createWithEngine|createWithEngine@neton.http.client.HttpClient.Companion(io.ktor.client.engine.HttpClientEngineFactory<*>;kotlin.Function1<neton.http.client.HttpClientConfig,kotlin.Unit>){}[0]
+final fun neton.http.client/createKtorHttpClient(neton.http.client/HttpClientConfig): neton.http.client/HttpClient // neton.http.client/createKtorHttpClient|createKtorHttpClient(neton.http.client.HttpClientConfig){}[0]

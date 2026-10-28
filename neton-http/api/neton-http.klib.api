@@ -1,0 +1,938 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-http>
+final enum class neton.http.client/HttpClientCapability : kotlin/Enum<neton.http.client/HttpClientCapability> { // neton.http.client/HttpClientCapability|null[0]
+    enum entry ADDRESS_POLICY // neton.http.client/HttpClientCapability.ADDRESS_POLICY|null[0]
+    enum entry CANCELLATION // neton.http.client/HttpClientCapability.CANCELLATION|null[0]
+    enum entry CUSTOM_CA // neton.http.client/HttpClientCapability.CUSTOM_CA|null[0]
+    enum entry HTTP_2 // neton.http.client/HttpClientCapability.HTTP_2|null[0]
+    enum entry PROXY // neton.http.client/HttpClientCapability.PROXY|null[0]
+    enum entry STREAMING_BODY // neton.http.client/HttpClientCapability.STREAMING_BODY|null[0]
+
+    final val entries // neton.http.client/HttpClientCapability.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.http.client/HttpClientCapability> // neton.http.client/HttpClientCapability.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.http.client/HttpClientCapability // neton.http.client/HttpClientCapability.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.http.client/HttpClientCapability> // neton.http.client/HttpClientCapability.values|values#static(){}[0]
+}
+
+final enum class neton.http.client/HttpClientMethod : kotlin/Enum<neton.http.client/HttpClientMethod> { // neton.http.client/HttpClientMethod|null[0]
+    enum entry Delete // neton.http.client/HttpClientMethod.Delete|null[0]
+    enum entry Get // neton.http.client/HttpClientMethod.Get|null[0]
+    enum entry Head // neton.http.client/HttpClientMethod.Head|null[0]
+    enum entry Options // neton.http.client/HttpClientMethod.Options|null[0]
+    enum entry Patch // neton.http.client/HttpClientMethod.Patch|null[0]
+    enum entry Post // neton.http.client/HttpClientMethod.Post|null[0]
+    enum entry Put // neton.http.client/HttpClientMethod.Put|null[0]
+
+    final val entries // neton.http.client/HttpClientMethod.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.http.client/HttpClientMethod> // neton.http.client/HttpClientMethod.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.http.client/HttpClientMethod // neton.http.client/HttpClientMethod.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.http.client/HttpClientMethod> // neton.http.client/HttpClientMethod.values|values#static(){}[0]
+}
+
+final enum class neton.http.client/TargetRejection : kotlin/Enum<neton.http.client/TargetRejection> { // neton.http.client/TargetRejection|null[0]
+    enum entry ADDRESS // neton.http.client/TargetRejection.ADDRESS|null[0]
+    enum entry PORT // neton.http.client/TargetRejection.PORT|null[0]
+    enum entry PROXY // neton.http.client/TargetRejection.PROXY|null[0]
+    enum entry RESOLVE // neton.http.client/TargetRejection.RESOLVE|null[0]
+    enum entry SCHEME // neton.http.client/TargetRejection.SCHEME|null[0]
+
+    final val entries // neton.http.client/TargetRejection.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.http.client/TargetRejection> // neton.http.client/TargetRejection.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.http.client/TargetRejection // neton.http.client/TargetRejection.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.http.client/TargetRejection> // neton.http.client/TargetRejection.values|values#static(){}[0]
+}
+
+abstract fun interface neton.http.client/HostResolver { // neton.http.client/HostResolver|null[0]
+    abstract suspend fun resolve(kotlin/String): kotlin.collections/List<neton.http.client/IpAddress> // neton.http.client/HostResolver.resolve|resolve(kotlin.String){}[0]
+}
+
+abstract fun interface neton.http.client/HttpClientProvider { // neton.http.client/HttpClientProvider|null[0]
+    abstract fun create(kotlin/Function1<neton.http.client/HttpClientConfig, kotlin/Unit>): neton.http.client/HttpClient // neton.http.client/HttpClientProvider.create|create(kotlin.Function1<neton.http.client.HttpClientConfig,kotlin.Unit>){}[0]
+}
+
+abstract interface neton.http.client/HttpClient { // neton.http.client/HttpClient|null[0]
+    abstract val capabilities // neton.http.client/HttpClient.capabilities|{}capabilities[0]
+        abstract fun <get-capabilities>(): kotlin.collections/Set<neton.http.client/HttpClientCapability> // neton.http.client/HttpClient.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+
+    abstract fun stream(neton.http.client/HttpClientRequest): kotlinx.coroutines.flow/Flow<neton.http.client/HttpClientStreamChunk> // neton.http.client/HttpClient.stream|stream(neton.http.client.HttpClientRequest){}[0]
+    abstract suspend fun close() // neton.http.client/HttpClient.close|close(){}[0]
+    abstract suspend fun request(neton.http.client/HttpClientRequest): neton.http.client/HttpClientResponse // neton.http.client/HttpClient.request|request(neton.http.client.HttpClientRequest){}[0]
+
+    final object Companion { // neton.http.client/HttpClient.Companion|null[0]
+        final fun createWith(kotlin/Function1<neton.http.client/HttpClientConfig, neton.http.client/HttpClient>, kotlin/Function1<neton.http.client/HttpClientConfig, kotlin/Unit> = ...): neton.http.client/HttpClient // neton.http.client/HttpClient.Companion.createWith|createWith(kotlin.Function1<neton.http.client.HttpClientConfig,neton.http.client.HttpClient>;kotlin.Function1<neton.http.client.HttpClientConfig,kotlin.Unit>){}[0]
+    }
+}
+
+abstract interface neton.http.client/RetryPolicy { // neton.http.client/RetryPolicy|null[0]
+    abstract fun shouldRetry(kotlin/Int, neton.http.client/HttpClientResponse?, neton.http.client/HttpClientError?): neton.http.client/RetryDecision // neton.http.client/RetryPolicy.shouldRetry|shouldRetry(kotlin.Int;neton.http.client.HttpClientResponse?;neton.http.client.HttpClientError?){}[0]
+}
+
+abstract interface neton.http.conformance/ChunkMeter { // neton.http.conformance/ChunkMeter|null[0]
+    abstract fun released(): kotlin/Int // neton.http.conformance/ChunkMeter.released|released(){}[0]
+    abstract suspend fun awaitReleased(kotlin/Int, kotlin/Long = ...): kotlin/Boolean // neton.http.conformance/ChunkMeter.awaitReleased|awaitReleased(kotlin.Int;kotlin.Long){}[0]
+}
+
+abstract interface neton.http.conformance/OriginConnection { // neton.http.conformance/OriginConnection|null[0]
+    abstract suspend fun abort() // neton.http.conformance/OriginConnection.abort|abort(){}[0]
+    abstract suspend fun awaitPeerClosed(kotlin/Long): kotlin/Boolean // neton.http.conformance/OriginConnection.awaitPeerClosed|awaitPeerClosed(kotlin.Long){}[0]
+    abstract suspend fun end() // neton.http.conformance/OriginConnection.end|end(){}[0]
+    abstract suspend fun writeChunk(kotlin/ByteArray) // neton.http.conformance/OriginConnection.writeChunk|writeChunk(kotlin.ByteArray){}[0]
+    abstract suspend fun writeFixed(kotlin/Int, neton.core.http/HttpHeaders = ..., kotlin/ByteArray = ...) // neton.http.conformance/OriginConnection.writeFixed|writeFixed(kotlin.Int;neton.core.http.HttpHeaders;kotlin.ByteArray){}[0]
+    abstract suspend fun writeHead(kotlin/Int, neton.core.http/HttpHeaders = ...) // neton.http.conformance/OriginConnection.writeHead|writeHead(kotlin.Int;neton.core.http.HttpHeaders){}[0]
+}
+
+abstract interface neton.http.mail/SmtpTransport { // neton.http.mail/SmtpTransport|null[0]
+    abstract suspend fun send(neton.http.mail/SmtpAccount, neton.http.mail/SmtpMessage, neton.http.client/OutboundAddressPolicy?) // neton.http.mail/SmtpTransport.send|send(neton.http.mail.SmtpAccount;neton.http.mail.SmtpMessage;neton.http.client.OutboundAddressPolicy?){}[0]
+}
+
+sealed interface neton.http.client/HttpClientBody { // neton.http.client/HttpClientBody|null[0]
+    final class Bytes : neton.http.client/HttpClientBody { // neton.http.client/HttpClientBody.Bytes|null[0]
+        constructor <init>(kotlin/ByteArray, kotlin/String) // neton.http.client/HttpClientBody.Bytes.<init>|<init>(kotlin.ByteArray;kotlin.String){}[0]
+
+        final val bytes // neton.http.client/HttpClientBody.Bytes.bytes|{}bytes[0]
+            final fun <get-bytes>(): kotlin/ByteArray // neton.http.client/HttpClientBody.Bytes.bytes.<get-bytes>|<get-bytes>(){}[0]
+        final val contentType // neton.http.client/HttpClientBody.Bytes.contentType|{}contentType[0]
+            final fun <get-contentType>(): kotlin/String // neton.http.client/HttpClientBody.Bytes.contentType.<get-contentType>|<get-contentType>(){}[0]
+
+        final fun component1(): kotlin/ByteArray // neton.http.client/HttpClientBody.Bytes.component1|component1(){}[0]
+        final fun component2(): kotlin/String // neton.http.client/HttpClientBody.Bytes.component2|component2(){}[0]
+        final fun copy(kotlin/ByteArray = ..., kotlin/String = ...): neton.http.client/HttpClientBody.Bytes // neton.http.client/HttpClientBody.Bytes.copy|copy(kotlin.ByteArray;kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientBody.Bytes.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientBody.Bytes.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientBody.Bytes.toString|toString(){}[0]
+    }
+
+    final class Json : neton.http.client/HttpClientBody { // neton.http.client/HttpClientBody.Json|null[0]
+        constructor <init>(kotlin/String) // neton.http.client/HttpClientBody.Json.<init>|<init>(kotlin.String){}[0]
+
+        final val text // neton.http.client/HttpClientBody.Json.text|{}text[0]
+            final fun <get-text>(): kotlin/String // neton.http.client/HttpClientBody.Json.text.<get-text>|<get-text>(){}[0]
+
+        final fun component1(): kotlin/String // neton.http.client/HttpClientBody.Json.component1|component1(){}[0]
+        final fun copy(kotlin/String = ...): neton.http.client/HttpClientBody.Json // neton.http.client/HttpClientBody.Json.copy|copy(kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientBody.Json.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientBody.Json.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientBody.Json.toString|toString(){}[0]
+    }
+
+    final class Text : neton.http.client/HttpClientBody { // neton.http.client/HttpClientBody.Text|null[0]
+        constructor <init>(kotlin/String, kotlin/String) // neton.http.client/HttpClientBody.Text.<init>|<init>(kotlin.String;kotlin.String){}[0]
+
+        final val contentType // neton.http.client/HttpClientBody.Text.contentType|{}contentType[0]
+            final fun <get-contentType>(): kotlin/String // neton.http.client/HttpClientBody.Text.contentType.<get-contentType>|<get-contentType>(){}[0]
+        final val text // neton.http.client/HttpClientBody.Text.text|{}text[0]
+            final fun <get-text>(): kotlin/String // neton.http.client/HttpClientBody.Text.text.<get-text>|<get-text>(){}[0]
+
+        final fun component1(): kotlin/String // neton.http.client/HttpClientBody.Text.component1|component1(){}[0]
+        final fun component2(): kotlin/String // neton.http.client/HttpClientBody.Text.component2|component2(){}[0]
+        final fun copy(kotlin/String = ..., kotlin/String = ...): neton.http.client/HttpClientBody.Text // neton.http.client/HttpClientBody.Text.copy|copy(kotlin.String;kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientBody.Text.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientBody.Text.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientBody.Text.toString|toString(){}[0]
+    }
+}
+
+sealed interface neton.http.client/HttpClientError { // neton.http.client/HttpClientError|null[0]
+    abstract val cause // neton.http.client/HttpClientError.cause|{}cause[0]
+        abstract fun <get-cause>(): kotlin/Throwable? // neton.http.client/HttpClientError.cause.<get-cause>|<get-cause>(){}[0]
+    abstract val message // neton.http.client/HttpClientError.message|{}message[0]
+        abstract fun <get-message>(): kotlin/String // neton.http.client/HttpClientError.message.<get-message>|<get-message>(){}[0]
+
+    final class Http : neton.http.client/HttpClientError { // neton.http.client/HttpClientError.Http|null[0]
+        constructor <init>(kotlin/Int, kotlin/String, kotlin/String?, neton.core.http/HttpHeaders = ...) // neton.http.client/HttpClientError.Http.<init>|<init>(kotlin.Int;kotlin.String;kotlin.String?;neton.core.http.HttpHeaders){}[0]
+
+        final val body // neton.http.client/HttpClientError.Http.body|{}body[0]
+            final fun <get-body>(): kotlin/String? // neton.http.client/HttpClientError.Http.body.<get-body>|<get-body>(){}[0]
+        final val cause // neton.http.client/HttpClientError.Http.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable? // neton.http.client/HttpClientError.Http.cause.<get-cause>|<get-cause>(){}[0]
+        final val headers // neton.http.client/HttpClientError.Http.headers|{}headers[0]
+            final fun <get-headers>(): neton.core.http/HttpHeaders // neton.http.client/HttpClientError.Http.headers.<get-headers>|<get-headers>(){}[0]
+        final val message // neton.http.client/HttpClientError.Http.message|{}message[0]
+            final fun <get-message>(): kotlin/String // neton.http.client/HttpClientError.Http.message.<get-message>|<get-message>(){}[0]
+        final val statusCode // neton.http.client/HttpClientError.Http.statusCode|{}statusCode[0]
+            final fun <get-statusCode>(): kotlin/Int // neton.http.client/HttpClientError.Http.statusCode.<get-statusCode>|<get-statusCode>(){}[0]
+
+        final fun component1(): kotlin/Int // neton.http.client/HttpClientError.Http.component1|component1(){}[0]
+        final fun component2(): kotlin/String // neton.http.client/HttpClientError.Http.component2|component2(){}[0]
+        final fun component3(): kotlin/String? // neton.http.client/HttpClientError.Http.component3|component3(){}[0]
+        final fun component4(): neton.core.http/HttpHeaders // neton.http.client/HttpClientError.Http.component4|component4(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/String = ..., kotlin/String? = ..., neton.core.http/HttpHeaders = ...): neton.http.client/HttpClientError.Http // neton.http.client/HttpClientError.Http.copy|copy(kotlin.Int;kotlin.String;kotlin.String?;neton.core.http.HttpHeaders){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientError.Http.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientError.Http.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientError.Http.toString|toString(){}[0]
+    }
+
+    final class Network : neton.http.client/HttpClientError { // neton.http.client/HttpClientError.Network|null[0]
+        constructor <init>(kotlin/String, kotlin/Throwable?) // neton.http.client/HttpClientError.Network.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+
+        final val cause // neton.http.client/HttpClientError.Network.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable? // neton.http.client/HttpClientError.Network.cause.<get-cause>|<get-cause>(){}[0]
+        final val message // neton.http.client/HttpClientError.Network.message|{}message[0]
+            final fun <get-message>(): kotlin/String // neton.http.client/HttpClientError.Network.message.<get-message>|<get-message>(){}[0]
+
+        final fun component1(): kotlin/String // neton.http.client/HttpClientError.Network.component1|component1(){}[0]
+        final fun component2(): kotlin/Throwable? // neton.http.client/HttpClientError.Network.component2|component2(){}[0]
+        final fun copy(kotlin/String = ..., kotlin/Throwable? = ...): neton.http.client/HttpClientError.Network // neton.http.client/HttpClientError.Network.copy|copy(kotlin.String;kotlin.Throwable?){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientError.Network.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientError.Network.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientError.Network.toString|toString(){}[0]
+    }
+
+    final class TargetRejected : neton.http.client/HttpClientError { // neton.http.client/HttpClientError.TargetRejected|null[0]
+        constructor <init>(neton.http.client/TargetRejection, kotlin/String) // neton.http.client/HttpClientError.TargetRejected.<init>|<init>(neton.http.client.TargetRejection;kotlin.String){}[0]
+
+        final val cause // neton.http.client/HttpClientError.TargetRejected.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable? // neton.http.client/HttpClientError.TargetRejected.cause.<get-cause>|<get-cause>(){}[0]
+        final val message // neton.http.client/HttpClientError.TargetRejected.message|{}message[0]
+            final fun <get-message>(): kotlin/String // neton.http.client/HttpClientError.TargetRejected.message.<get-message>|<get-message>(){}[0]
+        final val reason // neton.http.client/HttpClientError.TargetRejected.reason|{}reason[0]
+            final fun <get-reason>(): neton.http.client/TargetRejection // neton.http.client/HttpClientError.TargetRejected.reason.<get-reason>|<get-reason>(){}[0]
+
+        final fun component1(): neton.http.client/TargetRejection // neton.http.client/HttpClientError.TargetRejected.component1|component1(){}[0]
+        final fun component2(): kotlin/String // neton.http.client/HttpClientError.TargetRejected.component2|component2(){}[0]
+        final fun copy(neton.http.client/TargetRejection = ..., kotlin/String = ...): neton.http.client/HttpClientError.TargetRejected // neton.http.client/HttpClientError.TargetRejected.copy|copy(neton.http.client.TargetRejection;kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientError.TargetRejected.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientError.TargetRejected.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientError.TargetRejected.toString|toString(){}[0]
+    }
+
+    final class Timeout : neton.http.client/HttpClientError { // neton.http.client/HttpClientError.Timeout|null[0]
+        constructor <init>(kotlin/String, kotlin/Throwable?) // neton.http.client/HttpClientError.Timeout.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+
+        final val cause // neton.http.client/HttpClientError.Timeout.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable? // neton.http.client/HttpClientError.Timeout.cause.<get-cause>|<get-cause>(){}[0]
+        final val message // neton.http.client/HttpClientError.Timeout.message|{}message[0]
+            final fun <get-message>(): kotlin/String // neton.http.client/HttpClientError.Timeout.message.<get-message>|<get-message>(){}[0]
+
+        final fun component1(): kotlin/String // neton.http.client/HttpClientError.Timeout.component1|component1(){}[0]
+        final fun component2(): kotlin/Throwable? // neton.http.client/HttpClientError.Timeout.component2|component2(){}[0]
+        final fun copy(kotlin/String = ..., kotlin/Throwable? = ...): neton.http.client/HttpClientError.Timeout // neton.http.client/HttpClientError.Timeout.copy|copy(kotlin.String;kotlin.Throwable?){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientError.Timeout.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientError.Timeout.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientError.Timeout.toString|toString(){}[0]
+    }
+
+    final class Unknown : neton.http.client/HttpClientError { // neton.http.client/HttpClientError.Unknown|null[0]
+        constructor <init>(kotlin/String, kotlin/Throwable?) // neton.http.client/HttpClientError.Unknown.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+
+        final val cause // neton.http.client/HttpClientError.Unknown.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable? // neton.http.client/HttpClientError.Unknown.cause.<get-cause>|<get-cause>(){}[0]
+        final val message // neton.http.client/HttpClientError.Unknown.message|{}message[0]
+            final fun <get-message>(): kotlin/String // neton.http.client/HttpClientError.Unknown.message.<get-message>|<get-message>(){}[0]
+
+        final fun component1(): kotlin/String // neton.http.client/HttpClientError.Unknown.component1|component1(){}[0]
+        final fun component2(): kotlin/Throwable? // neton.http.client/HttpClientError.Unknown.component2|component2(){}[0]
+        final fun copy(kotlin/String = ..., kotlin/Throwable? = ...): neton.http.client/HttpClientError.Unknown // neton.http.client/HttpClientError.Unknown.copy|copy(kotlin.String;kotlin.Throwable?){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientError.Unknown.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientError.Unknown.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientError.Unknown.toString|toString(){}[0]
+    }
+}
+
+sealed interface neton.http.client/HttpClientStreamChunk { // neton.http.client/HttpClientStreamChunk|null[0]
+    final class Bytes : neton.http.client/HttpClientStreamChunk { // neton.http.client/HttpClientStreamChunk.Bytes|null[0]
+        constructor <init>(kotlin/ByteArray) // neton.http.client/HttpClientStreamChunk.Bytes.<init>|<init>(kotlin.ByteArray){}[0]
+
+        final val bytes // neton.http.client/HttpClientStreamChunk.Bytes.bytes|{}bytes[0]
+            final fun <get-bytes>(): kotlin/ByteArray // neton.http.client/HttpClientStreamChunk.Bytes.bytes.<get-bytes>|<get-bytes>(){}[0]
+
+        final fun component1(): kotlin/ByteArray // neton.http.client/HttpClientStreamChunk.Bytes.component1|component1(){}[0]
+        final fun copy(kotlin/ByteArray = ...): neton.http.client/HttpClientStreamChunk.Bytes // neton.http.client/HttpClientStreamChunk.Bytes.copy|copy(kotlin.ByteArray){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientStreamChunk.Bytes.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientStreamChunk.Bytes.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientStreamChunk.Bytes.toString|toString(){}[0]
+    }
+
+    final class End : neton.http.client/HttpClientStreamChunk { // neton.http.client/HttpClientStreamChunk.End|null[0]
+        constructor <init>(neton.core.http/HttpHeaders) // neton.http.client/HttpClientStreamChunk.End.<init>|<init>(neton.core.http.HttpHeaders){}[0]
+
+        final val finalHeaders // neton.http.client/HttpClientStreamChunk.End.finalHeaders|{}finalHeaders[0]
+            final fun <get-finalHeaders>(): neton.core.http/HttpHeaders // neton.http.client/HttpClientStreamChunk.End.finalHeaders.<get-finalHeaders>|<get-finalHeaders>(){}[0]
+
+        final fun component1(): neton.core.http/HttpHeaders // neton.http.client/HttpClientStreamChunk.End.component1|component1(){}[0]
+        final fun copy(neton.core.http/HttpHeaders = ...): neton.http.client/HttpClientStreamChunk.End // neton.http.client/HttpClientStreamChunk.End.copy|copy(neton.core.http.HttpHeaders){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientStreamChunk.End.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientStreamChunk.End.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientStreamChunk.End.toString|toString(){}[0]
+    }
+
+    final class Start : neton.http.client/HttpClientStreamChunk { // neton.http.client/HttpClientStreamChunk.Start|null[0]
+        constructor <init>(kotlin/Int, neton.core.http/HttpHeaders) // neton.http.client/HttpClientStreamChunk.Start.<init>|<init>(kotlin.Int;neton.core.http.HttpHeaders){}[0]
+
+        final val headers // neton.http.client/HttpClientStreamChunk.Start.headers|{}headers[0]
+            final fun <get-headers>(): neton.core.http/HttpHeaders // neton.http.client/HttpClientStreamChunk.Start.headers.<get-headers>|<get-headers>(){}[0]
+        final val statusCode // neton.http.client/HttpClientStreamChunk.Start.statusCode|{}statusCode[0]
+            final fun <get-statusCode>(): kotlin/Int // neton.http.client/HttpClientStreamChunk.Start.statusCode.<get-statusCode>|<get-statusCode>(){}[0]
+
+        final fun component1(): kotlin/Int // neton.http.client/HttpClientStreamChunk.Start.component1|component1(){}[0]
+        final fun component2(): neton.core.http/HttpHeaders // neton.http.client/HttpClientStreamChunk.Start.component2|component2(){}[0]
+        final fun copy(kotlin/Int = ..., neton.core.http/HttpHeaders = ...): neton.http.client/HttpClientStreamChunk.Start // neton.http.client/HttpClientStreamChunk.Start.copy|copy(kotlin.Int;neton.core.http.HttpHeaders){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientStreamChunk.Start.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientStreamChunk.Start.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientStreamChunk.Start.toString|toString(){}[0]
+    }
+
+    final class Text : neton.http.client/HttpClientStreamChunk { // neton.http.client/HttpClientStreamChunk.Text|null[0]
+        constructor <init>(kotlin/String) // neton.http.client/HttpClientStreamChunk.Text.<init>|<init>(kotlin.String){}[0]
+
+        final val text // neton.http.client/HttpClientStreamChunk.Text.text|{}text[0]
+            final fun <get-text>(): kotlin/String // neton.http.client/HttpClientStreamChunk.Text.text.<get-text>|<get-text>(){}[0]
+
+        final fun component1(): kotlin/String // neton.http.client/HttpClientStreamChunk.Text.component1|component1(){}[0]
+        final fun copy(kotlin/String = ...): neton.http.client/HttpClientStreamChunk.Text // neton.http.client/HttpClientStreamChunk.Text.copy|copy(kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientStreamChunk.Text.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/HttpClientStreamChunk.Text.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/HttpClientStreamChunk.Text.toString|toString(){}[0]
+    }
+}
+
+sealed interface neton.http.client/RetryDecision { // neton.http.client/RetryDecision|null[0]
+    final class RetryAfter : neton.http.client/RetryDecision { // neton.http.client/RetryDecision.RetryAfter|null[0]
+        constructor <init>(kotlin/Long) // neton.http.client/RetryDecision.RetryAfter.<init>|<init>(kotlin.Long){}[0]
+
+        final val delayMillis // neton.http.client/RetryDecision.RetryAfter.delayMillis|{}delayMillis[0]
+            final fun <get-delayMillis>(): kotlin/Long // neton.http.client/RetryDecision.RetryAfter.delayMillis.<get-delayMillis>|<get-delayMillis>(){}[0]
+
+        final fun component1(): kotlin/Long // neton.http.client/RetryDecision.RetryAfter.component1|component1(){}[0]
+        final fun copy(kotlin/Long = ...): neton.http.client/RetryDecision.RetryAfter // neton.http.client/RetryDecision.RetryAfter.copy|copy(kotlin.Long){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/RetryDecision.RetryAfter.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/RetryDecision.RetryAfter.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/RetryDecision.RetryAfter.toString|toString(){}[0]
+    }
+
+    final object DoNotRetry : neton.http.client/RetryDecision { // neton.http.client/RetryDecision.DoNotRetry|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/RetryDecision.DoNotRetry.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.http.client/RetryDecision.DoNotRetry.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.http.client/RetryDecision.DoNotRetry.toString|toString(){}[0]
+    }
+}
+
+abstract class neton.http.conformance/HttpClientConformanceSuite { // neton.http.conformance/HttpClientConformanceSuite|null[0]
+    constructor <init>() // neton.http.conformance/HttpClientConformanceSuite.<init>|<init>(){}[0]
+
+    abstract fun createClient(kotlin/Function1<neton.http.client/HttpClientConfig, kotlin/Unit> = ...): neton.http.client/HttpClient // neton.http.conformance/HttpClientConformanceSuite.createClient|createClient(kotlin.Function1<neton.http.client.HttpClientConfig,kotlin.Unit>){}[0]
+    abstract fun recordSkipped(neton.http.client/HttpClientCapability, kotlin/String) // neton.http.conformance/HttpClientConformanceSuite.recordSkipped|recordSkipped(neton.http.client.HttpClientCapability;kotlin.String){}[0]
+    final suspend fun checkAddressPolicyRefusesInternalTargets() // neton.http.conformance/HttpClientConformanceSuite.checkAddressPolicyRefusesInternalTargets|checkAddressPolicyRefusesInternalTargets(){}[0]
+    final suspend fun checkCloseIsIdempotentAndRejectsFurtherRequests() // neton.http.conformance/HttpClientConformanceSuite.checkCloseIsIdempotentAndRejectsFurtherRequests|checkCloseIsIdempotentAndRejectsFurtherRequests(){}[0]
+    final suspend fun checkConnectionRefusedMapsToNetwork() // neton.http.conformance/HttpClientConformanceSuite.checkConnectionRefusedMapsToNetwork|checkConnectionRefusedMapsToNetwork(){}[0]
+    final suspend fun checkFlowCancellationClosesTheConnection() // neton.http.conformance/HttpClientConformanceSuite.checkFlowCancellationClosesTheConnection|checkFlowCancellationClosesTheConnection(){}[0]
+    final suspend fun checkGetReturnsStatusHeadersAndBody() // neton.http.conformance/HttpClientConformanceSuite.checkGetReturnsStatusHeadersAndBody|checkGetReturnsStatusHeadersAndBody(){}[0]
+    final suspend fun checkHeadersPreserveMultiValueAndCaseInsensitiveLookup() // neton.http.conformance/HttpClientConformanceSuite.checkHeadersPreserveMultiValueAndCaseInsensitiveLookup|checkHeadersPreserveMultiValueAndCaseInsensitiveLookup(){}[0]
+    final suspend fun checkProxyUrlRoutesThroughTheProxy() // neton.http.conformance/HttpClientConformanceSuite.checkProxyUrlRoutesThroughTheProxy|checkProxyUrlRoutesThroughTheProxy(){}[0]
+    final suspend fun checkRequestBodyBytesAreVerbatim() // neton.http.conformance/HttpClientConformanceSuite.checkRequestBodyBytesAreVerbatim|checkRequestBodyBytesAreVerbatim(){}[0]
+    final suspend fun checkRequestReturnsNonSuccessStatusAsAResponse() // neton.http.conformance/HttpClientConformanceSuite.checkRequestReturnsNonSuccessStatusAsAResponse|checkRequestReturnsNonSuccessStatusAsAResponse(){}[0]
+    final suspend fun checkRequestTimeoutMapsToTimeout() // neton.http.conformance/HttpClientConformanceSuite.checkRequestTimeoutMapsToTimeout|checkRequestTimeoutMapsToTimeout(){}[0]
+    final suspend fun checkStreamThrowsHttpErrorForNonSuccessStatus() // neton.http.conformance/HttpClientConformanceSuite.checkStreamThrowsHttpErrorForNonSuccessStatus|checkStreamThrowsHttpErrorForNonSuccessStatus(){}[0]
+    final suspend fun checkStreamingChunksEmitBeforeBodyCompletes() // neton.http.conformance/HttpClientConformanceSuite.checkStreamingChunksEmitBeforeBodyCompletes|checkStreamingChunksEmitBeforeBodyCompletes(){}[0]
+    final suspend fun requiring(neton.http.client/HttpClientCapability, kotlin/String, kotlin.coroutines/SuspendFunction0<kotlin/Unit>) // neton.http.conformance/HttpClientConformanceSuite.requiring|requiring(neton.http.client.HttpClientCapability;kotlin.String;kotlin.coroutines.SuspendFunction0<kotlin.Unit>){}[0]
+    open suspend fun checkCustomCaIsTrustedAndSystemCaIsNot() // neton.http.conformance/HttpClientConformanceSuite.checkCustomCaIsTrustedAndSystemCaIsNot|checkCustomCaIsTrustedAndSystemCaIsNot(){}[0]
+    open suspend fun checkHttp2IsNegotiatedWhenOriginOffersIt() // neton.http.conformance/HttpClientConformanceSuite.checkHttp2IsNegotiatedWhenOriginOffersIt|checkHttp2IsNegotiatedWhenOriginOffersIt(){}[0]
+}
+
+abstract class neton.http.conformance/HttpEngineConformanceSuite { // neton.http.conformance/HttpEngineConformanceSuite|null[0]
+    constructor <init>() // neton.http.conformance/HttpEngineConformanceSuite.<init>|<init>(){}[0]
+
+    abstract fun createAdapter(): neton.core.http.adapter/HttpAdapter // neton.http.conformance/HttpEngineConformanceSuite.createAdapter|createAdapter(){}[0]
+    abstract fun recordSkipped(neton.core.http.adapter/HttpCapability, kotlin/String) // neton.http.conformance/HttpEngineConformanceSuite.recordSkipped|recordSkipped(neton.core.http.adapter.HttpCapability;kotlin.String){}[0]
+    abstract suspend fun roundTrip(neton.http.conformance/ConformanceRequest): neton.http.conformance/ConformanceResponse // neton.http.conformance/HttpEngineConformanceSuite.roundTrip|roundTrip(neton.http.conformance.ConformanceRequest){}[0]
+    final suspend fun checkEmptyBodyIsEmptyNotNull() // neton.http.conformance/HttpEngineConformanceSuite.checkEmptyBodyIsEmptyNotNull|checkEmptyBodyIsEmptyNotNull(){}[0]
+    final suspend fun checkNonUtf8BodyBytesSurvive() // neton.http.conformance/HttpEngineConformanceSuite.checkNonUtf8BodyBytesSurvive|checkNonUtf8BodyBytesSurvive(){}[0]
+    final suspend fun checkQueryIsSplitFromPath() // neton.http.conformance/HttpEngineConformanceSuite.checkQueryIsSplitFromPath|checkQueryIsSplitFromPath(){}[0]
+    final suspend fun checkRepeatedRequestHeadersSurvive() // neton.http.conformance/HttpEngineConformanceSuite.checkRepeatedRequestHeadersSurvive|checkRepeatedRequestHeadersSurvive(){}[0]
+    final suspend fun checkStreamingDoesNotDeclareContentLength() // neton.http.conformance/HttpEngineConformanceSuite.checkStreamingDoesNotDeclareContentLength|checkStreamingDoesNotDeclareContentLength(){}[0]
+    final suspend fun checkStreamingReleasesChunksAsProduced() // neton.http.conformance/HttpEngineConformanceSuite.checkStreamingReleasesChunksAsProduced|checkStreamingReleasesChunksAsProduced(){}[0]
+    final suspend fun requiring(neton.core.http.adapter/HttpCapability, kotlin/String, kotlin.coroutines/SuspendFunction0<kotlin/Unit>) // neton.http.conformance/HttpEngineConformanceSuite.requiring|requiring(neton.core.http.adapter.HttpCapability;kotlin.String;kotlin.coroutines.SuspendFunction0<kotlin.Unit>){}[0]
+    open suspend fun streamRoundTrip(neton.http.conformance/ConformanceRequest, kotlin.coroutines/SuspendFunction2<neton.core.http/HttpBodyWriter, neton.http.conformance/ChunkMeter, kotlin/Unit>): neton.http.conformance/ConformanceStream // neton.http.conformance/HttpEngineConformanceSuite.streamRoundTrip|streamRoundTrip(neton.http.conformance.ConformanceRequest;kotlin.coroutines.SuspendFunction2<neton.core.http.HttpBodyWriter,neton.http.conformance.ChunkMeter,kotlin.Unit>){}[0]
+}
+
+final class neton.http.adapter/BufferedHttpDispatcher { // neton.http.adapter/BufferedHttpDispatcher|null[0]
+    constructor <init>(neton.core.http.adapter/HttpServerConfig) // neton.http.adapter/BufferedHttpDispatcher.<init>|<init>(neton.core.http.adapter.HttpServerConfig){}[0]
+
+    final var hasUpgrades // neton.http.adapter/BufferedHttpDispatcher.hasUpgrades|{}hasUpgrades[0]
+        final fun <get-hasUpgrades>(): kotlin/Boolean // neton.http.adapter/BufferedHttpDispatcher.hasUpgrades.<get-hasUpgrades>|<get-hasUpgrades>(){}[0]
+
+    final fun bind(neton.core.component/NetonContext) // neton.http.adapter/BufferedHttpDispatcher.bind|bind(neton.core.component.NetonContext){}[0]
+    final fun corsHeaders(neton.http.adapter/BufferedHttpRequest): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.adapter/BufferedHttpDispatcher.corsHeaders|corsHeaders(neton.http.adapter.BufferedHttpRequest){}[0]
+    final fun transportFailureResponse(kotlin/Int): neton.http.adapter/BufferedHttpResponse // neton.http.adapter/BufferedHttpDispatcher.transportFailureResponse|transportFailureResponse(kotlin.Int){}[0]
+    final suspend fun dispatch(neton.http.adapter/BufferedHttpRequest): neton.http.adapter/BufferedHttpResponse // neton.http.adapter/BufferedHttpDispatcher.dispatch|dispatch(neton.http.adapter.BufferedHttpRequest){}[0]
+    final suspend fun dispatch(neton.http.adapter/BufferedHttpRequest, neton.core.http/HttpResponse?): neton.http.adapter/BufferedHttpResponse // neton.http.adapter/BufferedHttpDispatcher.dispatch|dispatch(neton.http.adapter.BufferedHttpRequest;neton.core.http.HttpResponse?){}[0]
+
+    final object Companion { // neton.http.adapter/BufferedHttpDispatcher.Companion|null[0]
+        final val envelopeJson // neton.http.adapter/BufferedHttpDispatcher.Companion.envelopeJson|{}envelopeJson[0]
+            final fun <get-envelopeJson>(): kotlinx.serialization.json/Json // neton.http.adapter/BufferedHttpDispatcher.Companion.envelopeJson.<get-envelopeJson>|<get-envelopeJson>(){}[0]
+
+        final fun (kotlin/String).toHttpMethod(): neton.core.http/HttpMethod? // neton.http.adapter/BufferedHttpDispatcher.Companion.toHttpMethod|toHttpMethod@kotlin.String(){}[0]
+        final fun inferRouteGroup(kotlin/String?, kotlin.collections/Set<kotlin/String>): kotlin/String? // neton.http.adapter/BufferedHttpDispatcher.Companion.inferRouteGroup|inferRouteGroup(kotlin.String?;kotlin.collections.Set<kotlin.String>){}[0]
+        final fun matchPath(kotlin/String, kotlin/String): kotlin.collections/Map<kotlin/String, kotlin/String>? // neton.http.adapter/BufferedHttpDispatcher.Companion.matchPath|matchPath(kotlin.String;kotlin.String){}[0]
+        final fun normalizePath(kotlin/String): kotlin/String // neton.http.adapter/BufferedHttpDispatcher.Companion.normalizePath|normalizePath(kotlin.String){}[0]
+        final fun parseParameters(kotlin/String): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.adapter/BufferedHttpDispatcher.Companion.parseParameters|parseParameters(kotlin.String){}[0]
+        final fun percentDecode(kotlin/String): kotlin/String // neton.http.adapter/BufferedHttpDispatcher.Companion.percentDecode|percentDecode(kotlin.String){}[0]
+        final fun queryParamAll(kotlin/String, kotlin/String): kotlin.collections/List<kotlin/String>? // neton.http.adapter/BufferedHttpDispatcher.Companion.queryParamAll|queryParamAll(kotlin.String;kotlin.String){}[0]
+        final fun queryParamFirst(kotlin/String, kotlin/String): kotlin/String? // neton.http.adapter/BufferedHttpDispatcher.Companion.queryParamFirst|queryParamFirst(kotlin.String;kotlin.String){}[0]
+        final fun requestTraceId(kotlin/Long): kotlin/String // neton.http.adapter/BufferedHttpDispatcher.Companion.requestTraceId|requestTraceId(kotlin.Long){}[0]
+        final fun valueToJsonElement(kotlin/Any?): kotlinx.serialization.json/JsonElement // neton.http.adapter/BufferedHttpDispatcher.Companion.valueToJsonElement|valueToJsonElement(kotlin.Any?){}[0]
+    }
+}
+
+final class neton.http.adapter/BufferedHttpRequest { // neton.http.adapter/BufferedHttpRequest|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>>, kotlin/ByteArray, kotlin/String = ...) // neton.http.adapter/BufferedHttpRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.ByteArray;kotlin.String){}[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin/ByteArray, kotlin/ByteArray, kotlin/String = ...) // neton.http.adapter/BufferedHttpRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.ByteArray;kotlin.ByteArray;kotlin.String){}[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin/ByteArray, kotlin/String, kotlin/Function1<kotlin/String, kotlin/String?>, kotlin/Function0<kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>>>, kotlin/String = ..., kotlin/Boolean? = ..., kotlin/Boolean = ...) // neton.http.adapter/BufferedHttpRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.ByteArray;kotlin.String;kotlin.Function1<kotlin.String,kotlin.String?>;kotlin.Function0<kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>>;kotlin.String;kotlin.Boolean?;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin/String, kotlin/ByteArray, kotlin/String = ...) // neton.http.adapter/BufferedHttpRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.ByteArray;kotlin.String){}[0]
+
+    final val body // neton.http.adapter/BufferedHttpRequest.body|{}body[0]
+        final fun <get-body>(): kotlin/ByteArray // neton.http.adapter/BufferedHttpRequest.body.<get-body>|<get-body>(){}[0]
+    final val canUpgrade // neton.http.adapter/BufferedHttpRequest.canUpgrade|{}canUpgrade[0]
+        final fun <get-canUpgrade>(): kotlin/Boolean // neton.http.adapter/BufferedHttpRequest.canUpgrade.<get-canUpgrade>|<get-canUpgrade>(){}[0]
+    final val headers // neton.http.adapter/BufferedHttpRequest.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.adapter/BufferedHttpRequest.headers.<get-headers>|<get-headers>(){}[0]
+    final val method // neton.http.adapter/BufferedHttpRequest.method|{}method[0]
+        final fun <get-method>(): kotlin/String // neton.http.adapter/BufferedHttpRequest.method.<get-method>|<get-method>(){}[0]
+    final val path // neton.http.adapter/BufferedHttpRequest.path|{}path[0]
+        final fun <get-path>(): kotlin/String // neton.http.adapter/BufferedHttpRequest.path.<get-path>|<get-path>(){}[0]
+    final val protocolVersion // neton.http.adapter/BufferedHttpRequest.protocolVersion|{}protocolVersion[0]
+        final fun <get-protocolVersion>(): kotlin/String // neton.http.adapter/BufferedHttpRequest.protocolVersion.<get-protocolVersion>|<get-protocolVersion>(){}[0]
+    final val query // neton.http.adapter/BufferedHttpRequest.query|{}query[0]
+        final fun <get-query>(): kotlin/String // neton.http.adapter/BufferedHttpRequest.query.<get-query>|<get-query>(){}[0]
+    final val remoteAddress // neton.http.adapter/BufferedHttpRequest.remoteAddress|{}remoteAddress[0]
+        final fun <get-remoteAddress>(): kotlin/String // neton.http.adapter/BufferedHttpRequest.remoteAddress.<get-remoteAddress>|<get-remoteAddress>(){}[0]
+    final val secure // neton.http.adapter/BufferedHttpRequest.secure|{}secure[0]
+        final fun <get-secure>(): kotlin/Boolean? // neton.http.adapter/BufferedHttpRequest.secure.<get-secure>|<get-secure>(){}[0]
+
+    final fun header(kotlin/String): kotlin/String? // neton.http.adapter/BufferedHttpRequest.header|header(kotlin.String){}[0]
+}
+
+final class neton.http.adapter/BufferedHttpResponse { // neton.http.adapter/BufferedHttpResponse|null[0]
+    constructor <init>(kotlin/Int, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/ByteArray = ..., kotlin/Boolean = ..., neton.core.http.upgrade/UpgradeDecision.Accept? = ...) // neton.http.adapter/BufferedHttpResponse.<init>|<init>(kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.ByteArray;kotlin.Boolean;neton.core.http.upgrade.UpgradeDecision.Accept?){}[0]
+
+    final val body // neton.http.adapter/BufferedHttpResponse.body|{}body[0]
+        final fun <get-body>(): kotlin/ByteArray // neton.http.adapter/BufferedHttpResponse.body.<get-body>|<get-body>(){}[0]
+    final val headers // neton.http.adapter/BufferedHttpResponse.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.adapter/BufferedHttpResponse.headers.<get-headers>|<get-headers>(){}[0]
+    final val status // neton.http.adapter/BufferedHttpResponse.status|{}status[0]
+        final fun <get-status>(): kotlin/Int // neton.http.adapter/BufferedHttpResponse.status.<get-status>|<get-status>(){}[0]
+    final val streamed // neton.http.adapter/BufferedHttpResponse.streamed|{}streamed[0]
+        final fun <get-streamed>(): kotlin/Boolean // neton.http.adapter/BufferedHttpResponse.streamed.<get-streamed>|<get-streamed>(){}[0]
+    final val upgrade // neton.http.adapter/BufferedHttpResponse.upgrade|{}upgrade[0]
+        final fun <get-upgrade>(): neton.core.http.upgrade/UpgradeDecision.Accept? // neton.http.adapter/BufferedHttpResponse.upgrade.<get-upgrade>|<get-upgrade>(){}[0]
+}
+
+final class neton.http.client.sse/SseEvent { // neton.http.client.sse/SseEvent|null[0]
+    constructor <init>(kotlin/String? = ..., kotlin/String? = ..., kotlin/String) // neton.http.client.sse/SseEvent.<init>|<init>(kotlin.String?;kotlin.String?;kotlin.String){}[0]
+
+    final val data // neton.http.client.sse/SseEvent.data|{}data[0]
+        final fun <get-data>(): kotlin/String // neton.http.client.sse/SseEvent.data.<get-data>|<get-data>(){}[0]
+    final val event // neton.http.client.sse/SseEvent.event|{}event[0]
+        final fun <get-event>(): kotlin/String? // neton.http.client.sse/SseEvent.event.<get-event>|<get-event>(){}[0]
+    final val id // neton.http.client.sse/SseEvent.id|{}id[0]
+        final fun <get-id>(): kotlin/String? // neton.http.client.sse/SseEvent.id.<get-id>|<get-id>(){}[0]
+
+    final fun component1(): kotlin/String? // neton.http.client.sse/SseEvent.component1|component1(){}[0]
+    final fun component2(): kotlin/String? // neton.http.client.sse/SseEvent.component2|component2(){}[0]
+    final fun component3(): kotlin/String // neton.http.client.sse/SseEvent.component3|component3(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/String? = ..., kotlin/String = ...): neton.http.client.sse/SseEvent // neton.http.client.sse/SseEvent.copy|copy(kotlin.String?;kotlin.String?;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client.sse/SseEvent.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client.sse/SseEvent.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.client.sse/SseEvent.toString|toString(){}[0]
+}
+
+final class neton.http.client.sse/SseParser { // neton.http.client.sse/SseParser|null[0]
+    constructor <init>() // neton.http.client.sse/SseParser.<init>|<init>(){}[0]
+
+    final fun accept(kotlin/String): kotlin.collections/List<neton.http.client.sse/SseEvent> // neton.http.client.sse/SseParser.accept|accept(kotlin.String){}[0]
+    final fun finish(): kotlin.collections/List<neton.http.client.sse/SseEvent> // neton.http.client.sse/SseParser.finish|finish(){}[0]
+}
+
+final class neton.http.client/EgressSettings { // neton.http.client/EgressSettings|null[0]
+    constructor <init>(kotlin.collections/Set<kotlin/Int> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/List<neton.http.client/IpNetwork> = ...) // neton.http.client/EgressSettings.<init>|<init>(kotlin.collections.Set<kotlin.Int>;kotlin.collections.Set<kotlin.String>;kotlin.collections.List<neton.http.client.IpNetwork>){}[0]
+
+    final val allowedHosts // neton.http.client/EgressSettings.allowedHosts|{}allowedHosts[0]
+        final fun <get-allowedHosts>(): kotlin.collections/Set<kotlin/String> // neton.http.client/EgressSettings.allowedHosts.<get-allowedHosts>|<get-allowedHosts>(){}[0]
+    final val allowedNetworks // neton.http.client/EgressSettings.allowedNetworks|{}allowedNetworks[0]
+        final fun <get-allowedNetworks>(): kotlin.collections/List<neton.http.client/IpNetwork> // neton.http.client/EgressSettings.allowedNetworks.<get-allowedNetworks>|<get-allowedNetworks>(){}[0]
+    final val allowedPorts // neton.http.client/EgressSettings.allowedPorts|{}allowedPorts[0]
+        final fun <get-allowedPorts>(): kotlin.collections/Set<kotlin/Int> // neton.http.client/EgressSettings.allowedPorts.<get-allowedPorts>|<get-allowedPorts>(){}[0]
+    final val isRelaxed // neton.http.client/EgressSettings.isRelaxed|{}isRelaxed[0]
+        final fun <get-isRelaxed>(): kotlin/Boolean // neton.http.client/EgressSettings.isRelaxed.<get-isRelaxed>|<get-isRelaxed>(){}[0]
+    final val policy // neton.http.client/EgressSettings.policy|{}policy[0]
+        final fun <get-policy>(): neton.http.client/OutboundAddressPolicy // neton.http.client/EgressSettings.policy.<get-policy>|<get-policy>(){}[0]
+    final val smtpPolicy // neton.http.client/EgressSettings.smtpPolicy|{}smtpPolicy[0]
+        final fun <get-smtpPolicy>(): neton.http.client/OutboundAddressPolicy // neton.http.client/EgressSettings.smtpPolicy.<get-smtpPolicy>|<get-smtpPolicy>(){}[0]
+
+    final fun describe(): kotlin/String // neton.http.client/EgressSettings.describe|describe(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/EgressSettings.toString|toString(){}[0]
+
+    final object Companion { // neton.http.client/EgressSettings.Companion|null[0]
+        final const val SECTION // neton.http.client/EgressSettings.Companion.SECTION|{}SECTION[0]
+            final fun <get-SECTION>(): kotlin/String // neton.http.client/EgressSettings.Companion.SECTION.<get-SECTION>|<get-SECTION>(){}[0]
+
+        final val SMTP_PORTS // neton.http.client/EgressSettings.Companion.SMTP_PORTS|{}SMTP_PORTS[0]
+            final fun <get-SMTP_PORTS>(): kotlin.collections/Set<kotlin/Int> // neton.http.client/EgressSettings.Companion.SMTP_PORTS.<get-SMTP_PORTS>|<get-SMTP_PORTS>(){}[0]
+
+        final fun fromApplicationConfig(kotlin.collections/Map<kotlin/String, kotlin/Any?>?): neton.http.client/EgressSettings // neton.http.client/EgressSettings.Companion.fromApplicationConfig|fromApplicationConfig(kotlin.collections.Map<kotlin.String,kotlin.Any?>?){}[0]
+        final fun load(kotlin/Array<kotlin/String>): neton.http.client/EgressSettings // neton.http.client/EgressSettings.Companion.load|load(kotlin.Array<kotlin.String>){}[0]
+    }
+}
+
+final class neton.http.client/GuardedHttpClientProvider { // neton.http.client/GuardedHttpClientProvider|null[0]
+    constructor <init>(neton.http.client/EgressSettings, neton.http.client/HttpClientProvider) // neton.http.client/GuardedHttpClientProvider.<init>|<init>(neton.http.client.EgressSettings;neton.http.client.HttpClientProvider){}[0]
+
+    final val policy // neton.http.client/GuardedHttpClientProvider.policy|{}policy[0]
+        final fun <get-policy>(): neton.http.client/OutboundAddressPolicy // neton.http.client/GuardedHttpClientProvider.policy.<get-policy>|<get-policy>(){}[0]
+    final val settings // neton.http.client/GuardedHttpClientProvider.settings|{}settings[0]
+        final fun <get-settings>(): neton.http.client/EgressSettings // neton.http.client/GuardedHttpClientProvider.settings.<get-settings>|<get-settings>(){}[0]
+
+    final fun create(kotlin/Function1<neton.http.client/HttpClientConfig, kotlin/Unit> = ...): neton.http.client/HttpClient // neton.http.client/GuardedHttpClientProvider.create|create(kotlin.Function1<neton.http.client.HttpClientConfig,kotlin.Unit>){}[0]
+}
+
+final class neton.http.client/HttpClientConfig { // neton.http.client/HttpClientConfig|null[0]
+    constructor <init>() // neton.http.client/HttpClientConfig.<init>|<init>(){}[0]
+
+    final var addressPolicy // neton.http.client/HttpClientConfig.addressPolicy|{}addressPolicy[0]
+        final fun <get-addressPolicy>(): neton.http.client/OutboundAddressPolicy? // neton.http.client/HttpClientConfig.addressPolicy.<get-addressPolicy>|<get-addressPolicy>(){}[0]
+        final fun <set-addressPolicy>(neton.http.client/OutboundAddressPolicy?) // neton.http.client/HttpClientConfig.addressPolicy.<set-addressPolicy>|<set-addressPolicy>(neton.http.client.OutboundAddressPolicy?){}[0]
+    final var connectMillis // neton.http.client/HttpClientConfig.connectMillis|{}connectMillis[0]
+        final fun <get-connectMillis>(): kotlin/Long? // neton.http.client/HttpClientConfig.connectMillis.<get-connectMillis>|<get-connectMillis>(){}[0]
+        final fun <set-connectMillis>(kotlin/Long?) // neton.http.client/HttpClientConfig.connectMillis.<set-connectMillis>|<set-connectMillis>(kotlin.Long?){}[0]
+    final var debug // neton.http.client/HttpClientConfig.debug|{}debug[0]
+        final fun <get-debug>(): kotlin/Boolean // neton.http.client/HttpClientConfig.debug.<get-debug>|<get-debug>(){}[0]
+        final fun <set-debug>(kotlin/Boolean) // neton.http.client/HttpClientConfig.debug.<set-debug>|<set-debug>(kotlin.Boolean){}[0]
+    final var hostResolver // neton.http.client/HttpClientConfig.hostResolver|{}hostResolver[0]
+        final fun <get-hostResolver>(): neton.http.client/HostResolver? // neton.http.client/HttpClientConfig.hostResolver.<get-hostResolver>|<get-hostResolver>(){}[0]
+        final fun <set-hostResolver>(neton.http.client/HostResolver?) // neton.http.client/HttpClientConfig.hostResolver.<set-hostResolver>|<set-hostResolver>(neton.http.client.HostResolver?){}[0]
+    final var maxConnectionsPerHost // neton.http.client/HttpClientConfig.maxConnectionsPerHost|{}maxConnectionsPerHost[0]
+        final fun <get-maxConnectionsPerHost>(): kotlin/Int? // neton.http.client/HttpClientConfig.maxConnectionsPerHost.<get-maxConnectionsPerHost>|<get-maxConnectionsPerHost>(){}[0]
+        final fun <set-maxConnectionsPerHost>(kotlin/Int?) // neton.http.client/HttpClientConfig.maxConnectionsPerHost.<set-maxConnectionsPerHost>|<set-maxConnectionsPerHost>(kotlin.Int?){}[0]
+    final var proxyUrl // neton.http.client/HttpClientConfig.proxyUrl|{}proxyUrl[0]
+        final fun <get-proxyUrl>(): kotlin/String? // neton.http.client/HttpClientConfig.proxyUrl.<get-proxyUrl>|<get-proxyUrl>(){}[0]
+        final fun <set-proxyUrl>(kotlin/String?) // neton.http.client/HttpClientConfig.proxyUrl.<set-proxyUrl>|<set-proxyUrl>(kotlin.String?){}[0]
+    final var requestMillis // neton.http.client/HttpClientConfig.requestMillis|{}requestMillis[0]
+        final fun <get-requestMillis>(): kotlin/Long? // neton.http.client/HttpClientConfig.requestMillis.<get-requestMillis>|<get-requestMillis>(){}[0]
+        final fun <set-requestMillis>(kotlin/Long?) // neton.http.client/HttpClientConfig.requestMillis.<set-requestMillis>|<set-requestMillis>(kotlin.Long?){}[0]
+    final var socketMillis // neton.http.client/HttpClientConfig.socketMillis|{}socketMillis[0]
+        final fun <get-socketMillis>(): kotlin/Long? // neton.http.client/HttpClientConfig.socketMillis.<get-socketMillis>|<get-socketMillis>(){}[0]
+        final fun <set-socketMillis>(kotlin/Long?) // neton.http.client/HttpClientConfig.socketMillis.<set-socketMillis>|<set-socketMillis>(kotlin.Long?){}[0]
+
+    final fun toEffectiveTimeout(): neton.http.client/HttpClientTimeouts // neton.http.client/HttpClientConfig.toEffectiveTimeout|toEffectiveTimeout(){}[0]
+}
+
+final class neton.http.client/HttpClientException : kotlin/RuntimeException { // neton.http.client/HttpClientException|null[0]
+    constructor <init>(neton.http.client/HttpClientError) // neton.http.client/HttpClientException.<init>|<init>(neton.http.client.HttpClientError){}[0]
+
+    final val error // neton.http.client/HttpClientException.error|{}error[0]
+        final fun <get-error>(): neton.http.client/HttpClientError // neton.http.client/HttpClientException.error.<get-error>|<get-error>(){}[0]
+}
+
+final class neton.http.client/HttpClientRequest { // neton.http.client/HttpClientRequest|null[0]
+    constructor <init>(neton.http.client/HttpClientMethod, kotlin/String, neton.core.http/HttpHeaders = ..., neton.http.client/HttpClientBody? = ..., neton.http.client/HttpClientTimeouts? = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...) // neton.http.client/HttpClientRequest.<init>|<init>(neton.http.client.HttpClientMethod;kotlin.String;neton.core.http.HttpHeaders;neton.http.client.HttpClientBody?;neton.http.client.HttpClientTimeouts?;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+
+    final val body // neton.http.client/HttpClientRequest.body|{}body[0]
+        final fun <get-body>(): neton.http.client/HttpClientBody? // neton.http.client/HttpClientRequest.body.<get-body>|<get-body>(){}[0]
+    final val headers // neton.http.client/HttpClientRequest.headers|{}headers[0]
+        final fun <get-headers>(): neton.core.http/HttpHeaders // neton.http.client/HttpClientRequest.headers.<get-headers>|<get-headers>(){}[0]
+    final val metadata // neton.http.client/HttpClientRequest.metadata|{}metadata[0]
+        final fun <get-metadata>(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.http.client/HttpClientRequest.metadata.<get-metadata>|<get-metadata>(){}[0]
+    final val method // neton.http.client/HttpClientRequest.method|{}method[0]
+        final fun <get-method>(): neton.http.client/HttpClientMethod // neton.http.client/HttpClientRequest.method.<get-method>|<get-method>(){}[0]
+    final val timeout // neton.http.client/HttpClientRequest.timeout|{}timeout[0]
+        final fun <get-timeout>(): neton.http.client/HttpClientTimeouts? // neton.http.client/HttpClientRequest.timeout.<get-timeout>|<get-timeout>(){}[0]
+    final val url // neton.http.client/HttpClientRequest.url|{}url[0]
+        final fun <get-url>(): kotlin/String // neton.http.client/HttpClientRequest.url.<get-url>|<get-url>(){}[0]
+
+    final fun component1(): neton.http.client/HttpClientMethod // neton.http.client/HttpClientRequest.component1|component1(){}[0]
+    final fun component2(): kotlin/String // neton.http.client/HttpClientRequest.component2|component2(){}[0]
+    final fun component3(): neton.core.http/HttpHeaders // neton.http.client/HttpClientRequest.component3|component3(){}[0]
+    final fun component4(): neton.http.client/HttpClientBody? // neton.http.client/HttpClientRequest.component4|component4(){}[0]
+    final fun component5(): neton.http.client/HttpClientTimeouts? // neton.http.client/HttpClientRequest.component5|component5(){}[0]
+    final fun component6(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.http.client/HttpClientRequest.component6|component6(){}[0]
+    final fun copy(neton.http.client/HttpClientMethod = ..., kotlin/String = ..., neton.core.http/HttpHeaders = ..., neton.http.client/HttpClientBody? = ..., neton.http.client/HttpClientTimeouts? = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...): neton.http.client/HttpClientRequest // neton.http.client/HttpClientRequest.copy|copy(neton.http.client.HttpClientMethod;kotlin.String;neton.core.http.HttpHeaders;neton.http.client.HttpClientBody?;neton.http.client.HttpClientTimeouts?;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientRequest.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client/HttpClientRequest.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/HttpClientRequest.toString|toString(){}[0]
+}
+
+final class neton.http.client/HttpClientResponse { // neton.http.client/HttpClientResponse|null[0]
+    constructor <init>(kotlin/Int, neton.core.http/HttpHeaders, kotlin/String) // neton.http.client/HttpClientResponse.<init>|<init>(kotlin.Int;neton.core.http.HttpHeaders;kotlin.String){}[0]
+
+    final val body // neton.http.client/HttpClientResponse.body|{}body[0]
+        final fun <get-body>(): kotlin/String // neton.http.client/HttpClientResponse.body.<get-body>|<get-body>(){}[0]
+    final val headers // neton.http.client/HttpClientResponse.headers|{}headers[0]
+        final fun <get-headers>(): neton.core.http/HttpHeaders // neton.http.client/HttpClientResponse.headers.<get-headers>|<get-headers>(){}[0]
+    final val statusCode // neton.http.client/HttpClientResponse.statusCode|{}statusCode[0]
+        final fun <get-statusCode>(): kotlin/Int // neton.http.client/HttpClientResponse.statusCode.<get-statusCode>|<get-statusCode>(){}[0]
+
+    final fun component1(): kotlin/Int // neton.http.client/HttpClientResponse.component1|component1(){}[0]
+    final fun component2(): neton.core.http/HttpHeaders // neton.http.client/HttpClientResponse.component2|component2(){}[0]
+    final fun component3(): kotlin/String // neton.http.client/HttpClientResponse.component3|component3(){}[0]
+    final fun copy(kotlin/Int = ..., neton.core.http/HttpHeaders = ..., kotlin/String = ...): neton.http.client/HttpClientResponse // neton.http.client/HttpClientResponse.copy|copy(kotlin.Int;neton.core.http.HttpHeaders;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientResponse.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client/HttpClientResponse.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/HttpClientResponse.toString|toString(){}[0]
+}
+
+final class neton.http.client/HttpClientTimeouts { // neton.http.client/HttpClientTimeouts|null[0]
+    constructor <init>(kotlin/Long? = ..., kotlin/Long? = ..., kotlin/Long? = ...) // neton.http.client/HttpClientTimeouts.<init>|<init>(kotlin.Long?;kotlin.Long?;kotlin.Long?){}[0]
+
+    final val connectMillis // neton.http.client/HttpClientTimeouts.connectMillis|{}connectMillis[0]
+        final fun <get-connectMillis>(): kotlin/Long? // neton.http.client/HttpClientTimeouts.connectMillis.<get-connectMillis>|<get-connectMillis>(){}[0]
+    final val requestMillis // neton.http.client/HttpClientTimeouts.requestMillis|{}requestMillis[0]
+        final fun <get-requestMillis>(): kotlin/Long? // neton.http.client/HttpClientTimeouts.requestMillis.<get-requestMillis>|<get-requestMillis>(){}[0]
+    final val socketMillis // neton.http.client/HttpClientTimeouts.socketMillis|{}socketMillis[0]
+        final fun <get-socketMillis>(): kotlin/Long? // neton.http.client/HttpClientTimeouts.socketMillis.<get-socketMillis>|<get-socketMillis>(){}[0]
+
+    final fun component1(): kotlin/Long? // neton.http.client/HttpClientTimeouts.component1|component1(){}[0]
+    final fun component2(): kotlin/Long? // neton.http.client/HttpClientTimeouts.component2|component2(){}[0]
+    final fun component3(): kotlin/Long? // neton.http.client/HttpClientTimeouts.component3|component3(){}[0]
+    final fun copy(kotlin/Long? = ..., kotlin/Long? = ..., kotlin/Long? = ...): neton.http.client/HttpClientTimeouts // neton.http.client/HttpClientTimeouts.copy|copy(kotlin.Long?;kotlin.Long?;kotlin.Long?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/HttpClientTimeouts.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client/HttpClientTimeouts.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/HttpClientTimeouts.toString|toString(){}[0]
+}
+
+final class neton.http.client/IpAddress { // neton.http.client/IpAddress|null[0]
+    final val isIpv4 // neton.http.client/IpAddress.isIpv4|{}isIpv4[0]
+        final fun <get-isIpv4>(): kotlin/Boolean // neton.http.client/IpAddress.isIpv4.<get-isIpv4>|<get-isIpv4>(){}[0]
+    final val isIpv6 // neton.http.client/IpAddress.isIpv6|{}isIpv6[0]
+        final fun <get-isIpv6>(): kotlin/Boolean // neton.http.client/IpAddress.isIpv6.<get-isIpv6>|<get-isIpv6>(){}[0]
+
+    final fun embeddedIpv4(): neton.http.client/IpAddress? // neton.http.client/IpAddress.embeddedIpv4|embeddedIpv4(){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/IpAddress.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client/IpAddress.hashCode|hashCode(){}[0]
+    final fun toByteArray(): kotlin/ByteArray // neton.http.client/IpAddress.toByteArray|toByteArray(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/IpAddress.toString|toString(){}[0]
+
+    final object Companion { // neton.http.client/IpAddress.Companion|null[0]
+        final fun of(kotlin/ByteArray): neton.http.client/IpAddress // neton.http.client/IpAddress.Companion.of|of(kotlin.ByteArray){}[0]
+        final fun parse(kotlin/String): neton.http.client/IpAddress? // neton.http.client/IpAddress.Companion.parse|parse(kotlin.String){}[0]
+        final fun parseLegacyIpv4(kotlin/String): neton.http.client/IpAddress? // neton.http.client/IpAddress.Companion.parseLegacyIpv4|parseLegacyIpv4(kotlin.String){}[0]
+    }
+}
+
+final class neton.http.client/IpNetwork { // neton.http.client/IpNetwork|null[0]
+    constructor <init>(neton.http.client/IpAddress, kotlin/Int) // neton.http.client/IpNetwork.<init>|<init>(neton.http.client.IpAddress;kotlin.Int){}[0]
+
+    final val address // neton.http.client/IpNetwork.address|{}address[0]
+        final fun <get-address>(): neton.http.client/IpAddress // neton.http.client/IpNetwork.address.<get-address>|<get-address>(){}[0]
+    final val prefixLength // neton.http.client/IpNetwork.prefixLength|{}prefixLength[0]
+        final fun <get-prefixLength>(): kotlin/Int // neton.http.client/IpNetwork.prefixLength.<get-prefixLength>|<get-prefixLength>(){}[0]
+
+    final fun contains(neton.http.client/IpAddress): kotlin/Boolean // neton.http.client/IpNetwork.contains|contains(neton.http.client.IpAddress){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/IpNetwork.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client/IpNetwork.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/IpNetwork.toString|toString(){}[0]
+
+    final object Companion { // neton.http.client/IpNetwork.Companion|null[0]
+        final fun parse(kotlin/String): neton.http.client/IpNetwork // neton.http.client/IpNetwork.Companion.parse|parse(kotlin.String){}[0]
+    }
+}
+
+final class neton.http.client/OutboundAddressPolicy { // neton.http.client/OutboundAddressPolicy|null[0]
+    constructor <init>(kotlin.collections/Set<kotlin/Int> = ..., kotlin.collections/Set<kotlin/String> = ..., kotlin.collections/List<neton.http.client/IpNetwork> = ...) // neton.http.client/OutboundAddressPolicy.<init>|<init>(kotlin.collections.Set<kotlin.Int>;kotlin.collections.Set<kotlin.String>;kotlin.collections.List<neton.http.client.IpNetwork>){}[0]
+
+    final val allowedHosts // neton.http.client/OutboundAddressPolicy.allowedHosts|{}allowedHosts[0]
+        final fun <get-allowedHosts>(): kotlin.collections/Set<kotlin/String> // neton.http.client/OutboundAddressPolicy.allowedHosts.<get-allowedHosts>|<get-allowedHosts>(){}[0]
+    final val allowedNetworks // neton.http.client/OutboundAddressPolicy.allowedNetworks|{}allowedNetworks[0]
+        final fun <get-allowedNetworks>(): kotlin.collections/List<neton.http.client/IpNetwork> // neton.http.client/OutboundAddressPolicy.allowedNetworks.<get-allowedNetworks>|<get-allowedNetworks>(){}[0]
+    final val allowedPorts // neton.http.client/OutboundAddressPolicy.allowedPorts|{}allowedPorts[0]
+        final fun <get-allowedPorts>(): kotlin.collections/Set<kotlin/Int> // neton.http.client/OutboundAddressPolicy.allowedPorts.<get-allowedPorts>|<get-allowedPorts>(){}[0]
+    final val isRelaxed // neton.http.client/OutboundAddressPolicy.isRelaxed|{}isRelaxed[0]
+        final fun <get-isRelaxed>(): kotlin/Boolean // neton.http.client/OutboundAddressPolicy.isRelaxed.<get-isRelaxed>|<get-isRelaxed>(){}[0]
+
+    final fun toString(): kotlin/String // neton.http.client/OutboundAddressPolicy.toString|toString(){}[0]
+    final suspend fun admit(kotlin/String, kotlin/String, kotlin/Int, neton.http.client/HostResolver): kotlin.collections/List<neton.http.client/IpAddress> // neton.http.client/OutboundAddressPolicy.admit|admit(kotlin.String;kotlin.String;kotlin.Int;neton.http.client.HostResolver){}[0]
+    final suspend fun admitEndpoint(kotlin/String, kotlin/Int, neton.http.client/HostResolver): kotlin.collections/List<neton.http.client/IpAddress> // neton.http.client/OutboundAddressPolicy.admitEndpoint|admitEndpoint(kotlin.String;kotlin.Int;neton.http.client.HostResolver){}[0]
+    final suspend fun admitProxy(kotlin/String, kotlin/Int, neton.http.client/HostResolver): kotlin.collections/List<neton.http.client/IpAddress> // neton.http.client/OutboundAddressPolicy.admitProxy|admitProxy(kotlin.String;kotlin.Int;neton.http.client.HostResolver){}[0]
+
+    final object Companion { // neton.http.client/OutboundAddressPolicy.Companion|null[0]
+        final val BLOCKED_NETWORKS // neton.http.client/OutboundAddressPolicy.Companion.BLOCKED_NETWORKS|{}BLOCKED_NETWORKS[0]
+            final fun <get-BLOCKED_NETWORKS>(): kotlin.collections/List<neton.http.client/IpNetwork> // neton.http.client/OutboundAddressPolicy.Companion.BLOCKED_NETWORKS.<get-BLOCKED_NETWORKS>|<get-BLOCKED_NETWORKS>(){}[0]
+        final val DEFAULT_PORTS // neton.http.client/OutboundAddressPolicy.Companion.DEFAULT_PORTS|{}DEFAULT_PORTS[0]
+            final fun <get-DEFAULT_PORTS>(): kotlin.collections/Set<kotlin/Int> // neton.http.client/OutboundAddressPolicy.Companion.DEFAULT_PORTS.<get-DEFAULT_PORTS>|<get-DEFAULT_PORTS>(){}[0]
+
+        final fun isPublic(neton.http.client/IpAddress): kotlin/Boolean // neton.http.client/OutboundAddressPolicy.Companion.isPublic|isPublic(neton.http.client.IpAddress){}[0]
+    }
+}
+
+final class neton.http.client/RedactionPolicy { // neton.http.client/RedactionPolicy|null[0]
+    constructor <init>(kotlin.collections/Set<kotlin/String> = ..., kotlin/Boolean = ...) // neton.http.client/RedactionPolicy.<init>|<init>(kotlin.collections.Set<kotlin.String>;kotlin.Boolean){}[0]
+
+    final val allowBodyLogging // neton.http.client/RedactionPolicy.allowBodyLogging|{}allowBodyLogging[0]
+        final fun <get-allowBodyLogging>(): kotlin/Boolean // neton.http.client/RedactionPolicy.allowBodyLogging.<get-allowBodyLogging>|<get-allowBodyLogging>(){}[0]
+    final val redactedHeaders // neton.http.client/RedactionPolicy.redactedHeaders|{}redactedHeaders[0]
+        final fun <get-redactedHeaders>(): kotlin.collections/Set<kotlin/String> // neton.http.client/RedactionPolicy.redactedHeaders.<get-redactedHeaders>|<get-redactedHeaders>(){}[0]
+
+    final fun component1(): kotlin.collections/Set<kotlin/String> // neton.http.client/RedactionPolicy.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // neton.http.client/RedactionPolicy.component2|component2(){}[0]
+    final fun copy(kotlin.collections/Set<kotlin/String> = ..., kotlin/Boolean = ...): neton.http.client/RedactionPolicy // neton.http.client/RedactionPolicy.copy|copy(kotlin.collections.Set<kotlin.String>;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.client/RedactionPolicy.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.client/RedactionPolicy.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.client/RedactionPolicy.toString|toString(){}[0]
+}
+
+final class neton.http.conformance/ConformanceRequest { // neton.http.conformance/ConformanceRequest|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/ByteArray = ...) // neton.http.conformance/ConformanceRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.ByteArray){}[0]
+
+    final val body // neton.http.conformance/ConformanceRequest.body|{}body[0]
+        final fun <get-body>(): kotlin/ByteArray // neton.http.conformance/ConformanceRequest.body.<get-body>|<get-body>(){}[0]
+    final val headers // neton.http.conformance/ConformanceRequest.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.conformance/ConformanceRequest.headers.<get-headers>|<get-headers>(){}[0]
+    final val method // neton.http.conformance/ConformanceRequest.method|{}method[0]
+        final fun <get-method>(): kotlin/String // neton.http.conformance/ConformanceRequest.method.<get-method>|<get-method>(){}[0]
+    final val path // neton.http.conformance/ConformanceRequest.path|{}path[0]
+        final fun <get-path>(): kotlin/String // neton.http.conformance/ConformanceRequest.path.<get-path>|<get-path>(){}[0]
+    final val query // neton.http.conformance/ConformanceRequest.query|{}query[0]
+        final fun <get-query>(): kotlin/String // neton.http.conformance/ConformanceRequest.query.<get-query>|<get-query>(){}[0]
+}
+
+final class neton.http.conformance/ConformanceResponse { // neton.http.conformance/ConformanceResponse|null[0]
+    constructor <init>(kotlin/Int, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/ByteArray = ...) // neton.http.conformance/ConformanceResponse.<init>|<init>(kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.ByteArray){}[0]
+
+    final val body // neton.http.conformance/ConformanceResponse.body|{}body[0]
+        final fun <get-body>(): kotlin/ByteArray // neton.http.conformance/ConformanceResponse.body.<get-body>|<get-body>(){}[0]
+    final val headers // neton.http.conformance/ConformanceResponse.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.conformance/ConformanceResponse.headers.<get-headers>|<get-headers>(){}[0]
+    final val status // neton.http.conformance/ConformanceResponse.status|{}status[0]
+        final fun <get-status>(): kotlin/Int // neton.http.conformance/ConformanceResponse.status.<get-status>|<get-status>(){}[0]
+}
+
+final class neton.http.conformance/ConformanceStream { // neton.http.conformance/ConformanceStream|null[0]
+    constructor <init>(kotlin/Int, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin.collections/List<kotlin/ByteArray> = ...) // neton.http.conformance/ConformanceStream.<init>|<init>(kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.collections.List<kotlin.ByteArray>){}[0]
+
+    final val chunks // neton.http.conformance/ConformanceStream.chunks|{}chunks[0]
+        final fun <get-chunks>(): kotlin.collections/List<kotlin/ByteArray> // neton.http.conformance/ConformanceStream.chunks.<get-chunks>|<get-chunks>(){}[0]
+    final val headers // neton.http.conformance/ConformanceStream.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.http.conformance/ConformanceStream.headers.<get-headers>|<get-headers>(){}[0]
+    final val status // neton.http.conformance/ConformanceStream.status|{}status[0]
+        final fun <get-status>(): kotlin/Int // neton.http.conformance/ConformanceStream.status.<get-status>|<get-status>(){}[0]
+}
+
+final class neton.http.conformance/RecordedRequest { // neton.http.conformance/RecordedRequest|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, neton.core.http/HttpHeaders, kotlin/ByteArray) // neton.http.conformance/RecordedRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;neton.core.http.HttpHeaders;kotlin.ByteArray){}[0]
+
+    final val body // neton.http.conformance/RecordedRequest.body|{}body[0]
+        final fun <get-body>(): kotlin/ByteArray // neton.http.conformance/RecordedRequest.body.<get-body>|<get-body>(){}[0]
+    final val headers // neton.http.conformance/RecordedRequest.headers|{}headers[0]
+        final fun <get-headers>(): neton.core.http/HttpHeaders // neton.http.conformance/RecordedRequest.headers.<get-headers>|<get-headers>(){}[0]
+    final val method // neton.http.conformance/RecordedRequest.method|{}method[0]
+        final fun <get-method>(): kotlin/String // neton.http.conformance/RecordedRequest.method.<get-method>|<get-method>(){}[0]
+    final val requestLine // neton.http.conformance/RecordedRequest.requestLine|{}requestLine[0]
+        final fun <get-requestLine>(): kotlin/String // neton.http.conformance/RecordedRequest.requestLine.<get-requestLine>|<get-requestLine>(){}[0]
+    final val target // neton.http.conformance/RecordedRequest.target|{}target[0]
+        final fun <get-target>(): kotlin/String // neton.http.conformance/RecordedRequest.target.<get-target>|<get-target>(){}[0]
+}
+
+final class neton.http.conformance/ScriptedOrigin { // neton.http.conformance/ScriptedOrigin|null[0]
+    final val baseUrl // neton.http.conformance/ScriptedOrigin.baseUrl|{}baseUrl[0]
+        final fun <get-baseUrl>(): kotlin/String // neton.http.conformance/ScriptedOrigin.baseUrl.<get-baseUrl>|<get-baseUrl>(){}[0]
+    final val requests // neton.http.conformance/ScriptedOrigin.requests|{}requests[0]
+        final fun <get-requests>(): kotlin.collections/List<neton.http.conformance/RecordedRequest> // neton.http.conformance/ScriptedOrigin.requests.<get-requests>|<get-requests>(){}[0]
+
+    final suspend fun stop() // neton.http.conformance/ScriptedOrigin.stop|stop(){}[0]
+
+    final object Companion { // neton.http.conformance/ScriptedOrigin.Companion|null[0]
+        final fun unusedPort(): kotlin/Int // neton.http.conformance/ScriptedOrigin.Companion.unusedPort|unusedPort(){}[0]
+        final suspend fun start(kotlin.coroutines/SuspendFunction2<neton.http.conformance/OriginConnection, neton.http.conformance/RecordedRequest, kotlin/Unit>): neton.http.conformance/ScriptedOrigin // neton.http.conformance/ScriptedOrigin.Companion.start|start(kotlin.coroutines.SuspendFunction2<neton.http.conformance.OriginConnection,neton.http.conformance.RecordedRequest,kotlin.Unit>){}[0]
+    }
+}
+
+final class neton.http.engine.default/DefaultHttpAdapter : neton.core.http.adapter/HttpAdapter { // neton.http.engine.default/DefaultHttpAdapter|null[0]
+    constructor <init>(neton.core.http.adapter/HttpServerConfig, neton.http.engine.default/DefaultHttpOptions = ...) // neton.http.engine.default/DefaultHttpAdapter.<init>|<init>(neton.core.http.adapter.HttpServerConfig;neton.http.engine.default.DefaultHttpOptions){}[0]
+
+    final val capabilities // neton.http.engine.default/DefaultHttpAdapter.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): kotlin.collections/Set<neton.core.http.adapter/HttpCapability> // neton.http.engine.default/DefaultHttpAdapter.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+
+    final fun adapterName(): kotlin/String // neton.http.engine.default/DefaultHttpAdapter.adapterName|adapterName(){}[0]
+    final fun port(): kotlin/Int // neton.http.engine.default/DefaultHttpAdapter.port|port(){}[0]
+    final suspend fun start(neton.core.component/NetonContext, kotlin.coroutines/SuspendFunction1<kotlin/Long, kotlin/Unit>?) // neton.http.engine.default/DefaultHttpAdapter.start|start(neton.core.component.NetonContext;kotlin.coroutines.SuspendFunction1<kotlin.Long,kotlin.Unit>?){}[0]
+    final suspend fun stop() // neton.http.engine.default/DefaultHttpAdapter.stop|stop(){}[0]
+}
+
+final class neton.http.engine.default/DefaultHttpOptions { // neton.http.engine.default/DefaultHttpOptions|null[0]
+    constructor <init>(kotlin/Int = ..., neton.io.net/AcceptMode = ..., kotlin/Long = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Long = ...) // neton.http.engine.default/DefaultHttpOptions.<init>|<init>(kotlin.Int;neton.io.net.AcceptMode;kotlin.Long;kotlin.Int;kotlin.Long;kotlin.Int;kotlin.Long;kotlin.Long){}[0]
+
+    final val acceptMode // neton.http.engine.default/DefaultHttpOptions.acceptMode|{}acceptMode[0]
+        final fun <get-acceptMode>(): neton.io.net/AcceptMode // neton.http.engine.default/DefaultHttpOptions.acceptMode.<get-acceptMode>|<get-acceptMode>(){}[0]
+    final val maxBufferedRequestBytes // neton.http.engine.default/DefaultHttpOptions.maxBufferedRequestBytes|{}maxBufferedRequestBytes[0]
+        final fun <get-maxBufferedRequestBytes>(): kotlin/Long // neton.http.engine.default/DefaultHttpOptions.maxBufferedRequestBytes.<get-maxBufferedRequestBytes>|<get-maxBufferedRequestBytes>(){}[0]
+    final val maxOpenConnections // neton.http.engine.default/DefaultHttpOptions.maxOpenConnections|{}maxOpenConnections[0]
+        final fun <get-maxOpenConnections>(): kotlin/Int // neton.http.engine.default/DefaultHttpOptions.maxOpenConnections.<get-maxOpenConnections>|<get-maxOpenConnections>(){}[0]
+    final val maxRequestBodyBytes // neton.http.engine.default/DefaultHttpOptions.maxRequestBodyBytes|{}maxRequestBodyBytes[0]
+        final fun <get-maxRequestBodyBytes>(): kotlin/Long // neton.http.engine.default/DefaultHttpOptions.maxRequestBodyBytes.<get-maxRequestBodyBytes>|<get-maxRequestBodyBytes>(){}[0]
+    final val reactors // neton.http.engine.default/DefaultHttpOptions.reactors|{}reactors[0]
+        final fun <get-reactors>(): kotlin/Int // neton.http.engine.default/DefaultHttpOptions.reactors.<get-reactors>|<get-reactors>(){}[0]
+    final val requestBodyTimeoutMillis // neton.http.engine.default/DefaultHttpOptions.requestBodyTimeoutMillis|{}requestBodyTimeoutMillis[0]
+        final fun <get-requestBodyTimeoutMillis>(): kotlin/Long // neton.http.engine.default/DefaultHttpOptions.requestBodyTimeoutMillis.<get-requestBodyTimeoutMillis>|<get-requestBodyTimeoutMillis>(){}[0]
+    final val streamQueueCapacity // neton.http.engine.default/DefaultHttpOptions.streamQueueCapacity|{}streamQueueCapacity[0]
+        final fun <get-streamQueueCapacity>(): kotlin/Int // neton.http.engine.default/DefaultHttpOptions.streamQueueCapacity.<get-streamQueueCapacity>|<get-streamQueueCapacity>(){}[0]
+    final val tlsHandshakeTimeoutMillis // neton.http.engine.default/DefaultHttpOptions.tlsHandshakeTimeoutMillis|{}tlsHandshakeTimeoutMillis[0]
+        final fun <get-tlsHandshakeTimeoutMillis>(): kotlin/Long // neton.http.engine.default/DefaultHttpOptions.tlsHandshakeTimeoutMillis.<get-tlsHandshakeTimeoutMillis>|<get-tlsHandshakeTimeoutMillis>(){}[0]
+
+    final object Companion { // neton.http.engine.default/DefaultHttpOptions.Companion|null[0]
+        final const val DEFAULT_MAX_REQUEST_BODY_BYTES // neton.http.engine.default/DefaultHttpOptions.Companion.DEFAULT_MAX_REQUEST_BODY_BYTES|{}DEFAULT_MAX_REQUEST_BODY_BYTES[0]
+            final fun <get-DEFAULT_MAX_REQUEST_BODY_BYTES>(): kotlin/Long // neton.http.engine.default/DefaultHttpOptions.Companion.DEFAULT_MAX_REQUEST_BODY_BYTES.<get-DEFAULT_MAX_REQUEST_BODY_BYTES>|<get-DEFAULT_MAX_REQUEST_BODY_BYTES>(){}[0]
+        final const val DEFAULT_STREAM_QUEUE_CAPACITY // neton.http.engine.default/DefaultHttpOptions.Companion.DEFAULT_STREAM_QUEUE_CAPACITY|{}DEFAULT_STREAM_QUEUE_CAPACITY[0]
+            final fun <get-DEFAULT_STREAM_QUEUE_CAPACITY>(): kotlin/Int // neton.http.engine.default/DefaultHttpOptions.Companion.DEFAULT_STREAM_QUEUE_CAPACITY.<get-DEFAULT_STREAM_QUEUE_CAPACITY>|<get-DEFAULT_STREAM_QUEUE_CAPACITY>(){}[0]
+        final const val DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS // neton.http.engine.default/DefaultHttpOptions.Companion.DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS|{}DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS[0]
+            final fun <get-DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS>(): kotlin/Long // neton.http.engine.default/DefaultHttpOptions.Companion.DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS.<get-DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS>|<get-DEFAULT_TLS_HANDSHAKE_TIMEOUT_MILLIS>(){}[0]
+    }
+}
+
+final class neton.http.engine.default/DefaultUpgradedConnection : neton.core.http.upgrade/UpgradedConnection { // neton.http.engine.default/DefaultUpgradedConnection|null[0]
+    constructor <init>(neton.io.core/IoStream, kotlinx.coroutines/CoroutineDispatcher) // neton.http.engine.default/DefaultUpgradedConnection.<init>|<init>(neton.io.core.IoStream;kotlinx.coroutines.CoroutineDispatcher){}[0]
+
+    final val executor // neton.http.engine.default/DefaultUpgradedConnection.executor|{}executor[0]
+        final fun <get-executor>(): kotlinx.coroutines/CoroutineDispatcher // neton.http.engine.default/DefaultUpgradedConnection.executor.<get-executor>|<get-executor>(){}[0]
+
+    final fun <#A1: kotlin/Any> unwrap(kotlin.reflect/KClass<#A1>): #A1? // neton.http.engine.default/DefaultUpgradedConnection.unwrap|unwrap(kotlin.reflect.KClass<0:0>){0§<kotlin.Any>}[0]
+    final fun close() // neton.http.engine.default/DefaultUpgradedConnection.close|close(){}[0]
+}
+
+final class neton.http.mail/SmtpAccount { // neton.http.mail/SmtpAccount|null[0]
+    constructor <init>(kotlin/String, kotlin/Int, kotlin/String, kotlin/String, kotlin/Boolean, kotlin/Boolean) // neton.http.mail/SmtpAccount.<init>|<init>(kotlin.String;kotlin.Int;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean){}[0]
+
+    final val host // neton.http.mail/SmtpAccount.host|{}host[0]
+        final fun <get-host>(): kotlin/String // neton.http.mail/SmtpAccount.host.<get-host>|<get-host>(){}[0]
+    final val password // neton.http.mail/SmtpAccount.password|{}password[0]
+        final fun <get-password>(): kotlin/String // neton.http.mail/SmtpAccount.password.<get-password>|<get-password>(){}[0]
+    final val port // neton.http.mail/SmtpAccount.port|{}port[0]
+        final fun <get-port>(): kotlin/Int // neton.http.mail/SmtpAccount.port.<get-port>|<get-port>(){}[0]
+    final val ssl // neton.http.mail/SmtpAccount.ssl|{}ssl[0]
+        final fun <get-ssl>(): kotlin/Boolean // neton.http.mail/SmtpAccount.ssl.<get-ssl>|<get-ssl>(){}[0]
+    final val starttls // neton.http.mail/SmtpAccount.starttls|{}starttls[0]
+        final fun <get-starttls>(): kotlin/Boolean // neton.http.mail/SmtpAccount.starttls.<get-starttls>|<get-starttls>(){}[0]
+    final val username // neton.http.mail/SmtpAccount.username|{}username[0]
+        final fun <get-username>(): kotlin/String // neton.http.mail/SmtpAccount.username.<get-username>|<get-username>(){}[0]
+
+    final fun component1(): kotlin/String // neton.http.mail/SmtpAccount.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // neton.http.mail/SmtpAccount.component2|component2(){}[0]
+    final fun component3(): kotlin/String // neton.http.mail/SmtpAccount.component3|component3(){}[0]
+    final fun component4(): kotlin/String // neton.http.mail/SmtpAccount.component4|component4(){}[0]
+    final fun component5(): kotlin/Boolean // neton.http.mail/SmtpAccount.component5|component5(){}[0]
+    final fun component6(): kotlin/Boolean // neton.http.mail/SmtpAccount.component6|component6(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Int = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): neton.http.mail/SmtpAccount // neton.http.mail/SmtpAccount.copy|copy(kotlin.String;kotlin.Int;kotlin.String;kotlin.String;kotlin.Boolean;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.mail/SmtpAccount.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.mail/SmtpAccount.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.mail/SmtpAccount.toString|toString(){}[0]
+}
+
+final class neton.http.mail/SmtpMessage { // neton.http.mail/SmtpMessage|null[0]
+    constructor <init>(kotlin/String, kotlin/String? = ..., kotlin.collections/List<kotlin/String>, kotlin/String, kotlin/String, kotlin/Boolean) // neton.http.mail/SmtpMessage.<init>|<init>(kotlin.String;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.String;kotlin.String;kotlin.Boolean){}[0]
+
+    final val body // neton.http.mail/SmtpMessage.body|{}body[0]
+        final fun <get-body>(): kotlin/String // neton.http.mail/SmtpMessage.body.<get-body>|<get-body>(){}[0]
+    final val from // neton.http.mail/SmtpMessage.from|{}from[0]
+        final fun <get-from>(): kotlin/String // neton.http.mail/SmtpMessage.from.<get-from>|<get-from>(){}[0]
+    final val fromName // neton.http.mail/SmtpMessage.fromName|{}fromName[0]
+        final fun <get-fromName>(): kotlin/String? // neton.http.mail/SmtpMessage.fromName.<get-fromName>|<get-fromName>(){}[0]
+    final val html // neton.http.mail/SmtpMessage.html|{}html[0]
+        final fun <get-html>(): kotlin/Boolean // neton.http.mail/SmtpMessage.html.<get-html>|<get-html>(){}[0]
+    final val subject // neton.http.mail/SmtpMessage.subject|{}subject[0]
+        final fun <get-subject>(): kotlin/String // neton.http.mail/SmtpMessage.subject.<get-subject>|<get-subject>(){}[0]
+    final val to // neton.http.mail/SmtpMessage.to|{}to[0]
+        final fun <get-to>(): kotlin.collections/List<kotlin/String> // neton.http.mail/SmtpMessage.to.<get-to>|<get-to>(){}[0]
+
+    final fun component1(): kotlin/String // neton.http.mail/SmtpMessage.component1|component1(){}[0]
+    final fun component2(): kotlin/String? // neton.http.mail/SmtpMessage.component2|component2(){}[0]
+    final fun component3(): kotlin.collections/List<kotlin/String> // neton.http.mail/SmtpMessage.component3|component3(){}[0]
+    final fun component4(): kotlin/String // neton.http.mail/SmtpMessage.component4|component4(){}[0]
+    final fun component5(): kotlin/String // neton.http.mail/SmtpMessage.component5|component5(){}[0]
+    final fun component6(): kotlin/Boolean // neton.http.mail/SmtpMessage.component6|component6(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String? = ..., kotlin.collections/List<kotlin/String> = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ...): neton.http.mail/SmtpMessage // neton.http.mail/SmtpMessage.copy|copy(kotlin.String;kotlin.String?;kotlin.collections.List<kotlin.String>;kotlin.String;kotlin.String;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.http.mail/SmtpMessage.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.http.mail/SmtpMessage.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.http.mail/SmtpMessage.toString|toString(){}[0]
+}
+
+final class neton.http.mail/SmtpTargetRejectedException : neton.http.mail/SmtpException { // neton.http.mail/SmtpTargetRejectedException|null[0]
+    constructor <init>(neton.http.client/TargetRejection, kotlin/String) // neton.http.mail/SmtpTargetRejectedException.<init>|<init>(neton.http.client.TargetRejection;kotlin.String){}[0]
+
+    final val reason // neton.http.mail/SmtpTargetRejectedException.reason|{}reason[0]
+        final fun <get-reason>(): neton.http.client/TargetRejection // neton.http.mail/SmtpTargetRejectedException.reason.<get-reason>|<get-reason>(){}[0]
+}
+
+final class neton.http.static/StaticFilesConfig { // neton.http.static/StaticFilesConfig|null[0]
+    final var cacheControl // neton.http.static/StaticFilesConfig.cacheControl|{}cacheControl[0]
+        final fun <get-cacheControl>(): kotlin/String? // neton.http.static/StaticFilesConfig.cacheControl.<get-cacheControl>|<get-cacheControl>(){}[0]
+        final fun <set-cacheControl>(kotlin/String?) // neton.http.static/StaticFilesConfig.cacheControl.<set-cacheControl>|<set-cacheControl>(kotlin.String?){}[0]
+    final var indexFile // neton.http.static/StaticFilesConfig.indexFile|{}indexFile[0]
+        final fun <get-indexFile>(): kotlin/String? // neton.http.static/StaticFilesConfig.indexFile.<get-indexFile>|<get-indexFile>(){}[0]
+        final fun <set-indexFile>(kotlin/String?) // neton.http.static/StaticFilesConfig.indexFile.<set-indexFile>|<set-indexFile>(kotlin.String?){}[0]
+    final var precompressed // neton.http.static/StaticFilesConfig.precompressed|{}precompressed[0]
+        final fun <get-precompressed>(): kotlin/Boolean // neton.http.static/StaticFilesConfig.precompressed.<get-precompressed>|<get-precompressed>(){}[0]
+        final fun <set-precompressed>(kotlin/Boolean) // neton.http.static/StaticFilesConfig.precompressed.<set-precompressed>|<set-precompressed>(kotlin.Boolean){}[0]
+}
+
+final class neton.http.testkit/ScriptedHttpClient : neton.http.client/HttpClient { // neton.http.testkit/ScriptedHttpClient|null[0]
+    constructor <init>() // neton.http.testkit/ScriptedHttpClient.<init>|<init>(){}[0]
+
+    final val capabilities // neton.http.testkit/ScriptedHttpClient.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): kotlin.collections/Set<neton.http.client/HttpClientCapability> // neton.http.testkit/ScriptedHttpClient.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+    final val isClosed // neton.http.testkit/ScriptedHttpClient.isClosed|{}isClosed[0]
+        final fun <get-isClosed>(): kotlin/Boolean // neton.http.testkit/ScriptedHttpClient.isClosed.<get-isClosed>|<get-isClosed>(){}[0]
+    final val recorded // neton.http.testkit/ScriptedHttpClient.recorded|{}recorded[0]
+        final fun <get-recorded>(): kotlin.collections/List<neton.http.client/HttpClientRequest> // neton.http.testkit/ScriptedHttpClient.recorded.<get-recorded>|<get-recorded>(){}[0]
+
+    final fun on(neton.http.client/HttpClientMethod, kotlin/String, kotlin.coroutines/SuspendFunction1<neton.http.client/HttpClientRequest, neton.http.client/HttpClientResponse>): neton.http.testkit/ScriptedHttpClient // neton.http.testkit/ScriptedHttpClient.on|on(neton.http.client.HttpClientMethod;kotlin.String;kotlin.coroutines.SuspendFunction1<neton.http.client.HttpClientRequest,neton.http.client.HttpClientResponse>){}[0]
+    final fun onStream(neton.http.client/HttpClientMethod, kotlin/String, kotlin.collections/List<neton.http.client/HttpClientStreamChunk>): neton.http.testkit/ScriptedHttpClient // neton.http.testkit/ScriptedHttpClient.onStream|onStream(neton.http.client.HttpClientMethod;kotlin.String;kotlin.collections.List<neton.http.client.HttpClientStreamChunk>){}[0]
+    final fun onStream(neton.http.client/HttpClientMethod, kotlin/String, kotlin.coroutines/SuspendFunction1<neton.http.client/HttpClientRequest, kotlin.collections/List<neton.http.client/HttpClientStreamChunk>>): neton.http.testkit/ScriptedHttpClient // neton.http.testkit/ScriptedHttpClient.onStream|onStream(neton.http.client.HttpClientMethod;kotlin.String;kotlin.coroutines.SuspendFunction1<neton.http.client.HttpClientRequest,kotlin.collections.List<neton.http.client.HttpClientStreamChunk>>){}[0]
+    final fun stream(neton.http.client/HttpClientRequest): kotlinx.coroutines.flow/Flow<neton.http.client/HttpClientStreamChunk> // neton.http.testkit/ScriptedHttpClient.stream|stream(neton.http.client.HttpClientRequest){}[0]
+    final suspend fun close() // neton.http.testkit/ScriptedHttpClient.close|close(){}[0]
+    final suspend fun request(neton.http.client/HttpClientRequest): neton.http.client/HttpClientResponse // neton.http.testkit/ScriptedHttpClient.request|request(neton.http.client.HttpClientRequest){}[0]
+}
+
+final class neton.http/HttpComponent : neton.core.component/NetonComponent<neton.core.component/HttpConfig> { // neton.http/HttpComponent|null[0]
+    constructor <init>(kotlin/Function1<neton.core.http.adapter/HttpServerConfig, neton.core.http.adapter/HttpAdapter> = ...) // neton.http/HttpComponent.<init>|<init>(kotlin.Function1<neton.core.http.adapter.HttpServerConfig,neton.core.http.adapter.HttpAdapter>){}[0]
+
+    final fun defaultConfig(): neton.core.component/HttpConfig // neton.http/HttpComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.core.component/HttpConfig) // neton.http/HttpComponent.init|init(neton.core.component.NetonContext;neton.core.component.HttpConfig){}[0]
+    final suspend fun prepare(neton.core.component/NetonContext) // neton.http/HttpComponent.prepare|prepare(neton.core.component.NetonContext){}[0]
+}
+
+open class neton.http.mail/SmtpException : kotlin/RuntimeException { // neton.http.mail/SmtpException|null[0]
+    constructor <init>(kotlin/String, kotlin/Throwable? = ...) // neton.http.mail/SmtpException.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+}
+
+final object neton.http.client/NoRetryPolicy : neton.http.client/RetryPolicy { // neton.http.client/NoRetryPolicy|null[0]
+    final fun shouldRetry(kotlin/Int, neton.http.client/HttpClientResponse?, neton.http.client/HttpClientError?): neton.http.client/RetryDecision // neton.http.client/NoRetryPolicy.shouldRetry|shouldRetry(kotlin.Int;neton.http.client.HttpClientResponse?;neton.http.client.HttpClientError?){}[0]
+}
+
+final object neton.http.conformance/ConformanceFixtures { // neton.http.conformance/ConformanceFixtures|null[0]
+    final const val ECHO // neton.http.conformance/ConformanceFixtures.ECHO|{}ECHO[0]
+        final fun <get-ECHO>(): kotlin/String // neton.http.conformance/ConformanceFixtures.ECHO.<get-ECHO>|<get-ECHO>(){}[0]
+    final const val STREAM // neton.http.conformance/ConformanceFixtures.STREAM|{}STREAM[0]
+        final fun <get-STREAM>(): kotlin/String // neton.http.conformance/ConformanceFixtures.STREAM.<get-STREAM>|<get-STREAM>(){}[0]
+
+    final val routes // neton.http.conformance/ConformanceFixtures.routes|{}routes[0]
+        final fun <get-routes>(): kotlin.collections/List<neton.core.interfaces/RouteDefinition> // neton.http.conformance/ConformanceFixtures.routes.<get-routes>|<get-routes>(){}[0]
+}
+
+final object neton.http.mail/MimeBuilder { // neton.http.mail/MimeBuilder|null[0]
+    final fun build(neton.http.mail/SmtpMessage): kotlin/String // neton.http.mail/MimeBuilder.build|build(neton.http.mail.SmtpMessage){}[0]
+    final fun encodeWord(kotlin/String): kotlin/String // neton.http.mail/MimeBuilder.encodeWord|encodeWord(kotlin.String){}[0]
+    final fun rfc2822Now(): kotlin/String // neton.http.mail/MimeBuilder.rfc2822Now|rfc2822Now(){}[0]
+}
+
+final val neton.http.client/DEFAULT_REDACTED_HEADERS // neton.http.client/DEFAULT_REDACTED_HEADERS|{}DEFAULT_REDACTED_HEADERS[0]
+    final fun <get-DEFAULT_REDACTED_HEADERS>(): kotlin.collections/Set<kotlin/String> // neton.http.client/DEFAULT_REDACTED_HEADERS.<get-DEFAULT_REDACTED_HEADERS>|<get-DEFAULT_REDACTED_HEADERS>(){}[0]
+
+final fun (kotlinx.coroutines.flow/Flow<kotlin/String>).neton.http.client.sse/parseSseEvents(): kotlinx.coroutines.flow/Flow<neton.http.client.sse/SseEvent> // neton.http.client.sse/parseSseEvents|parseSseEvents@kotlinx.coroutines.flow.Flow<kotlin.String>(){}[0]
+final fun (kotlinx.coroutines.flow/Flow<neton.http.client/HttpClientStreamChunk>).neton.http.client.sse/parseSseEvents(): kotlinx.coroutines.flow/Flow<neton.http.client.sse/SseEvent> // neton.http.client.sse/parseSseEvents|parseSseEvents@kotlinx.coroutines.flow.Flow<neton.http.client.HttpClientStreamChunk>(){}[0]
+final fun (neton.core.interfaces/RequestEngine).neton.http.static/staticFiles(kotlin/String, kotlin/String, kotlin/Function1<neton.http.static/StaticFilesConfig, kotlin/Unit>? = ...) // neton.http.static/staticFiles|staticFiles@neton.core.interfaces.RequestEngine(kotlin.String;kotlin.String;kotlin.Function1<neton.http.static.StaticFilesConfig,kotlin.Unit>?){}[0]
+final fun (neton.core/Neton.LaunchBuilder).neton.http/http(kotlin/Function1<neton.core.http.adapter/HttpServerConfig, neton.core.http.adapter/HttpAdapter> = ..., kotlin/Function1<neton.core.component/HttpConfig, kotlin/Unit> = ...) // neton.http/http|http@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.core.http.adapter.HttpServerConfig,neton.core.http.adapter.HttpAdapter>;kotlin.Function1<neton.core.component.HttpConfig,kotlin.Unit>){}[0]
+final fun (neton.http.adapter/BufferedHttpResponse).neton.http.conformance/toConformance(): neton.http.conformance/ConformanceResponse // neton.http.conformance/toConformance|toConformance@neton.http.adapter.BufferedHttpResponse(){}[0]
+final fun (neton.http.client/HttpClient.Companion).neton.http.client/create(kotlin/Function1<neton.http.client/HttpClientConfig, kotlin/Unit> = ...): neton.http.client/HttpClient // neton.http.client/create|create@neton.http.client.HttpClient.Companion(kotlin.Function1<neton.http.client.HttpClientConfig,kotlin.Unit>){}[0]
+final fun (neton.http.conformance/ConformanceRequest).neton.http.conformance/toBuffered(): neton.http.adapter/BufferedHttpRequest // neton.http.conformance/toBuffered|toBuffered@neton.http.conformance.ConformanceRequest(){}[0]
+final fun neton.http.client/systemHostResolver(): neton.http.client/HostResolver // neton.http.client/systemHostResolver|systemHostResolver(){}[0]
+final fun neton.http.mail/defaultSmtpTransport(): neton.http.mail/SmtpTransport // neton.http.mail/defaultSmtpTransport|defaultSmtpTransport(){}[0]
+final suspend fun (neton.core.http/HttpContext).neton.http.static/sendFile(kotlin/String, kotlin/String? = ...) // neton.http.static/sendFile|sendFile@neton.core.http.HttpContext(kotlin.String;kotlin.String?){}[0]
+final suspend fun neton.http/runRateLimitPreHandle(neton.core.interfaces/RouteDefinition, neton.core.http/HttpContext, neton.core.interfaces/RateLimitGate?): kotlin/Boolean // neton.http/runRateLimitPreHandle|runRateLimitPreHandle(neton.core.interfaces.RouteDefinition;neton.core.http.HttpContext;neton.core.interfaces.RateLimitGate?){}[0]
+final suspend fun neton.http/runSecurityPreHandle(neton.core.interfaces/RouteDefinition, neton.core.http/HttpContext, neton.core.interfaces/RequestContext, neton.core.interfaces/SecurityConfiguration?, neton.core.interfaces/RouteGroupSecurityConfigs? = ...) // neton.http/runSecurityPreHandle|runSecurityPreHandle(neton.core.interfaces.RouteDefinition;neton.core.http.HttpContext;neton.core.interfaces.RequestContext;neton.core.interfaces.SecurityConfiguration?;neton.core.interfaces.RouteGroupSecurityConfigs?){}[0]

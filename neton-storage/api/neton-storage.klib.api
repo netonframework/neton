@@ -1,0 +1,200 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-storage>
+abstract interface neton.storage/StorageManager { // neton.storage/StorageManager|null[0]
+    abstract fun default(): neton.storage/StorageOperator // neton.storage/StorageManager.default|default(){}[0]
+    abstract fun get(kotlin/String): neton.storage/StorageOperator // neton.storage/StorageManager.get|get(kotlin.String){}[0]
+    abstract fun names(): kotlin.collections/Set<kotlin/String> // neton.storage/StorageManager.names|names(){}[0]
+}
+
+abstract interface neton.storage/StorageOperator { // neton.storage/StorageOperator|null[0]
+    abstract val name // neton.storage/StorageOperator.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // neton.storage/StorageOperator.name.<get-name>|<get-name>(){}[0]
+    abstract val scheme // neton.storage/StorageOperator.scheme|{}scheme[0]
+        abstract fun <get-scheme>(): kotlin/String // neton.storage/StorageOperator.scheme.<get-scheme>|<get-scheme>(){}[0]
+    open val baseUrl // neton.storage/StorageOperator.baseUrl|{}baseUrl[0]
+        open fun <get-baseUrl>(): kotlin/String // neton.storage/StorageOperator.baseUrl.<get-baseUrl>|<get-baseUrl>(){}[0]
+
+    abstract suspend fun copy(kotlin/String, kotlin/String) // neton.storage/StorageOperator.copy|copy(kotlin.String;kotlin.String){}[0]
+    abstract suspend fun delete(kotlin/String) // neton.storage/StorageOperator.delete|delete(kotlin.String){}[0]
+    abstract suspend fun exists(kotlin/String): kotlin/Boolean // neton.storage/StorageOperator.exists|exists(kotlin.String){}[0]
+    abstract suspend fun list(kotlin/String, neton.storage/ListOptions = ...): kotlin.collections/List<neton.storage/FileEntry> // neton.storage/StorageOperator.list|list(kotlin.String;neton.storage.ListOptions){}[0]
+    abstract suspend fun move(kotlin/String, kotlin/String) // neton.storage/StorageOperator.move|move(kotlin.String;kotlin.String){}[0]
+    abstract suspend fun presignRead(kotlin/String, kotlin.time/Duration): kotlin/String // neton.storage/StorageOperator.presignRead|presignRead(kotlin.String;kotlin.time.Duration){}[0]
+    abstract suspend fun presignWrite(kotlin/String, kotlin.time/Duration): kotlin/String // neton.storage/StorageOperator.presignWrite|presignWrite(kotlin.String;kotlin.time.Duration){}[0]
+    abstract suspend fun read(kotlin/String): kotlin/ByteArray // neton.storage/StorageOperator.read|read(kotlin.String){}[0]
+    abstract suspend fun stat(kotlin/String): neton.storage/FileStat // neton.storage/StorageOperator.stat|stat(kotlin.String){}[0]
+    abstract suspend fun write(kotlin/String, kotlin/ByteArray, neton.storage/WriteOptions = ...) // neton.storage/StorageOperator.write|write(kotlin.String;kotlin.ByteArray;neton.storage.WriteOptions){}[0]
+}
+
+final class neton.storage/FileEntry { // neton.storage/FileEntry|null[0]
+    constructor <init>(kotlin/String, kotlin/Long, kotlin/Long, kotlin/Boolean) // neton.storage/FileEntry.<init>|<init>(kotlin.String;kotlin.Long;kotlin.Long;kotlin.Boolean){}[0]
+
+    final val isDirectory // neton.storage/FileEntry.isDirectory|{}isDirectory[0]
+        final fun <get-isDirectory>(): kotlin/Boolean // neton.storage/FileEntry.isDirectory.<get-isDirectory>|<get-isDirectory>(){}[0]
+    final val lastModified // neton.storage/FileEntry.lastModified|{}lastModified[0]
+        final fun <get-lastModified>(): kotlin/Long // neton.storage/FileEntry.lastModified.<get-lastModified>|<get-lastModified>(){}[0]
+    final val path // neton.storage/FileEntry.path|{}path[0]
+        final fun <get-path>(): kotlin/String // neton.storage/FileEntry.path.<get-path>|<get-path>(){}[0]
+    final val size // neton.storage/FileEntry.size|{}size[0]
+        final fun <get-size>(): kotlin/Long // neton.storage/FileEntry.size.<get-size>|<get-size>(){}[0]
+
+    final fun component1(): kotlin/String // neton.storage/FileEntry.component1|component1(){}[0]
+    final fun component2(): kotlin/Long // neton.storage/FileEntry.component2|component2(){}[0]
+    final fun component3(): kotlin/Long // neton.storage/FileEntry.component3|component3(){}[0]
+    final fun component4(): kotlin/Boolean // neton.storage/FileEntry.component4|component4(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/Boolean = ...): neton.storage/FileEntry // neton.storage/FileEntry.copy|copy(kotlin.String;kotlin.Long;kotlin.Long;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.storage/FileEntry.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.storage/FileEntry.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.storage/FileEntry.toString|toString(){}[0]
+}
+
+final class neton.storage/FileStat { // neton.storage/FileStat|null[0]
+    constructor <init>(kotlin/String, kotlin/Long, kotlin/Long, kotlin/Boolean, kotlin/String? = ...) // neton.storage/FileStat.<init>|<init>(kotlin.String;kotlin.Long;kotlin.Long;kotlin.Boolean;kotlin.String?){}[0]
+
+    final val contentType // neton.storage/FileStat.contentType|{}contentType[0]
+        final fun <get-contentType>(): kotlin/String? // neton.storage/FileStat.contentType.<get-contentType>|<get-contentType>(){}[0]
+    final val isDirectory // neton.storage/FileStat.isDirectory|{}isDirectory[0]
+        final fun <get-isDirectory>(): kotlin/Boolean // neton.storage/FileStat.isDirectory.<get-isDirectory>|<get-isDirectory>(){}[0]
+    final val lastModified // neton.storage/FileStat.lastModified|{}lastModified[0]
+        final fun <get-lastModified>(): kotlin/Long // neton.storage/FileStat.lastModified.<get-lastModified>|<get-lastModified>(){}[0]
+    final val path // neton.storage/FileStat.path|{}path[0]
+        final fun <get-path>(): kotlin/String // neton.storage/FileStat.path.<get-path>|<get-path>(){}[0]
+    final val size // neton.storage/FileStat.size|{}size[0]
+        final fun <get-size>(): kotlin/Long // neton.storage/FileStat.size.<get-size>|<get-size>(){}[0]
+
+    final fun component1(): kotlin/String // neton.storage/FileStat.component1|component1(){}[0]
+    final fun component2(): kotlin/Long // neton.storage/FileStat.component2|component2(){}[0]
+    final fun component3(): kotlin/Long // neton.storage/FileStat.component3|component3(){}[0]
+    final fun component4(): kotlin/Boolean // neton.storage/FileStat.component4|component4(){}[0]
+    final fun component5(): kotlin/String? // neton.storage/FileStat.component5|component5(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String? = ...): neton.storage/FileStat // neton.storage/FileStat.copy|copy(kotlin.String;kotlin.Long;kotlin.Long;kotlin.Boolean;kotlin.String?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.storage/FileStat.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.storage/FileStat.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.storage/FileStat.toString|toString(){}[0]
+}
+
+final class neton.storage/ListOptions { // neton.storage/ListOptions|null[0]
+    constructor <init>(kotlin/Boolean = ..., kotlin/Int = ...) // neton.storage/ListOptions.<init>|<init>(kotlin.Boolean;kotlin.Int){}[0]
+
+    final val maxResults // neton.storage/ListOptions.maxResults|{}maxResults[0]
+        final fun <get-maxResults>(): kotlin/Int // neton.storage/ListOptions.maxResults.<get-maxResults>|<get-maxResults>(){}[0]
+    final val recursive // neton.storage/ListOptions.recursive|{}recursive[0]
+        final fun <get-recursive>(): kotlin/Boolean // neton.storage/ListOptions.recursive.<get-recursive>|<get-recursive>(){}[0]
+
+    final fun component1(): kotlin/Boolean // neton.storage/ListOptions.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // neton.storage/ListOptions.component2|component2(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/Int = ...): neton.storage/ListOptions // neton.storage/ListOptions.copy|copy(kotlin.Boolean;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.storage/ListOptions.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.storage/ListOptions.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.storage/ListOptions.toString|toString(){}[0]
+}
+
+final class neton.storage/SourceConfig { // neton.storage/SourceConfig|null[0]
+    constructor <init>(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ...) // neton.storage/SourceConfig.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean){}[0]
+
+    final var accessKey // neton.storage/SourceConfig.accessKey|{}accessKey[0]
+        final fun <get-accessKey>(): kotlin/String // neton.storage/SourceConfig.accessKey.<get-accessKey>|<get-accessKey>(){}[0]
+        final fun <set-accessKey>(kotlin/String) // neton.storage/SourceConfig.accessKey.<set-accessKey>|<set-accessKey>(kotlin.String){}[0]
+    final var basePath // neton.storage/SourceConfig.basePath|{}basePath[0]
+        final fun <get-basePath>(): kotlin/String // neton.storage/SourceConfig.basePath.<get-basePath>|<get-basePath>(){}[0]
+        final fun <set-basePath>(kotlin/String) // neton.storage/SourceConfig.basePath.<set-basePath>|<set-basePath>(kotlin.String){}[0]
+    final var baseUrl // neton.storage/SourceConfig.baseUrl|{}baseUrl[0]
+        final fun <get-baseUrl>(): kotlin/String // neton.storage/SourceConfig.baseUrl.<get-baseUrl>|<get-baseUrl>(){}[0]
+        final fun <set-baseUrl>(kotlin/String) // neton.storage/SourceConfig.baseUrl.<set-baseUrl>|<set-baseUrl>(kotlin.String){}[0]
+    final var bucket // neton.storage/SourceConfig.bucket|{}bucket[0]
+        final fun <get-bucket>(): kotlin/String // neton.storage/SourceConfig.bucket.<get-bucket>|<get-bucket>(){}[0]
+        final fun <set-bucket>(kotlin/String) // neton.storage/SourceConfig.bucket.<set-bucket>|<set-bucket>(kotlin.String){}[0]
+    final var endpoint // neton.storage/SourceConfig.endpoint|{}endpoint[0]
+        final fun <get-endpoint>(): kotlin/String // neton.storage/SourceConfig.endpoint.<get-endpoint>|<get-endpoint>(){}[0]
+        final fun <set-endpoint>(kotlin/String) // neton.storage/SourceConfig.endpoint.<set-endpoint>|<set-endpoint>(kotlin.String){}[0]
+    final var name // neton.storage/SourceConfig.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.storage/SourceConfig.name.<get-name>|<get-name>(){}[0]
+        final fun <set-name>(kotlin/String) // neton.storage/SourceConfig.name.<set-name>|<set-name>(kotlin.String){}[0]
+    final var pathStyle // neton.storage/SourceConfig.pathStyle|{}pathStyle[0]
+        final fun <get-pathStyle>(): kotlin/Boolean // neton.storage/SourceConfig.pathStyle.<get-pathStyle>|<get-pathStyle>(){}[0]
+        final fun <set-pathStyle>(kotlin/Boolean) // neton.storage/SourceConfig.pathStyle.<set-pathStyle>|<set-pathStyle>(kotlin.Boolean){}[0]
+    final var region // neton.storage/SourceConfig.region|{}region[0]
+        final fun <get-region>(): kotlin/String // neton.storage/SourceConfig.region.<get-region>|<get-region>(){}[0]
+        final fun <set-region>(kotlin/String) // neton.storage/SourceConfig.region.<set-region>|<set-region>(kotlin.String){}[0]
+    final var secretKey // neton.storage/SourceConfig.secretKey|{}secretKey[0]
+        final fun <get-secretKey>(): kotlin/String // neton.storage/SourceConfig.secretKey.<get-secretKey>|<get-secretKey>(){}[0]
+        final fun <set-secretKey>(kotlin/String) // neton.storage/SourceConfig.secretKey.<set-secretKey>|<set-secretKey>(kotlin.String){}[0]
+    final var type // neton.storage/SourceConfig.type|{}type[0]
+        final fun <get-type>(): kotlin/String // neton.storage/SourceConfig.type.<get-type>|<get-type>(){}[0]
+        final fun <set-type>(kotlin/String) // neton.storage/SourceConfig.type.<set-type>|<set-type>(kotlin.String){}[0]
+
+    final fun component1(): kotlin/String // neton.storage/SourceConfig.component1|component1(){}[0]
+    final fun component10(): kotlin/Boolean // neton.storage/SourceConfig.component10|component10(){}[0]
+    final fun component2(): kotlin/String // neton.storage/SourceConfig.component2|component2(){}[0]
+    final fun component3(): kotlin/String // neton.storage/SourceConfig.component3|component3(){}[0]
+    final fun component4(): kotlin/String // neton.storage/SourceConfig.component4|component4(){}[0]
+    final fun component5(): kotlin/String // neton.storage/SourceConfig.component5|component5(){}[0]
+    final fun component6(): kotlin/String // neton.storage/SourceConfig.component6|component6(){}[0]
+    final fun component7(): kotlin/String // neton.storage/SourceConfig.component7|component7(){}[0]
+    final fun component8(): kotlin/String // neton.storage/SourceConfig.component8|component8(){}[0]
+    final fun component9(): kotlin/String // neton.storage/SourceConfig.component9|component9(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/String = ..., kotlin/Boolean = ...): neton.storage/SourceConfig // neton.storage/SourceConfig.copy|copy(kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.String;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.storage/SourceConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.storage/SourceConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.storage/SourceConfig.toString|toString(){}[0]
+}
+
+final class neton.storage/StorageAccessDeniedException : neton.storage/StorageException { // neton.storage/StorageAccessDeniedException|null[0]
+    constructor <init>(kotlin/String) // neton.storage/StorageAccessDeniedException.<init>|<init>(kotlin.String){}[0]
+}
+
+final class neton.storage/StorageAlreadyExistsException : neton.storage/StorageException { // neton.storage/StorageAlreadyExistsException|null[0]
+    constructor <init>(kotlin/String) // neton.storage/StorageAlreadyExistsException.<init>|<init>(kotlin.String){}[0]
+}
+
+final class neton.storage/StorageConfig { // neton.storage/StorageConfig|null[0]
+    constructor <init>(kotlin.collections/MutableList<neton.storage/SourceConfig> = ...) // neton.storage/StorageConfig.<init>|<init>(kotlin.collections.MutableList<neton.storage.SourceConfig>){}[0]
+
+    final val sources // neton.storage/StorageConfig.sources|{}sources[0]
+        final fun <get-sources>(): kotlin.collections/MutableList<neton.storage/SourceConfig> // neton.storage/StorageConfig.sources.<get-sources>|<get-sources>(){}[0]
+
+    final fun component1(): kotlin.collections/MutableList<neton.storage/SourceConfig> // neton.storage/StorageConfig.component1|component1(){}[0]
+    final fun copy(kotlin.collections/MutableList<neton.storage/SourceConfig> = ...): neton.storage/StorageConfig // neton.storage/StorageConfig.copy|copy(kotlin.collections.MutableList<neton.storage.SourceConfig>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.storage/StorageConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.storage/StorageConfig.hashCode|hashCode(){}[0]
+    final fun source(kotlin/String, kotlin/Function1<neton.storage/SourceConfig, kotlin/Unit>) // neton.storage/StorageConfig.source|source(kotlin.String;kotlin.Function1<neton.storage.SourceConfig,kotlin.Unit>){}[0]
+    final fun toString(): kotlin/String // neton.storage/StorageConfig.toString|toString(){}[0]
+}
+
+final class neton.storage/StorageNotFoundException : neton.storage/StorageException { // neton.storage/StorageNotFoundException|null[0]
+    constructor <init>(kotlin/String) // neton.storage/StorageNotFoundException.<init>|<init>(kotlin.String){}[0]
+}
+
+final class neton.storage/WriteOptions { // neton.storage/WriteOptions|null[0]
+    constructor <init>(kotlin/String? = ..., kotlin/Boolean = ...) // neton.storage/WriteOptions.<init>|<init>(kotlin.String?;kotlin.Boolean){}[0]
+
+    final val contentType // neton.storage/WriteOptions.contentType|{}contentType[0]
+        final fun <get-contentType>(): kotlin/String? // neton.storage/WriteOptions.contentType.<get-contentType>|<get-contentType>(){}[0]
+    final val overwrite // neton.storage/WriteOptions.overwrite|{}overwrite[0]
+        final fun <get-overwrite>(): kotlin/Boolean // neton.storage/WriteOptions.overwrite.<get-overwrite>|<get-overwrite>(){}[0]
+
+    final fun component1(): kotlin/String? // neton.storage/WriteOptions.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // neton.storage/WriteOptions.component2|component2(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/Boolean = ...): neton.storage/WriteOptions // neton.storage/WriteOptions.copy|copy(kotlin.String?;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.storage/WriteOptions.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.storage/WriteOptions.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.storage/WriteOptions.toString|toString(){}[0]
+}
+
+open class neton.storage/StorageException : kotlin/Exception { // neton.storage/StorageException|null[0]
+    constructor <init>(kotlin/String, kotlin/Throwable? = ...) // neton.storage/StorageException.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+}
+
+final object neton.storage/StorageComponent : neton.core.component/NetonComponent<neton.storage/StorageConfig> { // neton.storage/StorageComponent|null[0]
+    final fun defaultConfig(): neton.storage/StorageConfig // neton.storage/StorageComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.storage/StorageConfig) // neton.storage/StorageComponent.init|init(neton.core.component.NetonContext;neton.storage.StorageConfig){}[0]
+    final suspend fun stop(neton.core.component/NetonContext) // neton.storage/StorageComponent.stop|stop(neton.core.component.NetonContext){}[0]
+}
+
+final fun (neton.core/Neton.LaunchBuilder).neton.storage/storage(kotlin/Function1<neton.storage/StorageConfig, kotlin/Unit>) // neton.storage/storage|storage@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.storage.StorageConfig,kotlin.Unit>){}[0]

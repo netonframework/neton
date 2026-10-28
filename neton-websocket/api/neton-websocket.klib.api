@@ -1,0 +1,473 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-websocket>
+open annotation class neton.ws.spi/ExperimentalWebSocketEngineApi : kotlin/Annotation { // neton.ws.spi/ExperimentalWebSocketEngineApi|null[0]
+    constructor <init>() // neton.ws.spi/ExperimentalWebSocketEngineApi.<init>|<init>(){}[0]
+}
+
+open annotation class neton.ws/WebSocket : kotlin/Annotation { // neton.ws/WebSocket|null[0]
+    constructor <init>(kotlin/String = ..., kotlin/Array<kotlin/String> = ..., neton.ws/InboundPolicy = ...) // neton.ws/WebSocket.<init>|<init>(kotlin.String;kotlin.Array<kotlin.String>;neton.ws.InboundPolicy){}[0]
+
+    final val inboundPolicy // neton.ws/WebSocket.inboundPolicy|{}inboundPolicy[0]
+        final fun <get-inboundPolicy>(): neton.ws/InboundPolicy // neton.ws/WebSocket.inboundPolicy.<get-inboundPolicy>|<get-inboundPolicy>(){}[0]
+    final val subprotocols // neton.ws/WebSocket.subprotocols|{}subprotocols[0]
+        final fun <get-subprotocols>(): kotlin/Array<kotlin/String> // neton.ws/WebSocket.subprotocols.<get-subprotocols>|<get-subprotocols>(){}[0]
+    final val value // neton.ws/WebSocket.value|{}value[0]
+        final fun <get-value>(): kotlin/String // neton.ws/WebSocket.value.<get-value>|<get-value>(){}[0]
+}
+
+final enum class neton.ws.spi/WebSocketEngineCapability : kotlin/Enum<neton.ws.spi/WebSocketEngineCapability> { // neton.ws.spi/WebSocketEngineCapability|null[0]
+    enum entry MESSAGE_LIMITS // neton.ws.spi/WebSocketEngineCapability.MESSAGE_LIMITS|null[0]
+    enum entry PREALLOCATION_BUDGET // neton.ws.spi/WebSocketEngineCapability.PREALLOCATION_BUDGET|null[0]
+    enum entry REJECT_DATA // neton.ws.spi/WebSocketEngineCapability.REJECT_DATA|null[0]
+    enum entry VALIDATED_DISCARD // neton.ws.spi/WebSocketEngineCapability.VALIDATED_DISCARD|null[0]
+
+    final val entries // neton.ws.spi/WebSocketEngineCapability.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.ws.spi/WebSocketEngineCapability> // neton.ws.spi/WebSocketEngineCapability.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.ws.spi/WebSocketEngineCapability // neton.ws.spi/WebSocketEngineCapability.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.ws.spi/WebSocketEngineCapability> // neton.ws.spi/WebSocketEngineCapability.values|values#static(){}[0]
+}
+
+final enum class neton.ws/CloseTermination : kotlin/Enum<neton.ws/CloseTermination> { // neton.ws/CloseTermination|null[0]
+    enum entry CLOSE_TIMEOUT // neton.ws/CloseTermination.CLOSE_TIMEOUT|null[0]
+    enum entry FORCED_ABORT // neton.ws/CloseTermination.FORCED_ABORT|null[0]
+    enum entry HANDSHAKE_COMPLETE // neton.ws/CloseTermination.HANDSHAKE_COMPLETE|null[0]
+    enum entry PEER_EOF // neton.ws/CloseTermination.PEER_EOF|null[0]
+    enum entry TRANSPORT_FAILURE // neton.ws/CloseTermination.TRANSPORT_FAILURE|null[0]
+    enum entry WRITE_TIMEOUT // neton.ws/CloseTermination.WRITE_TIMEOUT|null[0]
+
+    final val entries // neton.ws/CloseTermination.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.ws/CloseTermination> // neton.ws/CloseTermination.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.ws/CloseTermination // neton.ws/CloseTermination.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.ws/CloseTermination> // neton.ws/CloseTermination.values|values#static(){}[0]
+}
+
+final enum class neton.ws/CloseTrigger : kotlin/Enum<neton.ws/CloseTrigger> { // neton.ws/CloseTrigger|null[0]
+    enum entry APPLICATION // neton.ws/CloseTrigger.APPLICATION|null[0]
+    enum entry CONSUMER_STALL // neton.ws/CloseTrigger.CONSUMER_STALL|null[0]
+    enum entry HANDLER_FAILURE // neton.ws/CloseTrigger.HANDLER_FAILURE|null[0]
+    enum entry IDLE_TIMEOUT // neton.ws/CloseTrigger.IDLE_TIMEOUT|null[0]
+    enum entry LOCAL_NORMAL // neton.ws/CloseTrigger.LOCAL_NORMAL|null[0]
+    enum entry PEER // neton.ws/CloseTrigger.PEER|null[0]
+    enum entry PONG_TIMEOUT // neton.ws/CloseTrigger.PONG_TIMEOUT|null[0]
+    enum entry PROTOCOL_ERROR // neton.ws/CloseTrigger.PROTOCOL_ERROR|null[0]
+    enum entry RESOURCE_PRESSURE // neton.ws/CloseTrigger.RESOURCE_PRESSURE|null[0]
+    enum entry SERVER_SHUTDOWN // neton.ws/CloseTrigger.SERVER_SHUTDOWN|null[0]
+    enum entry TRANSPORT_FAILURE // neton.ws/CloseTrigger.TRANSPORT_FAILURE|null[0]
+
+    final val entries // neton.ws/CloseTrigger.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.ws/CloseTrigger> // neton.ws/CloseTrigger.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.ws/CloseTrigger // neton.ws/CloseTrigger.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.ws/CloseTrigger> // neton.ws/CloseTrigger.values|values#static(){}[0]
+}
+
+final enum class neton.ws/InboundPolicy : kotlin/Enum<neton.ws/InboundPolicy> { // neton.ws/InboundPolicy|null[0]
+    enum entry BACKPRESSURE // neton.ws/InboundPolicy.BACKPRESSURE|null[0]
+    enum entry DISCARD_DATA // neton.ws/InboundPolicy.DISCARD_DATA|null[0]
+    enum entry REJECT_DATA // neton.ws/InboundPolicy.REJECT_DATA|null[0]
+
+    final val entries // neton.ws/InboundPolicy.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.ws/InboundPolicy> // neton.ws/InboundPolicy.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.ws/InboundPolicy // neton.ws/InboundPolicy.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.ws/InboundPolicy> // neton.ws/InboundPolicy.values|values#static(){}[0]
+}
+
+abstract fun interface neton.ws/WebSocketHandler { // neton.ws/WebSocketHandler|null[0]
+    abstract suspend fun handle(neton.ws/WebSocketSession) // neton.ws/WebSocketHandler.handle|handle(neton.ws.WebSocketSession){}[0]
+}
+
+abstract interface neton.ws.conformance/WebSocketEngineFixture { // neton.ws.conformance/WebSocketEngineFixture|null[0]
+    abstract val engine // neton.ws.conformance/WebSocketEngineFixture.engine|{}engine[0]
+        abstract fun <get-engine>(): neton.ws.spi/WebSocketEngineConnection // neton.ws.conformance/WebSocketEngineFixture.engine.<get-engine>|<get-engine>(){}[0]
+
+    abstract fun close() // neton.ws.conformance/WebSocketEngineFixture.close|close(){}[0]
+    abstract suspend fun receivePong(): kotlin/ByteArray // neton.ws.conformance/WebSocketEngineFixture.receivePong|receivePong(){}[0]
+    abstract suspend fun sendEmptyClose() // neton.ws.conformance/WebSocketEngineFixture.sendEmptyClose|sendEmptyClose(){}[0]
+    abstract suspend fun sendPing(kotlin/ByteArray) // neton.ws.conformance/WebSocketEngineFixture.sendPing|sendPing(kotlin.ByteArray){}[0]
+    abstract suspend fun sendRaw(kotlin/ByteArray) // neton.ws.conformance/WebSocketEngineFixture.sendRaw|sendRaw(kotlin.ByteArray){}[0]
+    abstract suspend fun sendText(kotlin/String) // neton.ws.conformance/WebSocketEngineFixture.sendText|sendText(kotlin.String){}[0]
+}
+
+abstract interface neton.ws.spi/ByteBudget { // neton.ws.spi/ByteBudget|null[0]
+    abstract fun release(kotlin/Long) // neton.ws.spi/ByteBudget.release|release(kotlin.Long){}[0]
+    abstract fun tryReserve(kotlin/Long): kotlin/Boolean // neton.ws.spi/ByteBudget.tryReserve|tryReserve(kotlin.Long){}[0]
+}
+
+abstract interface neton.ws.spi/Negotiated // neton.ws.spi/Negotiated|null[0]
+
+abstract interface neton.ws.spi/WebSocketEngineConnection { // neton.ws.spi/WebSocketEngineConnection|null[0]
+    abstract val executor // neton.ws.spi/WebSocketEngineConnection.executor|{}executor[0]
+        abstract fun <get-executor>(): kotlinx.coroutines/CoroutineDispatcher // neton.ws.spi/WebSocketEngineConnection.executor.<get-executor>|<get-executor>(){}[0]
+
+    abstract fun abort() // neton.ws.spi/WebSocketEngineConnection.abort|abort(){}[0]
+    abstract suspend fun receive(): neton.ws.spi/WebSocketEngineEvent? // neton.ws.spi/WebSocketEngineConnection.receive|receive(){}[0]
+    abstract suspend fun writeBinary(kotlin/ByteArray) // neton.ws.spi/WebSocketEngineConnection.writeBinary|writeBinary(kotlin.ByteArray){}[0]
+    abstract suspend fun writeClose(kotlin/Int? = ..., kotlin/String = ...) // neton.ws.spi/WebSocketEngineConnection.writeClose|writeClose(kotlin.Int?;kotlin.String){}[0]
+    abstract suspend fun writePing(kotlin/ByteArray) // neton.ws.spi/WebSocketEngineConnection.writePing|writePing(kotlin.ByteArray){}[0]
+    abstract suspend fun writeText(kotlin/String) // neton.ws.spi/WebSocketEngineConnection.writeText|writeText(kotlin.String){}[0]
+    open fun configureInbound(neton.ws/InboundPolicy) // neton.ws.spi/WebSocketEngineConnection.configureInbound|configureInbound(neton.ws.InboundPolicy){}[0]
+    open fun discardData() // neton.ws.spi/WebSocketEngineConnection.discardData|discardData(){}[0]
+    open suspend fun receive(neton.ws.spi/ByteBudget): neton.ws.spi/WebSocketEngineEvent? // neton.ws.spi/WebSocketEngineConnection.receive|receive(neton.ws.spi.ByteBudget){}[0]
+}
+
+abstract interface neton.ws.spi/WebSocketEngineProvider { // neton.ws.spi/WebSocketEngineProvider|null[0]
+    abstract val capabilities // neton.ws.spi/WebSocketEngineProvider.capabilities|{}capabilities[0]
+        abstract fun <get-capabilities>(): kotlin.collections/Set<neton.ws.spi/WebSocketEngineCapability> // neton.ws.spi/WebSocketEngineProvider.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+    abstract val name // neton.ws.spi/WebSocketEngineProvider.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // neton.ws.spi/WebSocketEngineProvider.name.<get-name>|<get-name>(){}[0]
+
+    abstract fun handshake(neton.ws.spi/HandshakeRequest, neton.ws.spi/HandshakeOffer = ...): neton.ws.spi/HandshakeResult // neton.ws.spi/WebSocketEngineProvider.handshake|handshake(neton.ws.spi.HandshakeRequest;neton.ws.spi.HandshakeOffer){}[0]
+    abstract fun supports(neton.core.http.adapter/HttpAdapter): kotlin/Boolean // neton.ws.spi/WebSocketEngineProvider.supports|supports(neton.core.http.adapter.HttpAdapter){}[0]
+    abstract suspend fun open(neton.core.http.upgrade/UpgradedConnection, neton.ws.spi/Negotiated, neton.ws.spi/EngineLimits): neton.ws.spi/WebSocketEngineConnection // neton.ws.spi/WebSocketEngineProvider.open|open(neton.core.http.upgrade.UpgradedConnection;neton.ws.spi.Negotiated;neton.ws.spi.EngineLimits){}[0]
+}
+
+abstract interface neton.ws/HandshakeInfo { // neton.ws/HandshakeInfo|null[0]
+    abstract val identity // neton.ws/HandshakeInfo.identity|{}identity[0]
+        abstract fun <get-identity>(): neton.core.interfaces/Identity? // neton.ws/HandshakeInfo.identity.<get-identity>|<get-identity>(){}[0]
+    abstract val isSecure // neton.ws/HandshakeInfo.isSecure|{}isSecure[0]
+        abstract fun <get-isSecure>(): kotlin/Boolean // neton.ws/HandshakeInfo.isSecure.<get-isSecure>|<get-isSecure>(){}[0]
+    abstract val path // neton.ws/HandshakeInfo.path|{}path[0]
+        abstract fun <get-path>(): kotlin/String // neton.ws/HandshakeInfo.path.<get-path>|<get-path>(){}[0]
+    abstract val peerAddress // neton.ws/HandshakeInfo.peerAddress|{}peerAddress[0]
+        abstract fun <get-peerAddress>(): kotlin/String // neton.ws/HandshakeInfo.peerAddress.<get-peerAddress>|<get-peerAddress>(){}[0]
+    abstract val subprotocol // neton.ws/HandshakeInfo.subprotocol|{}subprotocol[0]
+        abstract fun <get-subprotocol>(): kotlin/String? // neton.ws/HandshakeInfo.subprotocol.<get-subprotocol>|<get-subprotocol>(){}[0]
+
+    abstract fun headerValues(kotlin/String): kotlin.collections/List<kotlin/String> // neton.ws/HandshakeInfo.headerValues|headerValues(kotlin.String){}[0]
+    abstract fun pathParam(kotlin/String): kotlin/String? // neton.ws/HandshakeInfo.pathParam|pathParam(kotlin.String){}[0]
+    abstract fun queryParams(kotlin/String): kotlin.collections/List<kotlin/String> // neton.ws/HandshakeInfo.queryParams|queryParams(kotlin.String){}[0]
+}
+
+abstract interface neton.ws/WebSocketSession { // neton.ws/WebSocketSession|null[0]
+    abstract val connectionId // neton.ws/WebSocketSession.connectionId|{}connectionId[0]
+        abstract fun <get-connectionId>(): kotlin/String // neton.ws/WebSocketSession.connectionId.<get-connectionId>|<get-connectionId>(){}[0]
+    abstract val handshake // neton.ws/WebSocketSession.handshake|{}handshake[0]
+        abstract fun <get-handshake>(): neton.ws/HandshakeInfo // neton.ws/WebSocketSession.handshake.<get-handshake>|<get-handshake>(){}[0]
+    abstract val incoming // neton.ws/WebSocketSession.incoming|{}incoming[0]
+        abstract fun <get-incoming>(): kotlinx.coroutines.flow/Flow<neton.ws/WebSocketMessage> // neton.ws/WebSocketSession.incoming.<get-incoming>|<get-incoming>(){}[0]
+    open val subprotocol // neton.ws/WebSocketSession.subprotocol|{}subprotocol[0]
+        open fun <get-subprotocol>(): kotlin/String? // neton.ws/WebSocketSession.subprotocol.<get-subprotocol>|<get-subprotocol>(){}[0]
+
+    abstract suspend fun awaitClosed(): neton.ws/CloseResult // neton.ws/WebSocketSession.awaitClosed|awaitClosed(){}[0]
+    abstract suspend fun close(kotlin/Int = ..., kotlin/String = ...) // neton.ws/WebSocketSession.close|close(kotlin.Int;kotlin.String){}[0]
+    abstract suspend fun send(neton.ws/WebSocketMessage) // neton.ws/WebSocketSession.send|send(neton.ws.WebSocketMessage){}[0]
+    open suspend fun send(kotlin/String) // neton.ws/WebSocketSession.send|send(kotlin.String){}[0]
+}
+
+sealed interface neton.ws.spi/HandshakeResult { // neton.ws.spi/HandshakeResult|null[0]
+    final class Accepted : neton.ws.spi/HandshakeResult { // neton.ws.spi/HandshakeResult.Accepted|null[0]
+        constructor <init>(kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>>, neton.ws.spi/Negotiated) // neton.ws.spi/HandshakeResult.Accepted.<init>|<init>(kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;neton.ws.spi.Negotiated){}[0]
+
+        final val headers // neton.ws.spi/HandshakeResult.Accepted.headers|{}headers[0]
+            final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.ws.spi/HandshakeResult.Accepted.headers.<get-headers>|<get-headers>(){}[0]
+        final val negotiated // neton.ws.spi/HandshakeResult.Accepted.negotiated|{}negotiated[0]
+            final fun <get-negotiated>(): neton.ws.spi/Negotiated // neton.ws.spi/HandshakeResult.Accepted.negotiated.<get-negotiated>|<get-negotiated>(){}[0]
+    }
+
+    final class Rejected : neton.ws.spi/HandshakeResult { // neton.ws.spi/HandshakeResult.Rejected|null[0]
+        constructor <init>(kotlin/Int, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ...) // neton.ws.spi/HandshakeResult.Rejected.<init>|<init>(kotlin.Int;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>){}[0]
+
+        final val headers // neton.ws.spi/HandshakeResult.Rejected.headers|{}headers[0]
+            final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.ws.spi/HandshakeResult.Rejected.headers.<get-headers>|<get-headers>(){}[0]
+        final val reason // neton.ws.spi/HandshakeResult.Rejected.reason|{}reason[0]
+            final fun <get-reason>(): kotlin/String // neton.ws.spi/HandshakeResult.Rejected.reason.<get-reason>|<get-reason>(){}[0]
+        final val status // neton.ws.spi/HandshakeResult.Rejected.status|{}status[0]
+            final fun <get-status>(): kotlin/Int // neton.ws.spi/HandshakeResult.Rejected.status.<get-status>|<get-status>(){}[0]
+    }
+}
+
+sealed interface neton.ws.spi/WebSocketEngineEvent { // neton.ws.spi/WebSocketEngineEvent|null[0]
+    final class Binary : neton.ws.spi/WebSocketEngineEvent { // neton.ws.spi/WebSocketEngineEvent.Binary|null[0]
+        constructor <init>(kotlin/ByteArray, neton.ws.spi/BudgetLease = ...) // neton.ws.spi/WebSocketEngineEvent.Binary.<init>|<init>(kotlin.ByteArray;neton.ws.spi.BudgetLease){}[0]
+
+        final val bytes // neton.ws.spi/WebSocketEngineEvent.Binary.bytes|{}bytes[0]
+            final fun <get-bytes>(): kotlin/ByteArray // neton.ws.spi/WebSocketEngineEvent.Binary.bytes.<get-bytes>|<get-bytes>(){}[0]
+        final val lease // neton.ws.spi/WebSocketEngineEvent.Binary.lease|{}lease[0]
+            final fun <get-lease>(): neton.ws.spi/BudgetLease // neton.ws.spi/WebSocketEngineEvent.Binary.lease.<get-lease>|<get-lease>(){}[0]
+    }
+
+    final class CloseReceived : neton.ws.spi/WebSocketEngineEvent { // neton.ws.spi/WebSocketEngineEvent.CloseReceived|null[0]
+        constructor <init>(kotlin/Int?, kotlin/String) // neton.ws.spi/WebSocketEngineEvent.CloseReceived.<init>|<init>(kotlin.Int?;kotlin.String){}[0]
+
+        final val code // neton.ws.spi/WebSocketEngineEvent.CloseReceived.code|{}code[0]
+            final fun <get-code>(): kotlin/Int? // neton.ws.spi/WebSocketEngineEvent.CloseReceived.code.<get-code>|<get-code>(){}[0]
+        final val reason // neton.ws.spi/WebSocketEngineEvent.CloseReceived.reason|{}reason[0]
+            final fun <get-reason>(): kotlin/String // neton.ws.spi/WebSocketEngineEvent.CloseReceived.reason.<get-reason>|<get-reason>(){}[0]
+    }
+
+    final class Pong : neton.ws.spi/WebSocketEngineEvent { // neton.ws.spi/WebSocketEngineEvent.Pong|null[0]
+        constructor <init>(kotlin/ByteArray) // neton.ws.spi/WebSocketEngineEvent.Pong.<init>|<init>(kotlin.ByteArray){}[0]
+
+        final val bytes // neton.ws.spi/WebSocketEngineEvent.Pong.bytes|{}bytes[0]
+            final fun <get-bytes>(): kotlin/ByteArray // neton.ws.spi/WebSocketEngineEvent.Pong.bytes.<get-bytes>|<get-bytes>(){}[0]
+    }
+
+    final class Text : neton.ws.spi/WebSocketEngineEvent { // neton.ws.spi/WebSocketEngineEvent.Text|null[0]
+        constructor <init>(kotlin/String, neton.ws.spi/BudgetLease = ...) // neton.ws.spi/WebSocketEngineEvent.Text.<init>|<init>(kotlin.String;neton.ws.spi.BudgetLease){}[0]
+
+        final val lease // neton.ws.spi/WebSocketEngineEvent.Text.lease|{}lease[0]
+            final fun <get-lease>(): neton.ws.spi/BudgetLease // neton.ws.spi/WebSocketEngineEvent.Text.lease.<get-lease>|<get-lease>(){}[0]
+        final val text // neton.ws.spi/WebSocketEngineEvent.Text.text|{}text[0]
+            final fun <get-text>(): kotlin/String // neton.ws.spi/WebSocketEngineEvent.Text.text.<get-text>|<get-text>(){}[0]
+    }
+
+    final object DataRejected : neton.ws.spi/WebSocketEngineEvent { // neton.ws.spi/WebSocketEngineEvent.DataRejected|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.ws.spi/WebSocketEngineEvent.DataRejected.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.ws.spi/WebSocketEngineEvent.DataRejected.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.ws.spi/WebSocketEngineEvent.DataRejected.toString|toString(){}[0]
+    }
+}
+
+sealed interface neton.ws/WebSocketMessage { // neton.ws/WebSocketMessage|null[0]
+    final class Binary : neton.ws/WebSocketMessage { // neton.ws/WebSocketMessage.Binary|null[0]
+        constructor <init>(kotlin/ByteArray) // neton.ws/WebSocketMessage.Binary.<init>|<init>(kotlin.ByteArray){}[0]
+
+        final val bytes // neton.ws/WebSocketMessage.Binary.bytes|{}bytes[0]
+            final fun <get-bytes>(): kotlin/ByteArray // neton.ws/WebSocketMessage.Binary.bytes.<get-bytes>|<get-bytes>(){}[0]
+    }
+
+    final class Text : neton.ws/WebSocketMessage { // neton.ws/WebSocketMessage.Text|null[0]
+        constructor <init>(kotlin/String) // neton.ws/WebSocketMessage.Text.<init>|<init>(kotlin.String){}[0]
+
+        final val value // neton.ws/WebSocketMessage.Text.value|{}value[0]
+            final fun <get-value>(): kotlin/String // neton.ws/WebSocketMessage.Text.value.<get-value>|<get-value>(){}[0]
+
+        final fun component1(): kotlin/String // neton.ws/WebSocketMessage.Text.component1|component1(){}[0]
+        final fun copy(kotlin/String = ...): neton.ws/WebSocketMessage.Text // neton.ws/WebSocketMessage.Text.copy|copy(kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.ws/WebSocketMessage.Text.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.ws/WebSocketMessage.Text.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.ws/WebSocketMessage.Text.toString|toString(){}[0]
+    }
+}
+
+abstract class neton.ws.conformance/WebSocketEngineConformanceSuite { // neton.ws.conformance/WebSocketEngineConformanceSuite|null[0]
+    constructor <init>() // neton.ws.conformance/WebSocketEngineConformanceSuite.<init>|<init>(){}[0]
+
+    abstract val capabilities // neton.ws.conformance/WebSocketEngineConformanceSuite.capabilities|{}capabilities[0]
+        abstract fun <get-capabilities>(): kotlin.collections/Set<neton.ws.spi/WebSocketEngineCapability> // neton.ws.conformance/WebSocketEngineConformanceSuite.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+
+    abstract fun recordSkipped(neton.ws.spi/WebSocketEngineCapability) // neton.ws.conformance/WebSocketEngineConformanceSuite.recordSkipped|recordSkipped(neton.ws.spi.WebSocketEngineCapability){}[0]
+    abstract suspend fun open(neton.ws.spi/EngineLimits = ...): neton.ws.conformance/WebSocketEngineFixture // neton.ws.conformance/WebSocketEngineConformanceSuite.open|open(neton.ws.spi.EngineLimits){}[0]
+    final suspend fun abortReleasesPendingRead() // neton.ws.conformance/WebSocketEngineConformanceSuite.abortReleasesPendingRead|abortReleasesPendingRead(){}[0]
+    final suspend fun automaticPong() // neton.ws.conformance/WebSocketEngineConformanceSuite.automaticPong|automaticPong(){}[0]
+    final suspend fun discardRejectsInvalidUtf8() // neton.ws.conformance/WebSocketEngineConformanceSuite.discardRejectsInvalidUtf8|discardRejectsInvalidUtf8(){}[0]
+    final suspend fun frameLimitBeforePayload() // neton.ws.conformance/WebSocketEngineConformanceSuite.frameLimitBeforePayload|frameLimitBeforePayload(){}[0]
+    final suspend fun preallocationRefusal() // neton.ws.conformance/WebSocketEngineConformanceSuite.preallocationRefusal|preallocationRefusal(){}[0]
+    final suspend fun rejectBeforePayload() // neton.ws.conformance/WebSocketEngineConformanceSuite.rejectBeforePayload|rejectBeforePayload(){}[0]
+    final suspend fun textAndEmptyClose() // neton.ws.conformance/WebSocketEngineConformanceSuite.textAndEmptyClose|textAndEmptyClose(){}[0]
+    final suspend fun validatedDiscardKeepsControls() // neton.ws.conformance/WebSocketEngineConformanceSuite.validatedDiscardKeepsControls|validatedDiscardKeepsControls(){}[0]
+}
+
+final class neton.ws.engine.default/DefaultWebSocketEngineProvider : neton.ws.spi/WebSocketEngineProvider { // neton.ws.engine.default/DefaultWebSocketEngineProvider|null[0]
+    constructor <init>() // neton.ws.engine.default/DefaultWebSocketEngineProvider.<init>|<init>(){}[0]
+
+    final val capabilities // neton.ws.engine.default/DefaultWebSocketEngineProvider.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): kotlin.collections/Set<neton.ws.spi/WebSocketEngineCapability> // neton.ws.engine.default/DefaultWebSocketEngineProvider.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+    final val name // neton.ws.engine.default/DefaultWebSocketEngineProvider.name|{}name[0]
+        final fun <get-name>(): kotlin/String // neton.ws.engine.default/DefaultWebSocketEngineProvider.name.<get-name>|<get-name>(){}[0]
+
+    final fun handshake(neton.ws.spi/HandshakeRequest, neton.ws.spi/HandshakeOffer): neton.ws.spi/HandshakeResult // neton.ws.engine.default/DefaultWebSocketEngineProvider.handshake|handshake(neton.ws.spi.HandshakeRequest;neton.ws.spi.HandshakeOffer){}[0]
+    final fun supports(neton.core.http.adapter/HttpAdapter): kotlin/Boolean // neton.ws.engine.default/DefaultWebSocketEngineProvider.supports|supports(neton.core.http.adapter.HttpAdapter){}[0]
+    final suspend fun open(neton.core.http.upgrade/UpgradedConnection, neton.ws.spi/Negotiated, neton.ws.spi/EngineLimits): neton.ws.spi/WebSocketEngineConnection // neton.ws.engine.default/DefaultWebSocketEngineProvider.open|open(neton.core.http.upgrade.UpgradedConnection;neton.ws.spi.Negotiated;neton.ws.spi.EngineLimits){}[0]
+}
+
+final class neton.ws.spi/BudgetLease { // neton.ws.spi/BudgetLease|null[0]
+    constructor <init>(neton.ws.spi/ByteBudget, kotlin/Long) // neton.ws.spi/BudgetLease.<init>|<init>(neton.ws.spi.ByteBudget;kotlin.Long){}[0]
+
+    final val bytes // neton.ws.spi/BudgetLease.bytes|{}bytes[0]
+        final fun <get-bytes>(): kotlin/Long // neton.ws.spi/BudgetLease.bytes.<get-bytes>|<get-bytes>(){}[0]
+
+    final fun release() // neton.ws.spi/BudgetLease.release|release(){}[0]
+}
+
+final class neton.ws.spi/EngineLimits { // neton.ws.spi/EngineLimits|null[0]
+    constructor <init>(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...) // neton.ws.spi/EngineLimits.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+
+    final val maxFrameBytes // neton.ws.spi/EngineLimits.maxFrameBytes|{}maxFrameBytes[0]
+        final fun <get-maxFrameBytes>(): kotlin/Int // neton.ws.spi/EngineLimits.maxFrameBytes.<get-maxFrameBytes>|<get-maxFrameBytes>(){}[0]
+    final val maxMessageBytes // neton.ws.spi/EngineLimits.maxMessageBytes|{}maxMessageBytes[0]
+        final fun <get-maxMessageBytes>(): kotlin/Int // neton.ws.spi/EngineLimits.maxMessageBytes.<get-maxMessageBytes>|<get-maxMessageBytes>(){}[0]
+    final val maxWriteBufferBytes // neton.ws.spi/EngineLimits.maxWriteBufferBytes|{}maxWriteBufferBytes[0]
+        final fun <get-maxWriteBufferBytes>(): kotlin/Int // neton.ws.spi/EngineLimits.maxWriteBufferBytes.<get-maxWriteBufferBytes>|<get-maxWriteBufferBytes>(){}[0]
+    final val readBufferBytes // neton.ws.spi/EngineLimits.readBufferBytes|{}readBufferBytes[0]
+        final fun <get-readBufferBytes>(): kotlin/Int // neton.ws.spi/EngineLimits.readBufferBytes.<get-readBufferBytes>|<get-readBufferBytes>(){}[0]
+    final val writeBufferBytes // neton.ws.spi/EngineLimits.writeBufferBytes|{}writeBufferBytes[0]
+        final fun <get-writeBufferBytes>(): kotlin/Int // neton.ws.spi/EngineLimits.writeBufferBytes.<get-writeBufferBytes>|<get-writeBufferBytes>(){}[0]
+
+    final fun component1(): kotlin/Int // neton.ws.spi/EngineLimits.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // neton.ws.spi/EngineLimits.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // neton.ws.spi/EngineLimits.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // neton.ws.spi/EngineLimits.component4|component4(){}[0]
+    final fun component5(): kotlin/Int // neton.ws.spi/EngineLimits.component5|component5(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): neton.ws.spi/EngineLimits // neton.ws.spi/EngineLimits.copy|copy(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.ws.spi/EngineLimits.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.ws.spi/EngineLimits.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.ws.spi/EngineLimits.toString|toString(){}[0]
+}
+
+final class neton.ws.spi/HandshakeOffer { // neton.ws.spi/HandshakeOffer|null[0]
+    constructor <init>(kotlin/String? = ...) // neton.ws.spi/HandshakeOffer.<init>|<init>(kotlin.String?){}[0]
+
+    final val subprotocol // neton.ws.spi/HandshakeOffer.subprotocol|{}subprotocol[0]
+        final fun <get-subprotocol>(): kotlin/String? // neton.ws.spi/HandshakeOffer.subprotocol.<get-subprotocol>|<get-subprotocol>(){}[0]
+}
+
+final class neton.ws.spi/HandshakeRequest { // neton.ws.spi/HandshakeRequest|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>>, kotlin/String = ...) // neton.ws.spi/HandshakeRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.String){}[0]
+
+    final val headers // neton.ws.spi/HandshakeRequest.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> // neton.ws.spi/HandshakeRequest.headers.<get-headers>|<get-headers>(){}[0]
+    final val httpVersion // neton.ws.spi/HandshakeRequest.httpVersion|{}httpVersion[0]
+        final fun <get-httpVersion>(): kotlin/String // neton.ws.spi/HandshakeRequest.httpVersion.<get-httpVersion>|<get-httpVersion>(){}[0]
+    final val method // neton.ws.spi/HandshakeRequest.method|{}method[0]
+        final fun <get-method>(): kotlin/String // neton.ws.spi/HandshakeRequest.method.<get-method>|<get-method>(){}[0]
+    final val target // neton.ws.spi/HandshakeRequest.target|{}target[0]
+        final fun <get-target>(): kotlin/String // neton.ws.spi/HandshakeRequest.target.<get-target>|<get-target>(){}[0]
+}
+
+final class neton.ws.spi/WebSocketCapacityException : kotlin/IllegalStateException { // neton.ws.spi/WebSocketCapacityException|null[0]
+    constructor <init>() // neton.ws.spi/WebSocketCapacityException.<init>|<init>(){}[0]
+}
+
+final class neton.ws/CloseFrameInfo { // neton.ws/CloseFrameInfo|null[0]
+    constructor <init>(kotlin/Int?, kotlin/String = ...) // neton.ws/CloseFrameInfo.<init>|<init>(kotlin.Int?;kotlin.String){}[0]
+
+    final val code // neton.ws/CloseFrameInfo.code|{}code[0]
+        final fun <get-code>(): kotlin/Int? // neton.ws/CloseFrameInfo.code.<get-code>|<get-code>(){}[0]
+    final val reason // neton.ws/CloseFrameInfo.reason|{}reason[0]
+        final fun <get-reason>(): kotlin/String // neton.ws/CloseFrameInfo.reason.<get-reason>|<get-reason>(){}[0]
+
+    final fun component1(): kotlin/Int? // neton.ws/CloseFrameInfo.component1|component1(){}[0]
+    final fun component2(): kotlin/String // neton.ws/CloseFrameInfo.component2|component2(){}[0]
+    final fun copy(kotlin/Int? = ..., kotlin/String = ...): neton.ws/CloseFrameInfo // neton.ws/CloseFrameInfo.copy|copy(kotlin.Int?;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.ws/CloseFrameInfo.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.ws/CloseFrameInfo.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.ws/CloseFrameInfo.toString|toString(){}[0]
+}
+
+final class neton.ws/CloseResult { // neton.ws/CloseResult|null[0]
+    constructor <init>(neton.ws/CloseTrigger, neton.ws/CloseFrameInfo?, neton.ws/CloseFrameInfo?, neton.ws/CloseFrameInfo?, neton.ws/CloseTermination) // neton.ws/CloseResult.<init>|<init>(neton.ws.CloseTrigger;neton.ws.CloseFrameInfo?;neton.ws.CloseFrameInfo?;neton.ws.CloseFrameInfo?;neton.ws.CloseTermination){}[0]
+
+    final val handshakeComplete // neton.ws/CloseResult.handshakeComplete|{}handshakeComplete[0]
+        final fun <get-handshakeComplete>(): kotlin/Boolean // neton.ws/CloseResult.handshakeComplete.<get-handshakeComplete>|<get-handshakeComplete>(){}[0]
+    final val localRequest // neton.ws/CloseResult.localRequest|{}localRequest[0]
+        final fun <get-localRequest>(): neton.ws/CloseFrameInfo? // neton.ws/CloseResult.localRequest.<get-localRequest>|<get-localRequest>(){}[0]
+    final val received // neton.ws/CloseResult.received|{}received[0]
+        final fun <get-received>(): neton.ws/CloseFrameInfo? // neton.ws/CloseResult.received.<get-received>|<get-received>(){}[0]
+    final val sent // neton.ws/CloseResult.sent|{}sent[0]
+        final fun <get-sent>(): neton.ws/CloseFrameInfo? // neton.ws/CloseResult.sent.<get-sent>|<get-sent>(){}[0]
+    final val termination // neton.ws/CloseResult.termination|{}termination[0]
+        final fun <get-termination>(): neton.ws/CloseTermination // neton.ws/CloseResult.termination.<get-termination>|<get-termination>(){}[0]
+    final val trigger // neton.ws/CloseResult.trigger|{}trigger[0]
+        final fun <get-trigger>(): neton.ws/CloseTrigger // neton.ws/CloseResult.trigger.<get-trigger>|<get-trigger>(){}[0]
+
+    final fun component1(): neton.ws/CloseTrigger // neton.ws/CloseResult.component1|component1(){}[0]
+    final fun component2(): neton.ws/CloseFrameInfo? // neton.ws/CloseResult.component2|component2(){}[0]
+    final fun component3(): neton.ws/CloseFrameInfo? // neton.ws/CloseResult.component3|component3(){}[0]
+    final fun component4(): neton.ws/CloseFrameInfo? // neton.ws/CloseResult.component4|component4(){}[0]
+    final fun component5(): neton.ws/CloseTermination // neton.ws/CloseResult.component5|component5(){}[0]
+    final fun copy(neton.ws/CloseTrigger = ..., neton.ws/CloseFrameInfo? = ..., neton.ws/CloseFrameInfo? = ..., neton.ws/CloseFrameInfo? = ..., neton.ws/CloseTermination = ...): neton.ws/CloseResult // neton.ws/CloseResult.copy|copy(neton.ws.CloseTrigger;neton.ws.CloseFrameInfo?;neton.ws.CloseFrameInfo?;neton.ws.CloseFrameInfo?;neton.ws.CloseTermination){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.ws/CloseResult.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.ws/CloseResult.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.ws/CloseResult.toString|toString(){}[0]
+}
+
+final class neton.ws/WebSocketClosedException : kotlin/IllegalStateException { // neton.ws/WebSocketClosedException|null[0]
+    constructor <init>() // neton.ws/WebSocketClosedException.<init>|<init>(){}[0]
+}
+
+final class neton.ws/WebSocketComponent : neton.core.component/NetonComponent<neton.ws/WebSocketConfig> { // neton.ws/WebSocketComponent|null[0]
+    constructor <init>(kotlin/Function0<neton.ws.spi/WebSocketEngineProvider> = ...) // neton.ws/WebSocketComponent.<init>|<init>(kotlin.Function0<neton.ws.spi.WebSocketEngineProvider>){}[0]
+
+    final fun defaultConfig(): neton.ws/WebSocketConfig // neton.ws/WebSocketComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.ws/WebSocketConfig) // neton.ws/WebSocketComponent.init|init(neton.core.component.NetonContext;neton.ws.WebSocketConfig){}[0]
+    final suspend fun prepare(neton.core.component/NetonContext) // neton.ws/WebSocketComponent.prepare|prepare(neton.core.component.NetonContext){}[0]
+    final suspend fun stop(neton.core.component/NetonContext) // neton.ws/WebSocketComponent.stop|stop(neton.core.component.NetonContext){}[0]
+}
+
+final class neton.ws/WebSocketConfig { // neton.ws/WebSocketConfig|null[0]
+    constructor <init>() // neton.ws/WebSocketConfig.<init>|<init>(){}[0]
+
+    final var allowMissingOrigin // neton.ws/WebSocketConfig.allowMissingOrigin|{}allowMissingOrigin[0]
+        final fun <get-allowMissingOrigin>(): kotlin/Boolean // neton.ws/WebSocketConfig.allowMissingOrigin.<get-allowMissingOrigin>|<get-allowMissingOrigin>(){}[0]
+        final fun <set-allowMissingOrigin>(kotlin/Boolean) // neton.ws/WebSocketConfig.allowMissingOrigin.<set-allowMissingOrigin>|<set-allowMissingOrigin>(kotlin.Boolean){}[0]
+    final var allowedOrigins // neton.ws/WebSocketConfig.allowedOrigins|{}allowedOrigins[0]
+        final fun <get-allowedOrigins>(): kotlin.collections/Set<kotlin/String> // neton.ws/WebSocketConfig.allowedOrigins.<get-allowedOrigins>|<get-allowedOrigins>(){}[0]
+        final fun <set-allowedOrigins>(kotlin.collections/Set<kotlin/String>) // neton.ws/WebSocketConfig.allowedOrigins.<set-allowedOrigins>|<set-allowedOrigins>(kotlin.collections.Set<kotlin.String>){}[0]
+    final var closeTimeoutMillis // neton.ws/WebSocketConfig.closeTimeoutMillis|{}closeTimeoutMillis[0]
+        final fun <get-closeTimeoutMillis>(): kotlin/Long // neton.ws/WebSocketConfig.closeTimeoutMillis.<get-closeTimeoutMillis>|<get-closeTimeoutMillis>(){}[0]
+        final fun <set-closeTimeoutMillis>(kotlin/Long) // neton.ws/WebSocketConfig.closeTimeoutMillis.<set-closeTimeoutMillis>|<set-closeTimeoutMillis>(kotlin.Long){}[0]
+    final var consumerTimeoutMillis // neton.ws/WebSocketConfig.consumerTimeoutMillis|{}consumerTimeoutMillis[0]
+        final fun <get-consumerTimeoutMillis>(): kotlin/Long // neton.ws/WebSocketConfig.consumerTimeoutMillis.<get-consumerTimeoutMillis>|<get-consumerTimeoutMillis>(){}[0]
+        final fun <set-consumerTimeoutMillis>(kotlin/Long) // neton.ws/WebSocketConfig.consumerTimeoutMillis.<set-consumerTimeoutMillis>|<set-consumerTimeoutMillis>(kotlin.Long){}[0]
+    final var engineLimits // neton.ws/WebSocketConfig.engineLimits|{}engineLimits[0]
+        final fun <get-engineLimits>(): neton.ws.spi/EngineLimits // neton.ws/WebSocketConfig.engineLimits.<get-engineLimits>|<get-engineLimits>(){}[0]
+        final fun <set-engineLimits>(neton.ws.spi/EngineLimits) // neton.ws/WebSocketConfig.engineLimits.<set-engineLimits>|<set-engineLimits>(neton.ws.spi.EngineLimits){}[0]
+    final var handlerShutdownMillis // neton.ws/WebSocketConfig.handlerShutdownMillis|{}handlerShutdownMillis[0]
+        final fun <get-handlerShutdownMillis>(): kotlin/Long // neton.ws/WebSocketConfig.handlerShutdownMillis.<get-handlerShutdownMillis>|<get-handlerShutdownMillis>(){}[0]
+        final fun <set-handlerShutdownMillis>(kotlin/Long) // neton.ws/WebSocketConfig.handlerShutdownMillis.<set-handlerShutdownMillis>|<set-handlerShutdownMillis>(kotlin.Long){}[0]
+    final var handshakeHeaderNames // neton.ws/WebSocketConfig.handshakeHeaderNames|{}handshakeHeaderNames[0]
+        final fun <get-handshakeHeaderNames>(): kotlin.collections/Set<kotlin/String> // neton.ws/WebSocketConfig.handshakeHeaderNames.<get-handshakeHeaderNames>|<get-handshakeHeaderNames>(){}[0]
+        final fun <set-handshakeHeaderNames>(kotlin.collections/Set<kotlin/String>) // neton.ws/WebSocketConfig.handshakeHeaderNames.<set-handshakeHeaderNames>|<set-handshakeHeaderNames>(kotlin.collections.Set<kotlin.String>){}[0]
+    final var idleTimeoutMillis // neton.ws/WebSocketConfig.idleTimeoutMillis|{}idleTimeoutMillis[0]
+        final fun <get-idleTimeoutMillis>(): kotlin/Long // neton.ws/WebSocketConfig.idleTimeoutMillis.<get-idleTimeoutMillis>|<get-idleTimeoutMillis>(){}[0]
+        final fun <set-idleTimeoutMillis>(kotlin/Long) // neton.ws/WebSocketConfig.idleTimeoutMillis.<set-idleTimeoutMillis>|<set-idleTimeoutMillis>(kotlin.Long){}[0]
+    final var maxBufferedBytes // neton.ws/WebSocketConfig.maxBufferedBytes|{}maxBufferedBytes[0]
+        final fun <get-maxBufferedBytes>(): kotlin/Long // neton.ws/WebSocketConfig.maxBufferedBytes.<get-maxBufferedBytes>|<get-maxBufferedBytes>(){}[0]
+        final fun <set-maxBufferedBytes>(kotlin/Long) // neton.ws/WebSocketConfig.maxBufferedBytes.<set-maxBufferedBytes>|<set-maxBufferedBytes>(kotlin.Long){}[0]
+    final var maxConnections // neton.ws/WebSocketConfig.maxConnections|{}maxConnections[0]
+        final fun <get-maxConnections>(): kotlin/Int // neton.ws/WebSocketConfig.maxConnections.<get-maxConnections>|<get-maxConnections>(){}[0]
+        final fun <set-maxConnections>(kotlin/Int) // neton.ws/WebSocketConfig.maxConnections.<set-maxConnections>|<set-maxConnections>(kotlin.Int){}[0]
+    final var maxHandshakeSnapshotBytes // neton.ws/WebSocketConfig.maxHandshakeSnapshotBytes|{}maxHandshakeSnapshotBytes[0]
+        final fun <get-maxHandshakeSnapshotBytes>(): kotlin/Long // neton.ws/WebSocketConfig.maxHandshakeSnapshotBytes.<get-maxHandshakeSnapshotBytes>|<get-maxHandshakeSnapshotBytes>(){}[0]
+        final fun <set-maxHandshakeSnapshotBytes>(kotlin/Long) // neton.ws/WebSocketConfig.maxHandshakeSnapshotBytes.<set-maxHandshakeSnapshotBytes>|<set-maxHandshakeSnapshotBytes>(kotlin.Long){}[0]
+    final var maxQueuedBytesPerConnection // neton.ws/WebSocketConfig.maxQueuedBytesPerConnection|{}maxQueuedBytesPerConnection[0]
+        final fun <get-maxQueuedBytesPerConnection>(): kotlin/Long // neton.ws/WebSocketConfig.maxQueuedBytesPerConnection.<get-maxQueuedBytesPerConnection>|<get-maxQueuedBytesPerConnection>(){}[0]
+        final fun <set-maxQueuedBytesPerConnection>(kotlin/Long) // neton.ws/WebSocketConfig.maxQueuedBytesPerConnection.<set-maxQueuedBytesPerConnection>|<set-maxQueuedBytesPerConnection>(kotlin.Long){}[0]
+    final var maxSuspendedSendBytes // neton.ws/WebSocketConfig.maxSuspendedSendBytes|{}maxSuspendedSendBytes[0]
+        final fun <get-maxSuspendedSendBytes>(): kotlin/Long // neton.ws/WebSocketConfig.maxSuspendedSendBytes.<get-maxSuspendedSendBytes>|<get-maxSuspendedSendBytes>(){}[0]
+        final fun <set-maxSuspendedSendBytes>(kotlin/Long) // neton.ws/WebSocketConfig.maxSuspendedSendBytes.<set-maxSuspendedSendBytes>|<set-maxSuspendedSendBytes>(kotlin.Long){}[0]
+    final var maxSuspendedSends // neton.ws/WebSocketConfig.maxSuspendedSends|{}maxSuspendedSends[0]
+        final fun <get-maxSuspendedSends>(): kotlin/Int // neton.ws/WebSocketConfig.maxSuspendedSends.<get-maxSuspendedSends>|<get-maxSuspendedSends>(){}[0]
+        final fun <set-maxSuspendedSends>(kotlin/Int) // neton.ws/WebSocketConfig.maxSuspendedSends.<set-maxSuspendedSends>|<set-maxSuspendedSends>(kotlin.Int){}[0]
+    final var maxSuspendedSendsTotal // neton.ws/WebSocketConfig.maxSuspendedSendsTotal|{}maxSuspendedSendsTotal[0]
+        final fun <get-maxSuspendedSendsTotal>(): kotlin/Int // neton.ws/WebSocketConfig.maxSuspendedSendsTotal.<get-maxSuspendedSendsTotal>|<get-maxSuspendedSendsTotal>(){}[0]
+        final fun <set-maxSuspendedSendsTotal>(kotlin/Int) // neton.ws/WebSocketConfig.maxSuspendedSendsTotal.<set-maxSuspendedSendsTotal>|<set-maxSuspendedSendsTotal>(kotlin.Int){}[0]
+    final var pingIntervalMillis // neton.ws/WebSocketConfig.pingIntervalMillis|{}pingIntervalMillis[0]
+        final fun <get-pingIntervalMillis>(): kotlin/Long // neton.ws/WebSocketConfig.pingIntervalMillis.<get-pingIntervalMillis>|<get-pingIntervalMillis>(){}[0]
+        final fun <set-pingIntervalMillis>(kotlin/Long) // neton.ws/WebSocketConfig.pingIntervalMillis.<set-pingIntervalMillis>|<set-pingIntervalMillis>(kotlin.Long){}[0]
+    final var pongTimeoutMillis // neton.ws/WebSocketConfig.pongTimeoutMillis|{}pongTimeoutMillis[0]
+        final fun <get-pongTimeoutMillis>(): kotlin/Long // neton.ws/WebSocketConfig.pongTimeoutMillis.<get-pongTimeoutMillis>|<get-pongTimeoutMillis>(){}[0]
+        final fun <set-pongTimeoutMillis>(kotlin/Long) // neton.ws/WebSocketConfig.pongTimeoutMillis.<set-pongTimeoutMillis>|<set-pongTimeoutMillis>(kotlin.Long){}[0]
+    final var queueCapacity // neton.ws/WebSocketConfig.queueCapacity|{}queueCapacity[0]
+        final fun <get-queueCapacity>(): kotlin/Int // neton.ws/WebSocketConfig.queueCapacity.<get-queueCapacity>|<get-queueCapacity>(){}[0]
+        final fun <set-queueCapacity>(kotlin/Int) // neton.ws/WebSocketConfig.queueCapacity.<set-queueCapacity>|<set-queueCapacity>(kotlin.Int){}[0]
+    final var requiredCapabilities // neton.ws/WebSocketConfig.requiredCapabilities|{}requiredCapabilities[0]
+        final fun <get-requiredCapabilities>(): kotlin.collections/Set<neton.ws.spi/WebSocketEngineCapability> // neton.ws/WebSocketConfig.requiredCapabilities.<get-requiredCapabilities>|<get-requiredCapabilities>(){}[0]
+        final fun <set-requiredCapabilities>(kotlin.collections/Set<neton.ws.spi/WebSocketEngineCapability>) // neton.ws/WebSocketConfig.requiredCapabilities.<set-requiredCapabilities>|<set-requiredCapabilities>(kotlin.collections.Set<neton.ws.spi.WebSocketEngineCapability>){}[0]
+    final var writeTimeoutMillis // neton.ws/WebSocketConfig.writeTimeoutMillis|{}writeTimeoutMillis[0]
+        final fun <get-writeTimeoutMillis>(): kotlin/Long // neton.ws/WebSocketConfig.writeTimeoutMillis.<get-writeTimeoutMillis>|<get-writeTimeoutMillis>(){}[0]
+        final fun <set-writeTimeoutMillis>(kotlin/Long) // neton.ws/WebSocketConfig.writeTimeoutMillis.<set-writeTimeoutMillis>|<set-writeTimeoutMillis>(kotlin.Long){}[0]
+}
+
+final object neton.ws.spi/UnlimitedByteBudget : neton.ws.spi/ByteBudget { // neton.ws.spi/UnlimitedByteBudget|null[0]
+    final fun release(kotlin/Long) // neton.ws.spi/UnlimitedByteBudget.release|release(kotlin.Long){}[0]
+    final fun tryReserve(kotlin/Long): kotlin/Boolean // neton.ws.spi/UnlimitedByteBudget.tryReserve|tryReserve(kotlin.Long){}[0]
+}
+
+final fun (neton.core.interfaces/RequestEngine).neton.ws/webSocket(kotlin/String, kotlin.collections/List<kotlin/String> = ..., neton.ws/InboundPolicy = ..., kotlin.coroutines/SuspendFunction1<neton.ws/WebSocketSession, kotlin/Unit>) // neton.ws/webSocket|webSocket@neton.core.interfaces.RequestEngine(kotlin.String;kotlin.collections.List<kotlin.String>;neton.ws.InboundPolicy;kotlin.coroutines.SuspendFunction1<neton.ws.WebSocketSession,kotlin.Unit>){}[0]
+final fun (neton.core.interfaces/RequestEngine).neton.ws/webSocket(kotlin/String, neton.ws/WebSocketHandler, kotlin.collections/List<kotlin/String> = ..., neton.ws/InboundPolicy = ...) // neton.ws/webSocket|webSocket@neton.core.interfaces.RequestEngine(kotlin.String;neton.ws.WebSocketHandler;kotlin.collections.List<kotlin.String>;neton.ws.InboundPolicy){}[0]
+final fun (neton.core/Neton.LaunchBuilder).neton.ws/websocket(kotlin/Function0<neton.ws.spi/WebSocketEngineProvider> = ..., kotlin/Function1<neton.ws/WebSocketConfig, kotlin/Unit> = ...) // neton.ws/websocket|websocket@neton.core.Neton.LaunchBuilder(kotlin.Function0<neton.ws.spi.WebSocketEngineProvider>;kotlin.Function1<neton.ws.WebSocketConfig,kotlin.Unit>){}[0]
+final fun (neton.routing/RouteGroupScope).neton.ws/webSocket(kotlin/String, kotlin.collections/List<kotlin/String> = ..., neton.ws/InboundPolicy = ..., kotlin.coroutines/SuspendFunction1<neton.ws/WebSocketSession, kotlin/Unit>) // neton.ws/webSocket|webSocket@neton.routing.RouteGroupScope(kotlin.String;kotlin.collections.List<kotlin.String>;neton.ws.InboundPolicy;kotlin.coroutines.SuspendFunction1<neton.ws.WebSocketSession,kotlin.Unit>){}[0]
+final fun (neton.routing/RouteGroupScope).neton.ws/webSocket(kotlin/String, neton.ws/WebSocketHandler, kotlin.collections/List<kotlin/String> = ..., neton.ws/InboundPolicy = ...) // neton.ws/webSocket|webSocket@neton.routing.RouteGroupScope(kotlin.String;neton.ws.WebSocketHandler;kotlin.collections.List<kotlin.String>;neton.ws.InboundPolicy){}[0]
+final fun neton.ws/preparedWebSocketEndpoint(kotlin.collections/List<kotlin/String> = ..., neton.ws/InboundPolicy = ..., kotlin.coroutines/SuspendFunction2<neton.core.http/HttpContext, neton.core.http/HandlerArgs, kotlin.coroutines/SuspendFunction1<neton.ws/WebSocketSession, kotlin/Unit>>): neton.core.http.upgrade/UpgradeEndpoint // neton.ws/preparedWebSocketEndpoint|preparedWebSocketEndpoint(kotlin.collections.List<kotlin.String>;neton.ws.InboundPolicy;kotlin.coroutines.SuspendFunction2<neton.core.http.HttpContext,neton.core.http.HandlerArgs,kotlin.coroutines.SuspendFunction1<neton.ws.WebSocketSession,kotlin.Unit>>){}[0]
+final fun neton.ws/webSocketEndpoint(kotlin.collections/List<kotlin/String> = ..., neton.ws/InboundPolicy = ..., kotlin.coroutines/SuspendFunction1<neton.ws/WebSocketSession, kotlin/Unit>): neton.core.http.upgrade/UpgradeEndpoint // neton.ws/webSocketEndpoint|webSocketEndpoint(kotlin.collections.List<kotlin.String>;neton.ws.InboundPolicy;kotlin.coroutines.SuspendFunction1<neton.ws.WebSocketSession,kotlin.Unit>){}[0]

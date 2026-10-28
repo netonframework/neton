@@ -1,0 +1,333 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-redis>
+open annotation class neton.redis.lock/Lock : kotlin/Annotation { // neton.redis.lock/Lock|null[0]
+    constructor <init>(kotlin/String, kotlin/Long = ..., kotlin/Long = ..., kotlin/Long = ...) // neton.redis.lock/Lock.<init>|<init>(kotlin.String;kotlin.Long;kotlin.Long;kotlin.Long){}[0]
+
+    final val key // neton.redis.lock/Lock.key|{}key[0]
+        final fun <get-key>(): kotlin/String // neton.redis.lock/Lock.key.<get-key>|<get-key>(){}[0]
+    final val retryMs // neton.redis.lock/Lock.retryMs|{}retryMs[0]
+        final fun <get-retryMs>(): kotlin/Long // neton.redis.lock/Lock.retryMs.<get-retryMs>|<get-retryMs>(){}[0]
+    final val ttlMs // neton.redis.lock/Lock.ttlMs|{}ttlMs[0]
+        final fun <get-ttlMs>(): kotlin/Long // neton.redis.lock/Lock.ttlMs.<get-ttlMs>|<get-ttlMs>(){}[0]
+    final val waitMs // neton.redis.lock/Lock.waitMs|{}waitMs[0]
+        final fun <get-waitMs>(): kotlin/Long // neton.redis.lock/Lock.waitMs.<get-waitMs>|<get-waitMs>(){}[0]
+}
+
+abstract interface neton.redis.lock/DistributedLock { // neton.redis.lock/DistributedLock|null[0]
+    abstract val key // neton.redis.lock/DistributedLock.key|{}key[0]
+        abstract fun <get-key>(): kotlin/String // neton.redis.lock/DistributedLock.key.<get-key>|<get-key>(){}[0]
+    abstract val token // neton.redis.lock/DistributedLock.token|{}token[0]
+        abstract fun <get-token>(): kotlin/String // neton.redis.lock/DistributedLock.token.<get-token>|<get-token>(){}[0]
+
+    abstract suspend fun release(): kotlin/Boolean // neton.redis.lock/DistributedLock.release|release(){}[0]
+}
+
+abstract interface neton.redis.lock/LockManager { // neton.redis.lock/LockManager|null[0]
+    abstract suspend fun <#A1: kotlin/Any?> withLock(kotlin/String, kotlin.time/Duration, kotlin.time/Duration = ..., kotlin.time/Duration = ..., kotlin.coroutines/SuspendFunction0<#A1>): #A1 // neton.redis.lock/LockManager.withLock|withLock(kotlin.String;kotlin.time.Duration;kotlin.time.Duration;kotlin.time.Duration;kotlin.coroutines.SuspendFunction0<0:0>){0§<kotlin.Any?>}[0]
+    abstract suspend fun tryLock(kotlin/String, kotlin.time/Duration, kotlin.time/Duration = ..., kotlin.time/Duration = ...): neton.redis.lock/DistributedLock? // neton.redis.lock/LockManager.tryLock|tryLock(kotlin.String;kotlin.time.Duration;kotlin.time.Duration;kotlin.time.Duration){}[0]
+}
+
+abstract interface neton.redis/RedisClient { // neton.redis/RedisClient|null[0]
+    abstract suspend fun close() // neton.redis/RedisClient.close|close(){}[0]
+    abstract suspend fun collectScanKeys(kotlin/String, kotlin/Boolean = ..., kotlin.coroutines/SuspendFunction1<kotlin/String, kotlin/Unit>) // neton.redis/RedisClient.collectScanKeys|collectScanKeys(kotlin.String;kotlin.Boolean;kotlin.coroutines.SuspendFunction1<kotlin.String,kotlin.Unit>){}[0]
+    abstract suspend fun dbSize(): kotlin/Long // neton.redis/RedisClient.dbSize|dbSize(){}[0]
+    abstract suspend fun decr(kotlin/String): kotlin/Long // neton.redis/RedisClient.decr|decr(kotlin.String){}[0]
+    abstract suspend fun delete(kotlin/String) // neton.redis/RedisClient.delete|delete(kotlin.String){}[0]
+    abstract suspend fun evalToLong(kotlin/String, kotlin.collections/List<kotlin/String>, kotlin.collections/List<kotlin/String>): kotlin/Long? // neton.redis/RedisClient.evalToLong|evalToLong(kotlin.String;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>){}[0]
+    abstract suspend fun evalshaToLong(kotlin/String, kotlin.collections/List<kotlin/String>, kotlin.collections/List<kotlin/String>): kotlin/Long? // neton.redis/RedisClient.evalshaToLong|evalshaToLong(kotlin.String;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>){}[0]
+    abstract suspend fun exists(kotlin/String): kotlin/Boolean // neton.redis/RedisClient.exists|exists(kotlin.String){}[0]
+    abstract suspend fun expire(kotlin/String, kotlin.time/Duration) // neton.redis/RedisClient.expire|expire(kotlin.String;kotlin.time.Duration){}[0]
+    abstract suspend fun getBytes(kotlin/String): kotlin/ByteArray? // neton.redis/RedisClient.getBytes|getBytes(kotlin.String){}[0]
+    abstract suspend fun getValue(kotlin/String): kotlin/String? // neton.redis/RedisClient.getValue|getValue(kotlin.String){}[0]
+    abstract suspend fun hget(kotlin/String, kotlin/String): kotlin/String? // neton.redis/RedisClient.hget|hget(kotlin.String;kotlin.String){}[0]
+    abstract suspend fun hgetAll(kotlin/String): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.redis/RedisClient.hgetAll|hgetAll(kotlin.String){}[0]
+    abstract suspend fun hset(kotlin/String, kotlin/String, kotlin/Any) // neton.redis/RedisClient.hset|hset(kotlin.String;kotlin.String;kotlin.Any){}[0]
+    abstract suspend fun incr(kotlin/String): kotlin/Long // neton.redis/RedisClient.incr|incr(kotlin.String){}[0]
+    abstract suspend fun info(kotlin/String? = ...): kotlin/String? // neton.redis/RedisClient.info|info(kotlin.String?){}[0]
+    abstract suspend fun lpop(kotlin/String): kotlin/String? // neton.redis/RedisClient.lpop|lpop(kotlin.String){}[0]
+    abstract suspend fun lpush(kotlin/String, kotlin/Any) // neton.redis/RedisClient.lpush|lpush(kotlin.String;kotlin.Any){}[0]
+    abstract suspend fun lrange(kotlin/String, kotlin/Int, kotlin/Int): kotlin.collections/List<kotlin/String> // neton.redis/RedisClient.lrange|lrange(kotlin.String;kotlin.Int;kotlin.Int){}[0]
+    abstract suspend fun pipeline(kotlin/Function1<neton.redis/RedisPipeline, kotlin/Unit>) // neton.redis/RedisClient.pipeline|pipeline(kotlin.Function1<neton.redis.RedisPipeline,kotlin.Unit>){}[0]
+    abstract suspend fun rpush(kotlin/String, kotlin/Any) // neton.redis/RedisClient.rpush|rpush(kotlin.String;kotlin.Any){}[0]
+    abstract suspend fun sadd(kotlin/String, kotlin/Any) // neton.redis/RedisClient.sadd|sadd(kotlin.String;kotlin.Any){}[0]
+    abstract suspend fun scriptLoad(kotlin/String): kotlin/String // neton.redis/RedisClient.scriptLoad|scriptLoad(kotlin.String){}[0]
+    abstract suspend fun set(kotlin/String, kotlin/Any, kotlin.time/Duration? = ...) // neton.redis/RedisClient.set|set(kotlin.String;kotlin.Any;kotlin.time.Duration?){}[0]
+    abstract suspend fun setBytes(kotlin/String, kotlin/ByteArray, kotlin.time/Duration? = ...) // neton.redis/RedisClient.setBytes|setBytes(kotlin.String;kotlin.ByteArray;kotlin.time.Duration?){}[0]
+    abstract suspend fun setIfAbsent(kotlin/String, kotlin/String, kotlin/Long): kotlin/Boolean // neton.redis/RedisClient.setIfAbsent|setIfAbsent(kotlin.String;kotlin.String;kotlin.Long){}[0]
+    abstract suspend fun smembers(kotlin/String): kotlin.collections/Set<kotlin/String> // neton.redis/RedisClient.smembers|smembers(kotlin.String){}[0]
+    open suspend fun lmove(kotlin/String, kotlin/String, kotlin/String = ..., kotlin/String = ...): kotlin/String? // neton.redis/RedisClient.lmove|lmove(kotlin.String;kotlin.String;kotlin.String;kotlin.String){}[0]
+    open suspend fun lrem(kotlin/String, kotlin/Long, kotlin/String): kotlin/Long // neton.redis/RedisClient.lrem|lrem(kotlin.String;kotlin.Long;kotlin.String){}[0]
+}
+
+abstract interface neton.redis/RedisConnection { // neton.redis/RedisConnection|null[0]
+    abstract val config // neton.redis/RedisConnection.config|{}config[0]
+        abstract fun <get-config>(): neton.redis/RedisConfig // neton.redis/RedisConnection.config.<get-config>|<get-config>(){}[0]
+    abstract val isConnected // neton.redis/RedisConnection.isConnected|{}isConnected[0]
+        abstract fun <get-isConnected>(): kotlin/Boolean // neton.redis/RedisConnection.isConnected.<get-isConnected>|<get-isConnected>(){}[0]
+
+    abstract suspend fun close() // neton.redis/RedisConnection.close|close(){}[0]
+    abstract suspend fun connect() // neton.redis/RedisConnection.connect|connect(){}[0]
+    abstract suspend fun execute(kotlin/String, kotlin/Array<out kotlin/String>...): neton.redis/RedisResponse // neton.redis/RedisConnection.execute|execute(kotlin.String;kotlin.Array<out|kotlin.String>...){}[0]
+    abstract suspend fun pipeline(kotlin.collections/List<neton.redis/RedisCommand>): kotlin.collections/List<neton.redis/RedisResponse> // neton.redis/RedisConnection.pipeline|pipeline(kotlin.collections.List<neton.redis.RedisCommand>){}[0]
+    abstract suspend fun transaction(kotlin.collections/List<neton.redis/RedisCommand>): kotlin.collections/List<neton.redis/RedisResponse> // neton.redis/RedisConnection.transaction|transaction(kotlin.collections.List<neton.redis.RedisCommand>){}[0]
+}
+
+abstract interface neton.redis/RedisPipeline { // neton.redis/RedisPipeline|null[0]
+    abstract fun decr(kotlin/String) // neton.redis/RedisPipeline.decr|decr(kotlin.String){}[0]
+    abstract fun delete(kotlin/String) // neton.redis/RedisPipeline.delete|delete(kotlin.String){}[0]
+    abstract fun hset(kotlin/String, kotlin/String, kotlin/Any) // neton.redis/RedisPipeline.hset|hset(kotlin.String;kotlin.String;kotlin.Any){}[0]
+    abstract fun incr(kotlin/String) // neton.redis/RedisPipeline.incr|incr(kotlin.String){}[0]
+    abstract fun lpush(kotlin/String, kotlin/Any) // neton.redis/RedisPipeline.lpush|lpush(kotlin.String;kotlin.Any){}[0]
+    abstract fun rpush(kotlin/String, kotlin/Any) // neton.redis/RedisPipeline.rpush|rpush(kotlin.String;kotlin.Any){}[0]
+    abstract fun sadd(kotlin/String, kotlin/Any) // neton.redis/RedisPipeline.sadd|sadd(kotlin.String;kotlin.Any){}[0]
+    abstract fun set(kotlin/String, kotlin/Any, kotlin.time/Duration? = ...) // neton.redis/RedisPipeline.set|set(kotlin.String;kotlin.Any;kotlin.time.Duration?){}[0]
+}
+
+final class neton.redis.lock/RedisLockManager : neton.redis.lock/LockManager { // neton.redis.lock/RedisLockManager|null[0]
+    constructor <init>(neton.redis/RedisClient, kotlin/String = ...) // neton.redis.lock/RedisLockManager.<init>|<init>(neton.redis.RedisClient;kotlin.String){}[0]
+
+    final suspend fun <#A1: kotlin/Any?> withLock(kotlin/String, kotlin.time/Duration, kotlin.time/Duration, kotlin.time/Duration, kotlin.coroutines/SuspendFunction0<#A1>): #A1 // neton.redis.lock/RedisLockManager.withLock|withLock(kotlin.String;kotlin.time.Duration;kotlin.time.Duration;kotlin.time.Duration;kotlin.coroutines.SuspendFunction0<0:0>){0§<kotlin.Any?>}[0]
+    final suspend fun tryLock(kotlin/String, kotlin.time/Duration, kotlin.time/Duration, kotlin.time/Duration): neton.redis.lock/DistributedLock? // neton.redis.lock/RedisLockManager.tryLock|tryLock(kotlin.String;kotlin.time.Duration;kotlin.time.Duration;kotlin.time.Duration){}[0]
+}
+
+final class neton.redis/DefaultRedisClient : neton.redis/RedisClient { // neton.redis/DefaultRedisClient|null[0]
+    constructor <init>(neton.redis/RedisConfig, neton.logging/Logger? = ...) // neton.redis/DefaultRedisClient.<init>|<init>(neton.redis.RedisConfig;neton.logging.Logger?){}[0]
+
+    final suspend fun close() // neton.redis/DefaultRedisClient.close|close(){}[0]
+    final suspend fun collectScanKeys(kotlin/String, kotlin/Boolean, kotlin.coroutines/SuspendFunction1<kotlin/String, kotlin/Unit>) // neton.redis/DefaultRedisClient.collectScanKeys|collectScanKeys(kotlin.String;kotlin.Boolean;kotlin.coroutines.SuspendFunction1<kotlin.String,kotlin.Unit>){}[0]
+    final suspend fun dbSize(): kotlin/Long // neton.redis/DefaultRedisClient.dbSize|dbSize(){}[0]
+    final suspend fun decr(kotlin/String): kotlin/Long // neton.redis/DefaultRedisClient.decr|decr(kotlin.String){}[0]
+    final suspend fun delete(kotlin/String) // neton.redis/DefaultRedisClient.delete|delete(kotlin.String){}[0]
+    final suspend fun evalToLong(kotlin/String, kotlin.collections/List<kotlin/String>, kotlin.collections/List<kotlin/String>): kotlin/Long? // neton.redis/DefaultRedisClient.evalToLong|evalToLong(kotlin.String;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>){}[0]
+    final suspend fun evalshaToLong(kotlin/String, kotlin.collections/List<kotlin/String>, kotlin.collections/List<kotlin/String>): kotlin/Long? // neton.redis/DefaultRedisClient.evalshaToLong|evalshaToLong(kotlin.String;kotlin.collections.List<kotlin.String>;kotlin.collections.List<kotlin.String>){}[0]
+    final suspend fun exists(kotlin/String): kotlin/Boolean // neton.redis/DefaultRedisClient.exists|exists(kotlin.String){}[0]
+    final suspend fun expire(kotlin/String, kotlin.time/Duration) // neton.redis/DefaultRedisClient.expire|expire(kotlin.String;kotlin.time.Duration){}[0]
+    final suspend fun getBytes(kotlin/String): kotlin/ByteArray? // neton.redis/DefaultRedisClient.getBytes|getBytes(kotlin.String){}[0]
+    final suspend fun getValue(kotlin/String): kotlin/String? // neton.redis/DefaultRedisClient.getValue|getValue(kotlin.String){}[0]
+    final suspend fun hget(kotlin/String, kotlin/String): kotlin/String? // neton.redis/DefaultRedisClient.hget|hget(kotlin.String;kotlin.String){}[0]
+    final suspend fun hgetAll(kotlin/String): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.redis/DefaultRedisClient.hgetAll|hgetAll(kotlin.String){}[0]
+    final suspend fun hset(kotlin/String, kotlin/String, kotlin/Any) // neton.redis/DefaultRedisClient.hset|hset(kotlin.String;kotlin.String;kotlin.Any){}[0]
+    final suspend fun incr(kotlin/String): kotlin/Long // neton.redis/DefaultRedisClient.incr|incr(kotlin.String){}[0]
+    final suspend fun info(kotlin/String?): kotlin/String? // neton.redis/DefaultRedisClient.info|info(kotlin.String?){}[0]
+    final suspend fun lmove(kotlin/String, kotlin/String, kotlin/String, kotlin/String): kotlin/String? // neton.redis/DefaultRedisClient.lmove|lmove(kotlin.String;kotlin.String;kotlin.String;kotlin.String){}[0]
+    final suspend fun lpop(kotlin/String): kotlin/String? // neton.redis/DefaultRedisClient.lpop|lpop(kotlin.String){}[0]
+    final suspend fun lpush(kotlin/String, kotlin/Any) // neton.redis/DefaultRedisClient.lpush|lpush(kotlin.String;kotlin.Any){}[0]
+    final suspend fun lrange(kotlin/String, kotlin/Int, kotlin/Int): kotlin.collections/List<kotlin/String> // neton.redis/DefaultRedisClient.lrange|lrange(kotlin.String;kotlin.Int;kotlin.Int){}[0]
+    final suspend fun lrem(kotlin/String, kotlin/Long, kotlin/String): kotlin/Long // neton.redis/DefaultRedisClient.lrem|lrem(kotlin.String;kotlin.Long;kotlin.String){}[0]
+    final suspend fun pipeline(kotlin/Function1<neton.redis/RedisPipeline, kotlin/Unit>) // neton.redis/DefaultRedisClient.pipeline|pipeline(kotlin.Function1<neton.redis.RedisPipeline,kotlin.Unit>){}[0]
+    final suspend fun rpush(kotlin/String, kotlin/Any) // neton.redis/DefaultRedisClient.rpush|rpush(kotlin.String;kotlin.Any){}[0]
+    final suspend fun sadd(kotlin/String, kotlin/Any) // neton.redis/DefaultRedisClient.sadd|sadd(kotlin.String;kotlin.Any){}[0]
+    final suspend fun scriptLoad(kotlin/String): kotlin/String // neton.redis/DefaultRedisClient.scriptLoad|scriptLoad(kotlin.String){}[0]
+    final suspend fun set(kotlin/String, kotlin/Any, kotlin.time/Duration?) // neton.redis/DefaultRedisClient.set|set(kotlin.String;kotlin.Any;kotlin.time.Duration?){}[0]
+    final suspend fun setBytes(kotlin/String, kotlin/ByteArray, kotlin.time/Duration?) // neton.redis/DefaultRedisClient.setBytes|setBytes(kotlin.String;kotlin.ByteArray;kotlin.time.Duration?){}[0]
+    final suspend fun setIfAbsent(kotlin/String, kotlin/String, kotlin/Long): kotlin/Boolean // neton.redis/DefaultRedisClient.setIfAbsent|setIfAbsent(kotlin.String;kotlin.String;kotlin.Long){}[0]
+    final suspend fun smembers(kotlin/String): kotlin.collections/Set<kotlin/String> // neton.redis/DefaultRedisClient.smembers|smembers(kotlin.String){}[0]
+}
+
+final class neton.redis/RedisCommand { // neton.redis/RedisCommand|null[0]
+    constructor <init>(kotlin/String, kotlin.collections/List<kotlin/String> = ...) // neton.redis/RedisCommand.<init>|<init>(kotlin.String;kotlin.collections.List<kotlin.String>){}[0]
+    constructor <init>(kotlin/String, kotlin/Array<out kotlin/String>...) // neton.redis/RedisCommand.<init>|<init>(kotlin.String;kotlin.Array<out|kotlin.String>...){}[0]
+
+    final val args // neton.redis/RedisCommand.args|{}args[0]
+        final fun <get-args>(): kotlin.collections/List<kotlin/String> // neton.redis/RedisCommand.args.<get-args>|<get-args>(){}[0]
+    final val command // neton.redis/RedisCommand.command|{}command[0]
+        final fun <get-command>(): kotlin/String // neton.redis/RedisCommand.command.<get-command>|<get-command>(){}[0]
+
+    final fun component1(): kotlin/String // neton.redis/RedisCommand.component1|component1(){}[0]
+    final fun component2(): kotlin.collections/List<kotlin/String> // neton.redis/RedisCommand.component2|component2(){}[0]
+    final fun copy(kotlin/String = ..., kotlin.collections/List<kotlin/String> = ...): neton.redis/RedisCommand // neton.redis/RedisCommand.copy|copy(kotlin.String;kotlin.collections.List<kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisCommand.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.redis/RedisCommand.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.redis/RedisCommand.toString|toString(){}[0]
+}
+
+final class neton.redis/RedisConfig { // neton.redis/RedisConfig|null[0]
+    constructor <init>(kotlin/String = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String = ...) // neton.redis/RedisConfig.<init>|<init>(kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.String){}[0]
+
+    final var database // neton.redis/RedisConfig.database|{}database[0]
+        final fun <get-database>(): kotlin/Int // neton.redis/RedisConfig.database.<get-database>|<get-database>(){}[0]
+        final fun <set-database>(kotlin/Int) // neton.redis/RedisConfig.database.<set-database>|<set-database>(kotlin.Int){}[0]
+    final var debug // neton.redis/RedisConfig.debug|{}debug[0]
+        final fun <get-debug>(): kotlin/Boolean // neton.redis/RedisConfig.debug.<get-debug>|<get-debug>(){}[0]
+        final fun <set-debug>(kotlin/Boolean) // neton.redis/RedisConfig.debug.<set-debug>|<set-debug>(kotlin.Boolean){}[0]
+    final var host // neton.redis/RedisConfig.host|{}host[0]
+        final fun <get-host>(): kotlin/String // neton.redis/RedisConfig.host.<get-host>|<get-host>(){}[0]
+        final fun <set-host>(kotlin/String) // neton.redis/RedisConfig.host.<set-host>|<set-host>(kotlin.String){}[0]
+    final var keyPrefix // neton.redis/RedisConfig.keyPrefix|{}keyPrefix[0]
+        final fun <get-keyPrefix>(): kotlin/String // neton.redis/RedisConfig.keyPrefix.<get-keyPrefix>|<get-keyPrefix>(){}[0]
+        final fun <set-keyPrefix>(kotlin/String) // neton.redis/RedisConfig.keyPrefix.<set-keyPrefix>|<set-keyPrefix>(kotlin.String){}[0]
+    final var password // neton.redis/RedisConfig.password|{}password[0]
+        final fun <get-password>(): kotlin/String? // neton.redis/RedisConfig.password.<get-password>|<get-password>(){}[0]
+        final fun <set-password>(kotlin/String?) // neton.redis/RedisConfig.password.<set-password>|<set-password>(kotlin.String?){}[0]
+    final var poolSize // neton.redis/RedisConfig.poolSize|{}poolSize[0]
+        final fun <get-poolSize>(): kotlin/Int // neton.redis/RedisConfig.poolSize.<get-poolSize>|<get-poolSize>(){}[0]
+        final fun <set-poolSize>(kotlin/Int) // neton.redis/RedisConfig.poolSize.<set-poolSize>|<set-poolSize>(kotlin.Int){}[0]
+    final var port // neton.redis/RedisConfig.port|{}port[0]
+        final fun <get-port>(): kotlin/Int // neton.redis/RedisConfig.port.<get-port>|<get-port>(){}[0]
+        final fun <set-port>(kotlin/Int) // neton.redis/RedisConfig.port.<set-port>|<set-port>(kotlin.Int){}[0]
+    final var timeoutMs // neton.redis/RedisConfig.timeoutMs|{}timeoutMs[0]
+        final fun <get-timeoutMs>(): kotlin/Long // neton.redis/RedisConfig.timeoutMs.<get-timeoutMs>|<get-timeoutMs>(){}[0]
+        final fun <set-timeoutMs>(kotlin/Long) // neton.redis/RedisConfig.timeoutMs.<set-timeoutMs>|<set-timeoutMs>(kotlin.Long){}[0]
+
+    final fun component1(): kotlin/String // neton.redis/RedisConfig.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // neton.redis/RedisConfig.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // neton.redis/RedisConfig.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // neton.redis/RedisConfig.component4|component4(){}[0]
+    final fun component5(): kotlin/String? // neton.redis/RedisConfig.component5|component5(){}[0]
+    final fun component6(): kotlin/Long // neton.redis/RedisConfig.component6|component6(){}[0]
+    final fun component7(): kotlin/Boolean // neton.redis/RedisConfig.component7|component7(){}[0]
+    final fun component8(): kotlin/String // neton.redis/RedisConfig.component8|component8(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/String? = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/String = ...): neton.redis/RedisConfig // neton.redis/RedisConfig.copy|copy(kotlin.String;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.String?;kotlin.Long;kotlin.Boolean;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.redis/RedisConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.redis/RedisConfig.toString|toString(){}[0]
+    final fun validate(): kotlin.collections/List<kotlin/String> // neton.redis/RedisConfig.validate|validate(){}[0]
+}
+
+final class neton.redis/RedisException : kotlin/Exception { // neton.redis/RedisException|null[0]
+    constructor <init>(kotlin/String, kotlin/Throwable? = ...) // neton.redis/RedisException.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+}
+
+final class neton.redis/RedisSettings { // neton.redis/RedisSettings|null[0]
+    constructor <init>() // neton.redis/RedisSettings.<init>|<init>(){}[0]
+
+    final var database // neton.redis/RedisSettings.database|{}database[0]
+        final fun <get-database>(): kotlin/Int? // neton.redis/RedisSettings.database.<get-database>|<get-database>(){}[0]
+        final fun <set-database>(kotlin/Int?) // neton.redis/RedisSettings.database.<set-database>|<set-database>(kotlin.Int?){}[0]
+    final var debug // neton.redis/RedisSettings.debug|{}debug[0]
+        final fun <get-debug>(): kotlin/Boolean? // neton.redis/RedisSettings.debug.<get-debug>|<get-debug>(){}[0]
+        final fun <set-debug>(kotlin/Boolean?) // neton.redis/RedisSettings.debug.<set-debug>|<set-debug>(kotlin.Boolean?){}[0]
+    final var host // neton.redis/RedisSettings.host|{}host[0]
+        final fun <get-host>(): kotlin/String? // neton.redis/RedisSettings.host.<get-host>|<get-host>(){}[0]
+        final fun <set-host>(kotlin/String?) // neton.redis/RedisSettings.host.<set-host>|<set-host>(kotlin.String?){}[0]
+    final var keyPrefix // neton.redis/RedisSettings.keyPrefix|{}keyPrefix[0]
+        final fun <get-keyPrefix>(): kotlin/String? // neton.redis/RedisSettings.keyPrefix.<get-keyPrefix>|<get-keyPrefix>(){}[0]
+        final fun <set-keyPrefix>(kotlin/String?) // neton.redis/RedisSettings.keyPrefix.<set-keyPrefix>|<set-keyPrefix>(kotlin.String?){}[0]
+    final var password // neton.redis/RedisSettings.password|{}password[0]
+        final fun <get-password>(): kotlin/String? // neton.redis/RedisSettings.password.<get-password>|<get-password>(){}[0]
+        final fun <set-password>(kotlin/String?) // neton.redis/RedisSettings.password.<set-password>|<set-password>(kotlin.String?){}[0]
+    final var poolSize // neton.redis/RedisSettings.poolSize|{}poolSize[0]
+        final fun <get-poolSize>(): kotlin/Int? // neton.redis/RedisSettings.poolSize.<get-poolSize>|<get-poolSize>(){}[0]
+        final fun <set-poolSize>(kotlin/Int?) // neton.redis/RedisSettings.poolSize.<set-poolSize>|<set-poolSize>(kotlin.Int?){}[0]
+    final var port // neton.redis/RedisSettings.port|{}port[0]
+        final fun <get-port>(): kotlin/Int? // neton.redis/RedisSettings.port.<get-port>|<get-port>(){}[0]
+        final fun <set-port>(kotlin/Int?) // neton.redis/RedisSettings.port.<set-port>|<set-port>(kotlin.Int?){}[0]
+    final var timeoutMs // neton.redis/RedisSettings.timeoutMs|{}timeoutMs[0]
+        final fun <get-timeoutMs>(): kotlin/Long? // neton.redis/RedisSettings.timeoutMs.<get-timeoutMs>|<get-timeoutMs>(){}[0]
+        final fun <set-timeoutMs>(kotlin/Long?) // neton.redis/RedisSettings.timeoutMs.<set-timeoutMs>|<set-timeoutMs>(kotlin.Long?){}[0]
+
+    final object Companion { // neton.redis/RedisSettings.Companion|null[0]
+        final fun fromMap(kotlin.collections/Map<kotlin/String, kotlin/Any>): neton.redis/RedisSettings // neton.redis/RedisSettings.Companion.fromMap|fromMap(kotlin.collections.Map<kotlin.String,kotlin.Any>){}[0]
+    }
+}
+
+sealed class neton.redis/RedisResponse { // neton.redis/RedisResponse|null[0]
+    final fun asBoolean(): kotlin/Boolean? // neton.redis/RedisResponse.asBoolean|asBoolean(){}[0]
+    final fun asList(): kotlin.collections/List<kotlin/String> // neton.redis/RedisResponse.asList|asList(){}[0]
+    final fun asLong(): kotlin/Long? // neton.redis/RedisResponse.asLong|asLong(){}[0]
+    final fun asMap(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.redis/RedisResponse.asMap|asMap(){}[0]
+    final fun asString(): kotlin/String? // neton.redis/RedisResponse.asString|asString(){}[0]
+    final fun isError(): kotlin/Boolean // neton.redis/RedisResponse.isError|isError(){}[0]
+    final fun isNull(): kotlin/Boolean // neton.redis/RedisResponse.isNull|isNull(){}[0]
+
+    final class Array : neton.redis/RedisResponse { // neton.redis/RedisResponse.Array|null[0]
+        constructor <init>(kotlin.collections/List<neton.redis/RedisResponse>) // neton.redis/RedisResponse.Array.<init>|<init>(kotlin.collections.List<neton.redis.RedisResponse>){}[0]
+
+        final val values // neton.redis/RedisResponse.Array.values|{}values[0]
+            final fun <get-values>(): kotlin.collections/List<neton.redis/RedisResponse> // neton.redis/RedisResponse.Array.values.<get-values>|<get-values>(){}[0]
+
+        final fun component1(): kotlin.collections/List<neton.redis/RedisResponse> // neton.redis/RedisResponse.Array.component1|component1(){}[0]
+        final fun copy(kotlin.collections/List<neton.redis/RedisResponse> = ...): neton.redis/RedisResponse.Array // neton.redis/RedisResponse.Array.copy|copy(kotlin.collections.List<neton.redis.RedisResponse>){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisResponse.Array.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.redis/RedisResponse.Array.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.redis/RedisResponse.Array.toString|toString(){}[0]
+    }
+
+    final class BulkString : neton.redis/RedisResponse { // neton.redis/RedisResponse.BulkString|null[0]
+        constructor <init>(kotlin/String?) // neton.redis/RedisResponse.BulkString.<init>|<init>(kotlin.String?){}[0]
+
+        final val value // neton.redis/RedisResponse.BulkString.value|{}value[0]
+            final fun <get-value>(): kotlin/String? // neton.redis/RedisResponse.BulkString.value.<get-value>|<get-value>(){}[0]
+
+        final fun component1(): kotlin/String? // neton.redis/RedisResponse.BulkString.component1|component1(){}[0]
+        final fun copy(kotlin/String? = ...): neton.redis/RedisResponse.BulkString // neton.redis/RedisResponse.BulkString.copy|copy(kotlin.String?){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisResponse.BulkString.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.redis/RedisResponse.BulkString.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.redis/RedisResponse.BulkString.toString|toString(){}[0]
+    }
+
+    final class Error : neton.redis/RedisResponse { // neton.redis/RedisResponse.Error|null[0]
+        constructor <init>(kotlin/String, kotlin/Throwable? = ...) // neton.redis/RedisResponse.Error.<init>|<init>(kotlin.String;kotlin.Throwable?){}[0]
+
+        final val cause // neton.redis/RedisResponse.Error.cause|{}cause[0]
+            final fun <get-cause>(): kotlin/Throwable? // neton.redis/RedisResponse.Error.cause.<get-cause>|<get-cause>(){}[0]
+        final val message // neton.redis/RedisResponse.Error.message|{}message[0]
+            final fun <get-message>(): kotlin/String // neton.redis/RedisResponse.Error.message.<get-message>|<get-message>(){}[0]
+
+        final fun component1(): kotlin/String // neton.redis/RedisResponse.Error.component1|component1(){}[0]
+        final fun component2(): kotlin/Throwable? // neton.redis/RedisResponse.Error.component2|component2(){}[0]
+        final fun copy(kotlin/String = ..., kotlin/Throwable? = ...): neton.redis/RedisResponse.Error // neton.redis/RedisResponse.Error.copy|copy(kotlin.String;kotlin.Throwable?){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisResponse.Error.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.redis/RedisResponse.Error.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.redis/RedisResponse.Error.toString|toString(){}[0]
+    }
+
+    final class Integer : neton.redis/RedisResponse { // neton.redis/RedisResponse.Integer|null[0]
+        constructor <init>(kotlin/Long) // neton.redis/RedisResponse.Integer.<init>|<init>(kotlin.Long){}[0]
+
+        final val value // neton.redis/RedisResponse.Integer.value|{}value[0]
+            final fun <get-value>(): kotlin/Long // neton.redis/RedisResponse.Integer.value.<get-value>|<get-value>(){}[0]
+
+        final fun component1(): kotlin/Long // neton.redis/RedisResponse.Integer.component1|component1(){}[0]
+        final fun copy(kotlin/Long = ...): neton.redis/RedisResponse.Integer // neton.redis/RedisResponse.Integer.copy|copy(kotlin.Long){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisResponse.Integer.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.redis/RedisResponse.Integer.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.redis/RedisResponse.Integer.toString|toString(){}[0]
+    }
+
+    final class SimpleString : neton.redis/RedisResponse { // neton.redis/RedisResponse.SimpleString|null[0]
+        constructor <init>(kotlin/String) // neton.redis/RedisResponse.SimpleString.<init>|<init>(kotlin.String){}[0]
+
+        final val value // neton.redis/RedisResponse.SimpleString.value|{}value[0]
+            final fun <get-value>(): kotlin/String // neton.redis/RedisResponse.SimpleString.value.<get-value>|<get-value>(){}[0]
+
+        final fun component1(): kotlin/String // neton.redis/RedisResponse.SimpleString.component1|component1(){}[0]
+        final fun copy(kotlin/String = ...): neton.redis/RedisResponse.SimpleString // neton.redis/RedisResponse.SimpleString.copy|copy(kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisResponse.SimpleString.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.redis/RedisResponse.SimpleString.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.redis/RedisResponse.SimpleString.toString|toString(){}[0]
+    }
+
+    final class Success : neton.redis/RedisResponse { // neton.redis/RedisResponse.Success|null[0]
+        constructor <init>(kotlin/Any?) // neton.redis/RedisResponse.Success.<init>|<init>(kotlin.Any?){}[0]
+
+        final val value // neton.redis/RedisResponse.Success.value|{}value[0]
+            final fun <get-value>(): kotlin/Any? // neton.redis/RedisResponse.Success.value.<get-value>|<get-value>(){}[0]
+
+        final fun component1(): kotlin/Any? // neton.redis/RedisResponse.Success.component1|component1(){}[0]
+        final fun copy(kotlin/Any? = ...): neton.redis/RedisResponse.Success // neton.redis/RedisResponse.Success.copy|copy(kotlin.Any?){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.redis/RedisResponse.Success.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.redis/RedisResponse.Success.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.redis/RedisResponse.Success.toString|toString(){}[0]
+    }
+
+    final object Null : neton.redis/RedisResponse // neton.redis/RedisResponse.Null|null[0]
+}
+
+final object neton.redis/RedisComponent : neton.core.component/NetonComponent<neton.redis/RedisSettings> { // neton.redis/RedisComponent|null[0]
+    final fun defaultConfig(): neton.redis/RedisSettings // neton.redis/RedisComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.redis/RedisSettings) // neton.redis/RedisComponent.init|init(neton.core.component.NetonContext;neton.redis.RedisSettings){}[0]
+    final suspend fun stop(neton.core.component/NetonContext) // neton.redis/RedisComponent.stop|stop(neton.core.component.NetonContext){}[0]
+}
+
+final fun (neton.core.component/NetonContext).neton.redis/getRedis(): neton.redis/RedisClient // neton.redis/getRedis|getRedis@neton.core.component.NetonContext(){}[0]
+final fun (neton.core/Neton.LaunchBuilder).neton.redis/redis(kotlin/Function1<neton.redis/RedisSettings, kotlin/Unit>) // neton.redis/redis|redis@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.redis.RedisSettings,kotlin.Unit>){}[0]
+final suspend fun (neton.redis/RedisClient).neton.redis/get(kotlin/String): kotlin/String? // neton.redis/get|get@neton.redis.RedisClient(kotlin.String){}[0]
+final suspend inline fun <#A: reified kotlin/Any?> (neton.redis/RedisClient).neton.redis/get(kotlin/String): #A? // neton.redis/get|get@neton.redis.RedisClient(kotlin.String){0§<kotlin.Any?>}[0]
+final suspend inline fun <#A: reified kotlin/Any?> (neton.redis/RedisClient).neton.redis/remember(kotlin/String, kotlin.time/Duration, noinline kotlin.coroutines/SuspendFunction0<#A>): #A // neton.redis/remember|remember@neton.redis.RedisClient(kotlin.String;kotlin.time.Duration;kotlin.coroutines.SuspendFunction0<0:0>){0§<kotlin.Any?>}[0]

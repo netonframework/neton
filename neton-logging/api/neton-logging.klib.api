@@ -1,0 +1,83 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-logging>
+open annotation class neton.logging/Log : kotlin/Annotation { // neton.logging/Log|null[0]
+    constructor <init>() // neton.logging/Log.<init>|<init>(){}[0]
+}
+
+final enum class neton.logging/LogLevel : kotlin/Enum<neton.logging/LogLevel> { // neton.logging/LogLevel|null[0]
+    enum entry DEBUG // neton.logging/LogLevel.DEBUG|null[0]
+    enum entry ERROR // neton.logging/LogLevel.ERROR|null[0]
+    enum entry INFO // neton.logging/LogLevel.INFO|null[0]
+    enum entry TRACE // neton.logging/LogLevel.TRACE|null[0]
+    enum entry WARN // neton.logging/LogLevel.WARN|null[0]
+
+    final val entries // neton.logging/LogLevel.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.logging/LogLevel> // neton.logging/LogLevel.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.logging/LogLevel // neton.logging/LogLevel.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.logging/LogLevel> // neton.logging/LogLevel.values|values#static(){}[0]
+}
+
+abstract interface neton.logging/Logger { // neton.logging/Logger|null[0]
+    abstract fun debug(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/Any?> = ...) // neton.logging/Logger.debug|debug(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.Any?>){}[0]
+    abstract fun error(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/Any?> = ..., kotlin/Throwable? = ...) // neton.logging/Logger.error|error(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.Any?>;kotlin.Throwable?){}[0]
+    abstract fun info(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/Any?> = ...) // neton.logging/Logger.info|info(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.Any?>){}[0]
+    abstract fun trace(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/Any?> = ...) // neton.logging/Logger.trace|trace(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.Any?>){}[0]
+    abstract fun warn(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/Any?> = ..., kotlin/Throwable? = ...) // neton.logging/Logger.warn|warn(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.Any?>;kotlin.Throwable?){}[0]
+    open fun isEnabled(neton.logging/LogLevel): kotlin/Boolean // neton.logging/Logger.isEnabled|isEnabled(neton.logging.LogLevel){}[0]
+}
+
+abstract interface neton.logging/LoggerFactory { // neton.logging/LoggerFactory|null[0]
+    abstract fun get(kotlin/String): neton.logging/Logger // neton.logging/LoggerFactory.get|get(kotlin.String){}[0]
+    open fun close() // neton.logging/LoggerFactory.close|close(){}[0]
+    open fun flush() // neton.logging/LoggerFactory.flush|flush(){}[0]
+    open fun get(kotlin.reflect/KClass<*>): neton.logging/Logger // neton.logging/LoggerFactory.get|get(kotlin.reflect.KClass<*>){}[0]
+}
+
+final class neton.logging/LogContext : kotlin.coroutines/AbstractCoroutineContextElement { // neton.logging/LogContext|null[0]
+    constructor <init>(kotlin/String, kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ...) // neton.logging/LogContext.<init>|<init>(kotlin.String;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
+
+    final val requestId // neton.logging/LogContext.requestId|{}requestId[0]
+        final fun <get-requestId>(): kotlin/String? // neton.logging/LogContext.requestId.<get-requestId>|<get-requestId>(){}[0]
+    final val spanId // neton.logging/LogContext.spanId|{}spanId[0]
+        final fun <get-spanId>(): kotlin/String? // neton.logging/LogContext.spanId.<get-spanId>|<get-spanId>(){}[0]
+    final val traceId // neton.logging/LogContext.traceId|{}traceId[0]
+        final fun <get-traceId>(): kotlin/String // neton.logging/LogContext.traceId.<get-traceId>|<get-traceId>(){}[0]
+    final val userId // neton.logging/LogContext.userId|{}userId[0]
+        final fun <get-userId>(): kotlin/String? // neton.logging/LogContext.userId.<get-userId>|<get-userId>(){}[0]
+
+    final fun component1(): kotlin/String // neton.logging/LogContext.component1|component1(){}[0]
+    final fun component2(): kotlin/String? // neton.logging/LogContext.component2|component2(){}[0]
+    final fun component3(): kotlin/String? // neton.logging/LogContext.component3|component3(){}[0]
+    final fun component4(): kotlin/String? // neton.logging/LogContext.component4|component4(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ...): neton.logging/LogContext // neton.logging/LogContext.copy|copy(kotlin.String;kotlin.String?;kotlin.String?;kotlin.String?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.logging/LogContext.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.logging/LogContext.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.logging/LogContext.toString|toString(){}[0]
+
+    final object Key : kotlin.coroutines/CoroutineContext.Key<neton.logging/LogContext> // neton.logging/LogContext.Key|null[0]
+}
+
+final object neton.logging/CurrentLogContext { // neton.logging/CurrentLogContext|null[0]
+    final fun clear() // neton.logging/CurrentLogContext.clear|clear(){}[0]
+    final fun get(): neton.logging/LogContext? // neton.logging/CurrentLogContext.get|get(){}[0]
+    final fun set(neton.logging/LogContext?) // neton.logging/CurrentLogContext.set|set(neton.logging.LogContext?){}[0]
+}
+
+final object neton.logging/SensitiveFilter { // neton.logging/SensitiveFilter|null[0]
+    final val headerKeys // neton.logging/SensitiveFilter.headerKeys|{}headerKeys[0]
+        final fun <get-headerKeys>(): kotlin.collections/Set<kotlin/String> // neton.logging/SensitiveFilter.headerKeys.<get-headerKeys>|<get-headerKeys>(){}[0]
+    final val paramKeys // neton.logging/SensitiveFilter.paramKeys|{}paramKeys[0]
+        final fun <get-paramKeys>(): kotlin.collections/Set<kotlin/String> // neton.logging/SensitiveFilter.paramKeys.<get-paramKeys>|<get-paramKeys>(){}[0]
+}
+
+final fun (neton.logging/Logger).neton.logging/withContext(neton.logging/LogContext): neton.logging/Logger // neton.logging/withContext|withContext@neton.logging.Logger(neton.logging.LogContext){}[0]
+final fun neton.logging/defaultLoggerFactory(kotlin.collections/Map<kotlin/String, kotlin/Any?>? = ...): neton.logging/LoggerFactory // neton.logging/defaultLoggerFactory|defaultLoggerFactory(kotlin.collections.Map<kotlin.String,kotlin.Any?>?){}[0]
+final fun neton.logging/emptyFields(): kotlin.collections/Map<kotlin/String, kotlin/Any?> // neton.logging/emptyFields|emptyFields(){}[0]
+final suspend fun (neton.logging/Logger).neton.logging/withCurrentContext(): neton.logging/Logger // neton.logging/withCurrentContext|withCurrentContext@neton.logging.Logger(){}[0]

@@ -1,0 +1,238 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-jobs>
+open annotation class neton.jobs/Job : kotlin/Annotation { // neton.jobs/Job|null[0]
+    constructor <init>(kotlin/String, kotlin/String = ..., kotlin/Long = ..., kotlin/Long = ..., neton.jobs/ExecutionMode = ..., kotlin/Long = ..., kotlin/Boolean = ...) // neton.jobs/Job.<init>|<init>(kotlin.String;kotlin.String;kotlin.Long;kotlin.Long;neton.jobs.ExecutionMode;kotlin.Long;kotlin.Boolean){}[0]
+
+    final val cron // neton.jobs/Job.cron|{}cron[0]
+        final fun <get-cron>(): kotlin/String // neton.jobs/Job.cron.<get-cron>|<get-cron>(){}[0]
+    final val enabled // neton.jobs/Job.enabled|{}enabled[0]
+        final fun <get-enabled>(): kotlin/Boolean // neton.jobs/Job.enabled.<get-enabled>|<get-enabled>(){}[0]
+    final val fixedRate // neton.jobs/Job.fixedRate|{}fixedRate[0]
+        final fun <get-fixedRate>(): kotlin/Long // neton.jobs/Job.fixedRate.<get-fixedRate>|<get-fixedRate>(){}[0]
+    final val id // neton.jobs/Job.id|{}id[0]
+        final fun <get-id>(): kotlin/String // neton.jobs/Job.id.<get-id>|<get-id>(){}[0]
+    final val initialDelay // neton.jobs/Job.initialDelay|{}initialDelay[0]
+        final fun <get-initialDelay>(): kotlin/Long // neton.jobs/Job.initialDelay.<get-initialDelay>|<get-initialDelay>(){}[0]
+    final val lockTtlMs // neton.jobs/Job.lockTtlMs|{}lockTtlMs[0]
+        final fun <get-lockTtlMs>(): kotlin/Long // neton.jobs/Job.lockTtlMs.<get-lockTtlMs>|<get-lockTtlMs>(){}[0]
+    final val mode // neton.jobs/Job.mode|{}mode[0]
+        final fun <get-mode>(): neton.jobs/ExecutionMode // neton.jobs/Job.mode.<get-mode>|<get-mode>(){}[0]
+}
+
+final enum class neton.jobs/ExecutionMode : kotlin/Enum<neton.jobs/ExecutionMode> { // neton.jobs/ExecutionMode|null[0]
+    enum entry ALL_NODES // neton.jobs/ExecutionMode.ALL_NODES|null[0]
+    enum entry SINGLE_NODE // neton.jobs/ExecutionMode.SINGLE_NODE|null[0]
+
+    final val entries // neton.jobs/ExecutionMode.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.jobs/ExecutionMode> // neton.jobs/ExecutionMode.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.jobs/ExecutionMode // neton.jobs/ExecutionMode.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.jobs/ExecutionMode> // neton.jobs/ExecutionMode.values|values#static(){}[0]
+}
+
+final enum class neton.jobs/JobResult : kotlin/Enum<neton.jobs/JobResult> { // neton.jobs/JobResult|null[0]
+    enum entry FAILED // neton.jobs/JobResult.FAILED|null[0]
+    enum entry SKIPPED // neton.jobs/JobResult.SKIPPED|null[0]
+    enum entry SUCCESS // neton.jobs/JobResult.SUCCESS|null[0]
+
+    final val entries // neton.jobs/JobResult.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.jobs/JobResult> // neton.jobs/JobResult.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.jobs/JobResult // neton.jobs/JobResult.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.jobs/JobResult> // neton.jobs/JobResult.values|values#static(){}[0]
+}
+
+abstract interface neton.jobs/JobConfigSource { // neton.jobs/JobConfigSource|null[0]
+    abstract suspend fun overrides(): kotlin.collections/List<kotlin.collections/Map<kotlin/String, kotlin/Any?>> // neton.jobs/JobConfigSource.overrides|overrides(){}[0]
+}
+
+abstract interface neton.jobs/JobExecutionListener { // neton.jobs/JobExecutionListener|null[0]
+    open suspend fun onFailure(kotlin/String, kotlin/Long, kotlin/Long, kotlin/Throwable) // neton.jobs/JobExecutionListener.onFailure|onFailure(kotlin.String;kotlin.Long;kotlin.Long;kotlin.Throwable){}[0]
+    open suspend fun onSkipped(kotlin/String, kotlin/Long) // neton.jobs/JobExecutionListener.onSkipped|onSkipped(kotlin.String;kotlin.Long){}[0]
+    open suspend fun onStart(kotlin/String, kotlin/Long) // neton.jobs/JobExecutionListener.onStart|onStart(kotlin.String;kotlin.Long){}[0]
+    open suspend fun onSuccess(kotlin/String, kotlin/Long, kotlin/Long) // neton.jobs/JobExecutionListener.onSuccess|onSuccess(kotlin.String;kotlin.Long;kotlin.Long){}[0]
+}
+
+abstract interface neton.jobs/JobExecutor { // neton.jobs/JobExecutor|null[0]
+    abstract suspend fun run(neton.jobs/JobContext) // neton.jobs/JobExecutor.run|run(neton.jobs.JobContext){}[0]
+}
+
+abstract interface neton.jobs/JobRegistry { // neton.jobs/JobRegistry|null[0]
+    abstract val jobs // neton.jobs/JobRegistry.jobs|{}jobs[0]
+        abstract fun <get-jobs>(): kotlin.collections/List<neton.jobs/JobDefinition> // neton.jobs/JobRegistry.jobs.<get-jobs>|<get-jobs>(){}[0]
+}
+
+abstract interface neton.jobs/JobScheduler { // neton.jobs/JobScheduler|null[0]
+    abstract fun snapshot(): kotlin.collections/List<neton.jobs/JobStatus> // neton.jobs/JobScheduler.snapshot|snapshot(){}[0]
+    abstract suspend fun shutdown(kotlin.time/Duration = ...) // neton.jobs/JobScheduler.shutdown|shutdown(kotlin.time.Duration){}[0]
+    abstract suspend fun start() // neton.jobs/JobScheduler.start|start(){}[0]
+    abstract suspend fun trigger(kotlin/String) // neton.jobs/JobScheduler.trigger|trigger(kotlin.String){}[0]
+}
+
+final class neton.jobs/JobContext { // neton.jobs/JobContext|null[0]
+    constructor <init>(kotlin/String, neton.core.component/NetonContext, kotlin/Long, neton.logging/Logger) // neton.jobs/JobContext.<init>|<init>(kotlin.String;neton.core.component.NetonContext;kotlin.Long;neton.logging.Logger){}[0]
+
+    final val ctx // neton.jobs/JobContext.ctx|{}ctx[0]
+        final fun <get-ctx>(): neton.core.component/NetonContext // neton.jobs/JobContext.ctx.<get-ctx>|<get-ctx>(){}[0]
+    final val fireTime // neton.jobs/JobContext.fireTime|{}fireTime[0]
+        final fun <get-fireTime>(): kotlin/Long // neton.jobs/JobContext.fireTime.<get-fireTime>|<get-fireTime>(){}[0]
+    final val jobId // neton.jobs/JobContext.jobId|{}jobId[0]
+        final fun <get-jobId>(): kotlin/String // neton.jobs/JobContext.jobId.<get-jobId>|<get-jobId>(){}[0]
+    final val logger // neton.jobs/JobContext.logger|{}logger[0]
+        final fun <get-logger>(): neton.logging/Logger // neton.jobs/JobContext.logger.<get-logger>|<get-logger>(){}[0]
+}
+
+final class neton.jobs/JobDefinition { // neton.jobs/JobDefinition|null[0]
+    constructor <init>(kotlin/String, neton.jobs/JobSchedule, neton.jobs/ExecutionMode, kotlin/Long, kotlin/Boolean, kotlin/Function1<neton.core.component/NetonContext, neton.jobs/JobExecutor>) // neton.jobs/JobDefinition.<init>|<init>(kotlin.String;neton.jobs.JobSchedule;neton.jobs.ExecutionMode;kotlin.Long;kotlin.Boolean;kotlin.Function1<neton.core.component.NetonContext,neton.jobs.JobExecutor>){}[0]
+
+    final val enabled // neton.jobs/JobDefinition.enabled|{}enabled[0]
+        final fun <get-enabled>(): kotlin/Boolean // neton.jobs/JobDefinition.enabled.<get-enabled>|<get-enabled>(){}[0]
+    final val factory // neton.jobs/JobDefinition.factory|{}factory[0]
+        final fun <get-factory>(): kotlin/Function1<neton.core.component/NetonContext, neton.jobs/JobExecutor> // neton.jobs/JobDefinition.factory.<get-factory>|<get-factory>(){}[0]
+    final val id // neton.jobs/JobDefinition.id|{}id[0]
+        final fun <get-id>(): kotlin/String // neton.jobs/JobDefinition.id.<get-id>|<get-id>(){}[0]
+    final val lockTtlMs // neton.jobs/JobDefinition.lockTtlMs|{}lockTtlMs[0]
+        final fun <get-lockTtlMs>(): kotlin/Long // neton.jobs/JobDefinition.lockTtlMs.<get-lockTtlMs>|<get-lockTtlMs>(){}[0]
+    final val mode // neton.jobs/JobDefinition.mode|{}mode[0]
+        final fun <get-mode>(): neton.jobs/ExecutionMode // neton.jobs/JobDefinition.mode.<get-mode>|<get-mode>(){}[0]
+    final val schedule // neton.jobs/JobDefinition.schedule|{}schedule[0]
+        final fun <get-schedule>(): neton.jobs/JobSchedule // neton.jobs/JobDefinition.schedule.<get-schedule>|<get-schedule>(){}[0]
+
+    final fun component1(): kotlin/String // neton.jobs/JobDefinition.component1|component1(){}[0]
+    final fun component2(): neton.jobs/JobSchedule // neton.jobs/JobDefinition.component2|component2(){}[0]
+    final fun component3(): neton.jobs/ExecutionMode // neton.jobs/JobDefinition.component3|component3(){}[0]
+    final fun component4(): kotlin/Long // neton.jobs/JobDefinition.component4|component4(){}[0]
+    final fun component5(): kotlin/Boolean // neton.jobs/JobDefinition.component5|component5(){}[0]
+    final fun component6(): kotlin/Function1<neton.core.component/NetonContext, neton.jobs/JobExecutor> // neton.jobs/JobDefinition.component6|component6(){}[0]
+    final fun copy(kotlin/String = ..., neton.jobs/JobSchedule = ..., neton.jobs/ExecutionMode = ..., kotlin/Long = ..., kotlin/Boolean = ..., kotlin/Function1<neton.core.component/NetonContext, neton.jobs/JobExecutor> = ...): neton.jobs/JobDefinition // neton.jobs/JobDefinition.copy|copy(kotlin.String;neton.jobs.JobSchedule;neton.jobs.ExecutionMode;kotlin.Long;kotlin.Boolean;kotlin.Function1<neton.core.component.NetonContext,neton.jobs.JobExecutor>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.jobs/JobDefinition.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.jobs/JobDefinition.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.jobs/JobDefinition.toString|toString(){}[0]
+}
+
+final class neton.jobs/JobStatus { // neton.jobs/JobStatus|null[0]
+    constructor <init>(kotlin/String, kotlin/Boolean, neton.jobs/JobSchedule, neton.jobs/ExecutionMode, kotlin/Long?, kotlin/Long?, neton.jobs/JobResult?, kotlin/Long?, kotlin/Long, kotlin/Long) // neton.jobs/JobStatus.<init>|<init>(kotlin.String;kotlin.Boolean;neton.jobs.JobSchedule;neton.jobs.ExecutionMode;kotlin.Long?;kotlin.Long?;neton.jobs.JobResult?;kotlin.Long?;kotlin.Long;kotlin.Long){}[0]
+
+    final val enabled // neton.jobs/JobStatus.enabled|{}enabled[0]
+        final fun <get-enabled>(): kotlin/Boolean // neton.jobs/JobStatus.enabled.<get-enabled>|<get-enabled>(){}[0]
+    final val failCount // neton.jobs/JobStatus.failCount|{}failCount[0]
+        final fun <get-failCount>(): kotlin/Long // neton.jobs/JobStatus.failCount.<get-failCount>|<get-failCount>(){}[0]
+    final val id // neton.jobs/JobStatus.id|{}id[0]
+        final fun <get-id>(): kotlin/String // neton.jobs/JobStatus.id.<get-id>|<get-id>(){}[0]
+    final val lastDuration // neton.jobs/JobStatus.lastDuration|{}lastDuration[0]
+        final fun <get-lastDuration>(): kotlin/Long? // neton.jobs/JobStatus.lastDuration.<get-lastDuration>|<get-lastDuration>(){}[0]
+    final val lastFireTime // neton.jobs/JobStatus.lastFireTime|{}lastFireTime[0]
+        final fun <get-lastFireTime>(): kotlin/Long? // neton.jobs/JobStatus.lastFireTime.<get-lastFireTime>|<get-lastFireTime>(){}[0]
+    final val lastResult // neton.jobs/JobStatus.lastResult|{}lastResult[0]
+        final fun <get-lastResult>(): neton.jobs/JobResult? // neton.jobs/JobStatus.lastResult.<get-lastResult>|<get-lastResult>(){}[0]
+    final val mode // neton.jobs/JobStatus.mode|{}mode[0]
+        final fun <get-mode>(): neton.jobs/ExecutionMode // neton.jobs/JobStatus.mode.<get-mode>|<get-mode>(){}[0]
+    final val nextFireTime // neton.jobs/JobStatus.nextFireTime|{}nextFireTime[0]
+        final fun <get-nextFireTime>(): kotlin/Long? // neton.jobs/JobStatus.nextFireTime.<get-nextFireTime>|<get-nextFireTime>(){}[0]
+    final val runCount // neton.jobs/JobStatus.runCount|{}runCount[0]
+        final fun <get-runCount>(): kotlin/Long // neton.jobs/JobStatus.runCount.<get-runCount>|<get-runCount>(){}[0]
+    final val schedule // neton.jobs/JobStatus.schedule|{}schedule[0]
+        final fun <get-schedule>(): neton.jobs/JobSchedule // neton.jobs/JobStatus.schedule.<get-schedule>|<get-schedule>(){}[0]
+
+    final fun component1(): kotlin/String // neton.jobs/JobStatus.component1|component1(){}[0]
+    final fun component10(): kotlin/Long // neton.jobs/JobStatus.component10|component10(){}[0]
+    final fun component2(): kotlin/Boolean // neton.jobs/JobStatus.component2|component2(){}[0]
+    final fun component3(): neton.jobs/JobSchedule // neton.jobs/JobStatus.component3|component3(){}[0]
+    final fun component4(): neton.jobs/ExecutionMode // neton.jobs/JobStatus.component4|component4(){}[0]
+    final fun component5(): kotlin/Long? // neton.jobs/JobStatus.component5|component5(){}[0]
+    final fun component6(): kotlin/Long? // neton.jobs/JobStatus.component6|component6(){}[0]
+    final fun component7(): neton.jobs/JobResult? // neton.jobs/JobStatus.component7|component7(){}[0]
+    final fun component8(): kotlin/Long? // neton.jobs/JobStatus.component8|component8(){}[0]
+    final fun component9(): kotlin/Long // neton.jobs/JobStatus.component9|component9(){}[0]
+    final fun copy(kotlin/String = ..., kotlin/Boolean = ..., neton.jobs/JobSchedule = ..., neton.jobs/ExecutionMode = ..., kotlin/Long? = ..., kotlin/Long? = ..., neton.jobs/JobResult? = ..., kotlin/Long? = ..., kotlin/Long = ..., kotlin/Long = ...): neton.jobs/JobStatus // neton.jobs/JobStatus.copy|copy(kotlin.String;kotlin.Boolean;neton.jobs.JobSchedule;neton.jobs.ExecutionMode;kotlin.Long?;kotlin.Long?;neton.jobs.JobResult?;kotlin.Long?;kotlin.Long;kotlin.Long){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.jobs/JobStatus.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.jobs/JobStatus.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.jobs/JobStatus.toString|toString(){}[0]
+}
+
+final class neton.jobs/JobsConfig { // neton.jobs/JobsConfig|null[0]
+    constructor <init>(kotlin/Boolean = ..., kotlin.time/Duration = ..., neton.jobs/JobRegistry? = ..., neton.jobs/JobExecutionListener? = ...) // neton.jobs/JobsConfig.<init>|<init>(kotlin.Boolean;kotlin.time.Duration;neton.jobs.JobRegistry?;neton.jobs.JobExecutionListener?){}[0]
+
+    final var enabled // neton.jobs/JobsConfig.enabled|{}enabled[0]
+        final fun <get-enabled>(): kotlin/Boolean // neton.jobs/JobsConfig.enabled.<get-enabled>|<get-enabled>(){}[0]
+        final fun <set-enabled>(kotlin/Boolean) // neton.jobs/JobsConfig.enabled.<set-enabled>|<set-enabled>(kotlin.Boolean){}[0]
+    final var listener // neton.jobs/JobsConfig.listener|{}listener[0]
+        final fun <get-listener>(): neton.jobs/JobExecutionListener? // neton.jobs/JobsConfig.listener.<get-listener>|<get-listener>(){}[0]
+        final fun <set-listener>(neton.jobs/JobExecutionListener?) // neton.jobs/JobsConfig.listener.<set-listener>|<set-listener>(neton.jobs.JobExecutionListener?){}[0]
+    final var registry // neton.jobs/JobsConfig.registry|{}registry[0]
+        final fun <get-registry>(): neton.jobs/JobRegistry? // neton.jobs/JobsConfig.registry.<get-registry>|<get-registry>(){}[0]
+        final fun <set-registry>(neton.jobs/JobRegistry?) // neton.jobs/JobsConfig.registry.<set-registry>|<set-registry>(neton.jobs.JobRegistry?){}[0]
+    final var shutdownTimeout // neton.jobs/JobsConfig.shutdownTimeout|{}shutdownTimeout[0]
+        final fun <get-shutdownTimeout>(): kotlin.time/Duration // neton.jobs/JobsConfig.shutdownTimeout.<get-shutdownTimeout>|<get-shutdownTimeout>(){}[0]
+        final fun <set-shutdownTimeout>(kotlin.time/Duration) // neton.jobs/JobsConfig.shutdownTimeout.<set-shutdownTimeout>|<set-shutdownTimeout>(kotlin.time.Duration){}[0]
+
+    final fun component1(): kotlin/Boolean // neton.jobs/JobsConfig.component1|component1(){}[0]
+    final fun component2(): kotlin.time/Duration // neton.jobs/JobsConfig.component2|component2(){}[0]
+    final fun component3(): neton.jobs/JobRegistry? // neton.jobs/JobsConfig.component3|component3(){}[0]
+    final fun component4(): neton.jobs/JobExecutionListener? // neton.jobs/JobsConfig.component4|component4(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin.time/Duration = ..., neton.jobs/JobRegistry? = ..., neton.jobs/JobExecutionListener? = ...): neton.jobs/JobsConfig // neton.jobs/JobsConfig.copy|copy(kotlin.Boolean;kotlin.time.Duration;neton.jobs.JobRegistry?;neton.jobs.JobExecutionListener?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.jobs/JobsConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.jobs/JobsConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.jobs/JobsConfig.toString|toString(){}[0]
+}
+
+final class neton.jobs/MutableJobRegistry : neton.jobs/JobRegistry { // neton.jobs/MutableJobRegistry|null[0]
+    constructor <init>(kotlin.collections/List<neton.jobs/JobDefinition> = ...) // neton.jobs/MutableJobRegistry.<init>|<init>(kotlin.collections.List<neton.jobs.JobDefinition>){}[0]
+
+    final val jobs // neton.jobs/MutableJobRegistry.jobs|{}jobs[0]
+        final fun <get-jobs>(): kotlin.collections/List<neton.jobs/JobDefinition> // neton.jobs/MutableJobRegistry.jobs.<get-jobs>|<get-jobs>(){}[0]
+
+    final fun registerAll(kotlin.collections/Collection<neton.jobs/JobDefinition>) // neton.jobs/MutableJobRegistry.registerAll|registerAll(kotlin.collections.Collection<neton.jobs.JobDefinition>){}[0]
+}
+
+sealed class neton.jobs/JobSchedule { // neton.jobs/JobSchedule|null[0]
+    final class Cron : neton.jobs/JobSchedule { // neton.jobs/JobSchedule.Cron|null[0]
+        constructor <init>(kotlin/String) // neton.jobs/JobSchedule.Cron.<init>|<init>(kotlin.String){}[0]
+
+        final val expression // neton.jobs/JobSchedule.Cron.expression|{}expression[0]
+            final fun <get-expression>(): kotlin/String // neton.jobs/JobSchedule.Cron.expression.<get-expression>|<get-expression>(){}[0]
+
+        final fun component1(): kotlin/String // neton.jobs/JobSchedule.Cron.component1|component1(){}[0]
+        final fun copy(kotlin/String = ...): neton.jobs/JobSchedule.Cron // neton.jobs/JobSchedule.Cron.copy|copy(kotlin.String){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.jobs/JobSchedule.Cron.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.jobs/JobSchedule.Cron.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.jobs/JobSchedule.Cron.toString|toString(){}[0]
+    }
+
+    final class FixedRate : neton.jobs/JobSchedule { // neton.jobs/JobSchedule.FixedRate|null[0]
+        constructor <init>(kotlin/Long, kotlin/Long = ...) // neton.jobs/JobSchedule.FixedRate.<init>|<init>(kotlin.Long;kotlin.Long){}[0]
+
+        final val initialDelayMs // neton.jobs/JobSchedule.FixedRate.initialDelayMs|{}initialDelayMs[0]
+            final fun <get-initialDelayMs>(): kotlin/Long // neton.jobs/JobSchedule.FixedRate.initialDelayMs.<get-initialDelayMs>|<get-initialDelayMs>(){}[0]
+        final val intervalMs // neton.jobs/JobSchedule.FixedRate.intervalMs|{}intervalMs[0]
+            final fun <get-intervalMs>(): kotlin/Long // neton.jobs/JobSchedule.FixedRate.intervalMs.<get-intervalMs>|<get-intervalMs>(){}[0]
+
+        final fun component1(): kotlin/Long // neton.jobs/JobSchedule.FixedRate.component1|component1(){}[0]
+        final fun component2(): kotlin/Long // neton.jobs/JobSchedule.FixedRate.component2|component2(){}[0]
+        final fun copy(kotlin/Long = ..., kotlin/Long = ...): neton.jobs/JobSchedule.FixedRate // neton.jobs/JobSchedule.FixedRate.copy|copy(kotlin.Long;kotlin.Long){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // neton.jobs/JobSchedule.FixedRate.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // neton.jobs/JobSchedule.FixedRate.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // neton.jobs/JobSchedule.FixedRate.toString|toString(){}[0]
+    }
+}
+
+final object neton.jobs.generated/GeneratedJobRegistry : neton.jobs/JobRegistry { // neton.jobs.generated/GeneratedJobRegistry|null[0]
+    final val jobs // neton.jobs.generated/GeneratedJobRegistry.jobs|{}jobs[0]
+        final fun <get-jobs>(): kotlin.collections/List<neton.jobs/JobDefinition> // neton.jobs.generated/GeneratedJobRegistry.jobs.<get-jobs>|<get-jobs>(){}[0]
+}
+
+final object neton.jobs/JobsComponent : neton.core.component/NetonComponent<neton.jobs/JobsConfig> { // neton.jobs/JobsComponent|null[0]
+    final fun defaultConfig(): neton.jobs/JobsConfig // neton.jobs/JobsComponent.defaultConfig|defaultConfig(){}[0]
+    final suspend fun init(neton.core.component/NetonContext, neton.jobs/JobsConfig) // neton.jobs/JobsComponent.init|init(neton.core.component.NetonContext;neton.jobs.JobsConfig){}[0]
+    final suspend fun prepare(neton.core.component/NetonContext) // neton.jobs/JobsComponent.prepare|prepare(neton.core.component.NetonContext){}[0]
+    final suspend fun start(neton.core.component/NetonContext) // neton.jobs/JobsComponent.start|start(neton.core.component.NetonContext){}[0]
+    final suspend fun stop(neton.core.component/NetonContext) // neton.jobs/JobsComponent.stop|stop(neton.core.component.NetonContext){}[0]
+}
+
+final fun (neton.core/Neton.LaunchBuilder).neton.jobs/jobs(kotlin/Function1<neton.jobs/JobsConfig, kotlin/Unit> = ...) // neton.jobs/jobs|jobs@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.jobs.JobsConfig,kotlin.Unit>){}[0]

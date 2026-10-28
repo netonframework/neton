@@ -43,6 +43,37 @@ The signing public key must be on a keyserver (`keyserver.ubuntu.com` or `keys.o
 
 ## Publish
 
+### Candidate API/ABI and generated-code gates
+
+Before any publication, `checkKotlinAbi` compares the compiled APIs of all 17
+published Kotlin modules with their committed `api/` dumps. `neton-bom` is
+validated as publication metadata, not an executable ABI; the experimental
+Geario adapter is excluded from publication. ABI target inference is disabled.
+The complete check runs on macOS with the documented Linux cross-compilers;
+foreign-target compilation is not a runtime acceptance claim.
+
+```sh
+python3 tools/ci/verify_abi_policy.py
+./gradlew -Pnetonstream.local=false -Phyper4k.local=false checkKotlinAbi
+./gradlew -Pnetonstream.local=false -Pneton.database.driver=mysql :neton-database:checkKotlinAbi
+./gradlew -Pnetonstream.local=false -Pneton.database.driver=sqlite :neton-database:checkKotlinAbi
+```
+
+`updateKotlinAbi` is a developer review operation, never a CI repair step. Review
+signature changes and downstream consumers before updating a dump. The initial
+beta25 snapshots establish a candidate comparison point, not a declaration that
+1.0 is ready or a promise that every beta signature will survive stable review.
+No filters hide currently public implementation classes from the comparison.
+The database policy rejects raw sqlx4k types and forbidden legacy persistence
+APIs. Before this baseline, the unused public raw-executor accessor was removed;
+DDL now uses the current DbContext and has a real transaction-rollback contract.
+
+The [KSP incremental fixture](examples/ksp-incremental/README.md) separately
+requires clean/no-op/add/modify/delete builds and Native execution. Linux ARM64
+is cross-built on a supported compiler host and executed on an ARM64 runner;
+cross-build evidence alone is explicitly incomplete. A failed/skipped platform
+blocks the release aggregate. All of this is independent of downstream products.
+
 Before release, disable source substitution and run the same tests against the exact
 published dependencies: `-Pnetonstream.local=false -Phyper4k.local=false`.
 Publishing tasks reject source substitution, including Maven Local and staging output.

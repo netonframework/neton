@@ -1,0 +1,21 @@
+// Klib ABI Dump
+// Targets: [linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.netonstream:neton-http-hyper4k>
+final class neton.http.hyper4k/Hyper4kHttpAdapter : neton.core.http.adapter/HttpAdapter { // neton.http.hyper4k/Hyper4kHttpAdapter|null[0]
+    constructor <init>(neton.core.http.adapter/HttpServerConfig) // neton.http.hyper4k/Hyper4kHttpAdapter.<init>|<init>(neton.core.http.adapter.HttpServerConfig){}[0]
+
+    final val capabilities // neton.http.hyper4k/Hyper4kHttpAdapter.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): kotlin.collections/Set<neton.core.http.adapter/HttpCapability> // neton.http.hyper4k/Hyper4kHttpAdapter.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+
+    final fun adapterName(): kotlin/String // neton.http.hyper4k/Hyper4kHttpAdapter.adapterName|adapterName(){}[0]
+    final fun port(): kotlin/Int // neton.http.hyper4k/Hyper4kHttpAdapter.port|port(){}[0]
+    final suspend fun start(neton.core.component/NetonContext, kotlin.coroutines/SuspendFunction1<kotlin/Long, kotlin/Unit>?) // neton.http.hyper4k/Hyper4kHttpAdapter.start|start(neton.core.component.NetonContext;kotlin.coroutines.SuspendFunction1<kotlin.Long,kotlin.Unit>?){}[0]
+    final suspend fun stop() // neton.http.hyper4k/Hyper4kHttpAdapter.stop|stop(){}[0]
+}
+
+final fun neton.http.hyper4k/createHyper4kHttpClient(neton.http.client/HttpClientConfig): neton.http.client/HttpClient // neton.http.hyper4k/createHyper4kHttpClient|createHyper4kHttpClient(neton.http.client.HttpClientConfig){}[0]

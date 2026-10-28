@@ -6,7 +6,7 @@ package neton.security.internal
  *
  * @see Neton-JWT-Authenticator-Spec-v1.md 细则 6
  */
-fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
+internal fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
     if (a.size != b.size) return false
     var r = 0
     for (i in a.indices) r = r or (a[i].toInt() xor b[i].toInt())
