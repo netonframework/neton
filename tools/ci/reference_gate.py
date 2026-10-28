@@ -74,14 +74,19 @@ def run_logged(command, log, **kwargs):
         subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, check=True, **kwargs)
 
 
+def validate_health(body):
+    require(body == {"code": 0, "message": "OK", "data": {"status": "READY", "value": "neton-reference"}},
+            "Unexpected health envelope")
+    return body
+
+
 def health(port):
     # Ignore developer proxy settings: the gate only contacts its loopback listener.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     with opener.open(f"http://127.0.0.1:{port}/health", timeout=3) as response:
         require(response.status == 200, "Health did not return HTTP 200")
         body = json.load(response)
-    require(body == {"status": "READY", "value": "neton-reference"}, "Unexpected health body")
-    return body
+    return validate_health(body)
 
 
 def smoke(binary, pg_bin, output, evidence):

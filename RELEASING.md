@@ -21,9 +21,14 @@ cancellation propagation and overlapping independent transactions. Reports are r
 as an artifact named with the candidate commit. This database suite does **not** prove
 application lifecycle shutdown or zero connections after SIGTERM.
 
-Until a public reference integration fixture and its complete evidence are attached,
-1.0 release readiness remains **unverified**, even if Backend CI is green. Never substitute
-downstream product-specific build or deployment results for this missing evidence.
+The public fixture is [examples/release-gate](examples/release-gate/README.md). The
+`Reference release (macosArm64)` job builds it twice, migrates an isolated PostgreSQL cluster,
+and checks two healthy start/SIGTERM cycles and zero connections before teardown. The
+`Neton release gates` aggregate requires this job and all framework/service/native jobs on
+the same commit; failed or skipped prerequisites cannot pass. Evidence is retained under
+the candidate SHA. This macOS fixture result does not claim Linux/Windows application runtime
+acceptance or Maven Central publication acceptance. Never substitute downstream product-specific
+build or deployment results for missing reference evidence.
 
 `~/.gradle/gradle.properties`:
 

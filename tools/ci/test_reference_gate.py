@@ -2,10 +2,18 @@ import subprocess
 import unittest
 from unittest.mock import Mock
 
-from reference_gate import GateFailure, observe_shutdown, parse_connections
+from reference_gate import GateFailure, observe_shutdown, parse_connections, validate_health
 
 
 class ReferenceGateTest(unittest.TestCase):
+    def test_health_requires_the_framework_success_envelope(self):
+        data = {"status": "READY", "value": "neton-reference"}
+        self.assertEqual(validate_health({"code": 0, "message": "OK", "data": data})["data"], data)
+        for invalid in (data, {"code": 1, "message": "OK", "data": data},
+                        {"code": 0, "message": "OK", "data": {"status": "STARTING"}}):
+            with self.subTest(body=invalid), self.assertRaises(GateFailure):
+                validate_health(invalid)
+
     def process(self, code=0):
         process = Mock()
         process.poll.return_value = None
