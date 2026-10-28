@@ -71,6 +71,12 @@ def main():
                 (consumer / 'settings.gradle.kts').write_text(
                     'pluginManagement { repositories { gradlePluginPortal(); mavenCentral() } }\n'
                     'rootProject.name = "release-gate"\n')
+                # Match the framework's documented compiler heap. A standalone
+                # project otherwise gets Gradle's small default heap and Native
+                # release optimization can fail before artifact linking is tested.
+                (consumer / 'gradle.properties').write_text(
+                    'org.gradle.jvmargs=-Xmx2g -Xms1g -XX:MaxMetaspaceSize=512m\n'
+                    'org.gradle.workers.max=2\n')
                 command = common + ['-p', str(consumer), f'-Pcandidate.version={version}',
                     f'-Pcandidate.repository={repository}', 'linkReleaseExecutableMacosArm64']
                 for attempt in (1, 2):
