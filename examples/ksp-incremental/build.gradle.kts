@@ -33,6 +33,6 @@ dependencies { add("ksp$capital", project(":neton-ksp")) }
 tasks.matching { it.name.startsWith("compileKotlin") }.configureEach { dependsOn("kspKotlin$capital") }
 afterEvaluate {
     kotlin.sourceSets.findByName("${gateTarget}Main")?.let { source ->
-        source.kotlin.setSrcDirs(source.kotlin.srcDirs.filterNot { it.path.contains("generated/ksp") })
+        source.kotlin.setSrcDirs(source.kotlin.srcDirs.filterNot { it.invariantSeparatorsPath.contains("generated/ksp") })
     }
 }

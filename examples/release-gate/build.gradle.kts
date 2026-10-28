@@ -72,6 +72,6 @@ tasks.matching { it.name.startsWith("compileKotlin") || it.name == "compileCommo
 }
 afterEvaluate {
     kotlin.sourceSets.findByName("${hostTarget}Main")?.let { source ->
-        source.kotlin.setSrcDirs(source.kotlin.srcDirs.filterNot { it.path.contains("generated/ksp") })
+        source.kotlin.setSrcDirs(source.kotlin.srcDirs.filterNot { it.invariantSeparatorsPath.contains("generated/ksp") })
     }
 }
