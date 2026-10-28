@@ -44,6 +44,7 @@ include(":examples:mvc")
 include(":examples:backend-app")
 include(":examples:neton-ai-sample")
 include(":examples:bench")
+include(":examples:release-gate")
 
 // Rust 引擎仓库。没有 checkout 时本仓其余模块照常构建。
 // hyper4k 是独立发布的库（com.netonstream:hyper4k），默认按坐标从仓库解析——

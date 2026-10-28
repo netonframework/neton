@@ -10,6 +10,46 @@ on:
       - 'ci/**'
 
 jobs:
+  reference-release:
+    name: Reference release (macosArm64)
+    runs-on: macos-15
+    timeout-minutes: 65
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned protocol sources
+        run: bash tools/ci/checkout-protocols.sh
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Provide isolated PostgreSQL tooling
+        run: brew list --versions postgresql@16 || brew install postgresql@16
+      - name: Verify smoke harness failure paths
+        run: python3 -m unittest discover -s tools/ci -p 'test_reference_gate.py'
+      - name: Build release twice and verify migration and two shutdown cycles
+        run: python3 tools/ci/reference_gate.py --target macosArm64 --pg-bin "$(brew --prefix postgresql@16)/bin" --output "$RUNNER_TEMP/neton-reference-evidence"
+      - name: Retain reference release evidence (including failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-release-macosArm64-${{ github.sha }}
+          path: ${{ runner.temp }}/neton-reference-evidence/
+          if-no-files-found: error
+
+  release-gates:
+    name: Neton release gates
+    if: always()
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every gate on this candidate
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==5 and all(job["result"]=="success" for job in results.values()), results'
+
   postgres-contracts:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
