@@ -2,7 +2,11 @@
 
 All notable changes to Neton are documented here.
 
-## 1.0.0 — release preparation (not yet published)
+## 1.0.0 — 2026-10-29
+
+- Published to Maven Central from `e7a78204854464326ca878414968a96f4bdb2575`
+  after all 19 release gates passed. Production signatures cover 79 coordinates.
+  See the bilingual release notes and post-publication evidence in neton-docs.
 
 - Upgrade sqlx4k from 1.16.0 to 1.17.0 and kotlinx-serialization from
   1.11.0 to 1.12.0. Keep the Kotlin compiler at 2.4.20 and KSP at 2.3.12.
@@ -33,8 +37,7 @@ All notable changes to Neton are documented here.
   source compatibility through the default `DomainEventCodec.seal()` method.
 - Redact storage, Redis, database and AI configuration string representations.
 
-These changes are not included in the already published beta26 and do not
-authorize a new preview or stable release.
+These changes are included in stable 1.0.0, not in the historical beta26 artifacts.
 
 ## 1.0.0-beta26
 
