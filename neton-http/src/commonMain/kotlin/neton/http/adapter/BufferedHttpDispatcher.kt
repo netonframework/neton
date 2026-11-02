@@ -20,6 +20,7 @@ import neton.core.http.ArgsView
 import neton.core.http.Cookie
 import neton.core.http.HttpContext
 import neton.core.http.HttpException
+import neton.core.http.RawResponseException
 import neton.core.http.HttpMethod
 import neton.core.http.HttpRequest
 import neton.core.http.HttpResponse
@@ -460,6 +461,21 @@ public class BufferedHttpDispatcher(
                 matched.route.pattern,
                 context,
             )
+        } catch (e: RawResponseException) {
+            // 认证器按对外协议给的原样响应（不套信封）；和 HttpException 一样属于预期内的客户端错误
+            logger()?.warn(
+                "http.error",
+                fields = mapOf("method" to request.method, "path" to request.path, "status" to e.status, "traceId" to traceId),
+            )
+            DispatchOutcome(
+                BufferedHttpResponse(
+                    status = e.status,
+                    headers = mapOf("Content-Type" to listOf(e.contentType)) + e.headers.mapValues { (_, value) -> listOf(value) },
+                    body = e.body.encodeToByteArray(),
+                ),
+                matched.route.pattern,
+                context,
+            )
         } catch (e: HttpException) {
             // body.code 是权威，HTTP status 由 framework 内部 [httpStatusForErrorCode] 推导。
             val httpStatus = httpStatusForErrorCode(e.code)
@@ -693,6 +709,7 @@ public class BufferedHttpDispatcher(
             override val method: String = request.method
             override val headers: Map<String, String> = headers
             override val routeGroup: String? = matched.routeGroup
+            override val query: String = request.query
         }
         runSecurityPreHandle(
             route = matched.route,

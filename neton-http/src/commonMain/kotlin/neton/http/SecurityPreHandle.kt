@@ -78,7 +78,8 @@ suspend fun runSecurityPreHandle(
     }
 
     if (identity == null && requireAuth) {
-        throw HttpException(NetonErrorCode.AUTH_REQUIRED, NetonErrorMessage.AUTH_REQUIRED)
+        throw authenticator?.unauthenticatedResponse(requestContext)
+            ?: HttpException(NetonErrorCode.AUTH_REQUIRED, NetonErrorMessage.AUTH_REQUIRED)
     }
 
     // 4. 存储 identity
@@ -101,7 +102,8 @@ suspend fun runSecurityPreHandle(
             throw HttpException(NetonErrorCode.PERMISSION_DENIED, NetonErrorMessage.PERMISSION_DENIED)
         }
     } else if (permission != null && identity == null) {
-        throw HttpException(NetonErrorCode.AUTH_REQUIRED, NetonErrorMessage.AUTH_REQUIRED)
+        throw authenticator?.unauthenticatedResponse(requestContext)
+            ?: HttpException(NetonErrorCode.AUTH_REQUIRED, NetonErrorMessage.AUTH_REQUIRED)
     }
 
     // 6. Guard 检查

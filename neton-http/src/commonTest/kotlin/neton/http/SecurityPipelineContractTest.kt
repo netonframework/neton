@@ -22,6 +22,7 @@ import neton.core.mock.MockAuthenticator
 import neton.core.mock.MockDefaultGuard
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -452,5 +453,58 @@ class SecurityPipelineContractTest {
         val freshId = freshCtx.getAttribute(SecurityAttributes.IDENTITY) as? Identity
         assertEquals(baseId?.id, freshId?.id)
         assertEquals("user-fresh", freshId?.id)
+    }
+
+    // --- Test 19: 认证器能读到原始查询串（Gemini ?key= 这类凭据） ---
+    private class QueryKeyAuthenticator(private val challenge: neton.core.http.RawResponseException? = null) :
+        neton.core.interfaces.Authenticator {
+        override val name = "query-key"
+        override suspend fun authenticate(context: RequestContext): Identity? =
+            context.query.split('&').firstOrNull { it.startsWith("key=") }?.removePrefix("key=")
+                ?.takeIf { it == "good" }?.let { MockIdentity("query-user", emptySet()) }
+        override fun unauthenticatedResponse(context: RequestContext) = challenge
+    }
+
+    private fun queryReqCtx(query: String) = object : RequestContext {
+        override val path = "/test"
+        override val method = "GET"
+        override val headers = emptyMap<String, String>()
+        override val routeGroup: String? = null
+        override val query = query
+    }
+
+    private fun queryConfig(challenge: neton.core.http.RawResponseException? = null) = SecurityConfiguration(
+        isEnabled = true,
+        authenticatorCount = 1,
+        guardCount = 0,
+        authenticationContext = MockAuthenticationContext(),
+        defaultAuthenticator = QueryKeyAuthenticator(challenge),
+    )
+
+    @Test
+    fun authenticator_readsRawQuery() = runBlocking {
+        val ctx = testCtx(mutableMapOf())
+        runSecurityPreHandle(route(requireAuth = true), ctx, queryReqCtx("alt=sse&key=good"), queryConfig())
+        assertEquals("query-user", (ctx.getAttribute(SecurityAttributes.IDENTITY) as? Identity)?.id)
+    }
+
+    @Test
+    fun requestContext_queryDefaultsToEmpty() {
+        assertEquals("", reqCtx().query)
+    }
+
+    // --- Test 20: 认证器自定义认证失败响应（不套信封）；不覆盖时仍是 AUTH_REQUIRED ---
+    @Test
+    fun unauthenticated_usesAuthenticatorResponse() = runBlocking {
+        val raw = neton.core.http.RawResponseException(401, """{"error":{"type":"authentication_error"}}""")
+        val thrown = assertFailsWith<neton.core.http.RawResponseException> {
+            runSecurityPreHandle(route(requireAuth = true), testCtx(mutableMapOf()), queryReqCtx("key=bad"), queryConfig(raw))
+        }
+        assertEquals(401, thrown.status)
+        assertTrue(thrown.body.contains("authentication_error"))
+        val default = assertFailsWith<neton.core.http.HttpException> {
+            runSecurityPreHandle(route(requireAuth = true), testCtx(mutableMapOf()), queryReqCtx("key=bad"), queryConfig())
+        }
+        assertEquals(neton.core.http.NetonErrorCode.AUTH_REQUIRED, default.code)
     }
 }

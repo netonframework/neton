@@ -2,6 +2,16 @@
 
 All notable changes to Neton are documented here.
 
+## Unreleased
+
+- Add `RequestContext.query` (raw query string, empty by default) so
+  authenticators can read credentials passed as query parameters, such as
+  Gemini's `?key=`. `path` still excludes the query string.
+- Add `Authenticator.unauthenticatedResponse` and `RawResponseException`: an
+  authenticator can answer a failed authentication with its protocol's own
+  error body instead of the `AUTH_REQUIRED` envelope. The default (null) keeps
+  the envelope. Both additions are source and binary compatible.
+
 ## 1.0.0 — 2026-10-29
 
 - Published to Maven Central from `e7a78204854464326ca878414968a96f4bdb2575`

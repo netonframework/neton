@@ -29,6 +29,13 @@ interface Identity {
 interface Authenticator {
     suspend fun authenticate(context: RequestContext): Identity?
     val name: String
+
+    /**
+     * 受保护路由没认出身份时回给客户端的响应。null（默认）= 框架的 `AUTH_REQUIRED` 信封 401。
+     *
+     * 对外协议有自己错误格式的认证器（如 AI 网关按入站协议回 `{"error":{...}}`）覆盖它。
+     */
+    fun unauthenticatedResponse(context: RequestContext): neton.core.http.RawResponseException? = null
 }
 
 /**
@@ -43,10 +50,14 @@ interface Guard {
  * 请求上下文接口
  */
 interface RequestContext {
+    /** 请求路径，不含查询串。 */
     val path: String
     val method: String
     val headers: Map<String, String>
     val routeGroup: String?
+
+    /** 原始查询串（不含 `?`，未解码）；没有查询串时为空串。供必须从查询参数取凭据的认证器使用（如 Gemini 的 `?key=`）。 */
+    val query: String get() = ""
 }
 
 /**

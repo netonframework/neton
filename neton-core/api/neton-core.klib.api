@@ -722,6 +722,7 @@ abstract interface neton.core.interfaces/Authenticator { // neton.core.interface
         abstract fun <get-name>(): kotlin/String // neton.core.interfaces/Authenticator.name.<get-name>|<get-name>(){}[0]
 
     abstract suspend fun authenticate(neton.core.interfaces/RequestContext): neton.core.interfaces/Identity? // neton.core.interfaces/Authenticator.authenticate|authenticate(neton.core.interfaces.RequestContext){}[0]
+    open fun unauthenticatedResponse(neton.core.interfaces/RequestContext): neton.core.http/RawResponseException? // neton.core.interfaces/Authenticator.unauthenticatedResponse|unauthenticatedResponse(neton.core.interfaces.RequestContext){}[0]
 }
 
 abstract interface neton.core.interfaces/ErrorLogWriter { // neton.core.interfaces/ErrorLogWriter|null[0]
@@ -768,6 +769,8 @@ abstract interface neton.core.interfaces/RequestContext { // neton.core.interfac
         abstract fun <get-path>(): kotlin/String // neton.core.interfaces/RequestContext.path.<get-path>|<get-path>(){}[0]
     abstract val routeGroup // neton.core.interfaces/RequestContext.routeGroup|{}routeGroup[0]
         abstract fun <get-routeGroup>(): kotlin/String? // neton.core.interfaces/RequestContext.routeGroup.<get-routeGroup>|<get-routeGroup>(){}[0]
+    open val query // neton.core.interfaces/RequestContext.query|{}query[0]
+        open fun <get-query>(): kotlin/String // neton.core.interfaces/RequestContext.query.<get-query>|<get-query>(){}[0]
 }
 
 abstract interface neton.core.interfaces/RequestEngine { // neton.core.interfaces/RequestEngine|null[0]
@@ -1465,6 +1468,19 @@ final class neton.core.http/QueryParamResolver : neton.core.http/ParameterResolv
 
     final fun canResolve(kotlin/String, kotlin.collections/List<kotlin/String>): kotlin/Boolean // neton.core.http/QueryParamResolver.canResolve|canResolve(kotlin.String;kotlin.collections.List<kotlin.String>){}[0]
     final suspend fun resolve(kotlin/String?, neton.core.http/HttpContext): kotlin/Any? // neton.core.http/QueryParamResolver.resolve|resolve(kotlin.String?;neton.core.http.HttpContext){}[0]
+}
+
+final class neton.core.http/RawResponseException : kotlin/RuntimeException { // neton.core.http/RawResponseException|null[0]
+    constructor <init>(kotlin/Int, kotlin/String, kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...) // neton.core.http/RawResponseException.<init>|<init>(kotlin.Int;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+
+    final val body // neton.core.http/RawResponseException.body|{}body[0]
+        final fun <get-body>(): kotlin/String // neton.core.http/RawResponseException.body.<get-body>|<get-body>(){}[0]
+    final val contentType // neton.core.http/RawResponseException.contentType|{}contentType[0]
+        final fun <get-contentType>(): kotlin/String // neton.core.http/RawResponseException.contentType.<get-contentType>|<get-contentType>(){}[0]
+    final val headers // neton.core.http/RawResponseException.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.core.http/RawResponseException.headers.<get-headers>|<get-headers>(){}[0]
+    final val status // neton.core.http/RawResponseException.status|{}status[0]
+        final fun <get-status>(): kotlin/Int // neton.core.http/RawResponseException.status.<get-status>|<get-status>(){}[0]
 }
 
 final class neton.core.http/SimpleCookie : neton.core.http/MutableCookie { // neton.core.http/SimpleCookie|null[0]
