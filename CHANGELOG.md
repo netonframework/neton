@@ -2,7 +2,10 @@
 
 All notable changes to Neton are documented here.
 
-## 1.1.0 — release preparation (not yet published)
+## 1.1.0 — 2026-11-07
+
+- Published to Maven Central from `3b9f8fe9fd8f5cfcc4bca9a10be0196efb89c025`
+  after all release gates passed. Production signatures cover 79 coordinates.
 
 A minor release: additive public API only, no behavior change for existing
 applications. Dependencies, Kotlin 2.4.20 and KSP 2.3.12 are unchanged from 1.0.0.
