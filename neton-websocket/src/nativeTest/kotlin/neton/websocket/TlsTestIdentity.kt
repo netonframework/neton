@@ -42,8 +42,11 @@ internal fun websocketTestIdentity(): Pair<ByteArray, ByteArray> = memScoped {
 }
 
 internal fun websocketTempFile(label: String, bytes: ByteArray): String {
-    val path = "/tmp/neton-wss-${platform.posix.getpid()}-$label.pem"
-    val file = checkNotNull(platform.posix.fopen(path, "wb"))
+    val directory = sequenceOf("TMPDIR", "TEMP", "TMP")
+        .mapNotNull { platform.posix.getenv(it)?.toKString()?.takeIf(String::isNotBlank) }
+        .firstOrNull() ?: "."
+    val path = "$directory/neton-wss-${platform.posix.getpid()}-$label.pem"
+    val file = checkNotNull(platform.posix.fopen(path, "wb")) { "Cannot create TLS test fixture: $path" }
     try {
         bytes.usePinned { check(platform.posix.fwrite(it.addressOf(0), 1u.convert(), bytes.size.convert(), file).toInt() == bytes.size) }
     } finally { platform.posix.fclose(file) }
