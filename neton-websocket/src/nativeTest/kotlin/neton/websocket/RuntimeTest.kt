@@ -17,6 +17,92 @@ import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.*
 
 class RuntimeTest {
+    @Test fun repeatedCancelledSendersReleaseAdmissionWithoutClosingConnection() = runReactor {
+        withTimeout(10000) {
+            val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher)
+            val runtime = WebSocketRuntime(config(), provider)
+            val session = ManagedWebSocketSession(runtime, engine, handshake)
+            val shutdown = CompletableDeferred<Unit>()
+            val job = launch { session.run(shutdown) { awaitCancellation() } }
+            try {
+                repeat(32) {
+                    assertTrue(runtime.buffered.tryReserve(runtime.buffered.limit))
+                    try {
+                        val sender = launch { session.send("waiting") }
+                        while (runtime.pendingCount.usage != 1L) yield()
+                        assertEquals(7L, runtime.pendingBytes.usage)
+                        sender.cancelAndJoin()
+                        assertEquals(0L, runtime.pendingCount.usage)
+                        assertEquals(0L, runtime.pendingBytes.usage)
+                        assertEquals(runtime.buffered.limit, runtime.buffered.usage)
+                        assertFalse(engine.aborted)
+                    } finally { runtime.buffered.release(runtime.buffered.limit) }
+                }
+                session.send("still usable")
+                while (engine.writes.isEmpty()) yield()
+                assertEquals(listOf("still usable"), engine.writes)
+            } finally { shutdown.complete(Unit); job.join() }
+            assertEquals(0L, runtime.buffered.usage)
+        }
+    }
+
+    @Test fun repeatedOwnerCancellationReclaimsBlockedWritesAndWaitingSenders() = runReactor {
+        withTimeout(10000) {
+            val runtime = WebSocketRuntime(config().apply {
+                queueCapacity = 2; writeTimeoutMillis = 10000
+            }, provider)
+            repeat(16) {
+                val engine = Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher)
+                    .apply { writeGate = CompletableDeferred() }
+                val session = ManagedWebSocketSession(runtime, engine, handshake)
+                val job = launch { session.run(CompletableDeferred()) { awaitCancellation() } }
+                try {
+                    session.send("first")
+                    engine.writeEntered.await()
+                    session.send("queued")
+                    val sender = async { runCatching { session.send("waiting") }.exceptionOrNull() }
+                    while (runtime.pendingCount.usage != 1L) yield()
+                    job.cancelAndJoin()
+                    assertIs<WebSocketClosedException>(sender.await())
+                    assertEquals(CloseTermination.FORCED_ABORT, session.awaitClosed().termination)
+                    assertTrue(engine.aborted)
+                    assertTrue(engine.writes.isEmpty())
+                    assertEquals(0L, runtime.buffered.usage)
+                    assertEquals(0L, runtime.pendingCount.usage)
+                    assertEquals(0L, runtime.pendingBytes.usage)
+                } finally { job.cancelAndJoin() }
+            }
+        }
+    }
+
+    @Test fun sharedShutdownReclaimsEveryBlockedSession() = runReactor {
+        withTimeout(10000) {
+            val runtime = WebSocketRuntime(config().apply { writeTimeoutMillis = 10000 }, provider)
+            val shutdown = CompletableDeferred<Unit>()
+            val engines = List(16) {
+                Engine(currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher)
+                    .apply { writeGate = CompletableDeferred() }
+            }
+            val sessions = engines.map { ManagedWebSocketSession(runtime, it, handshake) }
+            val jobs = sessions.map { session -> launch { session.run(shutdown) { awaitCancellation() } } }
+            try {
+                sessions.forEachIndexed { index, session ->
+                    session.send("blocked")
+                    engines[index].writeEntered.await()
+                    session.send("queued")
+                }
+                assertEquals(16L * 13L, runtime.buffered.usage)
+                shutdown.complete(Unit)
+                jobs.joinAll()
+                assertTrue(engines.all { it.aborted })
+                sessions.forEach { assertEquals(CloseTrigger.SERVER_SHUTDOWN, it.awaitClosed().trigger) }
+                assertEquals(0L, runtime.buffered.usage)
+                assertEquals(0L, runtime.pendingCount.usage)
+                assertEquals(0L, runtime.pendingBytes.usage)
+            } finally { shutdown.complete(Unit); jobs.forEach { it.cancelAndJoin() } }
+        }
+    }
+
     @Test fun connectionIdsArePerConnectionNotPerIdentity() = runReactor {
         val executor = currentCoroutineContext()[ContinuationInterceptor] as CoroutineDispatcher
         val runtime = WebSocketRuntime(config(), provider)

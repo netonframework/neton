@@ -13,6 +13,13 @@ REQUIRED = {
 MARKERS = {"NETON_POSTGRES_TRANSACTIONS_EXECUTED", "NETON_POSTGRES_TYPES_EXECUTED"}
 REDIS_REQUIRED = {("neton.redis.RedisPipelineIntegrationTest", "orderedBatchPreservesNamespaceAndReportsErrors")}
 REDIS_MARKERS = {"NETON_REDIS_PIPELINE_EXECUTED"}
+WEBSOCKET_REQUIRED = {
+    ("neton.websocket.RuntimeTest", name) for name in (
+        "repeatedCancelledSendersReleaseAdmissionWithoutClosingConnection",
+        "repeatedOwnerCancellationReclaimsBlockedWritesAndWaitingSenders",
+        "sharedShutdownReclaimsEveryBlockedSession",
+    )
+}
 
 
 def verify(directory, required=REQUIRED, markers=MARKERS):
@@ -47,10 +54,12 @@ if __name__ == "__main__":
     try:
         if len(sys.argv) == 3 and sys.argv[2] == "redis":
             verify(sys.argv[1], REDIS_REQUIRED, REDIS_MARKERS)
+        elif len(sys.argv) == 3 and sys.argv[2] == "websocket":
+            verify(sys.argv[1], WEBSOCKET_REQUIRED, set())
         elif len(sys.argv) == 2:
             verify(sys.argv[1])
         else:
-            raise ValueError("Usage: verify-integration-report.py REPORT_DIRECTORY [redis]")
+            raise ValueError("Usage: verify-integration-report.py REPORT_DIRECTORY [redis|websocket]")
     except (IndexError, ValueError, OSError, ET.ParseError) as error:
         sys.exit(f"Integration gate failed: {error}")
     print("Required integration test reports and execution markers verified")

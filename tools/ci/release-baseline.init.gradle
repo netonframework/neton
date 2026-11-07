@@ -1,0 +1,83 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
+gradle.beforeSettings {
+    if (gradle.startParameter.projectProperties['netonstream.local'] != 'false') {
+        throw new GradleException('Release baseline requires explicit -Pnetonstream.local=false')
+    }
+    if (gradle.startParameter.projectProperties.containsKey('netonstream.repository')) {
+        throw new GradleException('Release baseline forbids staged protocol repositories')
+    }
+}
+
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    def target = root.providers.gradleProperty('baseline.target').get()
+    def modules = [':neton-http', ':neton-websocket']
+    modules.each { path ->
+        def consumer = root.project(path)
+        // A configuration must be resolved by a task in its owning project.
+        consumer.tasks.register('verifyPublishedTransportBaseline') {
+            group = 'verification'
+            description = 'Check resolved published transport versions against the release baseline.'
+            doLast {
+                if (!gradle.includedBuilds.empty) {
+                    throw new GradleException('Release baseline forbids composite source substitution')
+                }
+                consumer.repositories.each { repository ->
+                    if (!(repository instanceof MavenArtifactRepository) ||
+                        repository.url.scheme != 'https' ||
+                        !(repository.url.host in ['repo.maven.apache.org', 'repo1.maven.org'])) {
+                        throw new GradleException("Release baseline requires Central-only consumer repositories: $path/${repository.name}")
+                    }
+                }
+                def baseline = new JsonSlurper().parse(root.file('tools/ci/release-baseline.json'))
+                def expected = [:]
+                baseline.components.findAll { it.name != 'neton' }.each { component ->
+                    component.artifacts.each { artifact -> expected[artifact.name] = artifact.version }
+                }
+                if (!(target in ['macosArm64', 'macosX64', 'linuxX64', 'linuxArm64', 'mingwX64'])) {
+                    throw new GradleException("Unsupported baseline target: $target")
+                }
+                def configuration = consumer.configurations.getByName("${target}TestCompileKlibraries")
+                // ResolutionResult alone can retain unresolved edges; files forces resolution failure.
+                configuration.files
+                def found = [:]
+                configuration.incoming.resolutionResult.allComponents.each { component ->
+                    def id = component.id
+                    if (id instanceof ModuleComponentIdentifier && id.group == 'com.netonstream') {
+                        def owner = expected.keySet().find { id.module == it || id.module == "${it}-${target.toLowerCase()}" }
+                        if (owner != null) {
+                            if (id.version != expected[owner]) {
+                                throw new GradleException("Dependency drift: $path selects $id; baseline ${expected[owner]}")
+                            }
+                            found[owner] = id.version
+                        }
+                    }
+                }
+                def required = ['io', 'http', 'tls', 'openssl'] + (path == ':neton-websocket' ? ['websocket'] : [])
+                if (!found.keySet().containsAll(required)) {
+                    throw new GradleException("Incomplete resolved transport graph: $path -> $found")
+                }
+                def output = consumer.layout.buildDirectory.file("release-baseline/resolved-${target}.json").get().asFile
+                output.parentFile.mkdirs()
+                output.text = JsonOutput.prettyPrint(JsonOutput.toJson(found)) + '\n'
+                logger.lifecycle("Published transport baseline verified for $path/$target: $found")
+            }
+        }
+    }
+    root.tasks.register('verifyReleaseDependencyBaseline') {
+        group = 'verification'
+        dependsOn(modules.collect { "$it:verifyPublishedTransportBaseline" })
+        doLast {
+            def evidence = modules.collectEntries { path ->
+                [(path): new JsonSlurper().parse(root.project(path).layout.buildDirectory.file("release-baseline/resolved-${target}.json").get().asFile)]
+            }
+            def output = root.layout.buildDirectory.file("release-baseline/resolved-${target}.json").get().asFile
+            output.parentFile.mkdirs()
+            output.text = JsonOutput.prettyPrint(JsonOutput.toJson([target: target, dependencies: evidence])) + '\n'
+        }
+    }
+}

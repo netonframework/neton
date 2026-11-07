@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-11-07",
+  "group": "com.netonstream",
+  "toolchain": {
+    "kotlin": "2.4.20",
+    "ksp": "2.3.12",
+    "jdk": "17"
+  },
+  "scope": "Published root POM and Gradle metadata; independent extension releases are inventoried, not certified by Framework runtime tests.",
+  "components": [
+    {
+      "name": "io",
+      "role": "core",
+      "repository": "https://github.com/netonframework/io",
+      "tag": "io-v0.4.1",
+      "revision": "8b531d7d65e61e811b4af939a1d08ada7f42f33d",
+      "artifacts": [
+        {
+          "name": "io",
+          "version": "0.4.1",
+          "sha256": {
+            "pom": "b54517dec4d1b087e189ed03c1ce106217a116fc166df92021313a77ed05ec88",
+            "module": "af7f6a2fd499d79408ab9ce532b5d137542b7d22e2285a1c303b8fe4c8ae9505"
+          }
+        },
+        {
+          "name": "io-testkit",
+          "version": "0.4.1",
+          "sha256": {
+            "pom": "71b40032730487e32f86b7470c4a1f8ec3627126c5a40ca0e27c54e044b6602c",
+            "module": "ea80c2cc353cff30db0049268dde39bbd6bacfb5adfd17fa717e0a9fc6a6741b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "http",
+      "role": "core",
+      "repository": "https://github.com/netonframework/http",
+      "tag": "v0.3.0",
+      "revision": "1cba72dc9134e94baefda547716bd9b7e92b98e2",
+      "artifacts": [
+        {
+          "name": "http",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "834ee708e8caaa801d08272eb98f4e950d7c7fcf8250098fae786934d703af2d",
+            "module": "dda6e6269027d493904cad66b45ae3774c78708d647a8f7f256dcf1f53481cb2"
+          }
+        }
+      ]
+    },
+    {
+      "name": "websocket",
+      "role": "optional-framework",
+      "repository": "https://github.com/netonframework/websocket",
+      "tag": "v0.3.0",
+      "revision": "a5162485cfab690ea3b61ce71332f15384ee4fa0",
+      "artifacts": [
+        {
+          "name": "websocket",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "66a386462fe55a1266a8cca8e27ac1714c91cf13129bb6a627104c95fdad5aba",
+            "module": "a4cf541cba290984c258bd80a536608ee16858f5ec3f034ab307cc2b167ad728"
+          }
+        }
+      ]
+    },
+    {
+      "name": "openssl-kotlin",
+      "role": "core",
+      "repository": "https://github.com/netonframework/openssl-kotlin",
+      "tag": "v4.0.2-3",
+      "revision": "431be0661d3c920203cc3b8f5c8e280f13af3d36",
+      "artifacts": [
+        {
+          "name": "openssl",
+          "version": "4.0.2-3",
+          "sha256": {
+            "pom": "a7ffbfdac24397b72e91f0dfc76376152b1e72be8d3e450304ec40a88a657eeb",
+            "module": "7a267dee022f6ebec5e92b2f9060c7d1ef042cd144fcf716a20e8afb4978c3ba"
+          }
+        }
+      ]
+    },
+    {
+      "name": "tls",
+      "role": "core",
+      "repository": "https://github.com/netonframework/tls",
+      "tag": "v0.3.0",
+      "revision": "5faec551d2205037efcd78e6029971caf650f1f9",
+      "artifacts": [
+        {
+          "name": "tls",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "425916f5e3b2b23609da21cb0e44002b859b7d9d2fb924e52751f2df68a7fd69",
+            "module": "6f3d3b96366ca84996f6f2c34732cc98b96ac140491df120ac81d0ff3bf95e06"
+          }
+        },
+        {
+          "name": "tls-http",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "721a9c6719e64da2988306c8437f2db93b624d693477acbabbcef291d26994cd",
+            "module": "e290834a07b278ef410dc23d6cf6709507b77a19d2c810aed65d1e580d59e26b"
+          }
+        },
+        {
+          "name": "tls-websocket",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "77dae8f85387c84bf3a73d1e920ef61b87c77fbd7555bf646accd6607c34c899",
+            "module": "6fed473b81810864ce80bdfe40fb6680b2805290d42504c0c4d18c2317829817"
+          }
+        }
+      ]
+    },
+    {
+      "name": "quic",
+      "role": "extension",
+      "repository": "https://github.com/netonframework/quic",
+      "tag": "v0.3.0",
+      "revision": "785db84081a22c350098e6f3a2171b359fb1c75d",
+      "artifacts": [
+        {
+          "name": "quic",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "35c515d07418b1b5cf6b2454d8afec1567c45bedaea30a5921c6960babb3b5fa",
+            "module": "34ad4c751f795e68d1559e866ec7123fa9796c7909ff846fc515734a000af25f"
+          }
+        },
+        {
+          "name": "quic-testkit",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "546115bff644eb88b41c6d08804c1c223c9a9a0499075ba83999cc7c86482d6a",
+            "module": "e8621a31c6c2d88336424e09d8dc24bb0619012a1ffec8788f0f13edd684c862"
+          }
+        }
+      ]
+    },
+    {
+      "name": "http3",
+      "role": "extension",
+      "repository": "https://github.com/netonframework/http3",
+      "tag": "v0.3.0",
+      "revision": "2640267ef2dca38c93b89206fbc0e79bd30a86c0",
+      "artifacts": [
+        {
+          "name": "http3",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "227cf0a2e4335ce1ad81cac04c3d50bcb688376c94acfa79dcd137c1b3488abe",
+            "module": "53555bee813ffb387e92fa51da8c0166905f91e98029735ffaec6f4d02d69859"
+          }
+        }
+      ]
+    },
+    {
+      "name": "msgtrans-kotlin",
+      "role": "extension",
+      "repository": "https://github.com/zoujiaqing/msgtrans-kotlin",
+      "tag": "v0.5.0",
+      "revision": "241bce59edbd2d7de0e17be6cfb61dc30581ab36",
+      "artifacts": [
+        {
+          "name": "msgtrans",
+          "version": "0.5.0",
+          "sha256": {
+            "pom": "953335cf2e85565d4e817762c071326e9eb3bf565b4a26fec075546e806bad1c",
+            "module": "2096be14a32b5acbd809427be5bff49bdea9da37015b5925e98cb8cdafaa41e7"
+          }
+        },
+        {
+          "name": "msgtrans-quic",
+          "version": "0.2.0",
+          "sha256": {
+            "pom": "2d06fd4de6fb91aec2677c96a82b6ed9a439ad1c34dbde7b92c1b7d0810272a3",
+            "module": "4387e06d59e1f4e2709a293a8442f61fa2c3f364c1a5f85856c0d7492c24b4b3"
+          }
+        },
+        {
+          "name": "msgtrans-websocket",
+          "version": "0.2.0",
+          "sha256": {
+            "pom": "eda7218af151f71bdb247278daa0dd3718aa3d3833a01846bf02498af439ed5a",
+            "module": "aab34be21d1780b843f86e8a1fe7605f29d7ccdbce9d96a1a78c2dc3acdbea32"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pulsekit",
+      "role": "extension",
+      "repository": "https://github.com/netonframework/pulsekit",
+      "tag": "v0.3.0",
+      "revision": "60f4ab10619565e7250658ba83d737dc58225a4c",
+      "artifacts": [
+        {
+          "name": "pulsekit",
+          "version": "0.3.0",
+          "sha256": {
+            "pom": "c5bda9d3da43a8033615713ab8a817991b824953832ba7faaa2cdbbcbde69a59",
+            "module": "c1a2f90ae8da55a8722437175cd21232d3faba5c459f846d687d21f234d507cf"
+          }
+        }
+      ]
+    },
+    {
+      "name": "neton",
+      "role": "framework",
+      "repository": "https://github.com/netonframework/neton",
+      "tag": "v1.1.0",
+      "revision": "3b9f8fe9fd8f5cfcc4bca9a10be0196efb89c025",
+      "artifacts": [
+        {
+          "name": "neton",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "c23e1c7f06c8adb5c9d26f4ae9c39a55d57b42bc513ea90464ea47bb90679085",
+            "module": "f2ef05d968539e7126eab9aeee572bfce4a84f4e8eb53cad6c01cac86a9945a6"
+          }
+        },
+        {
+          "name": "neton-cache",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "1265ac5072d7362611e266c8eea4d0924ab2b77e9b48dd757a649455c31e54cc",
+            "module": "b4e06b800fd355e0afeeb9265eb9ac886c5a92cbf54633409cee526a030452ac"
+          }
+        },
+        {
+          "name": "neton-core",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "170db9adc0b94d659df5287ea08b74c2eb6962dac8f52d04aab5718a5ef1c49d",
+            "module": "3e214ff06149986b4730d2767808fa2f3887aa9bbe543cf39f7a28683779f304"
+          }
+        },
+        {
+          "name": "neton-database",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "912d9932c42df9f47d0dd1e5c8948290d23dbafedc4e9aaf894f6331abb7dd31",
+            "module": "7a65deb1797619d718c5f007a6762cc3c7bd48e38faa9e8cd1bb7bbbfe96f014"
+          }
+        },
+        {
+          "name": "neton-http",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "f226067c9c19f63fdb5bae62000a37e07e85ff19972a003e81559de13a30e875",
+            "module": "175d88d338bd7f7beed4b74deb95aed7cc0727308b30948e9c6c2990aa2f741f"
+          }
+        },
+        {
+          "name": "neton-jobs",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "fc2914790cddebe4e6ca8b6df379fa53a7da7ac45a467651ff41a318a8a20c97",
+            "module": "9522a41b07413088498b9db13a9f6418c080f27d8cc2cfc5f75c062a7ee69bab"
+          }
+        },
+        {
+          "name": "neton-ksp",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "e0f97728a063a514007065f4c3b9f87cdd83ad33e5e5de5893ee874fd38222e6",
+            "module": "840a46e5b22a9734973aee10e3e7a88ec9eae24c03791f52c13b5fc3ddd55538"
+          }
+        },
+        {
+          "name": "neton-logging",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "6ed45a99446d5aaef1cb372a790511b6ea4a2fd5c061edb5e5b579a44fd661e5",
+            "module": "025cda919fc879eb39ad43557124281d856d25441bf5921afd04156638e773fb"
+          }
+        },
+        {
+          "name": "neton-redis",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "7334913e114c1ba56f037946f9e17422e74fefd79f74fdfd0f0ff68c775364c1",
+            "module": "d57766857cdc9956e8e578888e0a77da37a441a532a1d9c81593822fe3c42ab6"
+          }
+        },
+        {
+          "name": "neton-routing",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "d0080bbc6f4e3104b1f817779a7c2d273903b8439e63f0a8a9e21926a0e55a0b",
+            "module": "ad205464111da115bd144476013fac74198134215a32c667de75d766f1bebdc0"
+          }
+        },
+        {
+          "name": "neton-security",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "afb5e9fca7590977a500a0bc7aa34d39f162f443750e291548f2afd2148468fb",
+            "module": "75ff389c032c3cbdbe99624ba35cb0d64d64e4881dbd56742136e6786ca3425f"
+          }
+        },
+        {
+          "name": "neton-storage",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "b0054dec51a1f2429e9de0d6597570afb03fef1cf1328e6b979d513f7fce853d",
+            "module": "a04f9d81aaa918dd9bb4b9efdf722f1f12f324c148b83f0d2e1a5a232ecfe039"
+          }
+        },
+        {
+          "name": "neton-validation",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "293aa4c4eacbd72fe536fdb129c3b10c6242bcd666f768f9501333d01f19124f",
+            "module": "3479144aaab73b54b58efc915c99bac847f91569cee973f4c8fbc77b7b3140c1"
+          }
+        },
+        {
+          "name": "neton-websocket",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "d507ef0595cf26ad69e64f5c0b87699d789e04ede9184430e4e7c9d418b3eaef",
+            "module": "111c49e1e80fadbabf4fc573f78635a09b6cd6f113de37d2e0600310be9a2c7b"
+          }
+        },
+        {
+          "name": "neton-bom",
+          "version": "1.1.0",
+          "sha256": {
+            "pom": "ae0f93220898142a7d860ff49b2e130706971deca0b615db795262660fcf1268",
+            "module": "c95147af181111d29805fe4cd2eb3a9b0176a28bfeeae5f023d4ba36face9904"
+          }
+        }
+      ]
+    }
+  ]
+}

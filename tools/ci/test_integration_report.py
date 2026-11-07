@@ -23,6 +23,25 @@ class ReportGateTest(unittest.TestCase):
     def test_complete_reports_pass(self):
         self.run_report()
 
+    def test_websocket_requires_every_stability_case(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = ET.Element("testsuite")
+            for classname, name in gate.WEBSOCKET_REQUIRED:
+                ET.SubElement(root, "testcase", classname=classname, name=name + "[macosArm64]")
+            path = pathlib.Path(directory) / "TEST-websocket.xml"
+            ET.ElementTree(root).write(path)
+            gate.verify(directory, gate.WEBSOCKET_REQUIRED, set())
+            for state in ("failure", "error", "skipped"):
+                child = ET.SubElement(root[0], state)
+                ET.ElementTree(root).write(path)
+                with self.assertRaises(ValueError):
+                    gate.verify(directory, gate.WEBSOCKET_REQUIRED, set())
+                root[0].remove(child)
+            root.remove(root[0])
+            ET.ElementTree(root).write(path)
+            with self.assertRaises(ValueError):
+                gate.verify(directory, gate.WEBSOCKET_REQUIRED, set())
+
     def test_redis_requires_its_own_test_and_execution_marker(self):
         with tempfile.TemporaryDirectory() as directory:
             root = ET.Element("testsuite")
