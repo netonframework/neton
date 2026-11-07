@@ -25,7 +25,9 @@ def main():
             'Full publication gate requires the macOS ARM64 publisher host')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    version = '1.0.0-candidate.' + revision[:12]
+    release = next(line.split('=', 1)[1].strip() for line in (root / 'gradle.properties').read_text().splitlines()
+                   if line.startswith('netonVersion='))
+    version = release + '-candidate.' + revision[:12]
     evidence = {'passed': False, 'revision': revision, 'version': version,
                 'signingIdentity': 'ephemeral-test-only', 'remotePublication': False}
     try:

@@ -2,7 +2,10 @@
 
 All notable changes to Neton are documented here.
 
-## Unreleased
+## 1.1.0 — release preparation (not yet published)
+
+A minor release: additive public API only, no behavior change for existing
+applications. Dependencies, Kotlin 2.4.20 and KSP 2.3.12 are unchanged from 1.0.0.
 
 - Add `RequestContext.query` (raw query string, empty by default) so
   authenticators can read credentials passed as query parameters, such as
