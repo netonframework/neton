@@ -25,6 +25,7 @@ jobs:
       - name: Reject missing, changed or non-release publications
         run: |
           python3 -m unittest discover -s tools/ci -p test_release_baseline.py
+          python3 -m unittest discover -s tools/ci -p test_repeat_transport_tests.py
           python3 tools/ci/verify_release_baseline.py --online --output build/release-baseline/central.json
       - uses: actions/upload-artifact@v4
         if: always()
