@@ -43,7 +43,7 @@ jobs:
         include:
           - { os: macos-15, target: macosArm64 }
           - { os: ubuntu-24.04, target: linuxX64 }
-          - { os: ubuntu-24.04-arm, target: linuxArm64 }
+          - { os: ubuntu-24.04, target: linuxArm64 }
           - { os: windows-2022, target: mingwX64 }
     steps:
       - uses: actions/checkout@v4
@@ -59,13 +59,36 @@ jobs:
         if: runner.os == 'macOS'
         run: echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> "$GITHUB_ENV"
       - name: Resolve the baseline and run HTTP and WebSocket contracts
+        if: matrix.target != 'linuxArm64'
         shell: bash
         run: >-
           ./gradlew --no-daemon --warning-mode=fail
           -Pnetonstream.local=false -Pbaseline.target=${{ matrix.target }}
           -I tools/ci/release-baseline.init.gradle verifyReleaseDependencyBaseline
           :neton-http:${{ matrix.target }}Test :neton-websocket:${{ matrix.target }}Test
+      - name: Provide ARM64 C bridge cross-compiler
+        if: matrix.target == 'linuxArm64'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+      - name: Cross-build ARM64 tests against published dependencies
+        if: matrix.target == 'linuxArm64'
+        run: >-
+          ./gradlew --no-daemon --warning-mode=fail
+          -Pnetonstream.local=false -Pbaseline.target=linuxArm64
+          -I tools/ci/release-baseline.init.gradle verifyReleaseDependencyBaseline
+          :neton-http:linkDebugTestLinuxArm64 :neton-websocket:linkDebugTestLinuxArm64
+      - name: Stage candidate-bound ARM64 executables
+        if: matrix.target == 'linuxArm64'
+        run: |
+          python3 -m unittest discover -s tools/ci -p test_native_transport_gate.py
+          python3 tools/ci/native_transport_gate.py --stage --output "${{ runner.temp }}/transport-arm-build"
+      - uses: actions/upload-artifact@v4
+        if: matrix.target == 'linuxArm64'
+        with:
+          name: transport-arm-build-${{ github.sha }}
+          path: ${{ runner.temp }}/transport-arm-build/
+          if-no-files-found: error
       - name: Require execution of the new stability contracts
+        if: matrix.target != 'linuxArm64'
         run: |
           python -m unittest discover -s tools/ci -p test_integration_report.py
           python tools/ci/verify-integration-report.py neton-websocket/build/test-results/${{ matrix.target }}Test websocket
@@ -77,6 +100,33 @@ jobs:
             build/release-baseline/
             neton-http/build/test-results/
             neton-websocket/build/test-results/
+            build/reports/problems/
+          if-no-files-found: error
+
+  transport-arm64-runtime:
+    name: Published transport stability (linuxArm64 native execution)
+    needs: transport-stability
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: transport-arm-build-${{ github.sha }}
+          path: ${{ runner.temp }}/transport-arm-build
+      - name: Verify candidate and execute on native ARM64
+        run: >-
+          python3 tools/ci/native_transport_gate.py
+          --artifact "${{ runner.temp }}/transport-arm-build"
+          --output "${{ runner.temp }}/transport-arm-runtime"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: transport-arm-runtime-${{ github.sha }}
+          path: ${{ runner.temp }}/transport-arm-runtime/
           if-no-files-found: error
 
   api-abi:
@@ -315,13 +365,13 @@ jobs:
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts, public-app, dependency-baseline, transport-stability]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts, public-app, dependency-baseline, transport-stability, transport-arm64-runtime]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==12 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==13 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04
