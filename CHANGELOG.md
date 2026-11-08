@@ -2,6 +2,23 @@
 
 All notable changes to Neton are documented here.
 
+## 1.1.1 - release preparation (not yet published)
+
+Maintenance release: no runtime implementation or public API changes from 1.1.0.
+All Framework modules, KSP and the BOM share this version. Published protocol
+dependencies, Kotlin 2.4.20 and KSP 2.3.12 remain unchanged.
+
+- Pin and verify the published dependency baseline, including Maven metadata
+  identity, checksums and source release revisions.
+- Require HTTP/WebSocket regression execution on macOS ARM64, Linux x64,
+  Linux ARM64 and Windows x64. Cross-build ARM64 tests on a supported compiler
+  host, then verify and execute their binaries on native ARM64.
+- Fix Windows WSS test fixture paths and add cancellation/shutdown regression
+  cases and strict same-process repeated-test validation.
+- Add a resource-bounded Linux HTTP soak harness with idle resource recovery,
+  RSS trend and graceful shutdown checks. Its 24-hour run is still in progress;
+  this release does not claim completed long-duration or performance certification.
+
 ## 1.1.0 — 2026-11-07
 
 - Published to Maven Central from `3b9f8fe9fd8f5cfcc4bca9a10be0196efb89c025`

@@ -1,6 +1,6 @@
 {
-  "targetRelease": "1.1.0",
-  "status": "stable-1.1.0-approved-at-3b9f8fe9fd8f5cfcc4bca9a10be0196efb89c025",
+  "targetRelease": "1.1.1",
+  "status": "patch-1.1.1-candidate-no-api-changes-requires-green-release-gates",
   "default": "Public declarations in the compiled ABI are stable unless explicitly internal or experimental below. This does not promise compiler-version-independent KLIB compatibility.",
   "internalMarker": "neton.core.annotations.InternalNetonApi",
   "experimental": {
