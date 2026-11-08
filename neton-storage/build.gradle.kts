@@ -39,7 +39,7 @@ kotlin {
                 implementation(project(":neton-logging"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
-                implementation("com.netonstream:openssl:4.0.2-3")
+                implementation("com.netonstream:openssl:4.1.0-1")
                 implementation(project(":neton-http"))
             }
         }

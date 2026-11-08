@@ -18,8 +18,8 @@ repositories {
 }
 
 val netonstreamIo = "com.netonstream:io:0.4.1"
-val netonstreamHttp = "com.netonstream:http:0.3.0"
-val netonstreamTls = "com.netonstream:tls:0.3.0"
+val netonstreamHttp = "com.netonstream:http:0.3.1"
+val netonstreamTls = "com.netonstream:tls:0.3.1"
 
 kotlin {
     macosArm64()

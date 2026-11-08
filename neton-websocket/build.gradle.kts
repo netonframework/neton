@@ -18,14 +18,14 @@ kotlin {
         commonTest.dependencies { implementation(kotlin("test")) }
         val nativeMain by creating {
             dependsOn(commonMain.get())
-            dependencies { implementation("com.netonstream:websocket:0.3.0") }
+            dependencies { implementation("com.netonstream:websocket:0.3.1") }
         }
         val nativeTest by creating {
             dependsOn(commonTest.get())
             dependencies {
-                implementation("com.netonstream:websocket:0.3.0")
-                implementation("com.netonstream:tls:0.3.0")
-                implementation("com.netonstream:openssl:4.0.2-3")
+                implementation("com.netonstream:websocket:0.3.1")
+                implementation("com.netonstream:tls:0.3.1")
+                implementation("com.netonstream:openssl:4.1.0-1")
             }
         }
         macosArm64Main.get().dependsOn(nativeMain)

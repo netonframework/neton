@@ -30,7 +30,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
 
                 // One OpenSSL runtime for HTTP/TLS and application cryptography.
-                implementation("com.netonstream:openssl:4.0.2-3")
+                implementation("com.netonstream:openssl:4.1.0-1")
                 // JWT payload JSON 解析
                 implementation(libs.kotlinx.serialization.json)
             }

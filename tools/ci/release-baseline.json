@@ -38,15 +38,15 @@
       "name": "http",
       "role": "core",
       "repository": "https://github.com/netonframework/http",
-      "tag": "v0.3.0",
-      "revision": "1cba72dc9134e94baefda547716bd9b7e92b98e2",
+      "tag": "v0.3.1",
+      "revision": "da921304193fe99b552e1ab3386c4217cb59367a",
       "artifacts": [
         {
           "name": "http",
-          "version": "0.3.0",
+          "version": "0.3.1",
           "sha256": {
-            "pom": "834ee708e8caaa801d08272eb98f4e950d7c7fcf8250098fae786934d703af2d",
-            "module": "dda6e6269027d493904cad66b45ae3774c78708d647a8f7f256dcf1f53481cb2"
+            "pom": "2899dc8c6f5328672e19216426c046110b305aac64810c2a32be2208d6a2eade",
+            "module": "625452982864672036b3446c4a0b0679a215c6678c17c89e13c43a015af0e876"
           }
         }
       ]
@@ -55,15 +55,15 @@
       "name": "websocket",
       "role": "optional-framework",
       "repository": "https://github.com/netonframework/websocket",
-      "tag": "v0.3.0",
-      "revision": "a5162485cfab690ea3b61ce71332f15384ee4fa0",
+      "tag": "v0.3.1",
+      "revision": "f124a2008f7845613733faf00fb85d754dddc7e2",
       "artifacts": [
         {
           "name": "websocket",
-          "version": "0.3.0",
+          "version": "0.3.1",
           "sha256": {
-            "pom": "66a386462fe55a1266a8cca8e27ac1714c91cf13129bb6a627104c95fdad5aba",
-            "module": "a4cf541cba290984c258bd80a536608ee16858f5ec3f034ab307cc2b167ad728"
+            "pom": "8a888eb656e699b7888403ded23df784b5f761d09b11328b04e47a162f08a029",
+            "module": "334cd4617e1a5035bde27c3327fde5a0fc84ccf18bc50ab95ef25a4e998067ed"
           }
         }
       ]
@@ -72,15 +72,15 @@
       "name": "openssl-kotlin",
       "role": "core",
       "repository": "https://github.com/netonframework/openssl-kotlin",
-      "tag": "v4.0.2-3",
-      "revision": "431be0661d3c920203cc3b8f5c8e280f13af3d36",
+      "tag": "v4.1.0-1",
+      "revision": "f8b0e43a146aca31c9c64691deb02aa905ebfd28",
       "artifacts": [
         {
           "name": "openssl",
-          "version": "4.0.2-3",
+          "version": "4.1.0-1",
           "sha256": {
-            "pom": "a7ffbfdac24397b72e91f0dfc76376152b1e72be8d3e450304ec40a88a657eeb",
-            "module": "7a267dee022f6ebec5e92b2f9060c7d1ef042cd144fcf716a20e8afb4978c3ba"
+            "pom": "a6781dcc25119c6da3d9effd485a1ba3ba22df990ab4edab557a0a1f5f7cdcdd",
+            "module": "4e0f4c5176a852b339c8a063800503a6253a6e73c79faa607a13053cfded1500"
           }
         }
       ]
@@ -89,31 +89,31 @@
       "name": "tls",
       "role": "core",
       "repository": "https://github.com/netonframework/tls",
-      "tag": "v0.3.0",
-      "revision": "5faec551d2205037efcd78e6029971caf650f1f9",
+      "tag": "v0.3.1",
+      "revision": "fe1689a26f3827459dc424dae65a9da4c3dab9da",
       "artifacts": [
         {
           "name": "tls",
-          "version": "0.3.0",
+          "version": "0.3.1",
           "sha256": {
-            "pom": "425916f5e3b2b23609da21cb0e44002b859b7d9d2fb924e52751f2df68a7fd69",
-            "module": "6f3d3b96366ca84996f6f2c34732cc98b96ac140491df120ac81d0ff3bf95e06"
+            "pom": "caf7f2968d3facf5866d66676ace12815bf59b341a6e0f287328ea9eabefbac9",
+            "module": "e5951e17c271bd065d766633238a73c665da37df032bb15f7cfad37eaaafc428"
           }
         },
         {
           "name": "tls-http",
-          "version": "0.3.0",
+          "version": "0.3.1",
           "sha256": {
-            "pom": "721a9c6719e64da2988306c8437f2db93b624d693477acbabbcef291d26994cd",
-            "module": "e290834a07b278ef410dc23d6cf6709507b77a19d2c810aed65d1e580d59e26b"
+            "pom": "59f494c1db7fbf568a350674774153e6008bf7018811222b551dbb6df09ad587",
+            "module": "4da59c6345807f6447a0a576745baca21f8c86f871eb96bfbaa3c3fa870ce8f8"
           }
         },
         {
           "name": "tls-websocket",
-          "version": "0.3.0",
+          "version": "0.3.1",
           "sha256": {
-            "pom": "77dae8f85387c84bf3a73d1e920ef61b87c77fbd7555bf646accd6607c34c899",
-            "module": "6fed473b81810864ce80bdfe40fb6680b2805290d42504c0c4d18c2317829817"
+            "pom": "68a88de8e14c045dc954311f77f4889e294f1a886674017c008dd6d2b0631606",
+            "module": "5bb5e8e4280e0fb535a5ec96e8f561f13e53cb307832eef15b91027d48d03626"
           }
         }
       ]

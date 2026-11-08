@@ -26,7 +26,7 @@ def properties(path):
 def bundle(args):
     root = Path(args.repo).resolve()
     files = sorted(p for p in root.glob(f"com/netonstream/*/{args.version}/*")
-                   if p.suffix in (".pom", ".module", ".jar", ".klib")
+                   if p.suffix in (".pom", ".module", ".jar", ".klib", ".aar")
                    and any(p.parent.parent.name == module or p.parent.parent.name.startswith(module + "-")
                            for module in args.modules.split(",")))
     coordinates = sorted({p.parent.parent.name for p in files})

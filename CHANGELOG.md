@@ -2,6 +2,18 @@
 
 All notable changes to Neton are documented here.
 
+## 1.1.2 - Unreleased
+
+- Upgrade the shared cryptography dependency to OpenSSL 4.1.0 through wrapper
+  `4.1.0-1`, which restores Windows Kotlin/Native CRT compatibility. HTTP,
+  WebSocket and TLS use the aligned `0.3.1` releases on IO `0.4.1`.
+- Preserve the Framework's public API and Kotlin/KSP toolchain. All Framework
+  modules, KSP and the BOM retain one coordinated version.
+- Include signed Android AARs in the dependency-chain publication helper and
+  reject unsigned AAR payloads with a regression test.
+- Require fresh platform, ABI and artifact-consumer evidence before publication.
+  The existing HTTP soak on the previous baseline does not certify this upgrade.
+
 ## 1.1.1 - 2026-11-09
 
 - Published to Maven Central from `223c5d4e29672840dab7425a32d1450fa7db8d30`
