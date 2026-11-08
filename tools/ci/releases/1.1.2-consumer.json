@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "version": "1.1.2",
+  "frameworkRevision": "5124777a476d6676be8b7767bea85dc8ee53b3c6",
+  "applicationRepository": "https://github.com/netonframework/neton-app",
+  "applicationRevision": "a03d7bec9d58b51dde980b34e4f291d44eac3012",
+  "target": "macosArm64",
+  "repository": "Maven Central only",
+  "freshGradleHome": true,
+  "buildCommand": "./gradlew --no-daemon --max-workers=2 -PnetonVersion=1.1.2 linkReleaseExecutableMacosArm64",
+  "successfulBuilds": 2,
+  "binarySha256": "867eb6f90e0bbdcce8d5ffd208de0f8e3d19175c0ae86fc4d3d569b7f5fd7184",
+  "cycles": [
+    {"cycle": 1, "healthySeconds": 60.42664587497711, "exitCode": 0, "portClosed": true, "signal": "SIGTERM"},
+    {"cycle": 2, "healthySeconds": 60.82640058291145, "exitCode": 0, "portClosed": true, "signal": "SIGTERM"}
+  ],
+  "scope": "Post-publication application acceptance; not a long-duration soak or performance certification"
+}

@@ -2,7 +2,16 @@
 
 All notable changes to Neton are documented here.
 
-## 1.1.2 - Unreleased
+## 1.1.2 - 2026-11-09
+
+- Published to Maven Central from `5124777a476d6676be8b7767bea85dc8ee53b3c6`
+  after [all release gates passed](https://github.com/netonframework/neton/actions/runs/42532494358).
+  All 79 coordinates, 345 payloads and 345 production signatures were read back
+  from Central and matched the verified publication; digests are recorded in
+  `tools/ci/releases/1.1.2-publication.json`.
+- A fresh-cache public application resolved only Central dependencies, completed
+  two Release builds and passed two 60-second healthy start/SIGTERM cycles with
+  exit code zero and its listening port released after each shutdown.
 
 - Upgrade the shared cryptography dependency to OpenSSL 4.1.0 through wrapper
   `4.1.0-1`, which restores Windows Kotlin/Native CRT compatibility. HTTP,

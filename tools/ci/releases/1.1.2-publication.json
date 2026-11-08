@@ -1,0 +1,2768 @@
+{
+  "passed": true,
+  "version": "1.1.2",
+  "verified": [
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2.jar",
+      "sha256": "d2c70227991617aa13b809f73ac4b81b343f7fdea88d2fc67784f0f95f06f24c"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2.jar.asc",
+      "sha256": "31cba1e2e7cce2e9ed7542e6fbb8234671656259bad53282c671c41d760b20db"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2.pom",
+      "sha256": "9230da6ba3efa8c716ada8aa33b8060dc878096968b612d1643a1499a494e49c"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2.pom.asc",
+      "sha256": "34eb93f57810066cab264db9b7f1dc922c09573b2c2d861a11be143a3c9f3eaf"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2.module",
+      "sha256": "9fe87baa0b3a995052fbcadb5fdc5cff13217bc247c483bcd8b947877a3621f1"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2.module.asc",
+      "sha256": "847c55109273db2b1e93d79eae13d38a32452ebba12c9c7c07efd53eecfb1346"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2-sources.jar",
+      "sha256": "1bdbd24a9bee807a95fa452979250644e4cca807cbd2301fbd091da6d9e3feab"
+    },
+    {
+      "path": "com/netonstream/neton/1.1.2/neton-1.1.2-sources.jar.asc",
+      "sha256": "e65bb66d698d85f7115e7a339d0ab861477ce67a499366476bebab106d9782bd"
+    },
+    {
+      "path": "com/netonstream/neton-bom/1.1.2/neton-bom-1.1.2.pom",
+      "sha256": "d440558ea37671a6c575571dc8cc4a5d96f394e4cd9a0fc986e3427cfb55d5cd"
+    },
+    {
+      "path": "com/netonstream/neton-bom/1.1.2/neton-bom-1.1.2.pom.asc",
+      "sha256": "8365bdbc8d8479416ed048b3082a29613a3f29e9a9efc2c4ddbc36a06183e9d9"
+    },
+    {
+      "path": "com/netonstream/neton-bom/1.1.2/neton-bom-1.1.2.module",
+      "sha256": "82c4855069c7f7165d349d3eaf5dc1f6774138da1d54feb1fa6c99c249f86691"
+    },
+    {
+      "path": "com/netonstream/neton-bom/1.1.2/neton-bom-1.1.2.module.asc",
+      "sha256": "c4eb135005d634d3e12d94736f69b0c4adce2dea04cb3f4595badb39e95f78e9"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2.module",
+      "sha256": "10304df79469fe8a760b5393e09a13aa505b2b3d932046480d1f4a3127815222"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2.module.asc",
+      "sha256": "a178700e344c4c99d5d30addf1d3ac2ceac2aedc265c6e1f3845b0ea61ba8b13"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2-sources.jar",
+      "sha256": "2a27769ec16537cce488c264aeca1d935884509160362be9d59760c95d040f14"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2-sources.jar.asc",
+      "sha256": "26b70e34409fed05e51f644cde8adf5275546c8cec70755228141ff5469aa168"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2.jar",
+      "sha256": "03b84ed652f5cb4f67e17c04c9e0e706c9e05b825e3d00d59fc9bd7f1d4007dc"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2.jar.asc",
+      "sha256": "04423a91a4ac4c76e0060eb5adebea1886827eda05793855a95c76abcac61e83"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2.pom",
+      "sha256": "4c7d21a79f506e16ee0d6c7cf8075691f98346eebfb1dd04dbfdcf8040e37c52"
+    },
+    {
+      "path": "com/netonstream/neton-cache/1.1.2/neton-cache-1.1.2.pom.asc",
+      "sha256": "9b2111e5f29fe16040e041c7f3c7373c206913f15924eccaf931323842d0bf49"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2.klib",
+      "sha256": "fabf10cc4488b85ad361e0c34d930df2f353203488a1245f7d8758401c471786"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2.klib.asc",
+      "sha256": "275010ea4947a9a352531a00d21577369cef83d04429c6da5637aeab8a9f311e"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2.pom",
+      "sha256": "b49cf2acf914897a25e064605a1d8e3c4abd4013584fe12ffdead4f1cd18581f"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2.pom.asc",
+      "sha256": "d7fbad21b992a0e8f48f55d9c2306424c0c03acfd041f15dc3b91f1513845e85"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2-sources.jar",
+      "sha256": "2a27769ec16537cce488c264aeca1d935884509160362be9d59760c95d040f14"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "a5f442d0ab7d145fe705993685059738ef5f3a741cf01a6239c4a6e581d08f47"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2.module",
+      "sha256": "90e3cc009f4fb4965f461c83f69c1df609062a58482650f4a7400cca6d0e9855"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxarm64/1.1.2/neton-cache-linuxarm64-1.1.2.module.asc",
+      "sha256": "55aeae3d7affb6470a0c37acf2591f805ed8c80f41cf818aa598a48a4108f6e5"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2.module",
+      "sha256": "7b4ef98a5f7566a24c959b414531256b8bf4664132aa34ead158a0a15dd92020"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2.module.asc",
+      "sha256": "8cd65e2add376640b137cfb02288726047bb5e26680d75b1e9982eeb66975264"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2.pom",
+      "sha256": "11abf6b0859087fc05a8825b0e80982aaeb299aa5be8f2a29389e0b8aa8ce7a5"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2.pom.asc",
+      "sha256": "dff2bb2eefc4ceb5058ac72bc120ba65e4329566542ce4bfe64473bec6c1358c"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2-sources.jar",
+      "sha256": "2a27769ec16537cce488c264aeca1d935884509160362be9d59760c95d040f14"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "f050353173e78e82c187936e9381a16eb63896d3b9e768a5e301e59632d34d59"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2.klib",
+      "sha256": "c8669c51da9643f920a3b27012758c7ee6fd168af14f058753180f69d523ace3"
+    },
+    {
+      "path": "com/netonstream/neton-cache-linuxx64/1.1.2/neton-cache-linuxx64-1.1.2.klib.asc",
+      "sha256": "94488815f662b481aab7269e87f65112490e1e111475dbec654c19b4078993dd"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2.klib",
+      "sha256": "4b298dbb5aad5332ff73244e43734b6962c152c8d4295a50f3b3ee55980533b9"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2.klib.asc",
+      "sha256": "c1655e894a3a222fcbcbdce4e7a600f788294c7141333132c6886aae79807f9c"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2.module",
+      "sha256": "2c3bbcc4f58b2fcb9d7fe85c62b850d1c6ad2861c35cbb91f268813ee46d281a"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2.module.asc",
+      "sha256": "d5093a99c9419d0238fb3751545861430ed979586d411e518a34a4e850b7f2ad"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2-metadata.jar",
+      "sha256": "15c67d39df08210d077098884f767d37e154fcc765fba7ce618ed478d767764a"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "fb0cc2258b7da7a608701d5787395513b5e0f654d02bcf890fdbde1d2dc40988"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2.pom",
+      "sha256": "515b3c865814927070a04097fdbb8a8b3e8cbf55e5d9a6d204ba8e2859979582"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2.pom.asc",
+      "sha256": "7f3be9bcb728ad04fe7655a79e4f2f58d486db1f8f07b45c5d38ba730e0e8126"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2-sources.jar",
+      "sha256": "2a27769ec16537cce488c264aeca1d935884509160362be9d59760c95d040f14"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosarm64/1.1.2/neton-cache-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "9332ffc077f9ac6c5bc99191ae63080ae1353d2741b3ec14306a2b6e057aef4b"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2-sources.jar",
+      "sha256": "2a27769ec16537cce488c264aeca1d935884509160362be9d59760c95d040f14"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "9332ffc077f9ac6c5bc99191ae63080ae1353d2741b3ec14306a2b6e057aef4b"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2.module",
+      "sha256": "82258fc8531419fc6c406e01a4d5d2020572c29ebef220d73dcfc75943e84df0"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2.module.asc",
+      "sha256": "3984894dc960162c8da88df291acc4f78e5baecf1cb28dc9625708ca26c1f13f"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2-metadata.jar",
+      "sha256": "3e9ea6b7fe2c2d2f770e7b160893021c5a716cf6c15dd3cf3076f7f401fd586c"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "a368b4fe88c1acd917e742f0c3529e75c566a79e207675e2a615b17e8f7cd7b7"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2.pom",
+      "sha256": "eabd64a09c92ca50a644a35401bb7d9563ec0faf9500b9533e9ef2e63000730c"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2.pom.asc",
+      "sha256": "b510b20b4bf199aa438faad66c1151e770b6cf46759ef92448dfcf60855cd6a9"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2.klib",
+      "sha256": "09b9cd40258b7c25c788f8180a742e387ab1464c34dc78dea1121db1f96e283f"
+    },
+    {
+      "path": "com/netonstream/neton-cache-macosx64/1.1.2/neton-cache-macosx64-1.1.2.klib.asc",
+      "sha256": "c050bb3a2db8cd4fd3475abdc80070cd283697f04aad05e3b21582ace3cded3f"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2-sources.jar",
+      "sha256": "2a27769ec16537cce488c264aeca1d935884509160362be9d59760c95d040f14"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "9332ffc077f9ac6c5bc99191ae63080ae1353d2741b3ec14306a2b6e057aef4b"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2.module",
+      "sha256": "5bfc579025bcc22dd622d2b2e9c46afa0f231eb8a86d3f6c08b05d7a97250b52"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2.module.asc",
+      "sha256": "1770e301a563944c0843445f4452432ccc4b42e1f4e8889a286d6b77289d3219"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2.pom",
+      "sha256": "34f5167bc5e4241b5d1e4af81ed9691a81dcebb8ed6c6c611a464f83c85eba4e"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2.pom.asc",
+      "sha256": "3281a5ee0dbb3db133d26763236f8bfa07872a776dcff6dbe0fe81439e1aa306"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2.klib",
+      "sha256": "cb855569f00ae204c4c6de279cfae1d3a3e207619eed4cb7862e1dea86afe10d"
+    },
+    {
+      "path": "com/netonstream/neton-cache-mingwx64/1.1.2/neton-cache-mingwx64-1.1.2.klib.asc",
+      "sha256": "3e70cf7951fbe669af3f0ea7c602357bee34ac08445835860cd22f017f5faeb6"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2.module",
+      "sha256": "32af993d9759b5da7e0dc4fae360afc109b516883eb7bbc76286f0f2164f7e87"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2.module.asc",
+      "sha256": "60ba8d3d8b3174cd79dbcab64d41150c6eb7a0cde66709ded5eb7be9711d7732"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2.jar",
+      "sha256": "767b0639b04e5142d37eb9ce0ef2c4d9f2d42d2bfb393b8e7a90923ebc79112f"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2.jar.asc",
+      "sha256": "d336ec82bf26b1f15d34d669540a4f3f8df5ad7deffdcd1276bba5abd6bafd00"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2-sources.jar",
+      "sha256": "04d3b2eca51000b7400637529db7a15b673de4b18d55799a3836948331205f2e"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2-sources.jar.asc",
+      "sha256": "615a0b4717e904b106d36b7f10504704ce636ed213c17c1ef0ab9158896ac963"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2.pom",
+      "sha256": "61511d89b3e70e84ad2a972924d5689e9a35f694bc9e9c2ff3ec2bc7a0346dc5"
+    },
+    {
+      "path": "com/netonstream/neton-core/1.1.2/neton-core-1.1.2.pom.asc",
+      "sha256": "77b01c90bc93e02867b5d3013597b09389c26659067719822e6b320319e18435"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2-cinterop-posixenv.klib",
+      "sha256": "97eb804ec177236a991fee665bc73c7406d6fe0d05fc84ac736fd8e8b40b40ce"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2-cinterop-posixenv.klib.asc",
+      "sha256": "2dd5335aea90f95264e60f3cf1e5b67d19b1592b0c788012dc190c4ec620bee1"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2-sources.jar",
+      "sha256": "70f4b05ba34a06d28b25b0383beac5b4d475e2f75502ff1521c9beb730618825"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "27f51e91364be09930b1c1e59872f7bad040647ffef1bb09d66caf75667c74b1"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2.module",
+      "sha256": "7841b6e2a5bda88e00c08a6b10de0cd4e9d02fd6acc43a5efdda9ae7d338e68e"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2.module.asc",
+      "sha256": "637e9c12381ebb6da3a8f17299d9a20973e760bc1f43b98bb78990fa37878820"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2.pom",
+      "sha256": "8923020bd0ac5d84ac69fe896e05b3f976e371e55d138dbe1a1a492d23b4d63d"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2.pom.asc",
+      "sha256": "7b27e2a9447e37eaa6066045c2c6ee617d65e3032ceb4c5859f98261ff2d1f10"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2.klib",
+      "sha256": "9477958a0ae47adeba81084884bbb2dbfba04ee81f56535d680ac6b56f602d25"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxarm64/1.1.2/neton-core-linuxarm64-1.1.2.klib.asc",
+      "sha256": "23782d82c133da17c6c4afe3f5f3cbe35a8355aa3b6b0773790ddeb8e397fd28"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2-sources.jar",
+      "sha256": "70f4b05ba34a06d28b25b0383beac5b4d475e2f75502ff1521c9beb730618825"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "2c48dbd4c53d8ab18500294067a0e93dbfb8b3fcc60998065346480035ae849c"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2.klib",
+      "sha256": "f2fe9d729fa0a7829921a9da44eb5f744cca307152cd7ca1b3614b8f9291893c"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2.klib.asc",
+      "sha256": "84b2f2e4548cb06e08f1b759bd6acd2bced58888f253f0b1ba18c531ca79a88b"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2.pom",
+      "sha256": "ff5fed1a36c598ba09e1c33e2d1374e2e542fbe809115bbc8bdd0c20bfeaadbb"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2.pom.asc",
+      "sha256": "724df9d34e19643b660946a67b8795192be25e682a74cd25594c7237b500c256"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2.module",
+      "sha256": "8a765a734774bc69e80a6e69153fad40673d8e2f16074addc62029ce3a97d754"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2.module.asc",
+      "sha256": "9ae051208ecf1d8cc813643ee7552a11b1e790fc6b737dae07ca335b60bda593"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2-cinterop-posixenv.klib",
+      "sha256": "b5067194b5931dd016ee8dca8b611d8503f3d9ba01193e7df8039052c95a1283"
+    },
+    {
+      "path": "com/netonstream/neton-core-linuxx64/1.1.2/neton-core-linuxx64-1.1.2-cinterop-posixenv.klib.asc",
+      "sha256": "391dee8f00799dc8c394fed2f5ef6b5ada0dbaa1bc73774cfe45ea98b4ce8df9"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2-metadata.jar",
+      "sha256": "93e7df106d163e1ea2fe43621c528aae2c0bfd05e2305940490ee0a78370042f"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "36099a4606587e1a2eb8db4f3cd49e92d58a38be328f19ab6e9d97754f5a9f4b"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2.pom",
+      "sha256": "c65e9088971382a94f25f867d9b2022d588158afff5434c1e47c77ae330a1def"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2.pom.asc",
+      "sha256": "81dccf73c4c29994d40d98120d2ac6481f74548f7075792e2abd7f1978db7932"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2-sources.jar",
+      "sha256": "70f4b05ba34a06d28b25b0383beac5b4d475e2f75502ff1521c9beb730618825"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "7128a4f235883334174ee43b7b13acc79d7effaeb019fe89eea37492d2aae2bd"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2-cinterop-posixenv.klib",
+      "sha256": "2f4589c9ad7c6ba8164600aa0990c849dda2359ac831849b9771ea137135e25e"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2-cinterop-posixenv.klib.asc",
+      "sha256": "26fb7067dcba265d2841d84f070c6e8ee34da68832d319c99a85ff6845de172a"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2.module",
+      "sha256": "61ce3a66a56efe2579827dd3a82081b3afb7a8fb20459943d85b3b57b33856f8"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2.module.asc",
+      "sha256": "4c890b82b8080f1c082d2e988fc9fdbcfd3c86906f67026362141df9f6e1c824"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2.klib",
+      "sha256": "9cb195b5d9949147b07b275e2cf2284170767f033ee9b0833159613d5ea4cab3"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosarm64/1.1.2/neton-core-macosarm64-1.1.2.klib.asc",
+      "sha256": "c779b0b72f46fdf9ac36ec000123f541c5fcad4f742a455d4f1f954bc4f087f6"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2.klib",
+      "sha256": "6e6fbf8d2dc0cdf5a0be7abe046527ed23f8d24ae696f6b753f1e8509187f07e"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2.klib.asc",
+      "sha256": "b6dd3dbf125f4a904a8619ea3eff1e8f2ba97db4128721d32aa4a1fb3e6a34a4"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2-metadata.jar",
+      "sha256": "93e7df106d163e1ea2fe43621c528aae2c0bfd05e2305940490ee0a78370042f"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "69c9837ed0cba739d96eafa55953ea3125bda168f404312438a8c66b15bfac76"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2-cinterop-posixenv.klib",
+      "sha256": "1e1b4278c5dc0202718d14fdbd16de53b70cf4dc66cb1912999f55811878cdc6"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2-cinterop-posixenv.klib.asc",
+      "sha256": "96608d78f8b2b85e8e7fc5ebb78f3cfd5aa42392e4491e8d78fcfe63a9997378"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2.pom",
+      "sha256": "248643f98e0ddc6c7fab363877fba0cb2653cddef4d944836b876be29433ef05"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2.pom.asc",
+      "sha256": "f13c7b208049cfe301febc7ab424c24171f23213d105529e7c7ce1e456957075"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2.module",
+      "sha256": "e9e24a6279ae70f940bea8fe0e2da13e4f643d37a644116267bf3303a3e3c0a8"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2.module.asc",
+      "sha256": "b52eab3eeb63f7a52ae39f90235bc2b0202e7d693bc5f079e4977c567bcf2a4e"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2-sources.jar",
+      "sha256": "70f4b05ba34a06d28b25b0383beac5b4d475e2f75502ff1521c9beb730618825"
+    },
+    {
+      "path": "com/netonstream/neton-core-macosx64/1.1.2/neton-core-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "2c48dbd4c53d8ab18500294067a0e93dbfb8b3fcc60998065346480035ae849c"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2.klib",
+      "sha256": "cbfc7c2d82bc08701dd31db5a1236209c1c702261943829d41a0cb8e27ca2ca1"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2.klib.asc",
+      "sha256": "c1b810d87b61c05f67d6ca4f6766ab1f629a9c55f7ed3368e34d2c1801fad84d"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2-cinterop-posixenv.klib",
+      "sha256": "b037dcf066883aabc7fd2aa8304548a9c5a00cbcb4fb398f084ec4681b95ab34"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2-cinterop-posixenv.klib.asc",
+      "sha256": "46083891c3dde49abf49cc50aa18b59f69b09173bba3d29b758f5a653325b5fd"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2.module",
+      "sha256": "83b50feac0af294c6a0e35db127091c79f9615809cd2f38aea4e4598b6e6f0ec"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2.module.asc",
+      "sha256": "93747af101d1c47fa33bdeeb811ff85de544b2ed78c574c9eecf6bb51f94bf22"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2.pom",
+      "sha256": "c92daa534374383514d3d6d3813c4864870863bfb58503ec10a8be3536097d61"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2.pom.asc",
+      "sha256": "3bdd3b740cd8920e36b6ad1d3537d99be3a22de864863eda0f1d85fdafa2ca3c"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2-sources.jar",
+      "sha256": "692e3e2a1f667a8cef4f585684e941ee821703ece34877362150218137e2e1a1"
+    },
+    {
+      "path": "com/netonstream/neton-core-mingwx64/1.1.2/neton-core-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "deb2d4ee5dddeddb53271dead8ce9e4d990fe3859074a78140857a5ca55fcc0d"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2-sources.jar",
+      "sha256": "5ff0687317d9b8de6e084e9577bfd5a8db7f7013d03a027d0ba0ec17404cd867"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2-sources.jar.asc",
+      "sha256": "4bf3f3d44dcf9c49e67d8fcea873221179bf2a8170853309fa90c2cc73da0be6"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2.module",
+      "sha256": "5c768a401eb97517a92d5258681811b44f35d65f1d95828cf0ada3d0032e4512"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2.module.asc",
+      "sha256": "bdb26732ef43f63310cf3c481fff3d355404fa4b3b5f16e11983ce7a8ac1abbc"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2.pom",
+      "sha256": "53d06293747c52429032c4339f7de12851c588f1b7962efad7260028d09dca55"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2.pom.asc",
+      "sha256": "e5c5e46309f73096cb40928087ce58effca63db92d50d53a9ce5e2279114c122"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2.jar",
+      "sha256": "a160682fe075994d65485cabe268c69a6d543dfd6f0955d11ce0e5662e79cad7"
+    },
+    {
+      "path": "com/netonstream/neton-database/1.1.2/neton-database-1.1.2.jar.asc",
+      "sha256": "fe9e245653a7d5f40eabbebee67fffe3bb7444dca0bca2104059441819c21212"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2.klib",
+      "sha256": "28f14fc7120b989dc96bbdb788f84930bd2fa8f241116979db0779cb57f2e04e"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2.klib.asc",
+      "sha256": "be5bf0f0ca0507cdc7391bdd0d5e9e844946ffbe0268460693f821cc6c61fbf4"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2-sources.jar",
+      "sha256": "5ff0687317d9b8de6e084e9577bfd5a8db7f7013d03a027d0ba0ec17404cd867"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "a5789b2145a2da0c675337b7ff1d03d5bc22bf9f9de7c4ad8e9a012e5daa292c"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2.module",
+      "sha256": "a26032e6829b95f25b9423282728ec4613430ec0d67ee29425d5aaea9fb1997d"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2.module.asc",
+      "sha256": "1ac5b3bc30425c4522fb10741bcf1a89015e9ffcd4ed9ceb3a1f765d181a69ca"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2.pom",
+      "sha256": "a0ce808712014b8d61d03488300a84392c0f7ad6b428d443eb7fa925a7596246"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxarm64/1.1.2/neton-database-linuxarm64-1.1.2.pom.asc",
+      "sha256": "91e2352bb67535eaad78a12805a1555de9bdf685b740ccd2fdd25c4c4bb1a609"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2.module",
+      "sha256": "73007cb9910f50788cc9a684ed8ff6c873223bff07d3c3db8cc9ec7b0b54dff9"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2.module.asc",
+      "sha256": "1f9645f494031b3272d2caefd55a30653407167d306f00dc12f3663b7ea91a70"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2.pom",
+      "sha256": "0076950f6a4b45282b497bebb7132032304969605f659d921bfb3d90b6880d35"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2.pom.asc",
+      "sha256": "9ce49728cc74c9824d12b4c225b36238967ed1e23ca9340d2483cba49205ffd2"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2-sources.jar",
+      "sha256": "5ff0687317d9b8de6e084e9577bfd5a8db7f7013d03a027d0ba0ec17404cd867"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "4a04de7c4519a7a5147cba9e54962b3ea497140c1ca44a84b95c0b15b030519e"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2.klib",
+      "sha256": "84a4921fd3912ff8d8904dd0fe9af60efc54e746b6cc3abaec1759322af30559"
+    },
+    {
+      "path": "com/netonstream/neton-database-linuxx64/1.1.2/neton-database-linuxx64-1.1.2.klib.asc",
+      "sha256": "47f86cf3431c9c9d34137f4bbaa43f995f8957b91f23c9b9238ba467d54c928b"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2-sources.jar",
+      "sha256": "5ff0687317d9b8de6e084e9577bfd5a8db7f7013d03a027d0ba0ec17404cd867"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "ad0b5cfecf06c341ab478dda8e6b71068177d4d1c89e256507ac1fd4603963e0"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2.klib",
+      "sha256": "dc28669c68915b700b1c4d85ea149f323237c8bef26058c987489051a2554d19"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2.klib.asc",
+      "sha256": "9ac8762f17f55ec3831853439767a8298acd25002a06a403bbdad79e6a5ab5fb"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2.pom",
+      "sha256": "9d57dd87b049a48927f26962b13d4598c18fd712bb5790772d211580f7e896a2"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2.pom.asc",
+      "sha256": "3dee0ea5c4c6023edc5ec312eb3b3d655f5a7a4e9a94d5d29573ec2a32af8e57"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2.module",
+      "sha256": "3a3aa39c7cff50e1b86af422ec5b136a9dd2da0071316f000f6f24bd6b456f96"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2.module.asc",
+      "sha256": "7c2ec8aff16e2f58652d2d6c5ebbe9a282ca236b24dcf671049dc913404db25e"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2-metadata.jar",
+      "sha256": "574d317644b37fcd2a32ebebacdd1259ea494d9f9d1416ea34a7ec5f7287d8a2"
+    },
+    {
+      "path": "com/netonstream/neton-database-macosarm64/1.1.2/neton-database-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "a447c7e84d81fe9cd540a2426dcfb4cf789757f0c376502eba678401fdf07a71"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2-sources.jar",
+      "sha256": "5ff0687317d9b8de6e084e9577bfd5a8db7f7013d03a027d0ba0ec17404cd867"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "7a76b0d10e383ede2abcc7500b054f9491573398a04f3571b0f6e26630cb73d5"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2.pom",
+      "sha256": "5bb1c00a4b9d880c6dd5e06f7cdbbc7f0096839c359d2c74274ccb72b7960496"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2.pom.asc",
+      "sha256": "8093bed8c37d0ca8e2801793dfcefa809a8068239d67540d3457b39de431bfed"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2.klib",
+      "sha256": "74305fd5eca250f03e2c5e81b6e27d993def047d8839a5c009d887379d7613dc"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2.klib.asc",
+      "sha256": "8c00e0dfe75cef245c43fd53d9965305bf051d2f17a245a516fe03bbea7ab121"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2.module",
+      "sha256": "8f8a24cfb1ace90525b16048024ffaedce17acff47320f1070e2413a9de244ef"
+    },
+    {
+      "path": "com/netonstream/neton-database-mingwx64/1.1.2/neton-database-mingwx64-1.1.2.module.asc",
+      "sha256": "77a461040ff6028b5b5ff1a2cd35a34f9c36a98f9eb8937771d3f17ce0899d46"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2-sources.jar",
+      "sha256": "9dca1540e768bbee98d848a1ba61b3b47359a1c1424ede4265637f6daf7ad81f"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2-sources.jar.asc",
+      "sha256": "f23c009ed4a046287878ded33fa2beea7026561ff569b18c791238af828ccb10"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2.jar",
+      "sha256": "3cf1b91f4b83f086061bb5ba6e512401e63e6a17489671ee375eacf951d34586"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2.jar.asc",
+      "sha256": "a816133761599d20925b052636532cf29179178e383d8e5f6dcdcd9aa840beaf"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2.module",
+      "sha256": "89834a28b4f23b7f782bfe7b07cc407cf7414ed278d77406af4af0f9ebddbe5b"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2.module.asc",
+      "sha256": "45306afc594238896031ca62da54db2c877ec438d4ac4c2c9ce3cf89f0119d7d"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2.pom",
+      "sha256": "c33442435dd216477d8619814d8118c64b8aa6d14fa53c9def80308e2a4c9bba"
+    },
+    {
+      "path": "com/netonstream/neton-http/1.1.2/neton-http-1.1.2.pom.asc",
+      "sha256": "72c4d3f085e830544ea85680a2a82685adbb087fd4f32be9f0f8d5624fc19c0d"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2.pom",
+      "sha256": "2a2823a719f1edc3092c5473d291e5d4b5105e1316f8934e3ae99a8bd443cd01"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2.pom.asc",
+      "sha256": "e82b5a3372aa41b3acc60a527f67fabf16525e8c5089ff24fd4805f754b69ec3"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2.klib",
+      "sha256": "aaf323244e39c4e793e55fe599d6499e7dd2deaaee9a9ed53cb2fa09cf20d728"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2.klib.asc",
+      "sha256": "ed249a56dcd52a8e34b673eb1416f08ae160b04c77afbf6276350661857cdf79"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2-sources.jar",
+      "sha256": "e578d8bb6f6d51ef2c879ac47eafff67071ccbf8d69ad95dedd535b69ac60078"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "eb9909f37a78e2b88cd5144497f124185ea8f671237d64078243fee5b85d6973"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2.module",
+      "sha256": "2e581493e560856551a614f9a037e72c733bab1f1d0fc21b1adc4131026ff6e9"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxarm64/1.1.2/neton-http-linuxarm64-1.1.2.module.asc",
+      "sha256": "99b5647daf87028cb59ed653c5bd49e7c13ece1bf2c174dc2c3bef2231c278e5"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2.pom",
+      "sha256": "30459fbbc02f3e6aadde9df16819c8ad4b626618c9b580f09cf157bd4053deec"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2.pom.asc",
+      "sha256": "48fad4f74859f5c6accd7dfe43f218683756b37922222fa7935b999b8d228158"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2-sources.jar",
+      "sha256": "39c9b2a7c4ace7bed3d6e2821a1eee2a05fa0255e26e6c045f1fb119fbb80d8e"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "d972fd9ffc6008a6e2332bbef9e130d64d1681110fa8d0ad07a5eddbafc5ed73"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2.module",
+      "sha256": "887aecf2a6cbd70bf25a4cb967a4399c3c0c534c02f016e57bb7befd1d862f9d"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2.module.asc",
+      "sha256": "45b6b17055044d0cffec55f94b555de7ff04b4e29acdd20018a1ceddc1cea6ca"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2.klib",
+      "sha256": "23db3e62f5cf89280aeba42e61f4dc3db7dd061c4cf32137c10db0072139c40d"
+    },
+    {
+      "path": "com/netonstream/neton-http-linuxx64/1.1.2/neton-http-linuxx64-1.1.2.klib.asc",
+      "sha256": "19c5a3ce9955823d14a2da17b2da1632b87d00fc8b4e159d18f2b5f3425c04be"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2.module",
+      "sha256": "9beeab31a6f37f9fd5dab331ff3c35a3fa9b40556d706f4fe095657140afe5d1"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2.module.asc",
+      "sha256": "de47ab67d17c2416db9948a86dcd0d33fb50572240974396aecef278d5e84478"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2-metadata.jar",
+      "sha256": "551c8184492f78a0e650402237be7bc15811e756aacd0ce68b44366da8760276"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "e214b2daf3b4a2248f5ab4461f5b8be6aa10cc456e3a0cb897868660ab43af5b"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2-sources.jar",
+      "sha256": "c324c85beff29cda941746e9d510527c58a2a4a9ae1467360315760c7043e90f"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "a9c8608366ca50d4543ec020e75f6aca6f934b24a8ea55a779c6eaf83b0bed58"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2.pom",
+      "sha256": "c0fefbee1d5d1ad695bd0cbc5b197fdd08995624479de8f3c743f4dc596b776a"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2.pom.asc",
+      "sha256": "16ac925e8dfd01de3c6fdaa52d96039ee2037725e2052e74048b4c6aeab99d0d"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2.klib",
+      "sha256": "77fa5f2807dd3108214788ef9c1b1139d9bcf7c77012fc1c6791d95e88ef26b5"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosarm64/1.1.2/neton-http-macosarm64-1.1.2.klib.asc",
+      "sha256": "59ab177fc1f76dcacc74a6782d2c7582e34344a6949cca4b7cd4ff73a39d4c2c"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2.klib",
+      "sha256": "b66aa6904bf31fc666db0ec7f9805da0411d65726889ae9ac101c501a2afeadc"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2.klib.asc",
+      "sha256": "7c24365d1b212f00555423afb3b2dbe461a425eb049d90bfac546fd4f8d36a21"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2-sources.jar",
+      "sha256": "f53f5ad80d61ba5a3e95ed30eeb02f7b681b4857544b528487cd38e4adf5998f"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "7872669375934e7fd0cc2f90ca8a04caaf673d33257bdfdc626ce8cffea68b45"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2.module",
+      "sha256": "bf4bad4361797fe8328c10384128c1ff6d2670b929be12930049d24aecfe0b1b"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2.module.asc",
+      "sha256": "48364d4b3cc443824bfed09fdbc82ef707de77f56687005cbe413855647c70b9"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2.pom",
+      "sha256": "7ac3932f78cb1ec5c3d3b14101255aa0637b104089a83ed0fdf6c00c35555e57"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2.pom.asc",
+      "sha256": "3635e06e3ad27ac5937a4b5a484d2401a115e38e6f4b8c838038150b0040767f"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2-metadata.jar",
+      "sha256": "551c8184492f78a0e650402237be7bc15811e756aacd0ce68b44366da8760276"
+    },
+    {
+      "path": "com/netonstream/neton-http-macosx64/1.1.2/neton-http-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "e214b2daf3b4a2248f5ab4461f5b8be6aa10cc456e3a0cb897868660ab43af5b"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2.module",
+      "sha256": "1bb742309518d2231cbe8a15c3cfd850bc0221e327b4dbd29a6d4d7bf55ff76e"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2.module.asc",
+      "sha256": "b377865fa3d6d3fe0ee0ea8d2b40aad85ed5200f053aabf2b27130e1471254cb"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2-sources.jar",
+      "sha256": "b6b42dc31247f325be10382e8cbcc4029172f0c420dc1138920456878612acb8"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "7a5b18191332007f8110dc5044ca345cfd915cc98911458a50327ec646b41e93"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2.klib",
+      "sha256": "78b2cd90e3d296485060583b0894353ece16bc06ab023f47decf495cc79fdf87"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2.klib.asc",
+      "sha256": "85fef9e148cc732ca6911fb0e4d0e482a19fb0a1f955b0991418be964ed83e91"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2.pom",
+      "sha256": "a594399d08463ac3ad5975e15ac47d6e4e1a647495ad64169e90e1670d41633e"
+    },
+    {
+      "path": "com/netonstream/neton-http-mingwx64/1.1.2/neton-http-mingwx64-1.1.2.pom.asc",
+      "sha256": "d981a475e88db8646985015376715f1a7ea24d3238b74c798f22762f0e9f3012"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2-sources.jar",
+      "sha256": "98e2a57a74680b4fcf97680ec4ed0ea09da48675042edfe30dc4fafebe0b741a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2-sources.jar.asc",
+      "sha256": "cf974ce1fd81143379d75fc191d18707db585a3b8e1dac2f5c91b33af651c42a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2.jar",
+      "sha256": "006a4520e0232234cf36c9de3d45823c98515041b3076ba434cb420d7ef9486e"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2.jar.asc",
+      "sha256": "84b566ae86a1747783a1b6f03024b763aec026f673f76f38596218767676ac57"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2.pom",
+      "sha256": "9e7e2f8f3448fea7c765fc91ff4546d01425b324a55638eb7b9b8463b83c3f60"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2.pom.asc",
+      "sha256": "060b0008f8c31fa47c9cb6a5e6885cd4a1f268be7e8d71bbbb5203bdea79d6c3"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2.module",
+      "sha256": "42040fc3e60d7103b969091d63f78540886e2c6917c794d0804895b11fda8672"
+    },
+    {
+      "path": "com/netonstream/neton-jobs/1.1.2/neton-jobs-1.1.2.module.asc",
+      "sha256": "9e397d63c89e6291f888005d7bec125138e9f2a6418f90bb7dace0fac8e30cfa"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2.pom",
+      "sha256": "0f351e7381176bf60b95cd9e5f8a6b7869de180df30da3f1f3db94d6b0872220"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2.pom.asc",
+      "sha256": "4e83ef25328aa66956055ba78861b647ba899b909c35fddfc7ae046a5a2e6f12"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2.klib",
+      "sha256": "06b506a98ea822326eab6345b80a18b663f5a7b0ac2bfadffae2421ba48dbf7b"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2.klib.asc",
+      "sha256": "047b09201022aff124dc989d58243219b8397ece42fac29f5ccf4cff512d1db0"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2-sources.jar",
+      "sha256": "98e2a57a74680b4fcf97680ec4ed0ea09da48675042edfe30dc4fafebe0b741a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "cf974ce1fd81143379d75fc191d18707db585a3b8e1dac2f5c91b33af651c42a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2.module",
+      "sha256": "e7cdb3e2fa691fea25d77265bac63fb563ea0e301680df785fe0438ab679f0b4"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxarm64/1.1.2/neton-jobs-linuxarm64-1.1.2.module.asc",
+      "sha256": "2d5a21866b5cf3ba6bf484b8d7afac333d9f75d5fbf0a7301e4e8f6d8930e841"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2.pom",
+      "sha256": "5380d0e5eb8378c2ab1e39c625215aea567f296679c16b290a20a43408ac2c05"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2.pom.asc",
+      "sha256": "786667dd1305e9942ecf7c1da59a1655656bc929ff9f8021a4731d7a929fea87"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2.klib",
+      "sha256": "f6dc8e7cc5a3b43b982914940de183967f613ed041e63475c958e1fdc5852481"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2.klib.asc",
+      "sha256": "4da6bd449afbef393f181a070b941d3657082c47658cf7496191798b9f82c925"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2-sources.jar",
+      "sha256": "98e2a57a74680b4fcf97680ec4ed0ea09da48675042edfe30dc4fafebe0b741a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "cf974ce1fd81143379d75fc191d18707db585a3b8e1dac2f5c91b33af651c42a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2.module",
+      "sha256": "22d811db7fea1a45ef9bd88ecb3ed40640d1869978dc8a48c883623aba3a98f9"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-linuxx64/1.1.2/neton-jobs-linuxx64-1.1.2.module.asc",
+      "sha256": "1e66fc4b7f4fc62c55d0b5e27b0f4c0824ab06534346ddf8a386494584acca61"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2-metadata.jar",
+      "sha256": "d8486e763c840e66ce4730446c17e6feddd3545787f505579791b58c90defe6b"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "8a5df6a12b938685cf347a224dd05e28ad4d074266713a73cca76a23579f066b"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2.module",
+      "sha256": "ffa73d9ee6dd4886fe4f926ac2cd68ed855d1c4450704e997295360bf85c2090"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2.module.asc",
+      "sha256": "72a4deb9a4d85ff727f4b82a17adce145acedf208a7c66c11077517d5ced8f8c"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2.pom",
+      "sha256": "9258779482b428679bca1f1846600698687594dce4facda2203c7b3564181668"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2.pom.asc",
+      "sha256": "da273bd66f0d23314785630b36365b5262eb8384c2436c874df0b8d63afac539"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2-sources.jar",
+      "sha256": "98e2a57a74680b4fcf97680ec4ed0ea09da48675042edfe30dc4fafebe0b741a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "f04106fdede4822cea554c99ab5ee05c38d8306aa678ee935c99db7f4145fdd0"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2.klib",
+      "sha256": "539e48ff54251c351d5e21826428f7afb5ac2dc45c7c304ebb38d734b2bea432"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosarm64/1.1.2/neton-jobs-macosarm64-1.1.2.klib.asc",
+      "sha256": "874f60fd35eadc64dd9f2513fa1b00b11f27c341d701a4591f3c8364470f19c1"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2-metadata.jar",
+      "sha256": "f15a33afe33be39d7ba05a1e5cf238d0961f61f5d9754c7a313b914ca08d1110"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "3d55dae2920c376e3231602651535583ff7f19c1ec506a70c7f453d7bf6d7c26"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2.klib",
+      "sha256": "d4f4aa3203b78c4d34168a274ce7f2d2f20a0a6097c376474ce4c561716f7277"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2.klib.asc",
+      "sha256": "634d159469870cf5c371b42c7a7c25c5c4ca6b04a35a835e8c8b4cd0ffef37b4"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2-sources.jar",
+      "sha256": "98e2a57a74680b4fcf97680ec4ed0ea09da48675042edfe30dc4fafebe0b741a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "f04106fdede4822cea554c99ab5ee05c38d8306aa678ee935c99db7f4145fdd0"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2.module",
+      "sha256": "6ff8739e8a634218f43731fb17a6388de7b6f42106c3d839e033ed61cf77f64f"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2.module.asc",
+      "sha256": "192c65bdfef842af4cd5bc796990f5cd65735853c340221d2daf426ee1e69a04"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2.pom",
+      "sha256": "d9a89f365c539a36aa75263129b15e575e7a9b6e3329a777ae175452a6293d86"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-macosx64/1.1.2/neton-jobs-macosx64-1.1.2.pom.asc",
+      "sha256": "952df8d45077e992e8aab09a68a54c797ee97c2b6667c9f2fd50224c39664545"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2.klib",
+      "sha256": "808169b4291c62668a6a2850add5fbdbd73b66e82913e2fedb7b0f6231bd0eae"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2.klib.asc",
+      "sha256": "8ccd0922ffbee079f4742347ea121aaf9b2db43bacfe383183b7c41a04fdd374"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2-sources.jar",
+      "sha256": "98e2a57a74680b4fcf97680ec4ed0ea09da48675042edfe30dc4fafebe0b741a"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "f04106fdede4822cea554c99ab5ee05c38d8306aa678ee935c99db7f4145fdd0"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2.module",
+      "sha256": "08ce647f0b52ee236a0ec83074a113348bfe164badb22b846f47cb56da16e1b9"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2.module.asc",
+      "sha256": "ce2f02cfe571139cb46ec7b9ca4773609c066a1f8b6e28676e686f1d87a2ce06"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2.pom",
+      "sha256": "4aba4afc245a4fc9e7d6ed657ef650263a2d342085b293f91351ff70c52172a0"
+    },
+    {
+      "path": "com/netonstream/neton-jobs-mingwx64/1.1.2/neton-jobs-mingwx64-1.1.2.pom.asc",
+      "sha256": "85b505dad30d30fd9da058b740298f22ea2fc74a64ad4f699ec3d81a5adf0de0"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2-javadoc.jar",
+      "sha256": "06557418cee2d9cdb1a1c6f65711dd107107c493e5410050e17974a1a76c23c6"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2-javadoc.jar.asc",
+      "sha256": "fc9a30da06300fd2c41b4e849c8000ce2c311843558f053759b18b132e3db422"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2.module",
+      "sha256": "41b3a502a0bf0c7318d80833e27a11f472b030f187b8adac307355f4dea95c24"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2.module.asc",
+      "sha256": "a557c183814b5c99cf52a7c35762d752bf033004889972ec28a4d28e05878d37"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2-sources.jar",
+      "sha256": "eb5b851a517a509da01145cbe0a53c51482b0f1419a4e05291e0bd6217ae3375"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2-sources.jar.asc",
+      "sha256": "734e0f38c6debc143d479ac38f2874b1f1497567048839ed6709b8233568dd94"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2.jar",
+      "sha256": "56c11adf29a8e7edaf80f568c61caada93daee3e88ac2103b36e63f786e0245f"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2.jar.asc",
+      "sha256": "e705eee9e844694500496816ce9e2f838e584f45dabcbaa49e031b092412ec1b"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2.pom",
+      "sha256": "f0fceddf44acf8162dcc7a87fb0d3a12eabffdf59b517bd66c7c79763a74f33b"
+    },
+    {
+      "path": "com/netonstream/neton-ksp/1.1.2/neton-ksp-1.1.2.pom.asc",
+      "sha256": "6f15da223afe4f3a6d98ed24c070977b36bef0347b9834b7907f3170b5708867"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2.klib",
+      "sha256": "f2837557006b8494670642fef302c7f34fbd58ad7755d24720d35908a8b322ea"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2.klib.asc",
+      "sha256": "37fac431b0e67490460fbccb74df4e1e81dfc8a00ba14e23ab6fe2ebaa1f4607"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2.pom",
+      "sha256": "888c8f28f631ea71846c780a9ff311af255e8c2980d352305488d70be52ca352"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2.pom.asc",
+      "sha256": "95b931b32fa72c86d3b38fe4b5e7f082f5a5a5013499f70a35353bf480406774"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2-sources.jar",
+      "sha256": "1bdbd24a9bee807a95fa452979250644e4cca807cbd2301fbd091da6d9e3feab"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "e65bb66d698d85f7115e7a339d0ab861477ce67a499366476bebab106d9782bd"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2.module",
+      "sha256": "63c79caf2be65f0f5fd7ccbe58611b03f2b9dfcfc3fcf6b571734d27873ab7f5"
+    },
+    {
+      "path": "com/netonstream/neton-linuxarm64/1.1.2/neton-linuxarm64-1.1.2.module.asc",
+      "sha256": "acf15a97ccf3650dbe6f0539669790dbbb4d946e20490da97e19fc68eb1b14c0"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2.module",
+      "sha256": "ec40f3d520f9e7b3398435a6f8513c8bf98ad052a041cf96b1daae99a29690eb"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2.module.asc",
+      "sha256": "aed849eb045afbba80defec1b360544f8d5cc1a3aba0010e3d5a0b0b13f42224"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2.pom",
+      "sha256": "0a12d80398aae1ca3a3fb1b89e57ec8489bcb8f52103e4178409387b7e7bf319"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2.pom.asc",
+      "sha256": "6f28a0a74e26fe9a21621c2239793a555a44cf7250760890bd594e49f7b17f0d"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2.klib",
+      "sha256": "2c1a6fb6bc707ba3cc4dd690a0af9078b4f2d2d043c2f5e59da566894d65b6c6"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2.klib.asc",
+      "sha256": "5c672af2c6249d31ef27eaf6089ae8c1dfa538652e6b87483b451537bfc20e8d"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2-sources.jar",
+      "sha256": "1bdbd24a9bee807a95fa452979250644e4cca807cbd2301fbd091da6d9e3feab"
+    },
+    {
+      "path": "com/netonstream/neton-linuxx64/1.1.2/neton-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "e65bb66d698d85f7115e7a339d0ab861477ce67a499366476bebab106d9782bd"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2.jar",
+      "sha256": "3e557e317d1ef5b85efde924e2808f6f27864b837b2d33ae6d10469b9677a8db"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2.jar.asc",
+      "sha256": "2b04789305694f2656fb0686e93aa487a157153498b0bfd31586b8373e8142fc"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2.module",
+      "sha256": "add94a3d6b499ed57d25b5e0667d6fb3e291ea6525865f8442155f00196d65dc"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2.module.asc",
+      "sha256": "d6785f384b8a82ac050f37ef0a5c762ad695a6a4c952d8d111544f9a01ef67c3"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2.pom",
+      "sha256": "c90cfabfd9836fe11dd07075307f0e04e29e99391cbda443392d5ea702948079"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2.pom.asc",
+      "sha256": "fcf8b605a0e9cf3d8601ab9c768ba84389ce1e63f51cd9ed2603614bc31098b8"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2-sources.jar",
+      "sha256": "52fd1bbc1abde94f82321c7f53f390b744220facbeaad76a22d665ae9d5bd171"
+    },
+    {
+      "path": "com/netonstream/neton-logging/1.1.2/neton-logging-1.1.2-sources.jar.asc",
+      "sha256": "1c05d88f533891b1a1e227dbd6a1453bdc8a23ada4a61ef5691eb2247b2c8da8"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2.klib",
+      "sha256": "53555ef90ef5e7dd2419d9d021d08d3c39aa4c19244f0ec3201f364f3c00eb66"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2.klib.asc",
+      "sha256": "3e1a5e7892b536c65c80ace17922444f7f0f0e8939bc91bdbfedc1a8861b6cde"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2-sources.jar",
+      "sha256": "e924c7f0194669878367d51824e3e4c40a7f4d6b7322469423800b3c34dec2a6"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "3291f548755cb95eca8d5042dec9ef5cc9edbe7ead1a1948eafce6603665648a"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2.module",
+      "sha256": "699ac8e6884133cdf332efee7ce7bdf6a0c4023b80e82b8979d7dad68939070b"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2.module.asc",
+      "sha256": "216b8d93706e64f2c78cbd66abab1d673619883ffd21672580a76d1f703bbdf8"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2.pom",
+      "sha256": "0cbee7f41a13ab13abcd5e794c31fa689501f5af24d45f3a8b7b70776d36fdff"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxarm64/1.1.2/neton-logging-linuxarm64-1.1.2.pom.asc",
+      "sha256": "774ea215a540005b09ba04246c1b9d0d89c32584d89734b968969f4700a80411"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2.pom",
+      "sha256": "6a196be0bceb0636ab5f858053915e5f06931e20d580143b71f7be4ed12ade36"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2.pom.asc",
+      "sha256": "83163a0de5ab4b5d59163a9f49e7c3ef4a3e2d5e818933ba30250fbb55d3326f"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2.klib",
+      "sha256": "7a7f1658c2aa694f6b4338bb3bdbae8ce786102b3d1fea81af4906a2cb90025c"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2.klib.asc",
+      "sha256": "574965c68b39d978c9d6116fe10bed64eed1ac4b17f860be445ccbc8699a6d98"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2-sources.jar",
+      "sha256": "34384471267bcb05677f6f8836b5c6a029f99d9d28d5f0e784d25079e33b03b6"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "385ebfc6d71173290ce0ecf5bae55538f062c31ea51b876612892739b37e272d"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2.module",
+      "sha256": "56fdce59b52a4eaf585e67be0bbbddd044b6147843306e648d16c7dfa8e74f5d"
+    },
+    {
+      "path": "com/netonstream/neton-logging-linuxx64/1.1.2/neton-logging-linuxx64-1.1.2.module.asc",
+      "sha256": "cd6bd99667f549a079c2a433f824e844d5685fc1baa0fa3f02fd066ffa9aafdc"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2.pom",
+      "sha256": "e281e1121ea76d945e15261a3bfe3fa70efcf6fbdf32504c882e0a123b7f9a11"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2.pom.asc",
+      "sha256": "3ab558d5d97ddbcc06a97da60d1bf6ffeeca61156ab6efa381ef90c48cfbaaac"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2.module",
+      "sha256": "73b2a5af8e83f3bc7394bee107d32a805e29fa119f8b5a1fba6476a044af1ee6"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2.module.asc",
+      "sha256": "a2a4ac4569d4fc25c94896f8c892305fc503d74dedec5c0a3546950727c4b95f"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2-metadata.jar",
+      "sha256": "f8e9b8df6f774b64c63a5bf4ccf081a0ab48df3e3cf04d11eec00413ee060e6a"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "ca94f411ab98f6da301f3f323578e1535bccd5caa7c5dbd7da6409f54acc7572"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2-sources.jar",
+      "sha256": "d74c0760638fc30d38cd440605b48f65d70bfd302744e3a26aceecaaf7a4b012"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "c064b791d5107816be56107fd27d562c66955b40b5cd3203fa4911e46daeb67a"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2.klib",
+      "sha256": "04055bb71fc91764cfd878becdf72b07f640e29112c7d7efe29f16b49c815322"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosarm64/1.1.2/neton-logging-macosarm64-1.1.2.klib.asc",
+      "sha256": "b76e91c354e6feac0774a4f1196c32327665de986160a524993780f83b05d927"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2.klib",
+      "sha256": "d035db114cdbb311b9dc2596e2c102aaa04a4af8a6ceeba64e2c677a22965cae"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2.klib.asc",
+      "sha256": "321bc3af0ea5df069fd9b71ae252c4676920eb47a57e60d2cd8f04b0842b4d0f"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2-metadata.jar",
+      "sha256": "f8e9b8df6f774b64c63a5bf4ccf081a0ab48df3e3cf04d11eec00413ee060e6a"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "ca94f411ab98f6da301f3f323578e1535bccd5caa7c5dbd7da6409f54acc7572"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2-sources.jar",
+      "sha256": "3eef4b324d5dcad13338dd1ae181a43ded96c711bc4db23d267fd0337d88af98"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "a0eb8e2944e6b97f63be5de83eba729a1a98ef9404b9afbaaf62e97808d1f123"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2.module",
+      "sha256": "814765fbba8a0ae5caa1e90f49243a30d9b4f24e6ad78c522763b3b66926b69e"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2.module.asc",
+      "sha256": "d10633a240251682cffe122415638fedced2ae1b9cc1fc903fff0a6f6e25dfec"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2.pom",
+      "sha256": "047b8278976a695a82a126a29888e1c7333050224f805de5a174fe712cf6aece"
+    },
+    {
+      "path": "com/netonstream/neton-logging-macosx64/1.1.2/neton-logging-macosx64-1.1.2.pom.asc",
+      "sha256": "16b1f162858d61d9e6aada2bf58a48378217058d7b526404ef7ac8deb87cc598"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2.module",
+      "sha256": "13c41e1e4cda70566d6bf398d2081172038a25b6be6e3cd67021d506389a7f5c"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2.module.asc",
+      "sha256": "b6d33869b52014704c47c8d345e01111c1e7b3950a6c667e1cf214964d9eedd4"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2.klib",
+      "sha256": "211cca37dc8456d19b6ab711c9f2c20acb00a3cf6b3a4c13c1147bf81766313a"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2.klib.asc",
+      "sha256": "3bc0e17aee4d6fcfb48fa190bc1142e7efd025cadef6daf9ff5c0232832ac94c"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2-sources.jar",
+      "sha256": "d90439d2a598f68d206f3f89868c02380584bf2e2a09f97804cf480c67d8d012"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "6af9ff1ff70d42353f645870e8c8304f28d4362668f5e696d03dcd143a0040c8"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2.pom",
+      "sha256": "5d2d80822e120d20c0381e4bde26fb8f5b8b6574647318bb3c173e6732f539a4"
+    },
+    {
+      "path": "com/netonstream/neton-logging-mingwx64/1.1.2/neton-logging-mingwx64-1.1.2.pom.asc",
+      "sha256": "c6dc1328c49963a010a545013f7b95ce32455479f2aa8545eb3a29d1953409ed"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2.klib",
+      "sha256": "eb77714f0fe79d2d3906c9b95a0b67b3101991c72e626d29a4dd06100108decf"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2.klib.asc",
+      "sha256": "85bf49d967918f7d5ea26bb236a66a59828672188df2615424390c8869eb299f"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2.module",
+      "sha256": "7f2cde736ff656422f64e63316457c0c80d266605dc6f2001ff1b4d85adeb61b"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2.module.asc",
+      "sha256": "1a646b4544b396ae9fb2041b3404dfd78b6fdb4f34ce84282e6cec50b953f339"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2-metadata.jar",
+      "sha256": "95549db6f349790f82317264d1a6141fcaf3db21f3a147e5de0ce9a5641072a7"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "851bd4ba997745fa388bdcc7853b53b5baff7baf8ccb6669f211c00ab3a9913f"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2.pom",
+      "sha256": "908bd5e72a95a89dd7173b658a550b2670564113bfff7019c050d9dc587cace6"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2.pom.asc",
+      "sha256": "058c398d882177f904f43ad2abc986c0c68cc63b6e022599cb1fba04904f6658"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2-sources.jar",
+      "sha256": "1bdbd24a9bee807a95fa452979250644e4cca807cbd2301fbd091da6d9e3feab"
+    },
+    {
+      "path": "com/netonstream/neton-macosarm64/1.1.2/neton-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "bef4234118fff3cb09c046f536af13c64a8c4e4a52135714de6b74a6c3636e74"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2-sources.jar",
+      "sha256": "1bdbd24a9bee807a95fa452979250644e4cca807cbd2301fbd091da6d9e3feab"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "bef4234118fff3cb09c046f536af13c64a8c4e4a52135714de6b74a6c3636e74"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2.pom",
+      "sha256": "7687c85e73e06d671a106e0071e04c4ce48e639b5c38a2024f4fd3fa00da9df2"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2.pom.asc",
+      "sha256": "e23db5d57e6efeb4876777651cb02586c6b9f5ee397ff7614ea4bf3042570246"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2.module",
+      "sha256": "8e05f752814dff63265c8985339063b619ec1a94cc71f4eb4d6f405ba66aad59"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2.module.asc",
+      "sha256": "c8aca71e84c5445ccb99c0314acca39c5c161c47c76293d576e7bf05e3e0f2e9"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2-metadata.jar",
+      "sha256": "a99f7c76eda2088624e901550202e8830d909de3c13bdf0ac56b137018480fd8"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "e77d752d970cdb5c539a1a1f1fc89af504bfa3bcbbf5363a6e9c3d648ff1c15b"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2.klib",
+      "sha256": "3faeba286576540e782036a26abac00ad6038a869dcb79c80ad597252cabc240"
+    },
+    {
+      "path": "com/netonstream/neton-macosx64/1.1.2/neton-macosx64-1.1.2.klib.asc",
+      "sha256": "ccf658c0c123b41a45163f10c3bd9af726a8a579a7c81691e564f69bbb194ee3"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2-sources.jar",
+      "sha256": "1bdbd24a9bee807a95fa452979250644e4cca807cbd2301fbd091da6d9e3feab"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "bef4234118fff3cb09c046f536af13c64a8c4e4a52135714de6b74a6c3636e74"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2.pom",
+      "sha256": "a8f7839178c255c7fcbe3a5b218f25eb4fb616a14e19e89efde7030e6570921c"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2.pom.asc",
+      "sha256": "a88da2bbdd5519bfaa452eded104d2b5d6f54a574e6e15541b42782a1662f563"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2.module",
+      "sha256": "bb841ba190e24384c435921af983955c656f96b33c74a0156c5ef8ab3ba81c29"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2.module.asc",
+      "sha256": "dbe5113e7e1eebd6ef9c7bcddae6f1d5f25467f8fe32c106ed24b7f2094b7ec5"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2.klib",
+      "sha256": "b7a7f7154e97e7b0dd72ef09efe0140c794bae45e3a250f8928df1d1799f9e3b"
+    },
+    {
+      "path": "com/netonstream/neton-mingwx64/1.1.2/neton-mingwx64-1.1.2.klib.asc",
+      "sha256": "427d76471c1e63a807860bdc94ffd5244afc96a860ef24f1845983dcb309cfb6"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2-sources.jar",
+      "sha256": "6797975a3751e0066a835e070b704cdd07d2a0ebe4193a339b70fc7435eba4a9"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2-sources.jar.asc",
+      "sha256": "3cd095010b9a90de40b2d6d2cb7f910af0951f2c6fdb76f0af8bbddadcc0acbb"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2.pom",
+      "sha256": "edf994e72cd20debd2343dd70014f30bb909497adc6a6a323d341d5de60d6b20"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2.pom.asc",
+      "sha256": "ec1f01a9aa81280e1f0c0cdf34b59d84d888009153ac1209fafa53b8b98a9298"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2.module",
+      "sha256": "92a25601e41a2b421d59d67ed79620ed08df14f09159adb375b29be004fba576"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2.module.asc",
+      "sha256": "23b93e16096f01791ca776c47155fd4961ed2e16f8d69675a976a4b45eb4203e"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2.jar",
+      "sha256": "379be200811abf679f9371329b33e41a02a2f5e86c8fd6403a461dd2c0c5951b"
+    },
+    {
+      "path": "com/netonstream/neton-redis/1.1.2/neton-redis-1.1.2.jar.asc",
+      "sha256": "d44ab2b8429886038a992792c29bf13a9b406d79e39ebbd1087babe2e637fbcb"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2.pom",
+      "sha256": "a5a3261d6c370ed978bf001dd589d72a694324bc571663681a879b68dee6e551"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2.pom.asc",
+      "sha256": "67f6f5ed290299d22b6cd955a02c5c5f4a6ed56e91d0548fa73c90a582a82655"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2-sources.jar",
+      "sha256": "6797975a3751e0066a835e070b704cdd07d2a0ebe4193a339b70fc7435eba4a9"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "3cd095010b9a90de40b2d6d2cb7f910af0951f2c6fdb76f0af8bbddadcc0acbb"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2.klib",
+      "sha256": "c9afaa7fcc336ff2ce224f99d02eecbfd4313b560deaceeb9a6cb7baf9f4ebfb"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2.klib.asc",
+      "sha256": "537f6c6a3ff6d764fe00b565b843b407c789b9d7e44a7f24a547d1e9cd630ec8"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2.module",
+      "sha256": "754be787f11df8e1293d86152e91f212c33a1a2202398a8a4c2c6562796880be"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxarm64/1.1.2/neton-redis-linuxarm64-1.1.2.module.asc",
+      "sha256": "f5398376143d76443fad324772c47e3a037d68bb9c343c92a131085696273675"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2.klib",
+      "sha256": "41e573c2f8deab0d4e70f184fd44781b02e2c7bf877379fc1dca9033dcc47364"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2.klib.asc",
+      "sha256": "47a28a2893cdd18bdb140d1cebaef690d0e9186dced7d1b148f68fcb26cf0ab8"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2.module",
+      "sha256": "130d2b0b1d3293e8f9ff0eea7f992634f34bf0cccada7f6d01191550a940a5e1"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2.module.asc",
+      "sha256": "8dc328738da95eb3ffe616ef891c2924b72ede595561cc9877c8c93af8a6f3e3"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2-sources.jar",
+      "sha256": "6797975a3751e0066a835e070b704cdd07d2a0ebe4193a339b70fc7435eba4a9"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "3cd095010b9a90de40b2d6d2cb7f910af0951f2c6fdb76f0af8bbddadcc0acbb"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2.pom",
+      "sha256": "71c2135dca7faca54cfbe46cdcb2c26b2cd229b51739d2bd32e7ed2431477bfb"
+    },
+    {
+      "path": "com/netonstream/neton-redis-linuxx64/1.1.2/neton-redis-linuxx64-1.1.2.pom.asc",
+      "sha256": "28ff74f89457949ccb6361eec51340908e9fbf75fe166615bee84d500d0cd7d6"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2.module",
+      "sha256": "e6fb8ba896c3937a3abb1a8c72569d445ccf34c9ea6824c10ba022d06c8a3157"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2.module.asc",
+      "sha256": "c491d86a4b16d753360d9186c6d1eced6d4aee3da60c1be37e16d60c56796f64"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2-metadata.jar",
+      "sha256": "0376a8fcbaaa97aca1d99a6fb978105d7f4b4ca2b8bec9fb8e25c8fadad48b13"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "7c0f041e5455d1c6dd703951ffe7f045c0702ac3f165b2751f1daa83e94a9bd3"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2-sources.jar",
+      "sha256": "6797975a3751e0066a835e070b704cdd07d2a0ebe4193a339b70fc7435eba4a9"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "af7e3f997f177ea18d05d0c0df0fa201811f32f6143b1fe202e9e112752dfdfd"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2.klib",
+      "sha256": "bcdf028039019aa2a53a6800e5b85c0cb54ee59522e43f8ace4fda294c1654e1"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2.klib.asc",
+      "sha256": "6af05f6c88a43bec43b72e20b2f9315c34118ce26f69829a9c3e430464876060"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2.pom",
+      "sha256": "79ead9fa4b3e651565520da646dbddf9a1ad49d32d57ea5e75e5cbcd6e4533f2"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosarm64/1.1.2/neton-redis-macosarm64-1.1.2.pom.asc",
+      "sha256": "0a40c880750d837d7171ef8f1ca07b38c673f90b8fb3988419859034bf5ed615"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2.pom",
+      "sha256": "781a556ae6d36a1624c3e29e57cc82f7c110bc28436fa4e3bea604f32935347d"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2.pom.asc",
+      "sha256": "cb95a208ef8f3f56e814784882a6843f2246f94c9ebf5054ca53dacdcc8ce81f"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2.klib",
+      "sha256": "b1c73c661b1ab158f6ae4267ca053a3f9915b83054897ab8f699b7b617f97475"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2.klib.asc",
+      "sha256": "c402a712d4a4c20d547e0a06bdc7bb27b87d9d1a3abab9e8f150800b6d330ef2"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2-metadata.jar",
+      "sha256": "0376a8fcbaaa97aca1d99a6fb978105d7f4b4ca2b8bec9fb8e25c8fadad48b13"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "7c0f041e5455d1c6dd703951ffe7f045c0702ac3f165b2751f1daa83e94a9bd3"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2-sources.jar",
+      "sha256": "6797975a3751e0066a835e070b704cdd07d2a0ebe4193a339b70fc7435eba4a9"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "af7e3f997f177ea18d05d0c0df0fa201811f32f6143b1fe202e9e112752dfdfd"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2.module",
+      "sha256": "18fe61b3b817ecfbe6e6559e579aa53dd326cf8c61e78bce2d05a6f8b42c2dc4"
+    },
+    {
+      "path": "com/netonstream/neton-redis-macosx64/1.1.2/neton-redis-macosx64-1.1.2.module.asc",
+      "sha256": "3aecdff7fcae602c5c496e35f31bb88078af602038204ccff89216c5474a6ed1"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2.module",
+      "sha256": "3fafb79b7dc8d879257dde9bbe330c3ca3f37b35a39664a0fc4764743dfaeb68"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2.module.asc",
+      "sha256": "1eee7a808d190c942aea72bac3cea10be0d6b79b9eb5567e47ec8ebb9ca7e7e7"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2.pom",
+      "sha256": "3b52ec47729bcd33668946bbba4e8bbbd321e615ada03ffa9b2da2f8f88f9154"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2.pom.asc",
+      "sha256": "c617f8ee7b1c6ededf9e033d68ce08385dbe275339e942e3c2a01a374393fb3c"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2.klib",
+      "sha256": "557f5801e977704d92356286c59cb5478f8efdb44dabacbeb48ecbbc0705c72f"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2.klib.asc",
+      "sha256": "de39548991348f7a0a74d5f3b8d381d32a007c09f4cb0c0cec739fc24de661e2"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2-sources.jar",
+      "sha256": "6797975a3751e0066a835e070b704cdd07d2a0ebe4193a339b70fc7435eba4a9"
+    },
+    {
+      "path": "com/netonstream/neton-redis-mingwx64/1.1.2/neton-redis-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "af7e3f997f177ea18d05d0c0df0fa201811f32f6143b1fe202e9e112752dfdfd"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2.pom",
+      "sha256": "af0e880430b84c9265333fb77161de2e464e72dea39e6665526bcbcdf4c4d299"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2.pom.asc",
+      "sha256": "713e8ccd92e09cb2ebd7c0a798a234a54e081d7f55a9ab138bf7970eb09477dd"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2.jar",
+      "sha256": "3237b20bfdacd05af5974a54e4d4eb79dfb30e63153e4525af0095cb75551243"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2.jar.asc",
+      "sha256": "77829c906ac305d271d366793b782f04c38d0cfabdf5e252d9dcdd184fde9899"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2.module",
+      "sha256": "2dd9c74e0241dee5a64623c08eba64d041e139cc03dcee061e3f5531fdcd479f"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2.module.asc",
+      "sha256": "ad07327ffd239f08fffa5d45c3eba92c0652107e81b2298df3f4774edd20b5cd"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2-sources.jar",
+      "sha256": "16008ddbccc8a253d9113c37630149c00373ad66a6fce0bc6e9e2bc880845354"
+    },
+    {
+      "path": "com/netonstream/neton-routing/1.1.2/neton-routing-1.1.2-sources.jar.asc",
+      "sha256": "63301ddafc77c7c27d95f67b6fc4447a0d7933059f8d90ebbd9838860f0a4d0c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2.klib",
+      "sha256": "0fb6d6e5c8d4c54b3c8fa5e060f7dcd6ef76dd8f0ff2770634bb2f8602d67354"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2.klib.asc",
+      "sha256": "30722a31f98700687ee169b6b2253d04df75918cb144b8a723733f766cfbb63a"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2.pom",
+      "sha256": "04863903b893301bcab606892a05e1f801e0be12390b607fda1a7b7dfa712707"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2.pom.asc",
+      "sha256": "6a3d5237166629f41735ed5ae7f98cc20cb7f29c8ebde9fc0564cbebe2555793"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2-sources.jar",
+      "sha256": "16008ddbccc8a253d9113c37630149c00373ad66a6fce0bc6e9e2bc880845354"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "63301ddafc77c7c27d95f67b6fc4447a0d7933059f8d90ebbd9838860f0a4d0c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2.module",
+      "sha256": "c2a681f0387967234e2f1325618ff7361b6602b5df385e33e6d406ef418254e8"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxarm64/1.1.2/neton-routing-linuxarm64-1.1.2.module.asc",
+      "sha256": "7b83cdde44eb7d9855351b9c34662f22cbaea13979d7071d11f89a11eec537ed"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2.pom",
+      "sha256": "436a7843c1ba675de75781efb720eea1d54c2e94e7031b364c87b7a4823cd08c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2.pom.asc",
+      "sha256": "c1414f623d9275734d0f96917687dfdcac2881bba174b85ec54cc8ee41344329"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2.module",
+      "sha256": "66949fe38092233420c907b4396850b5638b89df097143a7986a3171946cbc66"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2.module.asc",
+      "sha256": "a004ec1215dc388931e8b7cac8afff134eb96936cce44c546b93b5975cf4f7fc"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2.klib",
+      "sha256": "4782685a51508ffc40271c999f014d2da0e2d19c709edde99ba9cd33abcbe717"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2.klib.asc",
+      "sha256": "cd89c2edc14c69f64632dca568234bc835fdb1984d38bdf363ae558d597e7f28"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2-sources.jar",
+      "sha256": "16008ddbccc8a253d9113c37630149c00373ad66a6fce0bc6e9e2bc880845354"
+    },
+    {
+      "path": "com/netonstream/neton-routing-linuxx64/1.1.2/neton-routing-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "63301ddafc77c7c27d95f67b6fc4447a0d7933059f8d90ebbd9838860f0a4d0c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2.module",
+      "sha256": "bee2bf37c7999806c582b2f57bbf3e1d081434f152e131462c8f423e690863e0"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2.module.asc",
+      "sha256": "20b13282097d700668f93920d6738d4daa529c8a9c8c515e45d81cccc84283d3"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2-metadata.jar",
+      "sha256": "0376a8fcbaaa97aca1d99a6fb978105d7f4b4ca2b8bec9fb8e25c8fadad48b13"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "7c0f041e5455d1c6dd703951ffe7f045c0702ac3f165b2751f1daa83e94a9bd3"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2.klib",
+      "sha256": "7ad70f312c6755053f2aba751f1f46a73e1df8ac1290f89f2fa050107bbf1bdc"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2.klib.asc",
+      "sha256": "02c4983d02392bb1caeb3ef4e59aaccd4aba50b907e0d6e83105e0872dc2a865"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2-sources.jar",
+      "sha256": "16008ddbccc8a253d9113c37630149c00373ad66a6fce0bc6e9e2bc880845354"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "63301ddafc77c7c27d95f67b6fc4447a0d7933059f8d90ebbd9838860f0a4d0c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2.pom",
+      "sha256": "df383cd622f63120fff757bb1135799efadd2c8264f04e014885b814cd398bd4"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosarm64/1.1.2/neton-routing-macosarm64-1.1.2.pom.asc",
+      "sha256": "2cd779ac8ddb82d66949541234240d8577da95d29405f1b99e27d22214544458"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2.module",
+      "sha256": "31e92bff7ef9d958407803a05670f9eda6b91d8b861462a08accf37518aa0b0d"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2.module.asc",
+      "sha256": "8cefcc3ff1e253bc8059572e4247f228134be6adb6ff5688a58e02a11b901688"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2-metadata.jar",
+      "sha256": "0376a8fcbaaa97aca1d99a6fb978105d7f4b4ca2b8bec9fb8e25c8fadad48b13"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "7c0f041e5455d1c6dd703951ffe7f045c0702ac3f165b2751f1daa83e94a9bd3"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2-sources.jar",
+      "sha256": "16008ddbccc8a253d9113c37630149c00373ad66a6fce0bc6e9e2bc880845354"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "63301ddafc77c7c27d95f67b6fc4447a0d7933059f8d90ebbd9838860f0a4d0c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2.pom",
+      "sha256": "bb5ab3181c6b5ad29c6798daef584d59790d09b8b1105577c338ce4487feb2ab"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2.pom.asc",
+      "sha256": "d775cfd607ef60564c3119f3711029824d708fed153c8cc7e144914be8d97c56"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2.klib",
+      "sha256": "00a67b6791ead7846e1316e3e418deaed5ff7bf6ccb9885592cd2d8c9734b28a"
+    },
+    {
+      "path": "com/netonstream/neton-routing-macosx64/1.1.2/neton-routing-macosx64-1.1.2.klib.asc",
+      "sha256": "9ec4be963615b79247e09837573957f1cd2e3d2b263f8af21192c14c9c65f85f"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2-sources.jar",
+      "sha256": "16008ddbccc8a253d9113c37630149c00373ad66a6fce0bc6e9e2bc880845354"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "63301ddafc77c7c27d95f67b6fc4447a0d7933059f8d90ebbd9838860f0a4d0c"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2.pom",
+      "sha256": "c54728e8beee0d6eb234bb9f4b9477c1e033fb36d1aaccd421708c662adc917e"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2.pom.asc",
+      "sha256": "61e5eef96e67fc4dba74ff037d6dcec2122c332b7d7a94397289f549c70187e0"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2.klib",
+      "sha256": "d91989eed3e3b2182e6896b5d74eabcef9034092d2ea9cc2b924d43dacbd98e9"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2.klib.asc",
+      "sha256": "830244335b42f52106af073f52edb5874779e9afd66e077f0577042b90d643a1"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2.module",
+      "sha256": "1ba5e59553979eb1410c911d1150293402eb6965c929c14e95747c6832ab9230"
+    },
+    {
+      "path": "com/netonstream/neton-routing-mingwx64/1.1.2/neton-routing-mingwx64-1.1.2.module.asc",
+      "sha256": "c35ae1f2a9de083b89dcf1266cb36ee8fc144f348915bfea2dd6729150b5f62f"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2.module",
+      "sha256": "59623e0d8badc72acdffca7bcd29fd69cf88a3179758702d57fc73dd14f2d9af"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2.module.asc",
+      "sha256": "b6880c7015dbd69d69d9c9f535f6addc960ad920c9ab6a394d5daab6d449f568"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2.jar",
+      "sha256": "1927fe051123744605f96494f1c5186d17911f43427d7ff1fddf368d5dd8a45a"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2.jar.asc",
+      "sha256": "bdb04b1bc0a060ba87d00106362319ed8651d93e6a12de8662323e2d2604e016"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2-sources.jar",
+      "sha256": "dc6118bc3a5bbdafd60ad519f2dd040c95a5d5711d03f1cd1e9e94aa9d1bbae8"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2-sources.jar.asc",
+      "sha256": "c5e115611a4b2c94b1c71cee4a5d9d3b6f22d8122f7b6992df1c30521290ebe3"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2.pom",
+      "sha256": "dc07e7e514f626883f4fa148bdc0617c866a9baaa63557249db8e1fea73c0f68"
+    },
+    {
+      "path": "com/netonstream/neton-security/1.1.2/neton-security-1.1.2.pom.asc",
+      "sha256": "fc46e27b32a224cc3c2f2c2dce3f91aeede7ecd0104efee71c2093099e10735b"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2.module",
+      "sha256": "e6e2d18eedeb60722f470a7d2a4b64a76d28dd334336cf92622c7d15809a71d9"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2.module.asc",
+      "sha256": "bb85f508c09a863a164612bc26fdfc6fa47388a556f3978c0364231796d70b53"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2.pom",
+      "sha256": "00106810582f99ca64c7e7420de68624c08ef04d5e54c2c4453dad6a96408ed1"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2.pom.asc",
+      "sha256": "dfbd1cd1a16a2bf53d691f4e1ddbcd1fcb150b172f6da1dd497f52b9d2e11334"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2-sources.jar",
+      "sha256": "9c4a52362b839b430f5ee1a81b6d300da5275a7da12775b334f7f7da662aca7e"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "dc8fd80ad100fe02553c0ba09bbb218dafea338c0f0e8236db743008b4d3c7a7"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2.klib",
+      "sha256": "1cdf6fd6ff016d96e4d82551278b19d4b2e978db5decb1606e638d96b8e15e5e"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxarm64/1.1.2/neton-security-linuxarm64-1.1.2.klib.asc",
+      "sha256": "9cb8bbd3fd7885376652f77272d9452867a19dc376065377b6176d03b0a5df3c"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2-sources.jar",
+      "sha256": "9c4a52362b839b430f5ee1a81b6d300da5275a7da12775b334f7f7da662aca7e"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "dc8fd80ad100fe02553c0ba09bbb218dafea338c0f0e8236db743008b4d3c7a7"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2.klib",
+      "sha256": "2f87d0e78fed1383292a351a108345ef1fe4571be2a593262a0233aa9c8500bf"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2.klib.asc",
+      "sha256": "3f7355817559ed2179d6b86e93004607ef74ae813cf27f5a3896a34f5416d865"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2.pom",
+      "sha256": "980b9bb033fccd957081a90f8c62cb874eed6007979983ffbfadaf94ab52de6b"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2.pom.asc",
+      "sha256": "6f35b62ae6ef0ba32ce5c39dca20d1e61cf5bead4ffc91997300f0f16c00221c"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2.module",
+      "sha256": "fb5f57100aef26e0308b24dde24b27c3b060d8409b734160e860156e43a01fb4"
+    },
+    {
+      "path": "com/netonstream/neton-security-linuxx64/1.1.2/neton-security-linuxx64-1.1.2.module.asc",
+      "sha256": "725a8612017fdea962a68a554e69efd48f25aaa2a563785bfaf10ea0592b08db"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2-metadata.jar",
+      "sha256": "73ab67eda845b99a82e2b109fea05762335dc95022a58be9ed4a21b1c95c1c63"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "b10167079257040ba38c288f5672b7b1e75127d9bf507305964e9a7472240dc0"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2.pom",
+      "sha256": "5674c5bd454e5046af54cd86db66fa754cfe59f8582f1ce3e345c8554f542e58"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2.pom.asc",
+      "sha256": "95e410086d99263e475541cd106b326d7ec31e2d7b251b06e28051f24e25ef25"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2.klib",
+      "sha256": "9d0b1bc8b33dc7c952a1bb70d708e356c0589ba59a5872209071720c278cc9e2"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2.klib.asc",
+      "sha256": "9ab25589e01f0e036f8c7e28fc207e53d77a7d9343eddc793089f258cbcc7876"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2-sources.jar",
+      "sha256": "9c4a52362b839b430f5ee1a81b6d300da5275a7da12775b334f7f7da662aca7e"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "dc8fd80ad100fe02553c0ba09bbb218dafea338c0f0e8236db743008b4d3c7a7"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2.module",
+      "sha256": "6168a26ee906754360d0453c60418b04c21c7f2de5effe2e22f8afeab7b7b859"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosarm64/1.1.2/neton-security-macosarm64-1.1.2.module.asc",
+      "sha256": "9049c9448cfae9a67a2fc8f6ec243fe57069844529f794e7e15d4a43c88cf70c"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2-metadata.jar",
+      "sha256": "73ab67eda845b99a82e2b109fea05762335dc95022a58be9ed4a21b1c95c1c63"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "ff974b7ee997d8d3cf571382e2ce8b6a719d6fbb2992b82784d18d3029e1b389"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2.klib",
+      "sha256": "264516288601f90ea3a2ef567e156e7be0a927514acef74bf73927454da7ed55"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2.klib.asc",
+      "sha256": "35fd8caa8e97e4ba7d7153fc2243d4c24665662f1a25ee5263ebb0fb8eeee2c7"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2.module",
+      "sha256": "4c04bb0eaea5202409a84b768f7fc68601e3a2e433ddd2411e79309f471ff7d8"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2.module.asc",
+      "sha256": "78e8541d4bd7b0821179e69b53b9d81bd4aaab7e492bb4119f01df364d958dbd"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2-sources.jar",
+      "sha256": "9c4a52362b839b430f5ee1a81b6d300da5275a7da12775b334f7f7da662aca7e"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "a60bf4bf0e3c426c3d570d48d759d9fde5bcecd56401d39706c644bdeee93ec1"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2.pom",
+      "sha256": "43b82e1474c160c8c06d7ceb7fbee1e867780f635b7e944f1e48aaf94ce68560"
+    },
+    {
+      "path": "com/netonstream/neton-security-macosx64/1.1.2/neton-security-macosx64-1.1.2.pom.asc",
+      "sha256": "c2976eff3cba9928afda1e7178724945e7e2be40c45fd9c47210a8848d0a007f"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2.module",
+      "sha256": "74cd4ee48f33a97d14cc2f837c368c90c337fe6c3793e6dbc401dfb92d54de0b"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2.module.asc",
+      "sha256": "32a525a810aa64b954a5b1d34c8cecc7ebda1ee3fe507998c163e910d9acbd8c"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2.klib",
+      "sha256": "4177d2a3be3d3fbdd7c2766126c3e03bf49356f8180d569174208bbb430201ed"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2.klib.asc",
+      "sha256": "ee29da73a0da3321b5dc2363f997aca8c9d4c37a48dbb21cb333bcd360aca87b"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2.pom",
+      "sha256": "c7719643bc020865fb785b07ca65225e7881187477117d2e8c7db9c620d22696"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2.pom.asc",
+      "sha256": "790f8c4e776915d6715efa89d38419e5e6ab205d9db47a6d5390c8c6b5073289"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2-sources.jar",
+      "sha256": "9c4a52362b839b430f5ee1a81b6d300da5275a7da12775b334f7f7da662aca7e"
+    },
+    {
+      "path": "com/netonstream/neton-security-mingwx64/1.1.2/neton-security-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "a60bf4bf0e3c426c3d570d48d759d9fde5bcecd56401d39706c644bdeee93ec1"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2-sources.jar",
+      "sha256": "5a378e7d23b0aca99ad97ee977b80beaf55e90f01e2f12041301268a4f46b9d5"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2-sources.jar.asc",
+      "sha256": "a9b57b11a17c914077f3ae6e07bef48db1dedc180b92594a258d9f884a16526b"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2.module",
+      "sha256": "ac485a94eca12f28ee8d27aac7c15b2c97c56089a8f6f2bb7a39924428dc7b3f"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2.module.asc",
+      "sha256": "e9e0e905b0b0215519cdf170121c90626ccbfbc3ff1768c3cd71754990f0ee7e"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2.pom",
+      "sha256": "ce117b6d66b47a441fb9fe5aa60b335babec6591844d48138c6b954901ea5bac"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2.pom.asc",
+      "sha256": "392ac3eb41a0c45c8306361b73246cfb3e14cbae63f1f8623b3a57106f8aeb54"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2.jar",
+      "sha256": "663ca527ebc94a72b310b53aa73874aaa54a9444fb86f9f5cfa361002e9cb5c2"
+    },
+    {
+      "path": "com/netonstream/neton-storage/1.1.2/neton-storage-1.1.2.jar.asc",
+      "sha256": "6062e2dd5bb750747c5e3e153ff080c5f5526ce552586b163c68488aa9770768"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2.klib",
+      "sha256": "38fb6d9f86a8537843a2e243b003c2a49ac9b55fca45c3c430e51846003e812d"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2.klib.asc",
+      "sha256": "812c34b8b407067b78cb0e52953f08f038cd1c4ec095a22b99437914eed6c8ee"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2.pom",
+      "sha256": "0298a4362a4547829fe3faf0f65280357a35bc6aa71acdbbe1af593c8417dcf5"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2.pom.asc",
+      "sha256": "d3173237aaa063c107da8a728b22fa79a27cf6ee2b35ab8f2167975f219634ef"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2.module",
+      "sha256": "c740af3bfef3e040ed773d71483bf4d6cd8f2a0d7cd3d63a9aeda03f7d591ddd"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2.module.asc",
+      "sha256": "9865e3961b5f63c9afce226fe973b1d5f9b4e84886d75506a10cdec7cd3c2c7b"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2-sources.jar",
+      "sha256": "918a4d38c2926145c583dbf98219aaab695a9ef3fe9a7004f4b83f0020f0e07d"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxarm64/1.1.2/neton-storage-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "e7c3369ea287c1f2c71f1fd88f9923590d2132cc92a365efef8d408c9bc6ac93"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2.pom",
+      "sha256": "6f7947c2646069f5df8acc931210a74b60dbf85fee2e8f41939845edc4f261ee"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2.pom.asc",
+      "sha256": "fa43710bc3d42e4a640848ef9fd28463d3d4005d1405ad3f86aee244162af0ce"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2-sources.jar",
+      "sha256": "3672518942b1095c7cae2dfe4bb164b263d26405dc4430b7870dc0f3e31012e1"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "7de5248c1f042e28a124dd58176c872ddab17336dbcab7c2a2598c145c8a4536"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2.klib",
+      "sha256": "a54661e7c2b73987d94b6763c30486df82e8e061e59c5114e11a10c5aaa51766"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2.klib.asc",
+      "sha256": "89c9a6099071eeabc660918b4038a621a9df151566e953227c04485782d2673c"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2.module",
+      "sha256": "f3c288def7724f78fede22783f1020ccb69ca73dd298a59052659b032091da6b"
+    },
+    {
+      "path": "com/netonstream/neton-storage-linuxx64/1.1.2/neton-storage-linuxx64-1.1.2.module.asc",
+      "sha256": "a85d2b8c23f23d1fc65646f63c0e8a88b2af20e0ed8721d32538a42e0249e2e3"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2.klib",
+      "sha256": "622e07cf943e8a51a7adbb6b30d8d6042e654356b1e7196432f8059a15997deb"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2.klib.asc",
+      "sha256": "350aec2bd6851d498869a8b4e37d32b7c2000dc9ec626e76be5c340110f4d151"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2-sources.jar",
+      "sha256": "2aff620ff90786d963ca12c05f192a8b77979d7bcc96f849739d38c1b4096a1f"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "6098967dec2132f14c52ebaab6dd60dce69db207bc098311cb92dac07d14cc4a"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2.module",
+      "sha256": "71f6a5ad0f519e06168d736d104a63ffe586f7834f1c3fff2393e0bf877f7daf"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2.module.asc",
+      "sha256": "b4943b669f9610f8b1f90555c8f3bfdb233fb1e66a18782e4f13b015ad6f6b14"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2-metadata.jar",
+      "sha256": "54ad1aeddae4c05545f03b4aff49a2d37a581ea576a4681b0f3f3b68d69cff55"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "80ca9b84946a75f6d57c6109f99ac1bbfaabecbd2faa696c3f937199e48d1bbe"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2.pom",
+      "sha256": "e46093f3176a325daa66e89f72e93d7a4a9cdaf9c40cf51919a6fbbbd1fe80a9"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosarm64/1.1.2/neton-storage-macosarm64-1.1.2.pom.asc",
+      "sha256": "b9fd6cb5c38909668fd839a226d157ca1e4dab72212c8782817a42b806bbe845"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2.module",
+      "sha256": "6771e72473c460c3d11a2b84390722e522539239b4e85fd5058bcb05f591405e"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2.module.asc",
+      "sha256": "5517099cf71f103eea6346d4c6a872370529180d7ea9530da0ab6ff33d359b6c"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2.klib",
+      "sha256": "63b2f9d01f8afc69d22062889cfb1e89fd0368bc33972f0f00c7a9c8de027924"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2.klib.asc",
+      "sha256": "a3822bcb797d7ff00d3db0f7e65d89e1cf2529dc1a9346dabee2d69de2e0f6cf"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2-metadata.jar",
+      "sha256": "94cbffe287924c13eab1176b7ee3ea66aa2ea5667cb357403e42a238e2f72184"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "e07fbf3b10a1be6b6c621b253ee64b1487a1e722ccbb7acaab9bd42ebab8e706"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2-sources.jar",
+      "sha256": "c9ffdf6a31a712b5008ff31754c3e2013ba1fafe438988e28ad4bb06eeeb6432"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "7b577ee303bc9cdd3b42d45376e2c5e8df469ee7cd0c3b952cf3a8ef80d3a03b"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2.pom",
+      "sha256": "83938fff51b6ae614b82efd4da9843ff3d037332f808473043c8f5558bc6c130"
+    },
+    {
+      "path": "com/netonstream/neton-storage-macosx64/1.1.2/neton-storage-macosx64-1.1.2.pom.asc",
+      "sha256": "89176b9204e1a58e329b5767ccffed6cf1ca2fe659dd4c7a1a031b5bb8a527ae"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2.klib",
+      "sha256": "ed761708792beade39aac43d2ea9fb3e4ad9b2ac8196707d1e640229da2a3e54"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2.klib.asc",
+      "sha256": "fd76a780a939c55351fce5d0518c921f2479941f98993784a793d6a83f6c3308"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2.module",
+      "sha256": "b4cc4b0e430a1a939de01f31eba03808c34b81d86c8bd18661b95a63dc7a0020"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2.module.asc",
+      "sha256": "b5d4cf200b50a05edf142498c7395bd9c2c03b2ec1c87e63f071b0034c8d4f84"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2.pom",
+      "sha256": "88f32802a17d6a81995aef6859a31dcab9e0a7cc439fdcd2f50676787d1270b0"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2.pom.asc",
+      "sha256": "06c7eb0cbafdef39849c90750dec70b2ffde08d066c1fb78bbff5ef98af9d4ce"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2-sources.jar",
+      "sha256": "9d4a00afcfa6bd2c299eeaad543dffc57e0189359bea246948971b2739c72a4a"
+    },
+    {
+      "path": "com/netonstream/neton-storage-mingwx64/1.1.2/neton-storage-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "40ff615ea7bf759c320ae9bd225be64794f552e359aaa70f343a9931c6f531cc"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2.module",
+      "sha256": "eaac13881fa39ec6957b0038663093a38dafa855df72d476565e84d6ae56bbfd"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2.module.asc",
+      "sha256": "b8e905330187fd82f3080c8e01390866798408a659b4159b2630316570e93d77"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2.pom",
+      "sha256": "29f047edb3d71f4ce4590870e58c17986ee85ce7c0eb89865d1c051141b62177"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2.pom.asc",
+      "sha256": "68ad5ab2e57c0b55420d9b8faf8e0d9e2b00eb6268773e1bdd8d2cb9160b8921"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2-sources.jar",
+      "sha256": "8036af2a701a6721492883e1458e89ce4a184f62825719c208bbfd13e6e8eb45"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2-sources.jar.asc",
+      "sha256": "669baab36cb21d89ab8b061a1c9d6758ae8997681659185c39e9ce9d663bd01a"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2.jar",
+      "sha256": "e2edc9b16951874acdf9a202ec7c671160508b6d3205da263edb0c309ed64667"
+    },
+    {
+      "path": "com/netonstream/neton-validation/1.1.2/neton-validation-1.1.2.jar.asc",
+      "sha256": "769bc4e873393ca561f14a976bfafdd0a0d524e92761125d400e1da246599183"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2-sources.jar",
+      "sha256": "8036af2a701a6721492883e1458e89ce4a184f62825719c208bbfd13e6e8eb45"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "669baab36cb21d89ab8b061a1c9d6758ae8997681659185c39e9ce9d663bd01a"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2.klib",
+      "sha256": "4585ded9e62ff469d0c083a4f0cf034412cc8a8b2a5fde24c256f29c4c084321"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2.klib.asc",
+      "sha256": "3096604ccffb67a858ab08a8ebbcce00b2d1ed896851d77ec9462104e0ab82b9"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2.pom",
+      "sha256": "2d2324f72830c5adfca861418fa4c937df3a9b2baaaa94b17fb30c6cb2db0823"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2.pom.asc",
+      "sha256": "b821efdf1e6b90d2389163f5fdfcfce759b298bd98e63fce9f61dd1690568628"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2.module",
+      "sha256": "ae5fb28d279ddbcdeb886e020f96c773a8ad66519d52f91df739b4e441012e7d"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxarm64/1.1.2/neton-validation-linuxarm64-1.1.2.module.asc",
+      "sha256": "0eab2b95237b1e97779ee921541b8fd0560dff3d8ca09253481c7819f27c0dba"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2.pom",
+      "sha256": "85d5574f61583ea7c00d7f2ee55fc555e4d055c13b0bdbdfcc187d8357f70fd9"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2.pom.asc",
+      "sha256": "947c7ffb9a02d021f06d6e568c971f9a26f1e0510e35f99ec6aaf97a79e7242c"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2.module",
+      "sha256": "53073271e6ce4427cdc773f6fcb29ac00fb3e1d3e010a0496f9ec3348ed871b7"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2.module.asc",
+      "sha256": "617e8bd61f8fcf6686220cedb923fe3d294686873aaea50a6a89fac34cf9a115"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2-sources.jar",
+      "sha256": "8036af2a701a6721492883e1458e89ce4a184f62825719c208bbfd13e6e8eb45"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "669baab36cb21d89ab8b061a1c9d6758ae8997681659185c39e9ce9d663bd01a"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2.klib",
+      "sha256": "b47fa262ba92e999aa6d46996ba932ae199163d16b5119e3309cffcc42233b13"
+    },
+    {
+      "path": "com/netonstream/neton-validation-linuxx64/1.1.2/neton-validation-linuxx64-1.1.2.klib.asc",
+      "sha256": "5d08df3f9d2526410e9ad42084fcc3d362e431f96819016f1c8e7011f953b875"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2.module",
+      "sha256": "496d2cd52c95b7173e4ff8589d42efcc9cba8944a4e44ac7fd1ba7552c3488be"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2.module.asc",
+      "sha256": "29dca52eb0af1c1a8e1a03a6df4471e077dc75e7a64dc02e18160868cf9ca936"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2-metadata.jar",
+      "sha256": "3119270c236e1e687638f57ec06c1e016d9b68dc43d30b5a559a68ccff82d6f7"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "7212ba63b31ef3ce897ec39ab74a9ed1c44b7e968fb2571ec55c180f4228dd86"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2.klib",
+      "sha256": "edf9a6bb5294f12ed8f678d7ddc14aeee01b06902c2606309cdf9be6e3db78d0"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2.klib.asc",
+      "sha256": "8c4c60f0007bea6a04bbf15dfc92db1f42dd86884897f65ecfde3db72cbc1989"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2.pom",
+      "sha256": "c3d0ed559d681e808c4967d083c16c26658cb1523f0673df465fea7081e924c4"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2.pom.asc",
+      "sha256": "c281383d1f75c899114796f76f0532e3706d71ea0c5ea13f74760c0852ea313f"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2-sources.jar",
+      "sha256": "8036af2a701a6721492883e1458e89ce4a184f62825719c208bbfd13e6e8eb45"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosarm64/1.1.2/neton-validation-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "483a5dfd7ae656cfe0c01f04333d8fe9f6358fc2b02744aa63177b5f72ee22fe"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2-metadata.jar",
+      "sha256": "8412a04102e67535d70bc1aa4972e1a861b6d0c2a33564f46aff55e4e111ee6d"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "f02120dc017d2e071829b38688491051ce8b15abb470ea869f84deea2ffdadfc"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2.module",
+      "sha256": "3380bf7027c395a0033e0384668eb7ec0b0e62a0fbfbcf28140c93b25f9d1760"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2.module.asc",
+      "sha256": "d55e9edcad61654ea1f5f333f3152c8887a9bbc9f8b0c1534f8af263ccdb2c05"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2-sources.jar",
+      "sha256": "8036af2a701a6721492883e1458e89ce4a184f62825719c208bbfd13e6e8eb45"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "483a5dfd7ae656cfe0c01f04333d8fe9f6358fc2b02744aa63177b5f72ee22fe"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2.pom",
+      "sha256": "0d3a191315edfa7d45124f1e004435094087bd0ea82026de2aa2c5f4dcce9c76"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2.pom.asc",
+      "sha256": "22e256817639e9ccc8cdf1505ddc251c4e8c6bd2affe0b839faadc5ce6da1aa5"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2.klib",
+      "sha256": "7437f8ad093050ad437a2fb166e4273e6f0b44832218a18b1e8d645ff09b7494"
+    },
+    {
+      "path": "com/netonstream/neton-validation-macosx64/1.1.2/neton-validation-macosx64-1.1.2.klib.asc",
+      "sha256": "c5ef48bc5535df0383c2d8ea99ec7818bf832a529a583292c4460725f1f28ab8"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2-sources.jar",
+      "sha256": "8036af2a701a6721492883e1458e89ce4a184f62825719c208bbfd13e6e8eb45"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "483a5dfd7ae656cfe0c01f04333d8fe9f6358fc2b02744aa63177b5f72ee22fe"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2.pom",
+      "sha256": "f02f5c6962ba538725880187ef6b4ba561576365c757a6059ffbd695a5510ac5"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2.pom.asc",
+      "sha256": "cfe71ea07a16d95e83930691de3d686ebe307a2f895c7f7ee12205cc1b817c35"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2.klib",
+      "sha256": "d258bfc28cfcf8d7d9801ff2992cef67560ba40f334b98a00fa624e5e85d13fa"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2.klib.asc",
+      "sha256": "c47fdf7ce6c1a032f586c64256002e1725fb9456a101c23bf994df594265c286"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2.module",
+      "sha256": "1e78a8adb880ca8f38a9fab2b07ad1e9eab0978a40bee8577048cc2c174c715b"
+    },
+    {
+      "path": "com/netonstream/neton-validation-mingwx64/1.1.2/neton-validation-mingwx64-1.1.2.module.asc",
+      "sha256": "7ec240cd901da67516af9fc3047559028a1342512395350e1ff2a699816f415b"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2.module",
+      "sha256": "1b21533169022de6e68792e388acedf30e128449f2bbfab9aadcf15c692db8d3"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2.module.asc",
+      "sha256": "20df4fd638a6abb1d5e7d03405cfba29050f1ade1eec7e691756a3652774fe2f"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2-sources.jar",
+      "sha256": "cd87eb211151c72962adb9cb6557f89eb983e3fdddaa6e1cd336c5ada839ff4a"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2-sources.jar.asc",
+      "sha256": "f750e3251198022cf9351c50f0103453f8739dc127e20801af6a98bcc4531fb3"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2.pom",
+      "sha256": "ab995b9275970115bd152837841ce715e1d803e86a8637cc5c861379ba57999f"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2.pom.asc",
+      "sha256": "7c190009de04cf1e071ec5dfe016d283d296c424a63798345295000481819657"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2.jar",
+      "sha256": "2d921637b0edb2b6b9e953f0b1cb126010e8c65dcb9feb8d203b9454683739a5"
+    },
+    {
+      "path": "com/netonstream/neton-websocket/1.1.2/neton-websocket-1.1.2.jar.asc",
+      "sha256": "eb9d12634a062e865102dd8fb97abbc578069583fb04607c1e97a0b07b67fe0c"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2.pom",
+      "sha256": "04282753db028724c91523dca74bc06c70a1920fd4dff499ce1ab78d3c4ae355"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2.pom.asc",
+      "sha256": "c906b6b5e3b47bcd4e72a578f7782b101fe835a3cf0486a9491d1e6f3ed8586e"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2-sources.jar",
+      "sha256": "21cd758dd4f69b980f7a9012567152fe2783ce01791f3b86712a40a110209628"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2-sources.jar.asc",
+      "sha256": "3497447678840ce2fc04648eea1976998bc965b3c5a0dd5fd48a63421e5df8d2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2.module",
+      "sha256": "343ae2aff14926ec6b98264b5f88ae9535b9ca4ca85aea4e7a82b4415a48ed95"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2.module.asc",
+      "sha256": "620b269257a527805f70bc0750be5169f96480853f57c4ac1c98251297989d74"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2.klib",
+      "sha256": "5282b0a1192d20c74eb8618c2951207b5c0d0dc2f6959849cb394221a3b31ed3"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxarm64/1.1.2/neton-websocket-linuxarm64-1.1.2.klib.asc",
+      "sha256": "05eabed894701b9bad48c772da4da4c3148a7b0d22a039139d7f7ce14a93a2e0"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2.klib",
+      "sha256": "dcd835c5bf3dd4500613159a9ce6181ebfad925018899e4ec724fbe3592e607d"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2.klib.asc",
+      "sha256": "7b70cf46edc481a85a4b077090add4cff252b7fa8c53651d120088720d87838d"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2-sources.jar",
+      "sha256": "21cd758dd4f69b980f7a9012567152fe2783ce01791f3b86712a40a110209628"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2-sources.jar.asc",
+      "sha256": "3497447678840ce2fc04648eea1976998bc965b3c5a0dd5fd48a63421e5df8d2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2.module",
+      "sha256": "a8ff5324a35c5332b5ea8f8dc39673465ae329f36232b317aa36f6de48618d08"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2.module.asc",
+      "sha256": "ba24d3454bc456e934e207eec7c71835fb9e5776a6b0f2f86ab57b459aa2c8bc"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2.pom",
+      "sha256": "91eb0cb1eadf1def54501b5b176448c6893249352dcc83402032053ef4fe6924"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-linuxx64/1.1.2/neton-websocket-linuxx64-1.1.2.pom.asc",
+      "sha256": "8d610802ac8c284718f3b155ab745e94aa6c0a8771f8dba01eb688f70c211a8c"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2.module",
+      "sha256": "93fcce95be21e4876d7123af020b36c80d450cd22b6c44e45aaf6d96f1d992cc"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2.module.asc",
+      "sha256": "4b979a33be0fa42d5050fdee2168cc63c614d4e6e391bc05fd8c0a3de1e2fa8c"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2-sources.jar",
+      "sha256": "21cd758dd4f69b980f7a9012567152fe2783ce01791f3b86712a40a110209628"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2-sources.jar.asc",
+      "sha256": "3497447678840ce2fc04648eea1976998bc965b3c5a0dd5fd48a63421e5df8d2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2.pom",
+      "sha256": "7c5b831bfe4c7567f79f6f6639dd98f8d5fee70ef0b9c6bf47bb00b145b88572"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2.pom.asc",
+      "sha256": "45103e691a778193f6d8a9297ba8b4d2cfde04f3b3c9ad69eac2f6c78f11eacd"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2-metadata.jar",
+      "sha256": "3111741ba6c31f1b85515b380d25a8315a41399d5526f0947a0b0abc00d3e8a2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2-metadata.jar.asc",
+      "sha256": "98df5112a325980aa0c624746c98dcb6785f575cfd9f648690d87e9fcddb160b"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2.klib",
+      "sha256": "74018d5731d85677ba99bc8a21d768cdf14b3f30ce458490f1640aa1e6c00c41"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosarm64/1.1.2/neton-websocket-macosarm64-1.1.2.klib.asc",
+      "sha256": "0b47be06c1699b0cccb2eea3a783bd3e0429bd13b173011adc60c25f720e9b1a"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2-metadata.jar",
+      "sha256": "e9556452a78347e6201d1fccfed979fa5b8e6960b30fc2015989a2466d940a06"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2-metadata.jar.asc",
+      "sha256": "aa34b763a956567f01ee92632d0c6fa9cf656f4c566c798ee9b88320dbcbe01e"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2-sources.jar",
+      "sha256": "21cd758dd4f69b980f7a9012567152fe2783ce01791f3b86712a40a110209628"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2-sources.jar.asc",
+      "sha256": "3497447678840ce2fc04648eea1976998bc965b3c5a0dd5fd48a63421e5df8d2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2.klib",
+      "sha256": "ce082ef4de90500f41e9bd35a9bd851c25cb3e74a92979e71b6a44102576a878"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2.klib.asc",
+      "sha256": "5b63dbdebcd4b5f606eab9091cd4b896b906f355d9895040a6b4050baa86fb92"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2.pom",
+      "sha256": "f0510675648a435033779a502b29503cfdd5eb6cd4127e94f5c4557100a484b5"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2.pom.asc",
+      "sha256": "ae9a82327fd1459e7e8eb184d1b9f9b5e30d589e47c594acb39a0749cf6c56a0"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2.module",
+      "sha256": "3580e7c83ecd35010dd84136a00239410486f2d651f1e32a9ca395206d7a0713"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-macosx64/1.1.2/neton-websocket-macosx64-1.1.2.module.asc",
+      "sha256": "54703aaec5d3d8e64ca44ebfa1cb976e65fd5fc007d972afd66c0607e9005af2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2.module",
+      "sha256": "aad8ceb1e16bc484beeebd25b9863724cf866c9220b23a367bd0090e9215b33f"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2.module.asc",
+      "sha256": "7d8df32005628d398007b4e132cb9468b22a94c669bc033f243b5b32c8c5808e"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2.pom",
+      "sha256": "d43d3785101fdb2ed3a74a56fe180fff3e7c4774b81a21b384cae57bd3c2e49d"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2.pom.asc",
+      "sha256": "dcd2914a4d548c32867bb5fc588d8e29305d01b613610ac3e5392db9b5df3413"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2-sources.jar",
+      "sha256": "21cd758dd4f69b980f7a9012567152fe2783ce01791f3b86712a40a110209628"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2-sources.jar.asc",
+      "sha256": "3497447678840ce2fc04648eea1976998bc965b3c5a0dd5fd48a63421e5df8d2"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2.klib",
+      "sha256": "dfa5686963accc0f4a78a6e6663bb6284e3030e3a7d3ec769c83c2ddd2d311b8"
+    },
+    {
+      "path": "com/netonstream/neton-websocket-mingwx64/1.1.2/neton-websocket-mingwx64-1.1.2.klib.asc",
+      "sha256": "4c0f28f95f2aabbf278722186022fb2af2991fffc070cb1d19824cab5dcb73b7"
+    }
+  ],
+  "coordinates": 79,
+  "checkedUtc": "2026-11-08T23:38:12Z"
+}
