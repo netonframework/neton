@@ -124,6 +124,8 @@ def verify_repository(repository, version, signature_verifier):
             if file.suffix in {".jar", ".klib"}:
                 require(zipfile.is_zipfile(file), f"Invalid artifact archive: {file.name}")
                 with zipfile.ZipFile(file) as archive:
+                    names = archive.namelist()
+                    require(len(names) == len(set(names)), f"Duplicate archive entry: {file.name}")
                     require(archive.testzip() is None, f"Corrupt artifact archive: {file.name}")
                     if artifact == "neton-ksp" and file.name == prefix + ".jar":
                         require("META-INF/services/com.google.devtools.ksp.processing.SymbolProcessorProvider"

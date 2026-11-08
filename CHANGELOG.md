@@ -11,6 +11,9 @@ All notable changes to Neton are documented here.
   modules, KSP and the BOM retain one coordinated version.
 - Include signed Android AARs in the dependency-chain publication helper and
   reject unsigned AAR payloads with a regression test.
+- Remove the database source directory's duplicate registration and reject
+  duplicate entries in published archives, including otherwise valid signed
+  source JARs. Runtime source and public APIs are unchanged.
 - Require fresh platform, ABI and artifact-consumer evidence before publication.
   The existing HTTP soak on the previous baseline does not certify this upgrade.
 

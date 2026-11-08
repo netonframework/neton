@@ -35,7 +35,8 @@ kotlin {
 
     sourceSets {
         commonMain {
-            kotlin.srcDirs("src/commonMain/kotlin", "src/${nDbDriver}Variant/kotlin")
+            // The default commonMain directory is implicit; adding it again duplicates source JAR entries.
+            kotlin.srcDir("src/${nDbDriver}Variant/kotlin")
             dependencies {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-logging"))

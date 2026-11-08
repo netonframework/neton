@@ -91,6 +91,27 @@ class CandidateRepositoryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.verify()
 
+    def test_duplicate_archive_entries_fail_even_with_valid_metadata(self):
+        file = self.payload("neton", "-sources.jar")
+        for duplicate in ("fixture", "different contents"):
+            with self.subTest(duplicate=duplicate):
+                with zipfile.ZipFile(file, "w") as archive:
+                    archive.writestr("fixture", "fixture")
+                    with self.assertWarns(UserWarning):
+                        archive.writestr("fixture", duplicate)
+                self.seal(file)
+                metadata = self.payload("neton", ".module")
+                data = json.loads(metadata.read_text())
+                for variant in data["variants"]:
+                    for item in variant.get("files", []):
+                        if item["url"] == file.name:
+                            item.update(size=file.stat().st_size,
+                                        sha256=hashlib.sha256(file.read_bytes()).hexdigest())
+                metadata.write_text(json.dumps(data))
+                self.seal(metadata)
+                with self.assertRaisesRegex(ValueError, "Duplicate archive entry"):
+                    self.verify()
+
     def test_bom_version_drift_fails(self):
         file = self.payload("neton-bom", ".pom")
         file.write_text(file.read_text().replace("<version>" + self.version + "</version></dependency>",
