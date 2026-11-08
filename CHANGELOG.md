@@ -2,7 +2,14 @@
 
 All notable changes to Neton are documented here.
 
-## 1.1.1 - release preparation (not yet published)
+## 1.1.1 - 2026-11-09
+
+- Published to Maven Central from `223c5d4e29672840dab7425a32d1450fa7db8d30`
+  after [all release gates passed](https://github.com/netonframework/neton/actions/runs/42508252042).
+  All 79 coordinates were checked locally; 345 payloads and 345 production
+  signatures were downloaded from Central and matched the verified publication.
+  The public application also passed two builds and two graceful shutdown cycles
+  against the actual 1.1.1 staging artifacts.
 
 Maintenance release: no runtime implementation or public API changes from 1.1.0.
 All Framework modules, KSP and the BOM share this version. Published protocol
@@ -16,7 +23,7 @@ dependencies, Kotlin 2.4.20 and KSP 2.3.12 remain unchanged.
 - Fix Windows WSS test fixture paths and add cancellation/shutdown regression
   cases and strict same-process repeated-test validation.
 - Add a resource-bounded Linux HTTP soak harness with idle resource recovery,
-  RSS trend and graceful shutdown checks. Its 24-hour run is still in progress;
+  RSS trend and graceful shutdown checks. At publication its 24-hour run was still in progress;
   this release does not claim completed long-duration or performance certification.
 
 ## 1.1.0 — 2026-11-07

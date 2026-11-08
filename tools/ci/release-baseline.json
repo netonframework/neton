@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-11-07",
+  "capturedAt": "2026-11-09",
   "group": "com.netonstream",
   "toolchain": {
     "kotlin": "2.4.20",
@@ -214,127 +214,127 @@
       "name": "neton",
       "role": "framework",
       "repository": "https://github.com/netonframework/neton",
-      "tag": "v1.1.0",
-      "revision": "3b9f8fe9fd8f5cfcc4bca9a10be0196efb89c025",
+      "tag": "v1.1.1",
+      "revision": "223c5d4e29672840dab7425a32d1450fa7db8d30",
       "artifacts": [
         {
           "name": "neton",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "c23e1c7f06c8adb5c9d26f4ae9c39a55d57b42bc513ea90464ea47bb90679085",
-            "module": "f2ef05d968539e7126eab9aeee572bfce4a84f4e8eb53cad6c01cac86a9945a6"
+            "pom": "c26c26a991e34465ebbfe52f7dd77c8e5adc70977412d8774653859c635b109b",
+            "module": "beffeaabb7efba91c180dfa8dacb7649f8d245f14e56611d5fee5093ea526680"
           }
         },
         {
           "name": "neton-cache",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "1265ac5072d7362611e266c8eea4d0924ab2b77e9b48dd757a649455c31e54cc",
-            "module": "b4e06b800fd355e0afeeb9265eb9ac886c5a92cbf54633409cee526a030452ac"
+            "pom": "735740031659be5fdb889d415bc0f2f02b4046ff17b0d0ff5075adce2bc958df",
+            "module": "ae4bb6fe7497780d1a5cf942bfb11083364ae1a0d5681c6bf0b8f577397d8216"
           }
         },
         {
           "name": "neton-core",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "170db9adc0b94d659df5287ea08b74c2eb6962dac8f52d04aab5718a5ef1c49d",
-            "module": "3e214ff06149986b4730d2767808fa2f3887aa9bbe543cf39f7a28683779f304"
+            "pom": "a394da59e6709a02eeabeeda41daf66299a3c8a3ffb864bc1e9bd73d137b8739",
+            "module": "adecd497c319e801b246054df48e48fad5ad107c786c5b5a31d7aecb0ca1b4fa"
           }
         },
         {
           "name": "neton-database",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "912d9932c42df9f47d0dd1e5c8948290d23dbafedc4e9aaf894f6331abb7dd31",
-            "module": "7a65deb1797619d718c5f007a6762cc3c7bd48e38faa9e8cd1bb7bbbfe96f014"
+            "pom": "475e709ae52812d7cd6c532f7aeebfb7dd7ffffd6ff6de8e1cfb287bf6a67013",
+            "module": "ffca8b99ef30314cfb2ca22a7dcecbcf6454f96f1ddd8b1d3f3814fa30f29e53"
           }
         },
         {
           "name": "neton-http",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "f226067c9c19f63fdb5bae62000a37e07e85ff19972a003e81559de13a30e875",
-            "module": "175d88d338bd7f7beed4b74deb95aed7cc0727308b30948e9c6c2990aa2f741f"
+            "pom": "2abb3cbe857c44b9b02e36265c6903b219614c3606de0bc8b391ff014bf367ae",
+            "module": "f314e6bf500c80095e9a7e90ccfeb0860728cb610679daee5d6c8e0aee7c6c7c"
           }
         },
         {
           "name": "neton-jobs",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "fc2914790cddebe4e6ca8b6df379fa53a7da7ac45a467651ff41a318a8a20c97",
-            "module": "9522a41b07413088498b9db13a9f6418c080f27d8cc2cfc5f75c062a7ee69bab"
+            "pom": "9cde75d9da5916b7e3426f368d4308963011ebf00b9f8301a5be7cbbb18d037b",
+            "module": "0fd93eced1aad86c2374ee37225f8c4ab6a865ab5d69c1e32af66b130ed71edd"
           }
         },
         {
           "name": "neton-ksp",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "e0f97728a063a514007065f4c3b9f87cdd83ad33e5e5de5893ee874fd38222e6",
-            "module": "840a46e5b22a9734973aee10e3e7a88ec9eae24c03791f52c13b5fc3ddd55538"
+            "pom": "d833d06f2eeb45a42ba4c004144b4a6e63140c41c7856fba1f85a08990787328",
+            "module": "632b8e82b87ffc9220969052df7fd8ddeb67d4b61394303e304e8fde6abfcae8"
           }
         },
         {
           "name": "neton-logging",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "6ed45a99446d5aaef1cb372a790511b6ea4a2fd5c061edb5e5b579a44fd661e5",
-            "module": "025cda919fc879eb39ad43557124281d856d25441bf5921afd04156638e773fb"
+            "pom": "04872b64b0a97628a6b57a71f498e5c71a6d6a2e3bd83f78e7d3cc810fc6651d",
+            "module": "4ddb0b1ef7de9b92144a449633c530850c8f5002206f5a96c993112b4d704baf"
           }
         },
         {
           "name": "neton-redis",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "7334913e114c1ba56f037946f9e17422e74fefd79f74fdfd0f0ff68c775364c1",
-            "module": "d57766857cdc9956e8e578888e0a77da37a441a532a1d9c81593822fe3c42ab6"
+            "pom": "e77a07a210c319b21edba65e9e98be9d346d0508c04338474afa3c0752e8ee4f",
+            "module": "33e6497f9d083eb2e091a46914213726576e2db007ded6a00d4eee0829715071"
           }
         },
         {
           "name": "neton-routing",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "d0080bbc6f4e3104b1f817779a7c2d273903b8439e63f0a8a9e21926a0e55a0b",
-            "module": "ad205464111da115bd144476013fac74198134215a32c667de75d766f1bebdc0"
+            "pom": "2ee47c261bdfa82670cdc4d1e247181609c1a0b15fca69db21e25f5f2024140c",
+            "module": "3490f897484b2b0cee44a8ef4418d1728f90eb45cb577cbd97a4bec39665bff3"
           }
         },
         {
           "name": "neton-security",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "afb5e9fca7590977a500a0bc7aa34d39f162f443750e291548f2afd2148468fb",
-            "module": "75ff389c032c3cbdbe99624ba35cb0d64d64e4881dbd56742136e6786ca3425f"
+            "pom": "f23d07677b1777a69bdbb49e77c9e010c82e2ae3ccea7b9899383787d0b8c1e9",
+            "module": "aa7727371363832f75cef437dc3481351cfe2676b01727f0f752b92afb41c87b"
           }
         },
         {
           "name": "neton-storage",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "b0054dec51a1f2429e9de0d6597570afb03fef1cf1328e6b979d513f7fce853d",
-            "module": "a04f9d81aaa918dd9bb4b9efdf722f1f12f324c148b83f0d2e1a5a232ecfe039"
+            "pom": "18a79f947a9b32928467ae28ac4d630b6854af749a4c756fd49aa146ced27405",
+            "module": "3ad5c082f34740f5d6cc66de611a4b87b6f44a523c23f9e3b8208d8087de1a6b"
           }
         },
         {
           "name": "neton-validation",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "293aa4c4eacbd72fe536fdb129c3b10c6242bcd666f768f9501333d01f19124f",
-            "module": "3479144aaab73b54b58efc915c99bac847f91569cee973f4c8fbc77b7b3140c1"
+            "pom": "b8fa079905ba0d811a9e4904f80b3160dfebe3dcaca960f2b19a412224f2208d",
+            "module": "4d3cf2ef61ecf2a31e4a446e3d6506cdb9f316f1999a233b6608a88a20e56d89"
           }
         },
         {
           "name": "neton-websocket",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "d507ef0595cf26ad69e64f5c0b87699d789e04ede9184430e4e7c9d418b3eaef",
-            "module": "111c49e1e80fadbabf4fc573f78635a09b6cd6f113de37d2e0600310be9a2c7b"
+            "pom": "a1f1e8560845b3af8dc747552dc79a21e1b0ebbbb6aef7f9915cb42a0a18f1e2",
+            "module": "c5e30ad67072de35e6cfc9a390e54bb6e7bbf9705612a517b88a5936035fd7de"
           }
         },
         {
           "name": "neton-bom",
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": {
-            "pom": "ae0f93220898142a7d860ff49b2e130706971deca0b615db795262660fcf1268",
-            "module": "c95147af181111d29805fe4cd2eb3a9b0176a28bfeeae5f023d4ba36face9904"
+            "pom": "0cf3be80ce8921865192821075e9b5d0a981131c117476fa924e048e4c6e0187",
+            "module": "efd84ef3fb04d747d9f82006f9013e608baa8a267a934a05059cb79cf9062fac"
           }
         }
       ]
