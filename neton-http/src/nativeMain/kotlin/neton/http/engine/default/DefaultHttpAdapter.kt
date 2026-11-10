@@ -419,7 +419,15 @@ public class DefaultHttpAdapter(
                     if (!live.isStreaming) ready.complete(failure(504))
                 } catch (_: CancellationException) {
                     if (!live.isStreaming) ready.complete(failure(503))
-                } catch (_: Throwable) {
+                } catch (t: Throwable) {
+                    // 非 Exception 的 Throwable（Error 级，如 StackOverflow/OOM）会绕过 dispatcher 的
+                    // catch(Exception) 兜底逃到这里；此前被静默吞成 500，error.log 无任何记录、
+                    // access log 只留 routePattern=- 的默认值，线上极难定位。必须打出来。
+                    logger()?.error(
+                        "http.unhandled",
+                        fields = mapOf("method" to buffered.method, "path" to buffered.path),
+                        cause = t,
+                    )
                     if (!live.isStreaming) ready.complete(failure(500))
                 } finally {
                     release(reserved)
