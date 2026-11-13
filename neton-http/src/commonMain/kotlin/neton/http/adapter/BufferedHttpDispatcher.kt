@@ -35,6 +35,18 @@ import neton.core.http.Parameters
 import neton.core.http.SimpleCookie
 import neton.core.http.UploadFiles
 import neton.core.http.ValidationException
+import neton.core.http.RouteCompletion
+import neton.core.http.RouteCompletionObserver
+import neton.core.http.RouteEndpoint
+import neton.core.http.RouteInterceptor
+import neton.core.http.RouteLifecycle
+import neton.core.http.RouteLifecycleAttributes
+import neton.core.http.RoutePhase
+import neton.core.http.RouteResult
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.time.TimeSource
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import neton.core.http.httpStatusForErrorCode
 import neton.core.interfaces.AccessLogEntry
 import neton.core.interfaces.AccessLogWriter
@@ -299,6 +311,7 @@ public class BufferedHttpDispatcher(
         val engine = requestEngine ?: return emptyList()
         val configuredGroups = ctx.getOrNull(ConfiguredRouteGroups::class)?.names.orEmpty()
         val mounts = ctx.getOrNull(RouteGroupMounts::class)?.groupToMount.orEmpty()
+        val lifecycle = ctx.getOrNull(RouteLifecycle::class)
         return engine.getRoutes().map { route ->
             val group = route.routeGroup ?: inferRouteGroup(route.controllerClass, configuredGroups)
             val mount = group?.let { mounts[it] ?: "/$it" }.orEmpty()
@@ -306,6 +319,7 @@ public class BufferedHttpDispatcher(
             val segments = fullPattern.split('/').filter(String::isNotEmpty)
             val last = segments.lastOrNull()
             val isTail = last != null && last.startsWith("{") && last.endsWith("...}")
+            val endpoint = RouteEndpoint(route.method, fullPattern, group, route.pattern)
             CompiledRoute(
                 route = route,
                 routeGroup = group,
@@ -319,6 +333,9 @@ public class BufferedHttpDispatcher(
                 },
                 tailParameter = if (isTail) last!!.substring(1, last.length - 4) else null,
                 prefixSegmentCount = if (isTail) segments.size - 1 else 0,
+                endpoint = endpoint,
+                interceptors = lifecycle?.interceptors(endpoint).orEmpty(),
+                observers = lifecycle?.observers(endpoint).orEmpty(),
             )
         }
     }
@@ -410,62 +427,106 @@ public class BufferedHttpDispatcher(
         )
 
         val context = BufferedHttpContext(request, method, matched.pathParameters, appContext, traceId, liveResponse)
+        val call = if (matched.compiled.observers.isEmpty()) null else ObservedCall().also {
+            context.setAttribute(RouteLifecycleAttributes.INVOCATION_ID, it.id)
+            context.setAttribute(RouteLifecycleAttributes.ENDPOINT, matched.compiled.endpoint)
+        }
+        var status: Int? = null
+        try {
+            return invokeRoute(matched, context, request, call).also { status = it.response.status }
+        } catch (e: CancellationException) {
+            call?.result = RouteResult.CANCELLED
+            throw e
+        } catch (e: Throwable) {
+            call?.result = RouteResult.FAILED
+            throw e
+        } finally {
+            if (call != null) notifyCompletion(matched.compiled, context, call, status)
+        }
+    }
+
+    private suspend fun invokeRoute(
+        matched: MatchedRoute,
+        context: BufferedHttpContext,
+        request: BufferedHttpRequest,
+        call: ObservedCall?,
+    ): DispatchOutcome {
+        val traceId = context.traceId
         return try {
             if (admissionGate?.allow(context, matched.routeGroup) == false) {
-                return DispatchOutcome(snapshotResponse(context), matched.route.pattern, context)
+                call?.result = RouteResult.REJECTED
+                return DispatchOutcome(snapshotResponse(context), matched.compiled.fullPattern, context)
             }
+            call?.phase = RoutePhase.SECURITY
             runSecurity(matched, context, request)
+            if (call != null) call.actorId = (context.getAttribute(SecurityAttributes.IDENTITY) as? Identity)?.id
+            call?.phase = RoutePhase.RATE_LIMIT
             val allowed = runRateLimitPreHandle(matched.route, context, rateLimitGate)
             if (!allowed) {
+                call?.result = RouteResult.REJECTED
                 // gate 已把 429（含 X-RateLimit-* / Retry-After）写入 response，直接快照返回。
-                return DispatchOutcome(snapshotResponse(context), matched.route.pattern, context)
+                return DispatchOutcome(snapshotResponse(context), matched.compiled.fullPattern, context)
             }
 
             matched.route.upgrade?.let { endpoint ->
+                call?.phase = RoutePhase.UPGRADE
                 if (!request.canUpgrade || request.protocolVersion != "HTTP/1.1") {
-                    return DispatchOutcome(BufferedHttpResponse(426), matched.route.pattern, context)
+                    call?.result = RouteResult.REJECTED
+                    return DispatchOutcome(BufferedHttpResponse(426), matched.compiled.fullPattern, context)
                 }
                 val args = ArgsView(matched.pathParameters,
                     { name -> queryParamFirst(request.query, name) },
                     { name -> queryParamAll(request.query, name) }, Unit)
                 val decision = endpoint.decide(context, args)
                 val response = when (decision) {
-                    is neton.core.http.upgrade.UpgradeDecision.Reject -> BufferedHttpResponse(decision.status, decision.headers)
+                    is neton.core.http.upgrade.UpgradeDecision.Reject -> {
+                        call?.result = RouteResult.REJECTED
+                        BufferedHttpResponse(decision.status, decision.headers)
+                    }
                     is neton.core.http.upgrade.UpgradeDecision.Accept -> BufferedHttpResponse(101, decision.headers, upgrade = decision)
                 }
-                return DispatchOutcome(response, matched.route.pattern, context)
+                return DispatchOutcome(response, matched.compiled.fullPattern, context)
             }
 
-            val result = matched.route.handler.invoke(
-                context,
+            val args = ArgsView(
                 // Scanning query lookups: a handler that reads params by name never
                 // forces the full parameter map to be built for this request.
-                ArgsView(
-                    matched.pathParameters,
-                    { name -> queryParamFirst(request.query, name) },
-                    { name -> queryParamAll(request.query, name) },
-                    Unit,
-                ),
+                matched.pathParameters,
+                { name -> queryParamFirst(request.query, name) },
+                { name -> queryParamAll(request.query, name) },
+                Unit,
             )
+            val result = if (matched.compiled.interceptors.isEmpty()) {
+                call?.phase = RoutePhase.HANDLER
+                call?.handlerEntered = true
+                matched.route.handler.invoke(context, args)
+            } else {
+                call?.phase = RoutePhase.AROUND
+                invokeAround(matched.compiled, context, args, call, 0)
+            }
+            call?.phase = RoutePhase.RESPONSE
             val response = if (context.response.isCommitted) {
                 snapshotResponse(context)
             } else {
                 successResponse(result, context)
             }
-            DispatchOutcome(response, matched.route.pattern, context)
+            DispatchOutcome(response, matched.compiled.fullPattern, context)
         } catch (e: ValidationException) {
+            call?.errorCode = NetonErrorCode.INVALID_PARAMS
+            call?.result = RouteResult.REJECTED
             // ValidationException 默认走 InvalidParams（spec ERROR_CODE_SPEC §3）；
             // 业务侧需要更细错误码请直接 throw HttpException(code, ...)
             DispatchOutcome(
                 envelopeResponse(HttpStatus.BAD_REQUEST, ApiEnvelope.error(NetonErrorCode.INVALID_PARAMS, e.message, e.errors)),
-                matched.route.pattern,
+                matched.compiled.fullPattern,
                 context,
             )
         } catch (e: RawResponseException) {
+            call?.result = if (e.status >= 500) RouteResult.FAILED else RouteResult.REJECTED
             // 认证器按对外协议给的原样响应（不套信封）；和 HttpException 一样属于预期内的客户端错误
             logger()?.warn(
                 "http.error",
-                fields = mapOf("method" to request.method, "path" to request.path, "status" to e.status, "traceId" to traceId),
+                fields = mapOf("method" to request.method, "path" to matched.compiled.fullPattern, "status" to e.status, "traceId" to traceId),
             )
             DispatchOutcome(
                 BufferedHttpResponse(
@@ -473,12 +534,14 @@ public class BufferedHttpDispatcher(
                     headers = mapOf("Content-Type" to listOf(e.contentType)) + e.headers.mapValues { (_, value) -> listOf(value) },
                     body = e.body.encodeToByteArray(),
                 ),
-                matched.route.pattern,
+                matched.compiled.fullPattern,
                 context,
             )
         } catch (e: HttpException) {
             // body.code 是权威，HTTP status 由 framework 内部 [httpStatusForErrorCode] 推导。
             val httpStatus = httpStatusForErrorCode(e.code)
+            call?.errorCode = e.code
+            call?.result = if (httpStatus.code >= 500) RouteResult.FAILED else RouteResult.REJECTED
             // 4xx 是**客户端错误**，不是故障：token 过期、参数不合法、没权限，都在预期之内，
             // 一行结构化日志（method/path/status/traceId）就够定位了。带上 cause 会打出完整
             // Kotlin 堆栈——生产上实测每条约 47 行，56624 次异常把 error.log 撑到 434MB，
@@ -488,7 +551,7 @@ public class BufferedHttpDispatcher(
                 "http.error",
                 fields = mapOf(
                     "method" to request.method,
-                    "path" to request.path,
+                    "path" to matched.compiled.fullPattern,
                     "status" to httpStatus.code,
                     "traceId" to traceId,
                 ),
@@ -500,27 +563,29 @@ public class BufferedHttpDispatcher(
                     ApiEnvelope.error(e.code, e.message, e.errors),
                     e.headers.mapValues { (_, value) -> listOf(value) },
                 ),
-                matched.route.pattern,
+                matched.compiled.fullPattern,
                 context,
             )
         } catch (e: CancellationException) {
             // 客户端断连/协程取消：不是业务错误，向上冒泡由引擎收尾（流式响应已提交时不可再写）
             throw e
         } catch (e: Exception) {
+            call?.result = RouteResult.FAILED
+            call?.errorCode = NetonErrorCode.INTERNAL_ERROR
             if (context.response.isCommitted) {
                 // 响应已提交（典型：流式写出中客户端断连 Broken pipe）——无法再回 envelope，按 WARN 收尾
                 logger()?.warn(
                     "http.stream.aborted",
-                    fields = mapOf("method" to request.method, "path" to request.path, "traceId" to traceId),
+                    fields = mapOf("method" to request.method, "path" to matched.compiled.fullPattern, "traceId" to traceId),
                     cause = e,
                 )
-                return DispatchOutcome(snapshotResponse(context), matched.route.pattern, context)
+                return DispatchOutcome(snapshotResponse(context), matched.compiled.fullPattern, context)
             }
             logger()?.error(
                 "http.error",
                 fields = mapOf(
                     "method" to request.method,
-                    "path" to request.path,
+                    "path" to matched.compiled.fullPattern,
                     "status" to HttpStatus.INTERNAL_SERVER_ERROR.code,
                     "traceId" to traceId,
                     "route" to "${matched.route.method.name} ${matched.route.pattern} -> " +
@@ -528,13 +593,76 @@ public class BufferedHttpDispatcher(
                 ),
                 cause = e,
             )
-            writeErrorLog(request, context, e)
+            writeErrorLog(request, context, matched.compiled.fullPattern, e)
             // 兜底未捕获异常 → InternalError（spec ERROR_CODE_SPEC system 段），HTTP 仍 500
             DispatchOutcome(
                 errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, NetonErrorCode.INTERNAL_ERROR, NetonErrorMessage.INTERNAL_ERROR),
-                matched.route.pattern,
+                matched.compiled.fullPattern,
                 context,
             )
+        }
+    }
+
+    private suspend fun invokeAround(
+        route: CompiledRoute,
+        context: BufferedHttpContext,
+        args: ArgsView,
+        call: ObservedCall?,
+        index: Int,
+    ): Any? {
+        if (index == route.interceptors.size) {
+            call?.phase = RoutePhase.HANDLER
+            call?.handlerEntered = true
+            return route.route.handler.invoke(context, args)
+        }
+        // 0 = available, 1 = already invoked, 2 = wrapper returned.
+        val state = AtomicInt(0)
+        try {
+            return route.interceptors[index].intercept(context) {
+                check(state.compareAndSet(0, 1)) { "Route interceptor next is single-use and request-scoped" }
+                invokeAround(route, context, args, call, index + 1).also { call?.phase = RoutePhase.AROUND }
+            }
+        } finally {
+            state.store(2)
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private class ObservedCall {
+        val id = Uuid.random().toString()
+        val started = TimeSource.Monotonic.markNow()
+        var phase = RoutePhase.ADMISSION
+        var result = RouteResult.RESPONDED
+        var handlerEntered = false
+        var errorCode: Int? = null
+        var actorId: String? = null
+    }
+
+    private fun notifyCompletion(route: CompiledRoute, context: BufferedHttpContext, call: ObservedCall, status: Int?) {
+        val completion = try {
+            val finalStatus = status ?: context.response.takeIf { it.isCommitted }?.status?.code
+            RouteCompletion(
+                route.endpoint, call.id, if (call.phase == RoutePhase.SECURITY) {
+                    (context.getAttribute(SecurityAttributes.IDENTITY) as? Identity)?.id
+                } else call.actorId,
+                context.request.clientAddress, call.started.elapsedNow().inWholeMilliseconds,
+                call.phase, when {
+                    call.result != RouteResult.RESPONDED -> call.result
+                    finalStatus != null && finalStatus >= 500 -> RouteResult.FAILED
+                    finalStatus != null && finalStatus >= 400 -> RouteResult.REJECTED
+                    else -> RouteResult.RESPONDED
+                }, finalStatus, call.errorCode, call.handlerEntered,
+            )
+        } catch (_: Throwable) {
+            runCatching { logger()?.warn("http.route.completion.snapshot_failed") }
+            return
+        }
+        for (observer in route.observers) {
+            try {
+                observer.observe(completion)
+            } catch (_: Throwable) {
+                runCatching { logger()?.warn("http.route.completion.observer_failed") }
+            }
         }
     }
 
@@ -555,9 +683,6 @@ public class BufferedHttpDispatcher(
         )
     }
 
-    private fun BufferedHttpRequest.logUserIp(): String =
-        header("X-Forwarded-For")?.substringBefore(',')?.trim()?.takeIf { it.isNotEmpty() } ?: remoteAddress
-
     /**
      * access log（msg=http.access）+ 异步落库（[AccessLogWriter]），所有引擎共用。
      * 在 dispatch 的 finally 中调用：异常路径（含 CancellationException 重抛）也要留下访问记录。
@@ -574,7 +699,7 @@ public class BufferedHttpDispatcher(
     ) {
         val log = logger()
         val method = request.method
-        val path = request.path
+        val path = routePattern ?: "<unmatched>"
         // fields 这个 map（8 个 Pair + 4 次数字装箱）在进入 info() 之前就已经付掉了，
         // 而等级过滤在 info() 内部——WARN 下每个请求都在为一行不会输出的日志分配。
         if (accessLogEnabled) log?.info(
@@ -598,8 +723,8 @@ public class BufferedHttpDispatcher(
             applicationName = "neton-application",
             requestMethod = method,
             requestUrl = path,
-            requestParams = request.query.takeIf { it.isNotEmpty() },
-            userIp = request.logUserIp(),
+            requestParams = null,
+            userIp = context?.request?.clientAddress ?: request.remoteAddress,
             userAgent = request.header("User-Agent"),
             beginTime = startMs,
             endTime = endMs,
@@ -617,17 +742,17 @@ public class BufferedHttpDispatcher(
     }
 
     /** 5xx 未捕获异常异步落库（[ErrorLogWriter]），与旧 Ktor 适配器行为一致。 */
-    private fun writeErrorLog(request: BufferedHttpRequest, context: BufferedHttpContext?, e: Exception) {
+    private fun writeErrorLog(request: BufferedHttpRequest, context: BufferedHttpContext, routePattern: String, e: Exception) {
         val errorLogWriter = appContext?.getOrNull(ErrorLogWriter::class) ?: return
-        val identity = context?.attributeOrNull("identity") as? Identity
+        val identity = context.attributeOrNull(SecurityAttributes.IDENTITY) as? Identity
         val entry = ErrorLogEntry(
             userId = identity?.id?.toLongOrNull(),
             userType = if (identity != null) 2 else 0,
             applicationName = "neton-application",
             requestMethod = request.method,
-            requestUrl = request.path,
-            requestParams = request.query.takeIf { it.isNotEmpty() },
-            userIp = request.logUserIp(),
+            requestUrl = routePattern,
+            requestParams = null,
+            userIp = context.request.clientAddress,
             userAgent = request.header("User-Agent"),
             exceptionName = e::class.simpleName ?: "Exception",
             exceptionMessage = e.message,
@@ -637,7 +762,7 @@ public class BufferedHttpDispatcher(
             try {
                 errorLogWriter.write(entry)
             } catch (writeEx: Exception) {
-                logger()?.warn("error-log.write.failed", mapOf("path" to request.path), cause = writeEx)
+                logger()?.warn("error-log.write.failed", mapOf("route" to routePattern), cause = writeEx)
             }
         }
     }
@@ -722,7 +847,7 @@ public class BufferedHttpDispatcher(
 
     private fun lookupRoute(method: HttpMethod, path: String): MatchedRoute? {
         if (isCanonicalPath(path)) {
-            exactRoutes[method]?.get(path)?.let { return MatchedRoute(it.route, it.routeGroup, emptyMap()) }
+            exactRoutes[method]?.get(path)?.let { return MatchedRoute(it, emptyMap()) }
         }
         return matchRoute(method, path)
     }
@@ -754,7 +879,7 @@ public class BufferedHttpDispatcher(
                         break
                     }
                 }
-                if (matchedAll) return MatchedRoute(compiled.route, compiled.routeGroup, emptyMap())
+                if (matchedAll) return MatchedRoute(compiled, emptyMap())
             } else {
                 val params = HashMap<String, String>(compiled.parameterSegments.size)
                 var matchedAll = true
@@ -768,7 +893,7 @@ public class BufferedHttpDispatcher(
                         break
                     }
                 }
-                if (matchedAll) return MatchedRoute(compiled.route, compiled.routeGroup, params)
+                if (matchedAll) return MatchedRoute(compiled, params)
             }
         }
         return matchTailRoute(method, segments)
@@ -802,7 +927,7 @@ public class BufferedHttpDispatcher(
                 }
             }
             params[compiled.tailParameter!!] = remainder
-            return MatchedRoute(compiled.route, compiled.routeGroup, params)
+            return MatchedRoute(compiled, params)
         }
         return null
     }
@@ -877,10 +1002,12 @@ public class BufferedHttpDispatcher(
     private fun corsConfig(): CorsConfig? = cachedCors
 
     private data class MatchedRoute(
-        val route: RouteDefinition,
-        val routeGroup: String?,
+        val compiled: CompiledRoute,
         val pathParameters: Map<String, String>,
-    )
+    ) {
+        val route get() = compiled.route
+        val routeGroup get() = compiled.routeGroup
+    }
 
     private data class CompiledRoute(
         val route: RouteDefinition,
@@ -899,6 +1026,9 @@ public class BufferedHttpDispatcher(
         val tailParameter: String? = null,
         /** Fixed segments before the catch-all; how specific this tail mount is. */
         val prefixSegmentCount: Int = 0,
+        val endpoint: RouteEndpoint,
+        val interceptors: List<RouteInterceptor>,
+        val observers: List<RouteCompletionObserver>,
     )
 
     public companion object {

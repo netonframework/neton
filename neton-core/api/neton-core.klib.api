@@ -339,6 +339,35 @@ final enum class neton.core.http/HttpStatus : kotlin/Enum<neton.core.http/HttpSt
     }
 }
 
+final enum class neton.core.http/RoutePhase : kotlin/Enum<neton.core.http/RoutePhase> { // neton.core.http/RoutePhase|null[0]
+    enum entry ADMISSION // neton.core.http/RoutePhase.ADMISSION|null[0]
+    enum entry AROUND // neton.core.http/RoutePhase.AROUND|null[0]
+    enum entry HANDLER // neton.core.http/RoutePhase.HANDLER|null[0]
+    enum entry RATE_LIMIT // neton.core.http/RoutePhase.RATE_LIMIT|null[0]
+    enum entry RESPONSE // neton.core.http/RoutePhase.RESPONSE|null[0]
+    enum entry SECURITY // neton.core.http/RoutePhase.SECURITY|null[0]
+    enum entry UPGRADE // neton.core.http/RoutePhase.UPGRADE|null[0]
+
+    final val entries // neton.core.http/RoutePhase.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.core.http/RoutePhase> // neton.core.http/RoutePhase.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.core.http/RoutePhase // neton.core.http/RoutePhase.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.core.http/RoutePhase> // neton.core.http/RoutePhase.values|values#static(){}[0]
+}
+
+final enum class neton.core.http/RouteResult : kotlin/Enum<neton.core.http/RouteResult> { // neton.core.http/RouteResult|null[0]
+    enum entry CANCELLED // neton.core.http/RouteResult.CANCELLED|null[0]
+    enum entry FAILED // neton.core.http/RouteResult.FAILED|null[0]
+    enum entry REJECTED // neton.core.http/RouteResult.REJECTED|null[0]
+    enum entry RESPONDED // neton.core.http/RouteResult.RESPONDED|null[0]
+
+    final val entries // neton.core.http/RouteResult.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<neton.core.http/RouteResult> // neton.core.http/RouteResult.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): neton.core.http/RouteResult // neton.core.http/RouteResult.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<neton.core.http/RouteResult> // neton.core.http/RouteResult.values|values#static(){}[0]
+}
+
 final enum class neton.core.module/MigrationDialect : kotlin/Enum<neton.core.module/MigrationDialect> { // neton.core.module/MigrationDialect|null[0]
     enum entry MYSQL // neton.core.module/MigrationDialect.MYSQL|null[0]
     enum entry POSTGRESQL // neton.core.module/MigrationDialect.POSTGRESQL|null[0]
@@ -359,6 +388,14 @@ final enum class neton.core.module/MigrationDialect : kotlin/Enum<neton.core.mod
 
 abstract fun interface neton.core.http/ClientAddressResolver { // neton.core.http/ClientAddressResolver|null[0]
     abstract fun resolve(neton.core.http/HttpRequest): kotlin/String // neton.core.http/ClientAddressResolver.resolve|resolve(neton.core.http.HttpRequest){}[0]
+}
+
+abstract fun interface neton.core.http/RouteCompletionObserver { // neton.core.http/RouteCompletionObserver|null[0]
+    abstract fun observe(neton.core.http/RouteCompletion) // neton.core.http/RouteCompletionObserver.observe|observe(neton.core.http.RouteCompletion){}[0]
+}
+
+abstract fun interface neton.core.http/RouteInterceptor { // neton.core.http/RouteInterceptor|null[0]
+    abstract suspend fun intercept(neton.core.http/HttpContext, kotlin.coroutines/SuspendFunction0<kotlin/Any?>): kotlin/Any? // neton.core.http/RouteInterceptor.intercept|intercept(neton.core.http.HttpContext;kotlin.coroutines.SuspendFunction0<kotlin.Any?>){}[0]
 }
 
 abstract fun interface neton.core.interfaces/PermissionEvaluator { // neton.core.interfaces/PermissionEvaluator|null[0]
@@ -1483,6 +1520,97 @@ final class neton.core.http/RawResponseException : kotlin/RuntimeException { // 
         final fun <get-status>(): kotlin/Int // neton.core.http/RawResponseException.status.<get-status>|<get-status>(){}[0]
 }
 
+final class neton.core.http/RouteCompletion { // neton.core.http/RouteCompletion|null[0]
+    constructor <init>(neton.core.http/RouteEndpoint, kotlin/String, kotlin/String?, kotlin/String, kotlin/Long, neton.core.http/RoutePhase, neton.core.http/RouteResult, kotlin/Int?, kotlin/Int?, kotlin/Boolean) // neton.core.http/RouteCompletion.<init>|<init>(neton.core.http.RouteEndpoint;kotlin.String;kotlin.String?;kotlin.String;kotlin.Long;neton.core.http.RoutePhase;neton.core.http.RouteResult;kotlin.Int?;kotlin.Int?;kotlin.Boolean){}[0]
+
+    final val actorId // neton.core.http/RouteCompletion.actorId|{}actorId[0]
+        final fun <get-actorId>(): kotlin/String? // neton.core.http/RouteCompletion.actorId.<get-actorId>|<get-actorId>(){}[0]
+    final val clientAddress // neton.core.http/RouteCompletion.clientAddress|{}clientAddress[0]
+        final fun <get-clientAddress>(): kotlin/String // neton.core.http/RouteCompletion.clientAddress.<get-clientAddress>|<get-clientAddress>(){}[0]
+    final val durationMillis // neton.core.http/RouteCompletion.durationMillis|{}durationMillis[0]
+        final fun <get-durationMillis>(): kotlin/Long // neton.core.http/RouteCompletion.durationMillis.<get-durationMillis>|<get-durationMillis>(){}[0]
+    final val endpoint // neton.core.http/RouteCompletion.endpoint|{}endpoint[0]
+        final fun <get-endpoint>(): neton.core.http/RouteEndpoint // neton.core.http/RouteCompletion.endpoint.<get-endpoint>|<get-endpoint>(){}[0]
+    final val errorCode // neton.core.http/RouteCompletion.errorCode|{}errorCode[0]
+        final fun <get-errorCode>(): kotlin/Int? // neton.core.http/RouteCompletion.errorCode.<get-errorCode>|<get-errorCode>(){}[0]
+    final val handlerEntered // neton.core.http/RouteCompletion.handlerEntered|{}handlerEntered[0]
+        final fun <get-handlerEntered>(): kotlin/Boolean // neton.core.http/RouteCompletion.handlerEntered.<get-handlerEntered>|<get-handlerEntered>(){}[0]
+    final val httpStatus // neton.core.http/RouteCompletion.httpStatus|{}httpStatus[0]
+        final fun <get-httpStatus>(): kotlin/Int? // neton.core.http/RouteCompletion.httpStatus.<get-httpStatus>|<get-httpStatus>(){}[0]
+    final val invocationId // neton.core.http/RouteCompletion.invocationId|{}invocationId[0]
+        final fun <get-invocationId>(): kotlin/String // neton.core.http/RouteCompletion.invocationId.<get-invocationId>|<get-invocationId>(){}[0]
+    final val phase // neton.core.http/RouteCompletion.phase|{}phase[0]
+        final fun <get-phase>(): neton.core.http/RoutePhase // neton.core.http/RouteCompletion.phase.<get-phase>|<get-phase>(){}[0]
+    final val result // neton.core.http/RouteCompletion.result|{}result[0]
+        final fun <get-result>(): neton.core.http/RouteResult // neton.core.http/RouteCompletion.result.<get-result>|<get-result>(){}[0]
+
+    final fun component1(): neton.core.http/RouteEndpoint // neton.core.http/RouteCompletion.component1|component1(){}[0]
+    final fun component10(): kotlin/Boolean // neton.core.http/RouteCompletion.component10|component10(){}[0]
+    final fun component2(): kotlin/String // neton.core.http/RouteCompletion.component2|component2(){}[0]
+    final fun component3(): kotlin/String? // neton.core.http/RouteCompletion.component3|component3(){}[0]
+    final fun component4(): kotlin/String // neton.core.http/RouteCompletion.component4|component4(){}[0]
+    final fun component5(): kotlin/Long // neton.core.http/RouteCompletion.component5|component5(){}[0]
+    final fun component6(): neton.core.http/RoutePhase // neton.core.http/RouteCompletion.component6|component6(){}[0]
+    final fun component7(): neton.core.http/RouteResult // neton.core.http/RouteCompletion.component7|component7(){}[0]
+    final fun component8(): kotlin/Int? // neton.core.http/RouteCompletion.component8|component8(){}[0]
+    final fun component9(): kotlin/Int? // neton.core.http/RouteCompletion.component9|component9(){}[0]
+    final fun copy(neton.core.http/RouteEndpoint = ..., kotlin/String = ..., kotlin/String? = ..., kotlin/String = ..., kotlin/Long = ..., neton.core.http/RoutePhase = ..., neton.core.http/RouteResult = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Boolean = ...): neton.core.http/RouteCompletion // neton.core.http/RouteCompletion.copy|copy(neton.core.http.RouteEndpoint;kotlin.String;kotlin.String?;kotlin.String;kotlin.Long;neton.core.http.RoutePhase;neton.core.http.RouteResult;kotlin.Int?;kotlin.Int?;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.core.http/RouteCompletion.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.core.http/RouteCompletion.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.core.http/RouteCompletion.toString|toString(){}[0]
+}
+
+final class neton.core.http/RouteEndpoint { // neton.core.http/RouteEndpoint|null[0]
+    constructor <init>(neton.core.http/HttpMethod, kotlin/String, kotlin/String?, kotlin/String) // neton.core.http/RouteEndpoint.<init>|<init>(neton.core.http.HttpMethod;kotlin.String;kotlin.String?;kotlin.String){}[0]
+
+    final val group // neton.core.http/RouteEndpoint.group|{}group[0]
+        final fun <get-group>(): kotlin/String? // neton.core.http/RouteEndpoint.group.<get-group>|<get-group>(){}[0]
+    final val method // neton.core.http/RouteEndpoint.method|{}method[0]
+        final fun <get-method>(): neton.core.http/HttpMethod // neton.core.http/RouteEndpoint.method.<get-method>|<get-method>(){}[0]
+    final val pattern // neton.core.http/RouteEndpoint.pattern|{}pattern[0]
+        final fun <get-pattern>(): kotlin/String // neton.core.http/RouteEndpoint.pattern.<get-pattern>|<get-pattern>(){}[0]
+    final val routePattern // neton.core.http/RouteEndpoint.routePattern|{}routePattern[0]
+        final fun <get-routePattern>(): kotlin/String // neton.core.http/RouteEndpoint.routePattern.<get-routePattern>|<get-routePattern>(){}[0]
+
+    final fun component1(): neton.core.http/HttpMethod // neton.core.http/RouteEndpoint.component1|component1(){}[0]
+    final fun component2(): kotlin/String // neton.core.http/RouteEndpoint.component2|component2(){}[0]
+    final fun component3(): kotlin/String? // neton.core.http/RouteEndpoint.component3|component3(){}[0]
+    final fun component4(): kotlin/String // neton.core.http/RouteEndpoint.component4|component4(){}[0]
+    final fun copy(neton.core.http/HttpMethod = ..., kotlin/String = ..., kotlin/String? = ..., kotlin/String = ...): neton.core.http/RouteEndpoint // neton.core.http/RouteEndpoint.copy|copy(neton.core.http.HttpMethod;kotlin.String;kotlin.String?;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.core.http/RouteEndpoint.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.core.http/RouteEndpoint.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // neton.core.http/RouteEndpoint.toString|toString(){}[0]
+}
+
+final class neton.core.http/RouteLifecycle { // neton.core.http/RouteLifecycle|null[0]
+    constructor <init>(neton.core.component/NetonContext) // neton.core.http/RouteLifecycle.<init>|<init>(neton.core.component.NetonContext){}[0]
+
+    final fun intercept(kotlin/String, neton.core.http/RouteInterceptor, neton.core.http/RouteSelector = ..., kotlin/Int = ...) // neton.core.http/RouteLifecycle.intercept|intercept(kotlin.String;neton.core.http.RouteInterceptor;neton.core.http.RouteSelector;kotlin.Int){}[0]
+    final fun interceptors(neton.core.http/RouteEndpoint): kotlin.collections/List<neton.core.http/RouteInterceptor> // neton.core.http/RouteLifecycle.interceptors|interceptors(neton.core.http.RouteEndpoint){}[0]
+    final fun observe(kotlin/String, neton.core.http/RouteCompletionObserver, neton.core.http/RouteSelector = ..., kotlin/Int = ...) // neton.core.http/RouteLifecycle.observe|observe(kotlin.String;neton.core.http.RouteCompletionObserver;neton.core.http.RouteSelector;kotlin.Int){}[0]
+    final fun observers(neton.core.http/RouteEndpoint): kotlin.collections/List<neton.core.http/RouteCompletionObserver> // neton.core.http/RouteLifecycle.observers|observers(neton.core.http.RouteEndpoint){}[0]
+}
+
+final class neton.core.http/RouteSelector { // neton.core.http/RouteSelector|null[0]
+    constructor <init>(kotlin/String? = ..., neton.core.http/HttpMethod? = ..., kotlin/String? = ...) // neton.core.http/RouteSelector.<init>|<init>(kotlin.String?;neton.core.http.HttpMethod?;kotlin.String?){}[0]
+
+    final val group // neton.core.http/RouteSelector.group|{}group[0]
+        final fun <get-group>(): kotlin/String? // neton.core.http/RouteSelector.group.<get-group>|<get-group>(){}[0]
+    final val method // neton.core.http/RouteSelector.method|{}method[0]
+        final fun <get-method>(): neton.core.http/HttpMethod? // neton.core.http/RouteSelector.method.<get-method>|<get-method>(){}[0]
+    final val pattern // neton.core.http/RouteSelector.pattern|{}pattern[0]
+        final fun <get-pattern>(): kotlin/String? // neton.core.http/RouteSelector.pattern.<get-pattern>|<get-pattern>(){}[0]
+
+    final fun component1(): kotlin/String? // neton.core.http/RouteSelector.component1|component1(){}[0]
+    final fun component2(): neton.core.http/HttpMethod? // neton.core.http/RouteSelector.component2|component2(){}[0]
+    final fun component3(): kotlin/String? // neton.core.http/RouteSelector.component3|component3(){}[0]
+    final fun copy(kotlin/String? = ..., neton.core.http/HttpMethod? = ..., kotlin/String? = ...): neton.core.http/RouteSelector // neton.core.http/RouteSelector.copy|copy(kotlin.String?;neton.core.http.HttpMethod?;kotlin.String?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // neton.core.http/RouteSelector.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // neton.core.http/RouteSelector.hashCode|hashCode(){}[0]
+    final fun matches(neton.core.http/RouteEndpoint): kotlin/Boolean // neton.core.http/RouteSelector.matches|matches(neton.core.http.RouteEndpoint){}[0]
+    final fun toString(): kotlin/String // neton.core.http/RouteSelector.toString|toString(){}[0]
+}
+
 final class neton.core.http/SimpleCookie : neton.core.http/MutableCookie { // neton.core.http/SimpleCookie|null[0]
     constructor <init>(kotlin/String, kotlin/String, kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., neton.core.http/Cookie.SameSite? = ...) // neton.core.http/SimpleCookie.<init>|<init>(kotlin.String;kotlin.String;kotlin.String?;kotlin.String?;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;neton.core.http.Cookie.SameSite?){}[0]
 
@@ -2471,6 +2599,13 @@ final object neton.core.http/ParamConverters { // neton.core.http/ParamConverter
     final fun parseLong(kotlin/String): kotlin/Long? // neton.core.http/ParamConverters.parseLong|parseLong(kotlin.String){}[0]
 }
 
+final object neton.core.http/RouteLifecycleAttributes { // neton.core.http/RouteLifecycleAttributes|null[0]
+    final const val ENDPOINT // neton.core.http/RouteLifecycleAttributes.ENDPOINT|{}ENDPOINT[0]
+        final fun <get-ENDPOINT>(): kotlin/String // neton.core.http/RouteLifecycleAttributes.ENDPOINT.<get-ENDPOINT>|<get-ENDPOINT>(){}[0]
+    final const val INVOCATION_ID // neton.core.http/RouteLifecycleAttributes.INVOCATION_ID|{}INVOCATION_ID[0]
+        final fun <get-INVOCATION_ID>(): kotlin/String // neton.core.http/RouteLifecycleAttributes.INVOCATION_ID.<get-INVOCATION_ID>|<get-INVOCATION_ID>(){}[0]
+}
+
 final object neton.core.http/ValidationCode { // neton.core.http/ValidationCode|null[0]
     final const val INVALID_BOOLEAN // neton.core.http/ValidationCode.INVALID_BOOLEAN|{}INVALID_BOOLEAN[0]
         final fun <get-INVALID_BOOLEAN>(): kotlin/String // neton.core.http/ValidationCode.INVALID_BOOLEAN.<get-INVALID_BOOLEAN>|<get-INVALID_BOOLEAN>(){}[0]
@@ -2513,6 +2648,7 @@ final val neton.core.http/MACHINE_CODE_REGEX // neton.core.http/MACHINE_CODE_REG
 final fun (neton.core.component/HttpConfig).neton.core.component/converters(kotlin/Function1<neton.core.http/ParamConverterRegistry, kotlin/Unit>) // neton.core.component/converters|converters@neton.core.component.HttpConfig(kotlin.Function1<neton.core.http.ParamConverterRegistry,kotlin.Unit>){}[0]
 final fun (neton.core.component/HttpConfig).neton.core.component/cors(kotlin/Function1<neton.core.component/CorsConfig, kotlin/Unit>) // neton.core.component/cors|cors@neton.core.component.HttpConfig(kotlin.Function1<neton.core.component.CorsConfig,kotlin.Unit>){}[0]
 final fun (neton.core.component/HttpConfig).neton.core.component/tls(kotlin/Function1<neton.core.component/TlsConfigBuilder, kotlin/Unit>) // neton.core.component/tls|tls@neton.core.component.HttpConfig(kotlin.Function1<neton.core.component.TlsConfigBuilder,kotlin.Unit>){}[0]
+final fun (neton.core.component/NetonContext).neton.core.http/routeLifecycle(): neton.core.http/RouteLifecycle // neton.core.http/routeLifecycle|routeLifecycle@neton.core.component.NetonContext(){}[0]
 final fun (neton.core.event/DomainEvent).neton.core.event/eventTypeKey(): kotlin/String // neton.core.event/eventTypeKey|eventTypeKey@neton.core.event.DomainEvent(){}[0]
 final fun neton.core.config/getEnv(kotlin/String): kotlin/String? // neton.core.config/getEnv|getEnv(kotlin.String){}[0]
 final fun neton.core.config/getEnvMap(): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.core.config/getEnvMap|getEnvMap(){}[0]

@@ -1,5 +1,7 @@
 package neton.http
 
+import kotlinx.coroutines.CancellationException
+
 import neton.core.http.HttpContext
 import neton.core.http.HttpException
 import neton.core.http.NetonErrorCode
@@ -39,7 +41,13 @@ suspend fun runSecurityPreHandle(
         val optionalAuthr = securityConfig
             ?.takeIf { it.isEnabled }
             ?.let { it.getAuthenticatorByGroup?.invoke(requestContext.routeGroup) ?: it.defaultAuthenticator }
-        val optionalIdentity = try { optionalAuthr?.authenticate(requestContext) } catch (_: Throwable) { null }
+        val optionalIdentity = try {
+            optionalAuthr?.authenticate(requestContext)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
         if (optionalIdentity != null) {
             httpContext.setAttribute(SecurityAttributes.IDENTITY, optionalIdentity)
         } else {
