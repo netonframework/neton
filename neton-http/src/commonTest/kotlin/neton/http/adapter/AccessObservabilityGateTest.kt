@@ -60,11 +60,14 @@ class AccessObservabilityGateTest {
             bind(AccessLogWriter::class, writer)
         }
         val d = BufferedHttpDispatcher(HttpServerConfig(port = 0)).also { it.bind(ctx) }
-        val r = d.dispatch(request())
+        val r = d.dispatch(BufferedHttpRequest("GET", "/x", "token=private",
+            mapOf("X-Forwarded-For" to listOf("203.0.113.66")), ByteArray(0), remoteAddress = "192.0.2.2"))
         assertEquals("ok", r.body.decodeToString())
         // The record is written on a background scope; await it rather than racing it.
         val e = withTimeout(5_000) { received.await() }
         assertEquals("/x", e.requestUrl)
+        assertEquals("192.0.2.2", e.userIp)
+        assertEquals(null, e.requestParams)
         assertTrue(e.endTime >= e.beginTime, "latency must be non-negative when observed")
     }
 
