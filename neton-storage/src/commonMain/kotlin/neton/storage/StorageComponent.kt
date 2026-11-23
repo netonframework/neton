@@ -8,8 +8,6 @@ import neton.logging.Logger
 import neton.logging.LoggerFactory
 import neton.storage.internal.DefaultStorageManager
 import neton.storage.internal.SourceConfigParser
-import neton.storage.local.LocalStorageOperator
-import neton.storage.s3.S3StorageOperator
 import neton.http.client.HttpClient
 
 object StorageComponent : NetonComponent<StorageConfig> {
@@ -65,32 +63,6 @@ object StorageComponent : NetonComponent<StorageConfig> {
     }
 
     private fun createOperator(ctx: NetonContext, src: SourceConfig, logger: Logger?): StorageOperator {
-        return when (src.type) {
-            "local" -> LocalStorageOperator(src.name, src.basePath, logger, src.baseUrl)
-            "s3" -> {
-                // Borrowed, never created here: the application builds one client,
-                // binds it, and closes it at shutdown. Same rule as neton-ai.
-                val httpClient = ctx.getOrNull(HttpClient::class)
-                    ?: throw IllegalStateException(
-                        "storage source '${src.name}' is type s3 and needs an HttpClient bound in " +
-                            "NetonContext. Build one with HttpClient.create { } and bind(HttpClient::class, it) " +
-                            "before the storage component initialises.",
-                    )
-                S3StorageOperator(
-                    name = src.name,
-                    endpoint = src.endpoint,
-                    region = src.region,
-                    bucket = src.bucket,
-                    accessKey = src.accessKey,
-                    secretKey = src.secretKey,
-                    pathStyle = src.pathStyle,
-                    httpClient = httpClient,
-                    logger = logger,
-                    baseUrl = src.baseUrl,
-                )
-            }
-
-            else -> throw IllegalStateException("Unknown storage type '${src.type}' for source '${src.name}'")
-        }
+        return StorageOperatorFactory.create(src, ctx.getOrNull(HttpClient::class), logger)
     }
 }

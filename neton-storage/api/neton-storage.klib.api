@@ -250,4 +250,8 @@ final object neton.storage/StorageComponent : neton.core.component/NetonComponen
     final suspend fun stop(neton.core.component/NetonContext) // neton.storage/StorageComponent.stop|stop(neton.core.component.NetonContext){}[0]
 }
 
+final object neton.storage/StorageOperatorFactory { // neton.storage/StorageOperatorFactory|null[0]
+    final fun create(neton.storage/SourceConfig, neton.http.client/HttpClient? = ..., neton.logging/Logger? = ...): neton.storage/StorageOperator // neton.storage/StorageOperatorFactory.create|create(neton.storage.SourceConfig;neton.http.client.HttpClient?;neton.logging.Logger?){}[0]
+}
+
 final fun (neton.core/Neton.LaunchBuilder).neton.storage/storage(kotlin/Function1<neton.storage/StorageConfig, kotlin/Unit>) // neton.storage/storage|storage@neton.core.Neton.LaunchBuilder(kotlin.Function1<neton.storage.StorageConfig,kotlin.Unit>){}[0]
