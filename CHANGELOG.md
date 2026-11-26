@@ -2,6 +2,31 @@
 
 All notable changes to Neton are documented here.
 
+## 1.2.0 — Unreleased
+
+This minor release adds route lifecycle extension points to the standard HTTP
+dispatcher. Existing route definitions keep their constructor and ABI.
+
+- Register suspendable around interceptors at startup. An interceptor wraps
+  the route handler after admission, authentication, authorization and rate
+  limiting, and can short-circuit without invoking the handler. The continuation
+  is single-use.
+- Register read-only completion observers for matched routes. Observers see
+  the dispatcher outcome, including rejections, failures and cancellation,
+  without access to raw request data or the response body. Completion is not
+  confirmation that a response was delivered or that a business transaction committed.
+- Use global, route-group or method-and-template selectors. Extensions run in
+  deterministic order, without runtime scanning or controller annotations.
+- Harden HTTP access and error records: omit raw query parameters, record route
+  templates instead of concrete paths, and use the resolved client address
+  rather than trusting a forwarding header directly. Custom log consumers that
+  depended on raw paths or query parameters must account for this change.
+- Propagate cancellation during optional authentication on anonymous routes.
+
+All Framework modules, KSP and the BOM use the same version. Kotlin, KSP and
+published dependency versions are unchanged from 1.1.2. Publication and
+artifact-consumer verification are pending.
+
 ## 1.1.2 - 2026-11-09
 
 - Published to Maven Central from `5124777a476d6676be8b7767bea85dc8ee53b3c6`
