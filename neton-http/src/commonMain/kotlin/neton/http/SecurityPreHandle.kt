@@ -6,6 +6,8 @@ import neton.core.http.HttpContext
 import neton.core.http.HttpException
 import neton.core.http.NetonErrorCode
 import neton.core.http.NetonErrorMessage
+import neton.core.interfaces.Identity
+import neton.core.interfaces.PostAuthenticationHandler
 import neton.core.interfaces.RequestContext
 import neton.core.interfaces.RouteDefinition
 import neton.core.interfaces.RouteGroupSecurityConfigs
@@ -50,6 +52,7 @@ suspend fun runSecurityPreHandle(
         }
         if (optionalIdentity != null) {
             httpContext.setAttribute(SecurityAttributes.IDENTITY, optionalIdentity)
+            notifyAfterAuthentication(httpContext, optionalIdentity, requestContext)
         } else {
             httpContext.removeAttribute(SecurityAttributes.IDENTITY)
         }
@@ -93,6 +96,7 @@ suspend fun runSecurityPreHandle(
     // 4. 存储 identity
     if (identity != null) {
         httpContext.setAttribute(SecurityAttributes.IDENTITY, identity)
+        notifyAfterAuthentication(httpContext, identity, requestContext)
     } else {
         httpContext.removeAttribute(SecurityAttributes.IDENTITY)
     }
@@ -126,5 +130,25 @@ suspend fun runSecurityPreHandle(
     val allowed = guard.checkPermission(identity, requestContext)
     if (!allowed) {
         throw HttpException(NetonErrorCode.PERMISSION_DENIED, NetonErrorMessage.PERMISSION_DENIED)
+    }
+}
+
+/**
+ * 认证成功挂点（[PostAuthenticationHandler]，典型用途：cookie 会话滑动续期）。
+ * 处理器绑在应用上下文上；没有应用上下文的传输或注册了别的实现之外的场景自然跳过。
+ * 续期属于增益路径：除协程取消外吞掉实现方漏抛的异常——不能让一次失败的续期拦住
+ * 已经通过认证/鉴权的请求（接口约定实现不得抛，这里是兜底）。
+ */
+private suspend fun notifyAfterAuthentication(
+    httpContext: HttpContext,
+    identity: Identity,
+    requestContext: RequestContext,
+) {
+    val handler = httpContext.getApplicationContext()?.getOrNull(PostAuthenticationHandler::class) ?: return
+    try {
+        handler.onAuthenticated(httpContext, identity, requestContext)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
     }
 }

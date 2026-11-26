@@ -483,7 +483,19 @@ public class BufferedHttpDispatcher(
                         call?.result = RouteResult.REJECTED
                         BufferedHttpResponse(decision.status, decision.headers)
                     }
-                    is neton.core.http.upgrade.UpgradeDecision.Accept -> BufferedHttpResponse(101, decision.headers, upgrade = decision)
+                    is neton.core.http.upgrade.UpgradeDecision.Accept -> {
+                        // 安全预处理（cookie 滑动续期，见 PostAuthenticationHandler）把 Set-Cookie 写在
+                        // context.response 上，而 101 只带 decision.headers——不合并进来，升级路径的续期
+                        // 永远到不了浏览器（刷新页面才 401 的根因）。只透传 Set-Cookie，其余响应头
+                        // （Content-Type 之类）不进升级响应，保持 101 语义干净。
+                        val renewedCookies = context.response.headers.getAll("Set-Cookie")
+                        BufferedHttpResponse(
+                            101,
+                            if (renewedCookies.isEmpty()) decision.headers
+                            else decision.headers + mapOf("Set-Cookie" to renewedCookies),
+                            upgrade = decision,
+                        )
+                    }
                 }
                 return DispatchOutcome(response, matched.compiled.fullPattern, context)
             }
