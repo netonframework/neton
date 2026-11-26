@@ -31,7 +31,7 @@ val hostTarget = when {
 }
 val hostCapital = hostTarget.replaceFirstChar { it.uppercase() }
 val migrationOutput = layout.buildDirectory.dir("generated/migrations/kotlin")
-val generateMigrationResources by tasks.registering {
+val generateMigrationResources = tasks.register("generateMigrationResources") {
     val sql = layout.projectDirectory.file("sql/postgresql/V001__reference.sql")
     inputs.file(sql)
     outputs.dir(migrationOutput)

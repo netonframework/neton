@@ -15,13 +15,13 @@ kotlin {
     mingwX64()
 
     sourceSets {
-        val nativeMain by creating { dependsOn(commonMain.get()) }
-        val macosArm64Main by getting { dependsOn(nativeMain) }
-        val macosX64Main by getting { dependsOn(nativeMain) }
-        val linuxX64Main by getting { dependsOn(nativeMain) }
-        val linuxArm64Main by getting { dependsOn(nativeMain) }
-        val mingwX64Main by getting { dependsOn(nativeMain) }
-        val commonMain by getting {
+        val nativeMain = create("nativeMain") { dependsOn(commonMain.get()) }
+        val macosArm64Main = getByName("macosArm64Main") { dependsOn(nativeMain) }
+        val macosX64Main = getByName("macosX64Main") { dependsOn(nativeMain) }
+        val linuxX64Main = getByName("linuxX64Main") { dependsOn(nativeMain) }
+        val linuxArm64Main = getByName("linuxArm64Main") { dependsOn(nativeMain) }
+        val mingwX64Main = getByName("mingwX64Main") { dependsOn(nativeMain) }
+        val commonMain = getByName("commonMain") {
             dependencies {
                 implementation(project(":neton-core"))
                 implementation(project(":neton-logging"))
@@ -36,7 +36,7 @@ kotlin {
             }
         }
 
-        val commonTest by getting {
+        val commonTest = getByName("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)

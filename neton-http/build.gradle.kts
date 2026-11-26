@@ -29,7 +29,7 @@ kotlin {
     mingwX64()
 
     sourceSets {
-        val nativeMain by creating {
+        val nativeMain = create("nativeMain") {
             dependsOn(commonMain.get())
             dependencies {
                 implementation(netonstreamHttp)
@@ -37,37 +37,37 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
             }
         }
-        val nativeTest by creating { dependsOn(commonTest.get()) }
-        val posixTest by creating { dependsOn(nativeTest) }
+        val nativeTest = create("nativeTest") { dependsOn(commonTest.get()) }
+        val posixTest = create("posixTest") { dependsOn(nativeTest) }
         macosArm64Test.get().dependsOn(posixTest)
         macosX64Test.get().dependsOn(posixTest)
         linuxX64Test.get().dependsOn(posixTest)
         linuxArm64Test.get().dependsOn(posixTest)
         mingwX64Test.get().dependsOn(nativeTest)
-        val posixMain by creating {
+        val posixMain = create("posixMain") {
             dependsOn(nativeMain)
         }
-        val macosMain by creating {
+        val macosMain = create("macosMain") {
             dependsOn(posixMain)
             dependencies {  }
         }
-        val linuxMain by creating {
+        val linuxMain = create("linuxMain") {
             dependsOn(posixMain)
             dependencies {  }
         }
-        val macosArm64Main by getting {
+        val macosArm64Main = getByName("macosArm64Main") {
             dependsOn(macosMain)
         }
-        val macosX64Main by getting {
+        val macosX64Main = getByName("macosX64Main") {
             dependsOn(macosMain)
         }
-        val linuxX64Main by getting {
+        val linuxX64Main = getByName("linuxX64Main") {
             dependsOn(linuxMain)
         }
-        val linuxArm64Main by getting {
+        val linuxArm64Main = getByName("linuxArm64Main") {
             dependsOn(linuxMain)
         }
-        val mingwX64Main by getting {
+        val mingwX64Main = getByName("mingwX64Main") {
             dependsOn(nativeMain)
             dependencies {  }
         }
@@ -103,7 +103,7 @@ kotlin {
  * The check reads the declarations from source: the framework's own `src/<set>/kotlin` trees, and
  * the library's published sources jar. It is part of `check`.
  */
-val netonstreamSources: Configuration by configurations.creating {
+val netonstreamSources: Configuration = configurations.create("netonstreamSources") {
     isCanBeConsumed = false
     isCanBeResolved = true
     isTransitive = false
@@ -120,7 +120,7 @@ if (!netonstreamLocal) {
 val localHttpMainSources = rootProject.file("../http/http/src").listFiles()
     .orEmpty().filter { it.isDirectory && it.name.endsWith("Main") }
 
-val checkNetonHttpPackageClash by tasks.registering {
+val checkNetonHttpPackageClash = tasks.register("checkNetonHttpPackageClash") {
     group = "verification"
     description = "Fails if the framework and com.netonstream:http declare the same top-level name in package neton.http."
     val sources: FileCollection = if (netonstreamLocal) files(localHttpMainSources) else netonstreamSources

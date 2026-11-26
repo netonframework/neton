@@ -16,11 +16,11 @@ kotlin {
             implementation(project(":neton-logging"))
         }
         commonTest.dependencies { implementation(kotlin("test")) }
-        val nativeMain by creating {
+        val nativeMain = create("nativeMain") {
             dependsOn(commonMain.get())
             dependencies { implementation("com.netonstream:websocket:0.3.1") }
         }
-        val nativeTest by creating {
+        val nativeTest = create("nativeTest") {
             dependsOn(commonTest.get())
             dependencies {
                 implementation("com.netonstream:websocket:0.3.1")
@@ -43,7 +43,7 @@ kotlin {
 
 evaluationDependsOn(":neton")
 
-val verifyWebSocketBoundaries by tasks.registering {
+val verifyWebSocketBoundaries = tasks.register("verifyWebSocketBoundaries") {
     group = "verification"
     description = "Ensures core, HTTP and the umbrella do not acquire the optional WebSocket module."
     doLast {

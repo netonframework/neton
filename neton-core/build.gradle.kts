@@ -195,17 +195,17 @@ kotlin {
     sourceSets {
         // 源集层级：commonMain → nativeMain → posixMain → macOS/Linux 目标
         //                                  → mingwX64Main
-        val nativeMain by creating {
+        val nativeMain = create("nativeMain") {
             dependsOn(commonMain.get())
         }
-        val posixMain by creating {
+        val posixMain = create("posixMain") {
             dependsOn(nativeMain)
         }
-        val macosArm64Main by getting { dependsOn(posixMain) }
-        val macosX64Main by getting { dependsOn(posixMain) }
-        val linuxX64Main by getting { dependsOn(posixMain) }
-        val linuxArm64Main by getting { dependsOn(posixMain) }
-        val mingwX64Main by getting { dependsOn(nativeMain) }
+        val macosArm64Main = getByName("macosArm64Main") { dependsOn(posixMain) }
+        val macosX64Main = getByName("macosX64Main") { dependsOn(posixMain) }
+        val linuxX64Main = getByName("linuxX64Main") { dependsOn(posixMain) }
+        val linuxArm64Main = getByName("linuxArm64Main") { dependsOn(posixMain) }
+        val mingwX64Main = getByName("mingwX64Main") { dependsOn(nativeMain) }
 
         commonMain {
             dependencies {
@@ -234,7 +234,7 @@ dependencies {
 
 // 框架版本从 gradle.properties 的 netonVersion 生成，不再手写常量：
 // 1.0.0-beta2 和 beta3 都发出去了才发现 banner 还在报 beta1。
-val generateBuildInfo by tasks.registering {
+val generateBuildInfo = tasks.register("generateBuildInfo") {
     val version = project.version.toString()
     val outDir = layout.buildDirectory.dir("generated/buildinfo/commonMain/kotlin")
     inputs.property("version", version)

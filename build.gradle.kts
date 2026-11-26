@@ -47,8 +47,8 @@ val appleSwiftLibDir: String? by lazy {
 }
 
 // ---------- Maven Central 发布（仅库模块，排除示例） ----------
-val netonVersion: String by project
-val netonGroup: String by project
+val netonVersion = project.property("netonVersion") as String
+val netonGroup = project.property("netonGroup") as String
 
 subprojects {
     configurations.configureEach {

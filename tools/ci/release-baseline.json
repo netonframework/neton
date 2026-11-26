@@ -3,8 +3,8 @@
   "capturedAt": "2026-11-09",
   "group": "com.netonstream",
   "toolchain": {
-    "kotlin": "2.4.20",
-    "ksp": "2.3.12",
+    "kotlin": "2.4.21",
+    "ksp": "2.3.14",
     "jdk": "17"
   },
   "scope": "Published root POM and Gradle metadata; independent extension releases are inventoried, not certified by Framework runtime tests.",

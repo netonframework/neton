@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
       - name: Reject missing, changed or non-release publications
@@ -28,7 +28,7 @@ jobs:
           python3 -m unittest discover -s tools/ci -p test_repeat_transport_tests.py
           python3 -m unittest discover -s tools/ci -p test_http_soak.py
           python3 tools/ci/verify_release_baseline.py --online --output build/release-baseline/central.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: published-baseline-${{ github.sha }}
@@ -48,13 +48,13 @@ jobs:
           - { os: ubuntu-24.04, target: linuxArm64 }
           - { os: windows-2022, target: mingwX64 }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
       - name: Use the accepted Apple toolchain
@@ -83,7 +83,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tools/ci -p test_native_transport_gate.py
           python3 tools/ci/native_transport_gate.py --stage --output "${{ runner.temp }}/transport-arm-build"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: matrix.target == 'linuxArm64'
         with:
           name: transport-arm-build-${{ github.sha }}
@@ -94,7 +94,7 @@ jobs:
         run: |
           python -m unittest discover -s tools/ci -p test_integration_report.py
           python tools/ci/verify-integration-report.py neton-websocket/build/test-results/${{ matrix.target }}Test websocket
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: transport-stability-${{ matrix.target }}-${{ github.sha }}
@@ -111,11 +111,11 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: transport-arm-build-${{ github.sha }}
           path: ${{ runner.temp }}/transport-arm-build
@@ -124,7 +124,7 @@ jobs:
           python3 tools/ci/native_transport_gate.py
           --artifact "${{ runner.temp }}/transport-arm-build"
           --output "${{ runner.temp }}/transport-arm-runtime"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: transport-arm-runtime-${{ github.sha }}
@@ -138,8 +138,8 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
@@ -159,7 +159,7 @@ jobs:
         run: git diff --exit-code -- '**/api/**'
       - name: Stable consumer syntax and opt-in rejection contracts
         run: python3 tools/ci/source_compat_gate.py --target macosArm64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: abi-reports-${{ github.sha }}
@@ -187,13 +187,13 @@ jobs:
           - os: windows-2022
             target: mingwX64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.12"
       - name: Use the accepted Apple toolchain
@@ -208,7 +208,7 @@ jobs:
         run: python tools/ci/ksp_incremental_gate.py --target ${{ matrix.target }} ${{ matrix.extra }} --output "${{ runner.temp }}/ksp-incremental-evidence"
       - name: Retain incremental evidence and failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ksp-incremental-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/ksp-incremental-evidence/
@@ -220,14 +220,14 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: ksp-incremental-linuxArm64-${{ github.sha }}
           path: ${{ runner.temp }}/ksp-cross-artifact
       - name: Verify and run all five compiled stages on ARM64
         run: python3 tools/ci/ksp_incremental_gate.py --target linuxArm64 --run-artifact "${{ runner.temp }}/ksp-cross-artifact" --output "${{ runner.temp }}/ksp-native-evidence"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: ksp-incremental-linuxArm64-native-${{ github.sha }}
@@ -249,13 +249,13 @@ jobs:
           - os: windows-2022
             target: mingwX64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.12"
       - name: Provide macOS PostgreSQL tooling
@@ -287,7 +287,7 @@ jobs:
         run: python tools/ci/reference_gate.py --target ${{ matrix.target }} --dependencies published --pg-bin "${{ env.GATE_PG_BIN }}" --output "${{ runner.temp }}/neton-reference-evidence"
       - name: Retain reference release evidence (including failures)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: reference-release-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/neton-reference-evidence/
@@ -300,15 +300,15 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.12"
-      - uses: gradle/actions/wrapper-validation@v3
+      - uses: gradle/actions/wrapper-validation@v6.4.1
       - name: Prepare isolated gate tooling
         run: brew install postgresql@16 gnupg
       - name: Reject incomplete or tampered candidate fixtures
@@ -317,7 +317,7 @@ jobs:
         run: python3 tools/ci/candidate_gate.py --pg-bin "$(brew --prefix postgresql@16)/bin" --output "$RUNNER_TEMP/neton-candidate-evidence"
       - name: Retain evidence and local candidate repository
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: candidate-artifacts-${{ github.sha }}
           path: |
@@ -340,22 +340,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '17'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: candidate-artifacts-${{ github.sha }}
           path: ${{ runner.temp }}/candidate
       - name: Build twice and run pinned application twice
         shell: bash
         run: python tools/ci/neton_app_gate.py --target '${{ matrix.target }}' --candidate "$RUNNER_TEMP/candidate" --output "$RUNNER_TEMP/public-app"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: public-app-${{ matrix.target }}-${{ github.sha }}
@@ -393,8 +393,8 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
@@ -410,7 +410,7 @@ jobs:
           python3 tools/ci/verify-integration-report.py neton-database/build/test-results/linuxX64Test
       - name: Retain database test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: postgres-contracts-${{ github.sha }}
           path: neton-database/build/test-results/linuxX64Test/
@@ -430,8 +430,8 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
@@ -445,7 +445,7 @@ jobs:
         run: python3 tools/ci/verify-integration-report.py neton-redis/build/test-results/linuxX64Test redis
       - name: Retain Redis test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: redis-contracts-${{ github.sha }}
           path: neton-redis/build/test-results/linuxX64Test/
@@ -459,7 +459,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Verify Xcode toolchain
         run: xcodebuild -version
@@ -469,14 +469,14 @@ jobs:
         run: bash tools/ci/checkout-protocols.sh
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
       - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/actions/wrapper-validation@v6.4.1
 
       - name: Compile framework
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=true -Pnetonstream.local.openssl=true -PnativeTargets=all compileKotlinMacosArm64
@@ -519,17 +519,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
       - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/actions/wrapper-validation@v6.4.1
 
       - name: Run native Core tests
         if: matrix.target != 'mingwX64'

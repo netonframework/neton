@@ -20,6 +20,11 @@ dependencies {
     // 在 JVM 上真正跑一遍 kotlinc + KSP，验证诊断能否阻断编译（KSP 处理器本就只能跑在 JVM 上）
     testImplementation(libs.kctfork.core)
     testImplementation(libs.kctfork.ksp)
+    // kctfork's embedded KSP runtime must match the processor API, not its older defaults.
+    listOf("symbol-processing", "symbol-processing-common-deps", "symbol-processing-aa-embeddable")
+        .forEach { testRuntimeOnly("com.google.devtools.ksp:$it:${libs.versions.ksp.get()}") }
+    testRuntimeOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:${libs.versions.kotlin.get()}")
+    testRuntimeOnly("org.jetbrains.kotlin:kotlin-annotation-processing-embeddable:${libs.versions.kotlin.get()}")
 }
 
 tasks.named<Test>("test") {

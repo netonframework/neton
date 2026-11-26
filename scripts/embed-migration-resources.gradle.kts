@@ -37,7 +37,7 @@ val genFile = genRoot.map { it.file("init/generated/$className.kt") }
 
 val sqlInputs = files(dialects.map { dialectDir(it) })
 
-val generateMigrationResources by tasks.registering {
+val generateMigrationResources = tasks.register("generateMigrationResources") {
     group = "neton-migration"
     description = "Generate $pascalId$className.kt with embedded SQL constants."
 

@@ -15,17 +15,17 @@ kotlin {
     mingwX64()
 
     sourceSets {
-        val nativeMain by creating {
+        val nativeMain = create("nativeMain") {
             dependsOn(commonMain.get())
         }
-        val posixMain by creating {
+        val posixMain = create("posixMain") {
             dependsOn(nativeMain)
         }
-        val macosArm64Main by getting { dependsOn(posixMain) }
-        val macosX64Main by getting { dependsOn(posixMain) }
-        val linuxX64Main by getting { dependsOn(posixMain) }
-        val linuxArm64Main by getting { dependsOn(posixMain) }
-        val mingwX64Main by getting { dependsOn(nativeMain) }
+        val macosArm64Main = getByName("macosArm64Main") { dependsOn(posixMain) }
+        val macosX64Main = getByName("macosX64Main") { dependsOn(posixMain) }
+        val linuxX64Main = getByName("linuxX64Main") { dependsOn(posixMain) }
+        val linuxArm64Main = getByName("linuxArm64Main") { dependsOn(posixMain) }
+        val mingwX64Main = getByName("mingwX64Main") { dependsOn(nativeMain) }
 
         commonMain {
             dependencies {
