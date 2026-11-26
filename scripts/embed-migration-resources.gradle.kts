@@ -9,6 +9,9 @@
  *   apply(from = "../../neton/scripts/embed-migration-resources.gradle.kts")
  *   extra["neton.migration.moduleId"] = "member"
  *   extra["neton.migration.dialects"] = listOf("postgresql")
+ *   // 可选：脚本集中放在 host 仓时，读 <sqlSourceDir>/<dialect>/<moduleSubdir>/V*.sql
+ *   extra["neton.migration.sqlSourceDir"] = file("../<host>/sql")
+ *   extra["neton.migration.moduleSubdir"] = "member"
  *
  * 模块 ModuleInitializer.migrations() 引用 generated `<PascalId>MigrationResources.sources`。
  */
@@ -19,8 +22,12 @@ import java.util.Base64
 val moduleId = (extra["neton.migration.moduleId"] as? String)
     ?: error("module must set extra[\"neton.migration.moduleId\"] before applying embed-migration-resources")
 @Suppress("UNCHECKED_CAST")
-val dialects = (extra["neton.migration.dialects"] as? List<String>) ?: listOf("postgresql")
-val sqlSourceDir = (extra["neton.migration.sqlSourceDir"] as? File) ?: file("sql")
+val dialects = (extra.properties["neton.migration.dialects"] as? List<String>) ?: listOf("postgresql")
+val sqlSourceDir = (extra.properties["neton.migration.sqlSourceDir"] as? File) ?: file("sql")
+val moduleSubdir = extra.properties["neton.migration.moduleSubdir"] as? String
+
+fun dialectDir(dialect: String): File =
+    if (moduleSubdir == null) File(sqlSourceDir, dialect) else File(File(sqlSourceDir, dialect), moduleSubdir)
 
 val pascalId = moduleId.split('-', '_', '.').joinToString("") { p -> p.replaceFirstChar { it.uppercaseChar() } }
 val className = "${pascalId}MigrationResources"
@@ -28,7 +35,7 @@ val pkg = "init.generated"
 val genRoot = layout.buildDirectory.dir("generated/migration/kotlin")
 val genFile = genRoot.map { it.file("init/generated/$className.kt") }
 
-val sqlInputs = files(dialects.map { File(sqlSourceDir, it) })
+val sqlInputs = files(dialects.map { dialectDir(it) })
 
 val generateMigrationResources by tasks.registering {
     group = "neton-migration"
@@ -46,7 +53,7 @@ val generateMigrationResources by tasks.registering {
         // 收集 (dialect → 按 version 升序的脚本列表)
         val perDialect = linkedMapOf<String, List<Triple<String, String, String>>>() // dialect → [(version, desc, content)]
         for (dialect in dialects) {
-            val dir = File(sqlSourceDir, dialect)
+            val dir = dialectDir(dialect)
             if (!dir.isDirectory) {
                 perDialect[dialect] = emptyList()
                 continue
