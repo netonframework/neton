@@ -46,6 +46,12 @@ class ApplicationRegistryProcessor(
         val modulesArg = options["neton.modules"]?.takeIf { it.isNotBlank() } ?: return emptyList()
         val ids = modulesArg.split(',').map { it.trim() }.filter { it.isNotEmpty() }
         if (ids.isEmpty()) return emptyList()
+        val seen = mutableSetOf<String>()
+        val duplicate = ids.firstOrNull { !seen.add(it) }
+        if (duplicate != null) {
+            logger.error("NETON_ARCH_DUPLICATE_MODULE: neton.modules includes '$duplicate' more than once")
+            return emptyList()
+        }
 
         val refs = mutableListOf<Pair<String, String>>()  // id to FQN
         for (id in ids) {

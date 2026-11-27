@@ -59,6 +59,13 @@ class ModuleInitializerProcessor(
 
         // MANIFEST-P1: @Module 锚点探测。存在 → Manifest 模式；否则兼容模式。
         val anchor = findModuleAnchor(resolver, moduleId)
+        val declaredDependencies = anchor?.dependsOn
+            ?: options["neton.moduleDependsOn"].orEmpty().split(',').map(String::trim).filter(String::isNotEmpty)
+        if (moduleId in declaredDependencies) {
+            logger.error("NETON_ARCH_MODULE_CYCLE: $moduleId -> $moduleId", anchor?.source)
+            ModuleFragmentSink.clear(moduleId)
+            return emptyList()
+        }
         val dependencies = Dependencies(
             aggregating = true,
             *resolver.getAllFiles().toList().toTypedArray()
@@ -76,7 +83,7 @@ class ModuleInitializerProcessor(
         if (anchor != null) {
             generateModuleManifest(resolver, moduleId, anchor, dependencies)
         } else {
-            generateModuleInitializer(moduleId, dependencies)
+            generateModuleInitializer(moduleId, dependencies, declaredDependencies)
         }
 
         // 清空该 moduleId 的 sink，避免多轮累积
@@ -86,6 +93,7 @@ class ModuleInitializerProcessor(
     }
 
     private data class ModuleAnchor(
+        val source: KSClassDeclaration,
         val declaredId: String,
         val dependsOn: List<String>,
         val migrations: Boolean,
@@ -148,7 +156,7 @@ class ModuleInitializerProcessor(
             ?: emptyList()
         val migrations = ann.arguments.firstOrNull { it.name?.asString() == "migrations" }?.value as? Boolean
             ?: false
-        return ModuleAnchor(moduleId, deps, migrations)
+        return ModuleAnchor(decl, moduleId, deps, migrations)
     }
 
     /** package 末段推导 module id；末段是 init/module/bootstrap 时取倒数第二段；推导不出返回 null。 */
@@ -285,7 +293,7 @@ class ModuleInitializerProcessor(
 
     // ---------- 兼容模式（无 @NetonModule，维持原行为） ----------
 
-    private fun generateModuleInitializer(moduleId: String, dependencies: Dependencies) {
+    private fun generateModuleInitializer(moduleId: String, dependencies: Dependencies, deps: List<String>) {
         val pascalId = moduleId.toPascalCase()
         val className = "${pascalId}ModuleInitializer"
         val pkg = "neton.module.$moduleId.generated"
@@ -327,13 +335,9 @@ class ModuleInitializerProcessor(
             w.write("    override val moduleId: String = \"$moduleId\"\n\n")
 
             // dependsOn
-            val dependsOnRaw = options["neton.moduleDependsOn"]?.takeIf { it.isNotBlank() }
-            if (dependsOnRaw != null) {
-                val deps = dependsOnRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                if (deps.isNotEmpty()) {
-                    val depsList = deps.joinToString(", ") { "\"$it\"" }
-                    w.write("    override val dependsOn: List<String> = listOf($depsList)\n\n")
-                }
+            if (deps.isNotEmpty()) {
+                val depsList = deps.joinToString(", ") { "\"$it\"" }
+                w.write("    override val dependsOn: List<String> = listOf($depsList)\n\n")
             }
 
             if (stats.isNotEmpty()) {
