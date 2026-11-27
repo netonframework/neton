@@ -48,7 +48,7 @@ class HttpComponent(
         val maxConnections = resolveInt(appConfig, "http.maxConnections") ?: 1000
         val enableCompression = resolveBoolean(appConfig, "http.enableCompression") ?: true
         // CORS: application.conf [cors] 优先，fallback 到 DSL
-        val corsConfig = resolveCorsConfig(appConfig) ?: config.corsConfig
+        val corsConfig = effectiveCors(appConfig, config.corsConfig)
         // TLS: application.conf [http.tls] 优先，fallback 到 DSL（http { tls { } }）。
         val tls = resolveTls(appConfig) ?: config.tls
         val serverConfig = HttpServerConfig(
@@ -126,10 +126,24 @@ class HttpComponent(
             (corsSection["maxAgeSeconds"] as? Number)?.toLong()?.let { maxAgeSeconds = it }
         }
     }
+
+    internal fun effectiveCors(appConfig: Map<String, Any?>?, dsl: CorsConfig?): CorsConfig? =
+        (resolveCorsConfig(appConfig) ?: dsl)?.validatedSnapshot()
 }
 
 
 internal expect fun createDefaultHttpAdapter(config: HttpServerConfig): HttpAdapter
+
+private fun CorsConfig.validatedSnapshot(): CorsConfig = CorsConfig().also { copy ->
+    copy.allowCredentials = allowCredentials
+    copy.allowedOrigins = allowedOrigins.toList()
+    require(!copy.allowCredentials || "*" !in copy.allowedOrigins) {
+        "cors.allowedOrigins cannot contain * when cors.allowCredentials is true"
+    }
+    copy.allowedMethods = allowedMethods.toList()
+    copy.allowedHeaders = allowedHeaders.toList()
+    copy.maxAgeSeconds = maxAgeSeconds
+}
 
 /** Uses the built-in engine unless an explicit adapter factory is supplied. */
 fun neton.core.Neton.LaunchBuilder.http(
