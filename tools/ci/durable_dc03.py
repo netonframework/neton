@@ -61,6 +61,27 @@ def database(role):
         subprocess.run(["dropdb", "--force", name], env=env, check=True)
 
 
+@contextmanager
+def hold_table(sql, table):
+    if table not in {"outbox", "nd_dc03_inbox"}:
+        raise ValueError("not a fixture lock target")
+    locker = subprocess.Popen(["psql", "-XqAtw", "-h", "127.0.0.1", "-d", sql("SELECT current_database();")],
+                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    try:
+        locker.stdin.write(f"BEGIN; LOCK TABLE {table} IN EXCLUSIVE MODE; SELECT pg_backend_pid();\n")
+        locker.stdin.flush()
+        pid = int(locker.stdout.readline())
+        def wait_for(n):
+            deadline = time.monotonic() + 7
+            while sql(f"SELECT count(*) FROM pg_stat_activity WHERE {pid}=ANY(pg_blocking_pids(pid));") != str(n):
+                if time.monotonic() >= deadline:
+                    raise AssertionError(f"{n} writers did not reach the {table} lock")
+                time.sleep(.02)
+        yield wait_for
+    finally:
+        locker.communicate("ROLLBACK;\n", timeout=5)
+
+
 def stop(proc):
     if proc.poll() is not None:
         return
@@ -149,7 +170,28 @@ def run(binary):
                             "requestDigest": hashlib.sha256(b"credit:v1:7").hexdigest()},
                "amount": 7, "expiresAt": int(time.time()) + 600}
         raw = json.dumps(msg)
-        sender_sql("INSERT INTO outbox(message_id,wire) VALUES (:'id',:'wire');", id=mid, wire=raw)
+        # Kill after the business INSERT, while the outbox INSERT in the same transaction is blocked.
+        with ThreadPoolExecutor(1) as pool:
+            with hold_table(sender_sql, "outbox") as wait_for:
+                producing = pool.submit(request, sender_port, "/produce", raw, token)
+                wait_for(1)
+                sender.kill()
+                sender.wait(timeout=5)
+            try:
+                producing.result()
+            except (http.client.RemoteDisconnected, ConnectionResetError):
+                pass
+            else:
+                raise AssertionError("uncommitted producer returned a response")
+        counts = "SELECT (SELECT count(*) FROM orders), (SELECT count(*) FROM outbox);"
+        expect(sender_sql(counts), "0|0")
+        sender, sender_port = start(stack, binary, "sender", send_uri, token, relay.server_port)
+        expect(request(sender_port, "/produce", raw, token), (200, b"READY"))
+        sender.kill()
+        sender.wait(timeout=5)
+        expect(sender_sql(counts), "1|1")
+        expect(len(observations), 0)
+        sender, sender_port = start(stack, binary, "sender", send_uri, token, relay.server_port)
         def dispatch(outcome, attempt):
             expect(request(sender_port, "/recover", "", token), (200, outcome.encode()))
             expect(sender_sql("SELECT state,attempts FROM outbox;"), f"{'HANDED_OFF' if outcome == 'IDLE' else outcome}|{attempt}")
@@ -172,20 +214,9 @@ def run(binary):
         msg["identity"].update(messageId=uuid.uuid4().hex, invocationId=uuid.uuid4().hex)
         raw = json.dumps(msg)
         with ThreadPoolExecutor(2) as pool:
-            locker = subprocess.Popen(["psql", "-XqAtw", "-h", "127.0.0.1", "-d", receiver_sql("SELECT current_database();")], stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE, text=True)
-            try:
-                locker.stdin.write("BEGIN; LOCK TABLE nd_dc03_inbox IN EXCLUSIVE MODE; SELECT pg_backend_pid();\n")
-                locker.stdin.flush()
-                locker_pid = int(locker.stdout.readline())
+            with hold_table(receiver_sql, "nd_dc03_inbox") as wait_for:
                 jobs = [pool.submit(request, receiver_port, "/receive", raw, token) for _ in range(2)]
-                deadline = time.monotonic() + 7
-                while receiver_sql(f"SELECT count(*) FROM pg_stat_activity WHERE {locker_pid}=ANY(pg_blocking_pids(pid));") != "2":
-                    if time.monotonic() >= deadline:
-                        raise AssertionError("two concurrent deliveries did not reach the inbox lock")
-                    time.sleep(.02)
-            finally:
-                locker.communicate("ROLLBACK;\n", timeout=5)
+                wait_for(2)
             one, two = [job.result() for job in jobs]
         expect(one[0], 200)
         expect(one, two)
@@ -216,7 +247,7 @@ def run(binary):
         expect(request(second_port, "/receive", raw, token), ok)
         expect(receiver_sql("SELECT count(*) FROM nd_dc03_inbox;"), "4")
         expect(receiver_sql("SELECT balance,applies FROM ledger;"), "30|4")
-        print("DC-03 PASS: commit observed before lost ACK; both services restarted; wrong ACK rejected; "
+        print("DC-01/DC-03 PASS: producer killed before/after commit; commit observed before lost ACK; both services restarted; wrong ACK rejected; "
               "same envelope replayed; durable receipt matched; duplicate business effect excluded")
 
 

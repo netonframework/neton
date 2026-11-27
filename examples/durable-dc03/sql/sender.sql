@@ -1,3 +1,4 @@
+CREATE TABLE orders (message_id text PRIMARY KEY, amount integer NOT NULL);
 CREATE TABLE outbox (
     message_id text PRIMARY KEY,
     wire text NOT NULL,

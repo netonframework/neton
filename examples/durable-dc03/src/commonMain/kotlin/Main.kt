@@ -82,7 +82,23 @@ fun main(args: Array<String>) {
                         ctx.response.status = HttpStatus.GONE
                         ctx.response.text("EXPIRED")
                     }
-                } else post("/recover") { ctx ->
+                }
+                if (client != null) post("/produce") { ctx ->
+                    if (ctx.request.headers["Authorization"] != auth) {
+                        ctx.response.status = HttpStatus.UNAUTHORIZED
+                        ctx.response.text("unauthorized")
+                    } else {
+                        val wire = ctx.request.text()
+                        val credit = Json.decodeFromString<Credit>(wire)
+                        val key = credit.identity.messageId
+                        db.transaction {
+                            execute("INSERT INTO orders(message_id,amount) VALUES (:key,:amount)", mapOf("key" to key, "amount" to credit.amount))
+                            execute("INSERT INTO outbox(message_id,wire) VALUES (:key,:wire)", mapOf("key" to key, "wire" to wire))
+                        }
+                        ctx.response.text("READY")
+                    }
+                }
+                if (client != null) post("/recover") { ctx ->
                     if (ctx.request.headers["Authorization"] != auth) {
                         ctx.response.status = HttpStatus.UNAUTHORIZED
                         ctx.response.text("unauthorized")

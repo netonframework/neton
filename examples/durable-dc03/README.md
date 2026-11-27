@@ -11,7 +11,9 @@ Requires local PostgreSQL, psql/createdb/dropdb and a role allowed to create dis
 Set PGUSER, PGPORT and PGPASSWORD as needed. The runner uses loopback and two fresh databases.
 Sender and receiver are separate native Neton processes. The Python relay is a fault injector, not an ACK authority.
 
-1. The sender persists UNKNOWN before sending the stored envelope. The receiver commits its scoped Inbox receipt
+1. A sender is killed while its Outbox INSERT is blocked after the order INSERT (neither survives), then after
+   the transaction commits (both survive). A restarted sender persists UNKNOWN before sending the stored envelope.
+   The receiver commits its scoped Inbox receipt
    and ledger mutation together. An independent SQL connection verifies both before the relay drops the response.
 2. Both services restart. A successful HTTP status with an unrelated invocation in the receipt cannot complete recovery.
 3. The sender retries the original bytes, validates the matching receipt and persists HANDED_OFF. A subsequent scan is idle.

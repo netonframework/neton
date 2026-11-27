@@ -408,6 +408,14 @@ jobs:
         run: |
           python3 -m unittest discover -s tools/ci -p 'test_integration_report.py'
           python3 tools/ci/verify-integration-report.py neton-database/build/test-results/linuxX64Test
+      - name: Durable HTTP crash and receipt contracts
+        env:
+          PGUSER: neton_gate
+          PGPASSWORD: disposable_gate_only
+          PGPORT: "16439"
+        run: |
+          ./gradlew --no-daemon -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :examples:durable-dc03:linkDebugExecutableLinuxX64
+          python3 tools/ci/durable_dc03.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
       - name: Retain database test reports
         if: always()
         uses: actions/upload-artifact@v7.0.2
