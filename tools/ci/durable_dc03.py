@@ -198,6 +198,24 @@ def run(binary):
         expect(request(second_port, "/receive", json.dumps(msg), token), second)
         expect(json.loads(second[1])["receiptId"] != json.loads(one[1])["receiptId"], True)
         expect(receiver_sql("SELECT balance,applies FROM ledger;"), "21|3")
+        # A different, internally consistent command body must not inherit the original receipt.
+        msg["amount"] = 9
+        msg["identity"]["requestDigest"] = hashlib.sha256(b"credit:v1:9").hexdigest()
+        expect(request(second_port, "/receive", json.dumps(msg), token), (409, b"ID_CONFLICT"))
+        msg["identity"].update(messageId=uuid.uuid4().hex, invocationId=uuid.uuid4().hex)
+        expect(request(second_port, "/receive", json.dumps(dict(msg, expiresAt=1)), token), (410, b"EXPIRED"))
+        raw = json.dumps(msg)
+        expect(request(second_port, "/receive", raw)[0], 401)
+        receiver_sql("ALTER TABLE ledger ADD CONSTRAINT fixture_limit CHECK(balance <= 21);")
+        expect(request(second_port, "/receive", raw, token)[0], 500)
+        expect(receiver_sql("SELECT count(*) FROM nd_dc03_inbox;"), "3")
+        expect(receiver_sql("SELECT balance,applies FROM ledger;"), "21|3")
+        receiver_sql("ALTER TABLE ledger DROP CONSTRAINT fixture_limit;")
+        ok = request(second_port, "/receive", raw, token)
+        expect(ok[0], 200)
+        expect(request(second_port, "/receive", raw, token), ok)
+        expect(receiver_sql("SELECT count(*) FROM nd_dc03_inbox;"), "4")
+        expect(receiver_sql("SELECT balance,applies FROM ledger;"), "30|4")
         print("DC-03 PASS: commit observed before lost ACK; both services restarted; wrong ACK rejected; "
               "same envelope replayed; durable receipt matched; duplicate business effect excluded")
 
