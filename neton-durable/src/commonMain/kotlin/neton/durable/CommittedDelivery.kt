@@ -21,9 +21,14 @@ class DeliveryExpired : Exception()
 class CommittedDelivery(private val db: DbContext) {
     init { require(db.dialect is PostgresDialect) }
 
-    suspend fun receive(id: DeliveryIdentity, expiresAt: Long, effect: suspend DbContext.() -> Unit): DeliveryReceipt {
+    suspend fun receive(id: DeliveryIdentity, expiresAt: Long, effect: suspend DbContext.() -> Unit): DeliveryReceipt =
+        receiveGuarded(id, expiresAt, {}, effect)
+
+    /** Acquire application fencing before the Inbox row, using the same transaction. */
+    suspend fun receiveGuarded(id: DeliveryIdentity, expiresAt: Long,
+        before: suspend DbContext.() -> Unit, effect: suspend DbContext.() -> Unit): DeliveryReceipt {
         check(!db.inTransaction()) { "A receipt cannot escape an uncommitted outer transaction" }
-        return db.transaction { receiveInTransaction(id, expiresAt, effect) }
+        return db.transaction { before(); receiveInTransaction(id, expiresAt, effect) }
     }
 
     /** Join the caller's transaction without releasing an uncommitted wire ACK. */

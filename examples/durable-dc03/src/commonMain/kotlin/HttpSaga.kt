@@ -20,6 +20,9 @@ import neton.saga.CompensationFinish
 import neton.saga.CompensationStore
 import neton.saga.CompensationRecovery
 import neton.saga.CompensationBackoff
+import neton.saga.CompensationTransfer
+import neton.saga.ExternalOutcomeQuery
+import neton.saga.ExternalReconciler
 
 @Serializable
 private data class SagaWire(val saga: String, val action: String, val result: String,
@@ -27,6 +30,17 @@ private data class SagaWire(val saga: String, val action: String, val result: St
 
 @Serializable
 internal data class SagaOutcome(val receipt: DeliveryReceipt, val resultWire: String)
+
+@Serializable
+internal data class HandoffWire(val id: String, val plan: String, val source: String, val target: String,
+    val generation: Int, val budget: Int, val dueAt: String, val payload: String) {
+    constructor(value: CompensationTransfer) : this(value.id, value.plan, value.source, value.target,
+        value.generation, value.budget, value.dueAt, value.payload)
+    fun proof() = CompensationTransfer(id, plan, source, target, generation, budget, dueAt, payload)
+}
+
+@Serializable
+private data class CheckoutSnapshot(val saga: String, val version: Int, val wire: String)
 
 /** Fixed checkout example. Receipt acknowledgement is independent of Saga advancement. */
 internal class HttpSaga(private val db: DbContext, private val role: String, private val client: HttpClient,
@@ -99,7 +113,45 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
 
     suspend fun receive(raw: String): DeliveryReceipt {
         val msg = validated(raw)
-        return inbox.receive(msg.identity, msg.expiry) { applyMessage(msg) }
+        return inbox.receiveGuarded(msg.identity, msg.expiry, before = {
+            if (role == "coordinator" && msg.action == "release" &&
+                !compensation.ownsResult("${msg.saga}:release:command")) throw DeliveryConflict()
+        }) { applyMessage(msg) }
+    }
+
+    suspend fun retire(saga: String, plan: String, local: String, target: String): HandoffWire? {
+        return compensation.retire("$saga:release:command", plan, local, target) {
+            fetchAll("""
+                SELECT s.version,q.wire FROM saga_state s JOIN saga_queue q ON q.message_id=:command
+                WHERE s.id=:id AND s.state='COMPENSATING' AND q.receipt IS NULL
+            """.trimIndent(), mapOf("id" to saga, "command" to "$saga:release:command")).singleOrNull()?.let {
+                Json.encodeToString(CheckoutSnapshot(saga, it.int("version"), it.string("wire")))
+            }
+        }?.let(::HandoffWire)
+    }
+
+    suspend fun retirement(saga: String): HandoffWire? =
+        compensation.retirement("$saga:release:command")?.let(::HandoffWire)
+
+    suspend fun activate(saga: String, plan: String, local: String, source: String, sourceUrl: String, control: String): Boolean {
+        val response = try {
+            withTimeoutOrNull(8_000) {
+                client.request(HttpClientRequest(HttpClientMethod.Post, "$sourceUrl/saga/retirement",
+                    HttpHeaders.of("Authorization" to control), HttpClientBody.Json(saga)))
+            }
+        } catch (_: HttpClientException) { null } ?: return false
+        if (response.statusCode != 200) return false
+        val proof = Json.decodeFromString<HandoffWire>(response.body)
+        if (proof.id != "$saga:release:command" || proof.plan != plan) return false
+        val snapshot = Json.decodeFromString<CheckoutSnapshot>(proof.payload)
+        val command = Json.decodeFromString<SagaWire>(snapshot.wire)
+        if (snapshot.saga != saga || command.saga != saga || command.action != "release" || command.result.isNotEmpty() ||
+            db.wire(saga, "release", "", command.expiry) != command) return false
+        return compensation.activate(proof.proof(), local, source) {
+            check(execute("INSERT INTO saga_state(id,state,version) VALUES(:id,'COMPENSATING',:version)",
+                mapOf("id" to saga, "version" to snapshot.version)) == 1L)
+            enqueue(command)
+        }
     }
 
     suspend fun outcome(raw: String): SagaOutcome? {
@@ -160,7 +212,7 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
             db.fetchAll("""
                 SELECT message_id FROM saga_queue q WHERE receipt IS NULL AND NOT EXISTS (
                     SELECT 1 FROM ns_compensation c WHERE c.id=q.message_id AND
-                      (c.state='NEEDS_ATTENTION' OR c.next_attempt_at > clock_timestamp() OR
+                      (c.retired OR c.state='NEEDS_ATTENTION' OR c.next_attempt_at > clock_timestamp() OR
                        (c.state='LEASED' AND c.lease_until > clock_timestamp()))
                 ) ORDER BY message_id LIMIT 1
             """.trimIndent())
@@ -213,14 +265,17 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
             } else null
             try {
                 if ((auto || scheduled) && lease.generation > 1) {
-                    val response = post(raw, msg, "/saga/outcome")
-                    if (response?.statusCode == 200) {
-                        val outcome = Json.decodeFromString<SagaOutcome>(response.body)
+                    val query = ExternalOutcomeQuery<SagaWire, SagaOutcome> {
+                        post(raw, it, "/saga/outcome")?.takeIf { r -> r.statusCode == 200 }
+                            ?.let { r -> Json.decodeFromString<SagaOutcome>(r.body) }
+                    }
+                    val reconciler = ExternalReconciler(query) { expected, outcome ->
                         val reported = validated(outcome.resultWire)
-                        if (outcome.receipt.confirmsSuccess(msg.identity) && reported.saga == msg.saga &&
-                            reported.action == msg.action && reported.expiry == msg.expiry && reported.result == "ok"
-                        ) outcome.receipt to reported else null to null
-                    } else null to null
+                        if (outcome.receipt.confirmsSuccess(expected.identity) && reported.saga == expected.saga &&
+                            reported.action == expected.action && reported.expiry == expected.expiry && reported.result == "ok"
+                        ) outcome.receipt to reported else null
+                    }
+                    reconciler.resolve(msg) ?: (null to null)
                 } else send(raw, msg) to null
             } catch (_: IllegalArgumentException) {
                 null to null

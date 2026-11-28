@@ -71,6 +71,7 @@ fun main(args: Array<String>) {
     val auto = getEnv("DC03_SAGA_AUTO") == "1"
     val fixtureRenew = getEnv("DC03_SAGA_RENEW") == "1"
     val operator = getEnv("DC03_SAGA_OPERATOR")?.let { "Bearer " + it }
+    val resource = getEnv("DC03_SAGA_RESOURCE")
     require(operator == null || (operator != auth && operator.length >= 39))
     var worker: Job? = null
     val saga = if (role in setOf("coordinator", "stock", "payment")) {
@@ -88,6 +89,26 @@ fun main(args: Array<String>) {
             routing {
                 get("/ready") { ctx -> ctx.response.text(role) }
                 if (saga != null) {
+                    if (role == "coordinator" && resource != null) {
+                        for (operation in listOf("retire", "retirement", "activate")) post("/saga/$operation") { ctx ->
+                            if (operator == null || ctx.request.headers["Authorization"] != operator) {
+                                ctx.response.status = HttpStatus.FORBIDDEN
+                                ctx.response.text("FORBIDDEN")
+                            } else {
+                                val fields = ctx.request.text().split('|')
+                                val id = fields[0]
+                                val result = when (operation) {
+                                    "retire" -> if (fields.size == 3) saga.retire(id, fields[1], resource, fields[2])
+                                        ?.let { Json.encodeToString(it) } else null
+                                    "retirement" -> saga.retirement(id)?.let { Json.encodeToString(it) }
+                                    else -> if (fields.size == 2 && saga.activate(id, fields[1], resource,
+                                            env("SAGA_SOURCE"), env("SAGA_SOURCE_URL"), operator)) "ACTIVE" else null
+                                }
+                                if (result == null) ctx.response.status = HttpStatus.CONFLICT
+                                ctx.response.text(result ?: "CONFLICT")
+                            }
+                        }
+                    }
                     if (role == "coordinator") post("/saga/recover") { ctx ->
                         if (operator == null || ctx.request.headers["Authorization"] != operator) {
                             ctx.response.status = HttpStatus.FORBIDDEN

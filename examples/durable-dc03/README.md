@@ -41,7 +41,10 @@ operator evidence is an attestation, not an independent reconciliation backend.
 The scheduled checkout profile persists equal-jitter backoff and shares a database
 lease limit across coordinator processes. It queries the participant's committed
 outcome on an uncertain retry; a 404 is not proof that compensation can run again.
-Workflow definition versioning, external evidence providers and cleanup remain
-outside this example.
+An additional checkout scenario retires a command in one coordinator database,
+rejects activation on a different target identity, restarts both coordinators and
+finishes through the selected target using an operation-matched outcome. The source
+remains fenced. Workflow definition versioning, general external evidence providers
+and cleanup remain outside this example.
 Loopback credentials are not a production transport security configuration. No broker or release publication
 is required.

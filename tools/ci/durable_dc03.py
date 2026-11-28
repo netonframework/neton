@@ -59,6 +59,7 @@ def database(role):
             sql((ROOT / "neton-saga/sql/postgresql/V001__compensation.sql").read_text())
             sql((ROOT / "neton-saga/sql/postgresql/V002__recovery.sql").read_text())
             sql((ROOT / "neton-saga/sql/postgresql/V003__scheduling.sql").read_text())
+            sql((ROOT / "neton-saga/sql/postgresql/V004__handoff.sql").read_text())
         sql((ROOT / f"examples/durable-dc03/sql/{'saga' if saga else role}.sql").read_text())
         password = quote(env.get("PGPASSWORD") or "local-fixture", safe="")
         yield f"postgresql://{quote(user, safe='')}:{password}@127.0.0.1:{port}/{name}", sql
@@ -104,7 +105,7 @@ def stop(proc):
 
 
 def start(stack, binary, role, uri, token, relay_port=None, target="ledger", saga_urls=None, attempts=8,
-          operator=None, auto=False, renew=False, scheduled=False):
+          operator=None, auto=False, renew=False, scheduled=False, control=None):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -122,6 +123,7 @@ def start(stack, binary, role, uri, token, relay_port=None, target="ledger", sag
     env.pop("DC03_SAGA_OPERATOR", None)
     if operator is not None:
         env["DC03_SAGA_OPERATOR"] = operator
+    env.update({"DC03_SAGA_" + key: value for key, value in (control or {}).items()})
     log = stack.enter_context((work / "process.log").open("wb"))
     proc = subprocess.Popen([binary], cwd=work, env=env, stdout=log, stderr=log)
     stack.callback(stop, proc)

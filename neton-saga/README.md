@@ -34,6 +34,18 @@ consumes the persisted reconciliation budget. A matched receipt and the authorit
 business result are committed with the lease-fenced finish. The same result Inbox
 deduplicates any later callback.
 
-This does not provide a workflow definition engine, a multi-tenant admission
-policy, or a generic external evidence backend. The HTTP acceptance covers the
-PostgreSQL-backed checkout profile, not arbitrary participant systems.
+External participants can supply an `ExternalOutcomeQuery` and an operation/evidence
+binder. A missing or mismatched result cannot authorize execution. Authority
+authentication and evidence validation are part of the adapter contract.
+
+V004 adds a one-way, explicitly operated transfer of an already-attempted, quiescent
+compensation to a uniquely named target. Source retirement and the frozen snapshot
+commit together. Activation imports the snapshot and enables the command in a single
+destination transaction, using proof fetched from the configured source. Both sides
+retain the original command identity and never reopen the source. Deployments must
+use unique, non-cloned resource identities and an authenticated control channel.
+
+This is not a workflow definition engine, full workflow migration, a multi-tenant
+admission policy, cross-database consensus or a generic evidence backend. The HTTP
+acceptance covers a controlled handoff of one unresolved checkout compensation;
+it does not migrate audit history or support moving an active lease.
