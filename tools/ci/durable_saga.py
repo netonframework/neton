@@ -21,18 +21,18 @@ def run(binary, scenario):
         operator = secrets.token_hex(32)
         saga = uuid.uuid4().hex
         stores = {role: stack.enter_context(database(role)) for role in roles}
-        services, urls, seen = {}, {}, {}
+        services, urls, seen, queried, deliveries = {}, {}, {}, {}, {}
         losses = ({"release:command", "release:result"} if scenario == "replay" else
-                  {"release:command"} if scenario == "recovery" else set())
+                  {"release:command"} if scenario in ("recovery", "schedule") else set())
         held_ack, resume_ack = threading.Event(), threading.Event()
-        hold_release = scenario in ("takeover", "expired")
+        hold_release = scenario in ("takeover", "expired", "schedule")
         attempts = {"exhaustion": 2, "expired": 1, "recovery": 1}.get(scenario, 8)
 
         def state():
-            return stores["coordinator"][1]("SELECT state,version FROM saga_state;")
+            return stores["coordinator"][1]("SELECT state,version FROM saga_state WHERE id=:'id';", id=saga)
 
         def stock():
-            return stores["stock"][1]("SELECT reserved,releases FROM reservation;")
+            return stores["stock"][1]("SELECT reserved,releases FROM reservation WHERE saga_id=:'id';", id=saga)
 
         def stored_receipt(role, suffix):
             return stores[role][1]("SELECT receipt FROM saga_queue WHERE message_id=:'id';", id=f"{saga}:{suffix}")
@@ -43,12 +43,14 @@ def run(binary, scenario):
                     pass
 
                 def do_POST(self):
-                    if self.headers.get("Authorization") != "Bearer " + token or self.path != "/saga/receive":
+                    if self.headers.get("Authorization") != "Bearer " + token or self.path not in ("/saga/receive", "/saga/outcome"):
                         self.send_error(401)
                         return
                     raw = self.rfile.read(int(self.headers["Content-Length"]))
                     identity = json.loads(raw)["identity"]
                     mid = identity["messageId"]
+                    if self.path == "/saga/receive":
+                        deliveries[mid] = deliveries.get(mid, 0) + 1
                     try:
                         status, ack = request(services[role][1], self.path, raw, token)
                     except ConnectionRefusedError:
@@ -57,7 +59,9 @@ def run(binary, scenario):
                         # A participant can drain its outbox before the restarted coordinator binds.
                         self.send_error(503)
                         return
-                    if status == 200:
+                    if self.path == "/saga/outcome":
+                        queried.setdefault(mid, []).append((status, ack))
+                    elif status == 200:
                         rid = stores[role][1](
                             "SELECT receipt_id::text FROM nd_dc03_inbox WHERE message_id=:'id';", id=mid)
                         expect(json.loads(ack)["receiptId"], rid)
@@ -92,7 +96,7 @@ def run(binary, scenario):
             for role in (("stock", "payment", "coordinator") if auto else roles):
                 services[role] = start(stack, binary, role, stores[role][0], token, saga_urls=urls,
                                        attempts=attempts, operator=operator if role == "coordinator" else None,
-                                       auto=auto, renew=hold_release)
+                                       auto=auto, renew=hold_release, scheduled=scenario == "schedule")
 
         def crash_and_restart(auto=False):
             for proc, _ in services.values():
@@ -123,6 +127,58 @@ def run(binary, scenario):
         coordinator_sql = stores["coordinator"][1]
         lease = "SELECT state,generation FROM ns_compensation;"
         audit = "SELECT generation,event,reason FROM ns_compensation_audit;"
+        if scenario == "schedule":
+            other = uuid.uuid4().hex
+            coordinator_sql("UPDATE ns_compensation_admission SET capacity=1;")
+            call("coordinator", "begin", f"{other}:{int(time.time()) + 600}", "READY")
+            for role, suffix in (("coordinator", "reserve:command"), ("stock", "reserve:result"),
+                                 ("coordinator", "charge:command"), ("payment", "charge:result")):
+                call(role, "dispatch", f"{other}:{suffix}", "HANDED_OFF")
+            cid = f"{saga}:release:command"
+            other_id = f"{other}:release:command"
+            _, replacement = start(stack, binary, "coordinator", stores["coordinator"][0], token,
+                                   saga_urls=urls, scheduled=True)
+            # Ensure the single slot is held across a real HTTP request, not a synthetic SQL claim.
+            with ThreadPoolExecutor(1) as pool:
+                first = pool.submit(request, services["coordinator"][1], "/saga/dispatch", cid, token)
+                try:
+                    expect(held_ack.wait(7), True)
+                    expect(request(replacement, "/saga/dispatch", other_id, token), (200, b"AT_CAPACITY"))
+                    expect(coordinator_sql("SELECT generation FROM ns_compensation WHERE id=:'id';", id=other_id), "0")
+                    before = coordinator_sql("SELECT clock_timestamp();")
+                finally:
+                    resume_ack.set()
+                expect(first.result(), (200, b"UNKNOWN"))
+            after = coordinator_sql("SELECT clock_timestamp();")
+            expect(coordinator_sql("""
+                SELECT next_attempt_at BETWEEN CAST(:'before' AS timestamptz)+interval '1 second'
+                AND CAST(:'after' AS timestamptz)+interval '2 seconds' FROM ns_compensation WHERE id=:'id';
+            """, before=before, after=after, id=cid), "t")
+            coordinator_sql("UPDATE ns_compensation SET next_attempt_at=clock_timestamp()+interval '1 hour' WHERE id=:'id';", id=cid)
+            crash_and_restart()
+            dispatch("coordinator", "release:command", "BACKOFF")
+            expect(len(seen[cid]), 1)
+            expect(queried.get(cid), None)
+            # Force the persisted due date; no dependency on a sleep or scheduler speed.
+            coordinator_sql("UPDATE ns_compensation SET next_attempt_at=clock_timestamp()-interval '1 second' WHERE id=:'id';", id=cid)
+            dispatch("coordinator", "release:command")
+            expect(len(seen[cid]), 1)
+            expect(queried[cid][0][0], 200)
+            expect(coordinator_sql("SELECT state,version FROM saga_state WHERE id=:'id';", id=saga), "COMPENSATED|3")
+            expect(stores["stock"][1]("SELECT reserved,releases FROM reservation WHERE saga_id=:'id';", id=saga), "f|1")
+            # The original asynchronous callback can arrive after reconciliation without progressing twice.
+            dispatch("stock", "release:result")
+            expect(coordinator_sql("SELECT state,version FROM saga_state WHERE id=:'id';", id=saga), "COMPENSATED|3")
+            # Without a committed outcome, a read miss cannot authorize another execution.
+            stores["stock"][1]("ALTER TABLE reservation ADD CONSTRAINT deny_other_release CHECK (saga_id <> :'id' OR reserved);", id=other)
+            call("coordinator", "dispatch", other_id, "UNKNOWN")
+            coordinator_sql("UPDATE ns_compensation SET next_attempt_at=clock_timestamp()-interval '1 second' WHERE id=:'id';", id=other_id)
+            call("coordinator", "dispatch", other_id, "UNKNOWN")
+            expect(queried[other_id][0][0], 404)
+            expect(deliveries[other_id], 1)
+            expect(coordinator_sql("SELECT state,version FROM saga_state WHERE id=:'id';", id=other), "COMPENSATING|2")
+            print("Saga scheduling PASS: shared concurrency cap, persisted jittered backoff, restart reconciles committed result without resend")
+            return
         if scenario == "recovery":
             dispatch("coordinator", "release:command", "NEEDS_ATTENTION")
             expect(stock(), "f|1")
@@ -153,14 +209,15 @@ def run(binary, scenario):
                     raise AssertionError("automatic restart did not complete queues")
                 time.sleep(.05)
             expect(stock(), "f|1")
-            first, second = seen[f"{saga}:release:command"]
-            expect(first, second)
+            command_id = f"{saga}:release:command"
+            expect(len(seen[command_id]), 1)
+            expect(queried[command_id][0][0], 200)
             expect(coordinator_sql("""
                 SELECT request_id,actor,generation,workflow_version,evidence FROM ns_compensation_recovery;
             """), "recovery-01|checkout-operator|1|3|receiver-idempotency-verified:incident-17")
             expect(request(services["coordinator"][1], restore, base, operator), (200, b"REPLAYED"))
             expect(state(), "COMPENSATED|5")
-            print("Saga recovery PASS: authorization and CAS enforced; concurrent replay audited once; automatic restart reused original command")
+            print("Saga recovery PASS: authorization and CAS enforced; concurrent replay audited once; automatic restart reconciled original command")
             return
         if scenario == "exhaustion":
             stock_sql = stores["stock"][1]
@@ -276,5 +333,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("binary", type=Path)
     binary = parser.parse_args().binary.resolve(strict=True)
-    for scenario in ("replay", "exhaustion", "takeover", "expired", "recovery"):
+    for scenario in ("replay", "exhaustion", "takeover", "expired", "recovery", "schedule"):
         run(binary, scenario)

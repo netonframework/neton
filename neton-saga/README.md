@@ -20,6 +20,20 @@ local fencing does not stop HTTP already sent by the old worker. The receiving
 service still needs durable idempotency.
 
 This is a reusable persistence primitive, not the complete 1.2.0 Saga module.
-It does not provide a workflow definition engine, a production dispatcher,
-or a reconciliation/evidence backend. See the three-service example for a bounded
-single-dispatch loop and HTTP/database fault acceptance.
+Migration V003 adds a shared PostgreSQL admission limit (default 2) and a persisted
+next-attempt time. Claims and renewals serialize through the admission row; release,
+completion and exhaustion do not acquire it. This limits **valid leases**, not
+old HTTP requests that a paused process or network may still deliver. Use bounded
+transport deadlines and retain receiver-side deduplication. Equal jitter is
+computed once per failed attempt and scheduled against PostgreSQL time.
+
+The three-service example uses a writer-backed outcome endpoint. After an
+unconfirmed delivery, the scheduled path queries the original operation rather
+than POSTing compensation again. A missing or invalid outcome stays unknown and
+consumes the persisted reconciliation budget. A matched receipt and the authoritative
+business result are committed with the lease-fenced finish. The same result Inbox
+deduplicates any later callback.
+
+This does not provide a workflow definition engine, a multi-tenant admission
+policy, or a generic external evidence backend. The HTTP acceptance covers the
+PostgreSQL-backed checkout profile, not arbitrary participant systems.

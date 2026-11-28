@@ -74,7 +74,8 @@ fun main(args: Array<String>) {
     require(operator == null || (operator != auth && operator.length >= 39))
     var worker: Job? = null
     val saga = if (role in setOf("coordinator", "stock", "payment")) {
-        HttpSaga(db, role, checkNotNull(client), auth, getEnv("DC03_SAGA_ATTEMPTS")?.toInt() ?: 8, auto) {
+        HttpSaga(db, role, checkNotNull(client), auth, getEnv("DC03_SAGA_ATTEMPTS")?.toInt() ?: 8, auto,
+            getEnv("DC03_SAGA_SCHEDULED") == "1") {
             target -> env("SAGA_" + target.uppercase())
         }
     } else null
@@ -131,6 +132,24 @@ fun main(args: Array<String>) {
                         } catch (_: DeliveryExpired) {
                             ctx.response.status = HttpStatus.GONE
                             ctx.response.text("EXPIRED")
+                        } catch (_: IllegalArgumentException) {
+                            ctx.response.status = HttpStatus.BAD_REQUEST
+                            ctx.response.text("INVALID")
+                        }
+                    }
+                    if (role == "stock") post("/saga/outcome") { ctx ->
+                        if (ctx.request.headers["Authorization"] != auth) {
+                            ctx.response.status = HttpStatus.UNAUTHORIZED
+                            ctx.response.text("unauthorized")
+                        } else try {
+                            val outcome = saga.outcome(ctx.request.text())
+                            if (outcome == null) {
+                                ctx.response.status = HttpStatus.NOT_FOUND
+                                ctx.response.text("UNKNOWN")
+                            } else ctx.response.text(Json.encodeToString(outcome), "application/json")
+                        } catch (_: DeliveryConflict) {
+                            ctx.response.status = HttpStatus.CONFLICT
+                            ctx.response.text("ID_CONFLICT")
                         } catch (_: IllegalArgumentException) {
                             ctx.response.status = HttpStatus.BAD_REQUEST
                             ctx.response.text("INVALID")

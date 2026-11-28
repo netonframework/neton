@@ -58,6 +58,7 @@ def database(role):
         if saga:
             sql((ROOT / "neton-saga/sql/postgresql/V001__compensation.sql").read_text())
             sql((ROOT / "neton-saga/sql/postgresql/V002__recovery.sql").read_text())
+            sql((ROOT / "neton-saga/sql/postgresql/V003__scheduling.sql").read_text())
         sql((ROOT / f"examples/durable-dc03/sql/{'saga' if saga else role}.sql").read_text())
         password = quote(env.get("PGPASSWORD") or "local-fixture", safe="")
         yield f"postgresql://{quote(user, safe='')}:{password}@127.0.0.1:{port}/{name}", sql
@@ -77,7 +78,12 @@ def hold_table(sql, table):
         pid = int(locker.stdout.readline())
         def wait_for(n):
             deadline = time.monotonic() + 7
-            while sql(f"SELECT count(*) FROM pg_stat_activity WHERE {pid}=ANY(pg_blocking_pids(pid));") != str(n):
+            while sql(f"""
+                WITH RECURSIVE waiting(pid) AS (
+                    SELECT {pid} UNION
+                    SELECT a.pid FROM pg_stat_activity a JOIN waiting w ON w.pid=ANY(pg_blocking_pids(a.pid))
+                ) SELECT count(*)-1 FROM waiting;
+            """) != str(n):
                 if time.monotonic() >= deadline:
                     raise AssertionError(f"{n} writers did not reach the {table} lock")
                 time.sleep(.02)
@@ -98,7 +104,7 @@ def stop(proc):
 
 
 def start(stack, binary, role, uri, token, relay_port=None, target="ledger", saga_urls=None, attempts=8,
-          operator=None, auto=False, renew=False):
+          operator=None, auto=False, renew=False, scheduled=False):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -112,6 +118,7 @@ def start(stack, binary, role, uri, token, relay_port=None, target="ledger", sag
     env["DC03_SAGA_ATTEMPTS"] = str(attempts)
     env["DC03_SAGA_AUTO"] = str(int(auto))
     env["DC03_SAGA_RENEW"] = str(int(renew))
+    env["DC03_SAGA_SCHEDULED"] = str(int(scheduled))
     env.pop("DC03_SAGA_OPERATOR", None)
     if operator is not None:
         env["DC03_SAGA_OPERATOR"] = operator

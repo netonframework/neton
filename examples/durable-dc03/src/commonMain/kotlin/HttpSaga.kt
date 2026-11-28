@@ -5,6 +5,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import neton.core.http.HttpHeaders
@@ -18,19 +19,25 @@ import neton.saga.CompensationClaim
 import neton.saga.CompensationFinish
 import neton.saga.CompensationStore
 import neton.saga.CompensationRecovery
+import neton.saga.CompensationBackoff
 
 @Serializable
 private data class SagaWire(val saga: String, val action: String, val result: String,
     val expiry: Long, val identity: DeliveryIdentity)
 
+@Serializable
+internal data class SagaOutcome(val receipt: DeliveryReceipt, val resultWire: String)
+
 /** Fixed checkout example. Receipt acknowledgement is independent of Saga advancement. */
 internal class HttpSaga(private val db: DbContext, private val role: String, private val client: HttpClient,
     private val auth: String, private val compensationAttempts: Int, private val auto: Boolean,
+    private val scheduled: Boolean,
     private val endpoint: (String) -> String) {
     private val inbox = CommittedDelivery(db)
     private val compensation = CompensationStore(db)
     private val leases = mutableMapOf<String, CompensationClaim.Acquired>()
     private val leaseLock = Mutex()
+    private val backoff = CompensationBackoff(2_000, 30_000)
 
     suspend fun renew(id: String): Boolean {
         val lease = leaseLock.withLock { leases[id] } ?: return false
@@ -83,11 +90,29 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
         }
     }
 
-    suspend fun receive(raw: String): DeliveryReceipt {
+    private suspend fun validated(raw: String): SagaWire {
         val msg = Json.decodeFromString<SagaWire>(raw)
         val expected = db.wire(msg.saga, msg.action, msg.result, msg.expiry)
         if (msg != expected || msg.identity.target != role) throw DeliveryConflict()
-        return inbox.receive(expected.identity, msg.expiry) {
+        return msg
+    }
+
+    suspend fun receive(raw: String): DeliveryReceipt {
+        val msg = validated(raw)
+        return inbox.receive(msg.identity, msg.expiry) { applyMessage(msg) }
+    }
+
+    suspend fun outcome(raw: String): SagaOutcome? {
+        val cmd = validated(raw)
+        if (role != "stock" || cmd.action != "release" || cmd.result.isNotEmpty()) throw DeliveryConflict()
+        val receipt = inbox.lookup(cmd.identity, cmd.expiry) ?: return null
+        val result = db.wire(cmd.saga, cmd.action, "ok", cmd.expiry)
+        val recorded = db.fetchAll("SELECT wire FROM saga_queue WHERE message_id=:id",
+            mapOf("id" to result.identity.messageId)).singleOrNull()?.string("wire") ?: throw DeliveryConflict()
+        return SagaOutcome(receipt, recorded)
+    }
+
+    private suspend fun DbContext.applyMessage(msg: SagaWire) {
             val key = mapOf("id" to msg.saga)
             if (role == "coordinator") {
                 val command = wire(msg.saga, msg.action, "", msg.expiry)
@@ -128,7 +153,6 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
                 }
                 enqueue(wire(msg.saga, msg.action, result, msg.expiry))
             }
-        }
     }
 
     suspend fun dispatch(id: String): String {
@@ -136,7 +160,8 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
             db.fetchAll("""
                 SELECT message_id FROM saga_queue q WHERE receipt IS NULL AND NOT EXISTS (
                     SELECT 1 FROM ns_compensation c WHERE c.id=q.message_id AND
-                      (c.state='NEEDS_ATTENTION' OR (c.state='LEASED' AND c.lease_until > clock_timestamp()))
+                      (c.state='NEEDS_ATTENTION' OR c.next_attempt_at > clock_timestamp() OR
+                       (c.state='LEASED' AND c.lease_until > clock_timestamp()))
                 ) ORDER BY message_id LIMIT 1
             """.trimIndent())
                 .singleOrNull()?.string("message_id") ?: return "IDLE"
@@ -156,11 +181,14 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
             return when (val lease = compensation.claim(pending, 30_000, onAttention)) {
                 is CompensationClaim.Unavailable -> lease.name
                 is CompensationClaim.Acquired -> {
-                    val receipt = sendClaimed(lease, raw, msg)
+                    val (receipt, resultWire) = sendClaimed(lease, raw, msg)
                     val result = compensation.finish(lease, receipt != null, {
                         check(execute("UPDATE saga_queue SET receipt=:receipt WHERE message_id=:id AND receipt IS NULL",
                             key + ("receipt" to checkNotNull(receipt).receiptId)) == 1L)
-                    }, onAttention)
+                        if (resultWire != null) {
+                            inbox.applyInTransaction(resultWire.identity, resultWire.expiry) { applyMessage(resultWire) }
+                        }
+                    }, onAttention, if (scheduled || auto) backoff.delayMillis(lease.generation) else 0)
                     if (result == CompensationFinish.RETRY_READY) "UNKNOWN" else result.name
                 }
             }
@@ -173,7 +201,8 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
         return "HANDED_OFF"
     }
 
-    private suspend fun sendClaimed(lease: CompensationClaim.Acquired, raw: String, msg: SagaWire): DeliveryReceipt? =
+    private suspend fun sendClaimed(lease: CompensationClaim.Acquired, raw: String, msg: SagaWire):
+        Pair<DeliveryReceipt?, SagaWire?> =
         coroutineScope {
             leaseLock.withLock { leases[lease.id] = lease }
             val renewer = if (auto) launch {
@@ -182,7 +211,22 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
                     if (!compensation.renew(lease, 30_000)) break
                 }
             } else null
-            try { send(raw, msg) } finally {
+            try {
+                if ((auto || scheduled) && lease.generation > 1) {
+                    val response = post(raw, msg, "/saga/outcome")
+                    if (response?.statusCode == 200) {
+                        val outcome = Json.decodeFromString<SagaOutcome>(response.body)
+                        val reported = validated(outcome.resultWire)
+                        if (outcome.receipt.confirmsSuccess(msg.identity) && reported.saga == msg.saga &&
+                            reported.action == msg.action && reported.expiry == msg.expiry && reported.result == "ok"
+                        ) outcome.receipt to reported else null to null
+                    } else null to null
+                } else send(raw, msg) to null
+            } catch (_: IllegalArgumentException) {
+                null to null
+            } catch (_: DeliveryConflict) {
+                null to null
+            } finally {
                 // No external work in this cleanup: only the local handle is removed.
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
                     renewer?.cancelAndJoin()
@@ -192,14 +236,19 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
         }
 
     private suspend fun send(raw: String, msg: SagaWire): DeliveryReceipt? {
-        val response = try {
-            client.request(HttpClientRequest(HttpClientMethod.Post, endpoint(msg.identity.target) + "/saga/receive",
-                HttpHeaders.of("Authorization" to auth), HttpClientBody.Json(raw)))
-        } catch (e: CancellationException) { throw e }
-        catch (_: HttpClientException) { return null }
+        val response = post(raw, msg, "/saga/receive") ?: return null
         if (response.statusCode != 200) return null
         val receipt = try { Json.decodeFromString<DeliveryReceipt>(response.body) }
         catch (_: IllegalArgumentException) { return null }
         return receipt.takeIf { it.confirmsSuccess(msg.identity) }
     }
+
+    private suspend fun post(raw: String, msg: SagaWire, path: String): HttpClientResponse? =
+        try {
+            withTimeoutOrNull(8_000) {
+                client.request(HttpClientRequest(HttpClientMethod.Post, endpoint(msg.identity.target) + path,
+                    HttpHeaders.of("Authorization" to auth), HttpClientBody.Json(raw)))
+            }
+        } catch (e: CancellationException) { throw e }
+        catch (_: HttpClientException) { null }
 }

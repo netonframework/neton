@@ -22,13 +22,23 @@ class CommittedDelivery(private val db: DbContext) {
     init { require(db.dialect is PostgresDialect) }
 
     suspend fun receive(id: DeliveryIdentity, expiresAt: Long, effect: suspend DbContext.() -> Unit): DeliveryReceipt {
+        check(!db.inTransaction()) { "A receipt cannot escape an uncommitted outer transaction" }
+        return db.transaction { receiveInTransaction(id, expiresAt, effect) }
+    }
+
+    /** Join the caller's transaction without releasing an uncommitted wire ACK. */
+    suspend fun applyInTransaction(id: DeliveryIdentity, expiresAt: Long, effect: suspend DbContext.() -> Unit) {
+        receiveInTransaction(id, expiresAt, effect)
+    }
+
+    private suspend fun receiveInTransaction(id: DeliveryIdentity, expiresAt: Long, effect: suspend DbContext.() -> Unit): DeliveryReceipt {
         require(id.protocolVersion == 1 && listOf(id.namespace, id.tenant, id.source, id.target, id.messageId,
             id.invocationId).all { it.length in 1..128 } && id.requestDigest.length == 64)
-        check(!db.inTransaction()) { "A receipt cannot escape an uncommitted outer transaction" }
+        check(db.inTransaction())
         val scope = mapOf("ns" to id.namespace, "tenant" to id.tenant, "src" to id.source, "dst" to id.target)
         val key = scope + ("msg" to id.messageId)
         val where = "namespace=:ns AND tenant=:tenant AND source_id=:src AND target_id=:dst"
-        return db.transaction {
+        return with(db) {
             val inserted = fetchAll("""
                 INSERT INTO nd_dc03_inbox(namespace,tenant,source_id,target_id,message_id,invocation_id,digest,expires_at)
                 SELECT :ns,:tenant,:src,:dst,:msg,:op,:digest,:expiry WHERE :expiry > extract(epoch from clock_timestamp())
@@ -46,5 +56,19 @@ class CommittedDelivery(private val db: DbContext) {
             if (inserted.isNotEmpty()) effect()
             DeliveryReceipt(id, row.string("rid"), "SUCCEEDED", 1)
         }
+    }
+
+    /** Read from the authoritative writer, using the same authenticated scope as receive. */
+    suspend fun lookup(id: DeliveryIdentity, expiresAt: Long): DeliveryReceipt? {
+        check(!db.inTransaction()) { "An authoritative lookup must not observe uncommitted caller writes" }
+        if (id.protocolVersion != 1) throw DeliveryConflict()
+        val row = db.fetchAll("""
+            SELECT invocation_id,digest,expires_at,receipt_id::text AS rid FROM nd_dc03_inbox
+            WHERE namespace=:ns AND tenant=:tenant AND source_id=:src AND target_id=:dst AND message_id=:msg
+        """.trimIndent(), mapOf("ns" to id.namespace, "tenant" to id.tenant, "src" to id.source,
+            "dst" to id.target, "msg" to id.messageId)).singleOrNull() ?: return null
+        if (row.string("invocation_id") != id.invocationId || row.string("digest") != id.requestDigest ||
+            row.long("expires_at") != expiresAt) throw DeliveryConflict()
+        return DeliveryReceipt(id, row.string("rid"), "SUCCEEDED", 1)
     }
 }

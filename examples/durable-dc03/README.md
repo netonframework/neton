@@ -38,6 +38,10 @@ The recovery case uses a separate operator credential, a versioned checkpoint,
 and a concurrent repeated operation ID. After restart a lifecycle-owned worker
 scans pending rows and drains the queues without manual dispatch. The example's
 operator evidence is an attestation, not an independent reconciliation backend.
-Workflow definition versioning, production retry scheduling, reconciliation and cleanup remain outside this example.
+The scheduled checkout profile persists equal-jitter backoff and shares a database
+lease limit across coordinator processes. It queries the participant's committed
+outcome on an uncertain retry; a 404 is not proof that compensation can run again.
+Workflow definition versioning, external evidence providers and cleanup remain
+outside this example.
 Loopback credentials are not a production transport security configuration. No broker or release publication
 is required.

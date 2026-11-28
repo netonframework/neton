@@ -5,11 +5,22 @@ import neton.database.sql.PostgresDialect
 
 sealed interface CompensationClaim {
     class Acquired internal constructor(val id: String, val generation: Int) : CompensationClaim
-    enum class Unavailable : CompensationClaim { BUSY, HANDED_OFF, NEEDS_ATTENTION }
+    enum class Unavailable : CompensationClaim { BUSY, HANDED_OFF, NEEDS_ATTENTION, BACKOFF, AT_CAPACITY }
 }
 
 enum class CompensationFinish { HANDED_OFF, RETRY_READY, NEEDS_ATTENTION, FENCED }
 enum class CompensationRecovery { RESUMED, REPLAYED, CONFLICT, FORBIDDEN }
+
+class CompensationBackoff(private val baseMillis: Int, private val capMillis: Int) {
+    init { require(baseMillis > 0 && capMillis >= baseMillis) }
+
+    // Equal jitter avoids a zero-delay retry while keeping the delay below the configured ceiling.
+    fun delayMillis(attempt: Int, jitter: kotlin.random.Random = kotlin.random.Random.Default): Int {
+        require(attempt > 0)
+        val window = (baseMillis.toLong() shl (attempt - 1).coerceIn(0, 31)).coerceAtMost(capMillis.toLong())
+        return jitter.nextLong((window + 1) / 2, window + 1).toInt()
+    }
+}
 
 /**
  * PostgreSQL authority for a single durable compensation command. [id] parameters are stable,
@@ -31,6 +42,7 @@ class CompensationStore(private val db: DbContext) {
         require(leaseMillis > 0)
         check(!db.inTransaction())
         return db.transaction {
+            val capacity = admission()
             val row = lock(id)
             when (row.state) {
                 "HANDED_OFF" -> return@transaction CompensationClaim.Unavailable.HANDED_OFF
@@ -41,6 +53,10 @@ class CompensationStore(private val db: DbContext) {
                 attention(id, row.generation, "LEASE_EXPIRED", onAttention)
                 return@transaction CompensationClaim.Unavailable.NEEDS_ATTENTION
             }
+            if (fetchAll("SELECT 1 FROM ns_compensation WHERE id=:id AND next_attempt_at > clock_timestamp()",
+                    mapOf("id" to id)).isNotEmpty()) return@transaction CompensationClaim.Unavailable.BACKOFF
+            if (fetchAll("SELECT count(*) AS n FROM ns_compensation WHERE state='LEASED' AND lease_until > clock_timestamp()")
+                    .single().long("n") >= capacity) return@transaction CompensationClaim.Unavailable.AT_CAPACITY
             check(execute("""
                 UPDATE ns_compensation SET state='LEASED', generation=generation+1,
                     lease_until=clock_timestamp()+CAST(:ms AS bigint)*interval '1 millisecond' WHERE id=:id
@@ -53,6 +69,8 @@ class CompensationStore(private val db: DbContext) {
         require(leaseMillis > 0)
         check(!db.inTransaction())
         return db.transaction {
+            // An admission scan cannot miss a concurrently extended lease.
+            admission()
             val row = lock(claim.id)
             if (row.state != "LEASED" || row.generation != claim.generation) return@transaction false
             execute("""
@@ -86,7 +104,8 @@ class CompensationStore(private val db: DbContext) {
             ) CompensationRecovery.REPLAYED else CompensationRecovery.CONFLICT
             if (row.state != "NEEDS_ATTENTION" || row.generation != generation || row.max == Int.MAX_VALUE ||
                 !restoreCheckpoint()) return@transaction CompensationRecovery.CONFLICT
-            check(execute("UPDATE ns_compensation SET max_attempts=max_attempts+1,state='READY' WHERE id=:id", key.filterKeys { it == "id" }) == 1L)
+            check(execute("UPDATE ns_compensation SET max_attempts=max_attempts+1,state='READY',next_attempt_at=clock_timestamp() WHERE id=:id",
+                mapOf("id" to id)) == 1L)
             check(execute("""
                 INSERT INTO ns_compensation_recovery(id,request_id,generation,workflow_version,actor,evidence)
                 VALUES (:id,:request,:gen,:version,:actor,:evidence)
@@ -101,7 +120,9 @@ class CompensationStore(private val db: DbContext) {
         confirmed: Boolean,
         onHandoff: suspend DbContext.() -> Unit,
         onAttention: suspend DbContext.() -> Unit,
+        retryDelayMillis: Int = 0,
     ): CompensationFinish {
+        require(retryDelayMillis >= 0)
         check(!db.inTransaction())
         return db.transaction {
             val id = claim.id
@@ -120,7 +141,10 @@ class CompensationStore(private val db: DbContext) {
                     CompensationFinish.NEEDS_ATTENTION
                 }
                 else -> {
-                    setState(id, "READY")
+                    check(execute("""
+                        UPDATE ns_compensation SET state='READY',lease_until=NULL,
+                          next_attempt_at=clock_timestamp()+CAST(:ms AS bigint)*interval '1 millisecond' WHERE id=:id
+                    """.trimIndent(), mapOf("id" to id, "ms" to retryDelayMillis)) == 1L)
                     CompensationFinish.RETRY_READY
                 }
             }
@@ -128,6 +152,9 @@ class CompensationStore(private val db: DbContext) {
     }
 
     private data class Row(val state: String, val generation: Int, val max: Int)
+
+    private suspend fun DbContext.admission(): Int =
+        fetchAll("SELECT capacity FROM ns_compensation_admission WHERE singleton FOR UPDATE").single().int("capacity")
 
     private suspend fun DbContext.lock(id: String): Row = checkNotNull(lockOrNull(id))
 
