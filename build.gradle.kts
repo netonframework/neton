@@ -94,6 +94,9 @@ subprojects {
         }
     }
 
+    // These modules are built and tested, but not in the current release inventory.
+    if (name == "neton-durable" || name == "neton-saga") return@subprojects
+
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
 
