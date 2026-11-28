@@ -150,7 +150,11 @@ jobs:
           python3 tools/ci/verify_abi_policy.py
           python3 tools/ci/verify_api_stability.py
       - name: Check every published Kotlin library against committed ABI
-        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false checkKotlinAbi
+        shell: bash
+        run: |
+          tasks="$(python3 tools/ci/verify_abi_policy.py --gradle-tasks)"
+          read -r -a abi_tasks <<< "$tasks"
+          ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false "${abi_tasks[@]}"
       - name: Check MySQL variant against the same database API
         run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false -Pneton.database.driver=mysql :neton-database:checkKotlinAbi
       - name: Check SQLite variant against the same database API

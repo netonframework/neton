@@ -23,6 +23,18 @@ class ReportGateTest(unittest.TestCase):
     def test_complete_reports_pass(self):
         self.run_report()
 
+    def test_native_classnames_preserve_required_case_matching(self):
+        def prefix(root):
+            for case in root.iter("testcase"):
+                case.set("classname", "linuxX64Test." + case.get("classname"))
+        self.run_report(prefix)
+
+        def wrong_runner(root):
+            prefix(root)
+            root[0].set("name", root[0].get("name").replace("linuxX64", "linuxArm64"))
+        with self.assertRaisesRegex(ValueError, "Inconsistent native test runner"):
+            self.run_report(wrong_runner)
+
     def test_websocket_requires_every_stability_case(self):
         with tempfile.TemporaryDirectory() as directory:
             root = ET.Element("testsuite")

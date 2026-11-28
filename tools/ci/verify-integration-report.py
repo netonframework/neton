@@ -20,6 +20,7 @@ WEBSOCKET_REQUIRED = {
         "sharedShutdownReclaimsEveryBlockedSession",
     )
 }
+NATIVE_RUNNERS = {"linuxX64", "linuxArm64", "macosArm64", "macosX64", "mingwX64"}
 
 
 def verify(directory, required=REQUIRED, markers=MARKERS):
@@ -33,8 +34,14 @@ def verify(directory, required=REQUIRED, markers=MARKERS):
         for output in root.iter("system-out"):
             executed.update(line.strip() for line in (output.text or "").splitlines() if line.strip() in markers)
         for case in root.iter("testcase"):
-            # Gradle's native runner may append [linuxX64] to a test name.
-            key = (case.get("classname"), case.get("name", "").split("[")[0])
+            classname = case.get("classname", "")
+            name, _, suffix = case.get("name", "").partition("[")
+            runner, _, qualified_name = classname.partition(".")
+            if runner.endswith("Test") and runner[:-4] in NATIVE_RUNNERS:
+                if suffix != f"{runner[:-4]}]":
+                    raise ValueError(f"Inconsistent native test runner: {classname}, {name}[{suffix}")
+                classname = qualified_name
+            key = (classname, name)
             if case.find("failure") is not None or case.find("error") is not None:
                 raise ValueError(f"Failed integration test: {key}")
             if key in required:

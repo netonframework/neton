@@ -2,6 +2,7 @@
 """Check release ABI inventory/policy in addition to Kotlin's binary comparison."""
 from pathlib import Path
 import re
+import sys
 
 MODULES = {
     "neton", "neton-cache", "neton-core", "neton-database", "neton-http",
@@ -48,4 +49,9 @@ def verify(root):
 
 if __name__ == "__main__":
     verify(Path(__file__).resolve().parents[2])
-    print(f"All {len(MODULES)} published Kotlin ABI inventories and database boundary rules verified")
+    if sys.argv[1:] == ["--gradle-tasks"]:
+        print(" ".join(f":{module}:checkKotlinAbi" for module in sorted(MODULES)))
+    elif not sys.argv[1:]:
+        print(f"All {len(MODULES)} published Kotlin ABI inventories and database boundary rules verified")
+    else:
+        sys.exit("Usage: verify_abi_policy.py [--gradle-tasks]")
