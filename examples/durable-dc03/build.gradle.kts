@@ -19,6 +19,7 @@ kotlin {
         implementation(project(":neton-http"))
         implementation(project(":neton-database"))
         implementation(project(":neton-durable"))
+        implementation(project(":neton-saga"))
         implementation(libs.kotlinx.serialization.json)
         implementation(libs.kotlinx.coroutines.core)
     }

@@ -22,6 +22,7 @@ include(":neton-redis")      // Redis 客户端模块
 include(":neton-cache")      // 统一缓存抽象（L1+L2，强绑定 neton-redis）
 include(":neton-database")   // 数据库模块
 include(":neton-durable")    // Unpublished durable delivery implementation
+include(":neton-saga")       // Unpublished Saga compensation runtime
 include(":neton-ksp")        // KSP 编译器插件
 include(":neton-validation") // 校验模块（内建 Konform，仅服务 Neton）
 include(":neton-storage")    // 统一存储抽象（Local + S3，借鉴 OpenDAL Operator）

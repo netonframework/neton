@@ -64,7 +64,9 @@ fun main(args: Array<String>) {
     val db = SqlxDatabase.initialize(DatabaseConfig(DatabaseDriver.POSTGRESQL, env("DB")))
     val client = if (role != "receiver") HttpClient.create { } else null
     val saga = if (role in setOf("coordinator", "stock", "payment")) {
-        HttpSaga(db, role, checkNotNull(client), auth) { target -> env("SAGA_" + target.uppercase()) }
+        HttpSaga(db, role, checkNotNull(client), auth, getEnv("DC03_SAGA_ATTEMPTS")?.toInt() ?: 8) {
+            target -> env("SAGA_" + target.uppercase())
+        }
     } else null
     try {
         Neton.run(args) {

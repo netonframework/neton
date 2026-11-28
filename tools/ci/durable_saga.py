@@ -7,20 +7,24 @@ import threading
 import time
 import uuid
 from contextlib import ExitStack
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from durable_dc03 import database, expect, request, start
 
 
-def run(binary):
+def run(binary, scenario):
     with ExitStack() as stack:
         roles = ("coordinator", "stock", "payment")
         token = secrets.token_hex(32)
         saga = uuid.uuid4().hex
         stores = {role: stack.enter_context(database(role)) for role in roles}
         services, urls, seen = {}, {}, {}
-        losses = {"release:command", "release:result"}
+        losses = {"release:command", "release:result"} if scenario == "replay" else set()
+        held_ack, resume_ack = threading.Event(), threading.Event()
+        hold_release = scenario in ("takeover", "expired")
+        attempts = {"exhaustion": 2, "expired": 1}.get(scenario, 8)
 
         def state():
             return stores["coordinator"][1]("SELECT state,version FROM saga_state;")
@@ -50,6 +54,10 @@ def run(binary):
                         expect(json.loads(ack)["receiptId"], rid)
                         seen.setdefault(mid, []).append((raw, ack))
                         fault = mid.removeprefix(saga + ":")
+                        if hold_release and fault == "release:command" and len(seen[mid]) == 1:
+                            held_ack.set()
+                            if not resume_ack.wait(8):
+                                raise AssertionError("test did not release the old worker")
                         if fault in losses:
                             # These reads use independent connections after the receiver returned.
                             expect(stock(), "f|1")
@@ -72,7 +80,8 @@ def run(binary):
 
         def boot():
             for role in roles:
-                services[role] = start(stack, binary, role, stores[role][0], token, saga_urls=urls)
+                services[role] = start(stack, binary, role, stores[role][0], token, saga_urls=urls,
+                                       attempts=attempts)
 
         def crash_and_restart():
             for proc, _ in services.values():
@@ -99,6 +108,72 @@ def run(binary):
         expect(state(), "CHARGING|1")
         dispatch("payment", "charge:result")
         expect(state(), "COMPENSATING|2")
+
+        coordinator_sql = stores["coordinator"][1]
+        lease = "SELECT state,generation FROM ns_compensation;"
+        audit = "SELECT generation,event,reason FROM ns_compensation_audit;"
+        if scenario == "exhaustion":
+            stock_sql = stores["stock"][1]
+            stock_sql("ALTER TABLE reservation ADD CONSTRAINT unavailable CHECK(reserved);")
+            dispatch("coordinator", "release:command", "UNKNOWN")
+            expect(coordinator_sql(lease), "READY|1")
+            expect(coordinator_sql(audit), "")
+            crash_and_restart()
+            dispatch("coordinator", "release:command", "NEEDS_ATTENTION")
+            expect(state(), "NEEDS_ATTENTION|3")
+            expect(coordinator_sql(lease), "NEEDS_ATTENTION|2")
+            expect(coordinator_sql(audit), "2|NEEDS_ATTENTION|DELIVERY_UNCONFIRMED")
+            expect(coordinator_sql("SELECT count(*) FROM ns_compensation_audit WHERE occurred_at IS NOT NULL;"), "1")
+            expect(stored_receipt("coordinator", "release:command"), "")
+            expect(stock(), "t|0")
+            # Operator work stays visible and does not get retried automatically after recovery.
+            stock_sql("ALTER TABLE reservation DROP CONSTRAINT unavailable;")
+            crash_and_restart()
+            dispatch("coordinator", answer="IDLE")
+            dispatch("coordinator", "release:command", "NEEDS_ATTENTION")
+            expect(coordinator_sql(audit), "2|NEEDS_ATTENTION|DELIVERY_UNCONFIRMED")
+            expect(stock(), "t|0")
+            print("Saga exhaustion PASS: bounded by persisted attempts; pending responsibility and single audit survive restart")
+            return
+        if hold_release:
+            _, replacement = start(stack, binary, "coordinator", stores["coordinator"][0], token, saga_urls=urls)
+            old_port = services["coordinator"][1]
+            command_id = f"{saga}:release:command"
+            with ThreadPoolExecutor(1) as pool:
+                old = pool.submit(request, old_port, "/saga/dispatch", command_id, token)
+                try:
+                    expect(held_ack.wait(7), True)
+                    expect(stock(), "f|1")
+                    expect(coordinator_sql(lease), "LEASED|1")
+                    expect(request(replacement, "/saga/dispatch", command_id, token), (200, b"BUSY"))
+                    coordinator_sql("UPDATE ns_compensation SET lease_until=clock_timestamp()-interval '1 second';")
+                    if scenario == "expired":
+                        expect(request(replacement, "/saga/dispatch", command_id, token), (200, b"NEEDS_ATTENTION"))
+                    else:
+                        expect(request(replacement, "/saga/dispatch", command_id, token), (200, b"HANDED_OFF"))
+                        expect(coordinator_sql(lease), "HANDED_OFF|2")
+                finally:
+                    resume_ack.set()
+                expect(old.result(timeout=10), (200, b"FENCED"))
+            if scenario == "expired":
+                expect(coordinator_sql(lease), "NEEDS_ATTENTION|1")
+                expect(coordinator_sql(audit), "1|NEEDS_ATTENTION|LEASE_EXPIRED")
+                expect(state(), "NEEDS_ATTENTION|3")
+                expect(stored_receipt("coordinator", "release:command"), "")
+                expect(len(seen[command_id]), 1)
+                expect(stock(), "f|1")
+                print("Saga lease expiry PASS: last claim expires after remote commit; late receipt cannot clear audit or pending state")
+                return
+            first, second = seen[command_id]
+            expect(first, second)
+            expect(stored_receipt("coordinator", "release:command"), json.loads(second[1])["receiptId"])
+            expect(coordinator_sql(lease), "HANDED_OFF|2")
+            expect(coordinator_sql(audit), "")
+            dispatch("stock", "release:result")
+            expect(stock(), "f|1")
+            expect(state(), "COMPENSATED|3")
+            print("Saga takeover PASS: live claim excluded; generation 2 commits; generation 1 receives its ACK but is fenced")
+            return
 
         # Transient local compensation failure must roll back the business and its receipt.
         stock_sql = stores["stock"][1]
@@ -139,4 +214,6 @@ def run(binary):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("binary", type=Path)
-    run(parser.parse_args().binary.resolve(strict=True))
+    binary = parser.parse_args().binary.resolve(strict=True)
+    for scenario in ("replay", "exhaustion", "takeover", "expired"):
+        run(binary, scenario)

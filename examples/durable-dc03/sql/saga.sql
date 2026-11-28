@@ -1,6 +1,6 @@
 CREATE TABLE saga_state (
     id text PRIMARY KEY, state text NOT NULL, version integer NOT NULL DEFAULT 0,
-    CHECK (state IN ('RESERVING','CHARGING','COMPENSATING','COMPENSATED','SUCCEEDED'))
+    CHECK (state IN ('RESERVING','CHARGING','COMPENSATING','COMPENSATED','SUCCEEDED','NEEDS_ATTENTION'))
 );
 CREATE TABLE saga_queue (
     message_id text PRIMARY KEY, wire text NOT NULL,

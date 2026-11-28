@@ -30,6 +30,10 @@ It verifies rollback of a failed release, loss of both the compensation command 
 after commit, and process restarts. Recovery scans persisted queues, resends identical command/result bytes
 and gets the original receipts; stock is released once, the coordinator advances once per result, and delivering
 a result does not enqueue another result. This is a fixed workflow, not the production Saga API: bounded retry,
-deadlines/reconciliation, worker fencing, audit/operator actions, workflow versioning and cleanup are outside
-this example. Loopback credentials are not a production transport security configuration. No broker or release
-publication is required.
+worker fencing and the exhaustion audit use the reusable `neton-saga` store. The same script also checks that
+an exhausted command stays pending with one audit after restart, and holds a real HTTP receipt while a second
+coordinator takes over. After the lease is made expired in PostgreSQL, the second coordinator can write and
+the old one cannot. If the final attempt expires, takeover instead records an audit without a new delivery.
+Workflow versioning, retry scheduling, reconciliation, operator actions and cleanup are outside this example.
+Loopback credentials are not a production transport security configuration. No broker or release publication
+is required.
