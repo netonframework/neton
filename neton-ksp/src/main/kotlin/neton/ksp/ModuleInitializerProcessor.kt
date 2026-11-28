@@ -257,12 +257,15 @@ class ModuleInitializerProcessor(
             w.write(" * 顺序: configs → logics(@Logic) → RuntimeBootstrap → routes → jobs → validators。\n")
             w.write(" * 模块侧薄壳: `object {X}ModuleInitializer : ModuleInitializer by $className`。\n")
             w.write(" */\n")
-            val location = anchor.source.location as? FileLocation
-            val origin = anchor.source.qualifiedName?.asString().orEmpty() +
-                (location?.let { " (${it.filePath.replace('\\', '/').substringAfterLast('/')}:${it.lineNumber})" }.orEmpty())
+            val origin = sourceOrigin(anchor.source, anchor.source.qualifiedName?.asString().orEmpty())
             w.write("@$MODULE_ARCHITECTURE(${kotlinString(moduleId)}, ")
             w.write(anchor.dependsOn.joinToString(", ", "[", "]", transform = ::kotlinString))
             w.write(", ${kotlinString(origin)})\n")
+            w.write("@$MODULE_ROUTE_INVENTORY([\n")
+            ModuleFragmentSink.getRoutes(moduleId).forEach { route ->
+                w.write("    ${route.toAnnotation()},\n")
+            }
+            w.write("])\n")
             w.write("object $className : ModuleInitializer {\n\n")
             w.write("    override val moduleId: String = \"$moduleId\"\n\n")
 

@@ -480,6 +480,20 @@ ${
         val permissionAnn = methodPermissions.firstOrNull()
             ?: classPermissions.firstOrNull()
         val permission = permissionAnn?.arguments?.firstOrNull()?.value as? String
+        val routeGroup = routeGroupFromPackage(controller)
+        moduleId?.let { id ->
+            ModuleFragmentSink.addRoute(id, ManifestRoute(
+                method = httpMethod,
+                pattern = fullPath,
+                group = routeGroup.orEmpty(),
+                permission = permission,
+                allowAnonymous = allowAnonymous,
+                requireAuth = requireAuth,
+                freshAuth = freshAuth,
+                capabilities = if (websocket) listOf("PROTOCOL_UPGRADE") else emptyList(),
+                origin = sourceOrigin(function, "$controllerName.$methodName"),
+            ))
+        }
 
         // @RateLimit: parse at method level only
         val rateLimitAnn = function.annotations.firstOrNull { ann ->
@@ -558,7 +572,7 @@ ${
                 runSession
             },
             controllerClass = ${quote(controllerName)}, methodName = ${quote(methodName)},
-            routeGroup = ${routeGroupFromPackage(controller)?.let(::quote) ?: "null"},
+            routeGroup = ${routeGroup?.let(::quote) ?: "null"},
             allowAnonymous = $allowAnonymous, requireAuth = $requireAuth,
             permission = ${permission?.let(::quote) ?: "null"}, rateLimit = $rateLimitCode, freshAuth = $freshAuth
         ))
@@ -624,7 +638,7 @@ ${
             """
         engine.registerRoute(
             RouteDefinition(
-                pattern = "$fullPath",
+                pattern = ${kotlinString(fullPath)},
                 method = HttpMethod.$httpMethod,
                 handler = object : RouteHandler {
                     override suspend fun invoke(context: HttpContext, args: HandlerArgs): Any? {
@@ -634,10 +648,10 @@ ${
                 },
                 controllerClass = "$controllerName",
                 methodName = "$methodName",
-                routeGroup = ${routeGroupFromPackage(controller)?.let { "\"$it\"" } ?: "null"},
+                routeGroup = ${routeGroup?.let(::kotlinString) ?: "null"},
                 allowAnonymous = $allowAnonymous,
                 requireAuth = $requireAuth,
-                permission = ${if (permission != null) "\"$permission\"" else "null"},
+                permission = ${permission?.let(::kotlinString) ?: "null"},
                 rateLimit = $rateLimitCode,
                 freshAuth = $freshAuth
             )

@@ -91,20 +91,45 @@ class ApplicationRegistryProcessor(
                 logger.error("NETON_ARCH_INVALID_METADATA: $id", declaration)
                 return emptyList()
             }
+            val inventory = declaration.annotations.firstOrNull {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == MODULE_ROUTE_INVENTORY
+            }
+            val routes = try {
+                inventory?.let {
+                    val rows = it.arguments.firstOrNull { arg -> arg.name?.asString() == "routes" }?.value as? List<*>
+                        ?: error("routes")
+                    rows.map { row -> (row as? KSAnnotation ?: error("route")).manifestRoute() }
+                }
+            } catch (_: IllegalStateException) {
+                logger.error("NETON_ARCH_INVALID_ROUTE_METADATA: $id", declaration)
+                return emptyList()
+            }
             refs += ManifestModule(id, declaration.qualifiedName!!.asString(), declaration,
-                dependencies?.filterIsInstance<String>(), origin)
+                dependencies?.filterIsInstance<String>(), origin, routes)
         }
-        if (!checkArchitecture(refs, logger)) return emptyList()
+        val capabilities = options["neton.httpCapabilities"]?.split(',')?.map(String::trim)
+            ?.filter(String::isNotEmpty)?.toSet()
+        if (capabilities != null) {
+            val enum = resolver.getClassDeclarationByName(resolver.getKSNameFromString("neton.core.http.adapter.HttpCapability"))
+            val allowed = enum?.declarations?.filterIsInstance<KSClassDeclaration>()
+                ?.filter { it.classKind == ClassKind.ENUM_ENTRY }?.map { it.simpleName.asString() }?.toSet().orEmpty()
+            val invalid = capabilities - allowed
+            if (invalid.isNotEmpty()) {
+                logger.error("NETON_ARCH_UNKNOWN_CAPABILITY: ${invalid.sorted().joinToString()}")
+                return emptyList()
+            }
+        }
+        if (!checkArchitecture(refs, logger, capabilities)) return emptyList()
 
         val dependencies = Dependencies(
             aggregating = true,
             *resolver.getAllFiles().toList().toTypedArray()
         )
-        generateRegistry(refs, dependencies)
+        generateRegistry(refs, dependencies, capabilities)
         return emptyList()
     }
 
-    private fun generateRegistry(refs: List<ManifestModule>, dependencies: Dependencies) {
+    private fun generateRegistry(refs: List<ManifestModule>, dependencies: Dependencies, capabilities: Set<String>?) {
         val pkg = "neton.application.generated"
         val className = "GeneratedApplicationModules"
 
@@ -131,7 +156,7 @@ class ApplicationRegistryProcessor(
                 w.write("        ${module.entry},  // ${module.id}\n")
             }
             w.write("    )\n\n")
-            val manifest = architectureJson(refs)
+            val manifest = architectureJson(refs, capabilities)
             w.write("    const val manifestJson: String = ${kotlinString(manifest)}\n")
             w.write("    const val manifestSha256: String = ${kotlinString(architectureDigest(manifest))}\n")
             w.write("}\n")

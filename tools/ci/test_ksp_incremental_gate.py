@@ -15,8 +15,10 @@ class GeneratedContractTest(unittest.TestCase):
         (self.root / "AnchorTable.kt").write_text("object AnchorTable")
         self.manifest([])
 
-    def manifest(self, dependencies):
-        payload = json.dumps({"modules": [{"declaredDependencies": dependencies}]})
+    def manifest(self, dependencies, suffix=None):
+        routes = [{"method": "GET", "pattern": f"/billing/{suffix}",
+                   "permission": f"invoice:{suffix}", "capabilities": []}] if suffix else []
+        payload = json.dumps({"modules": [{"declaredDependencies": dependencies, "routes": routes}]})
         digest = hashlib.sha256(payload.encode()).hexdigest()
         (self.root / "GeneratedApplicationModules.kt").write_text(
             f"const val manifestJson = {json.dumps(payload)}\nconst val manifestSha256 = \"{digest}\"\n"
@@ -28,7 +30,7 @@ class GeneratedContractTest(unittest.TestCase):
             inspect_generated(self.root, "clean")
 
     def test_missing_added_table_fails(self):
-        self.manifest(["catalog"])
+        self.manifest(["catalog"], "before")
         with self.assertRaises(RuntimeError):
             inspect_generated(self.root, "add")
 
@@ -38,9 +40,17 @@ class GeneratedContractTest(unittest.TestCase):
             inspect_generated(self.root, "delete")
 
     def test_stale_column_fails(self):
+        self.manifest([], "after")
         (self.root / "TransientTable.kt").write_text("gate_after gate_before")
         with self.assertRaises(RuntimeError):
             inspect_generated(self.root, "modify")
+
+    def test_stale_route_fails(self):
+        self.manifest([], "before")
+        with self.assertRaisesRegex(RuntimeError, "current route and permission"):
+            inspect_generated(self.root, "modify")
+        with self.assertRaisesRegex(RuntimeError, "absent route"):
+            inspect_generated(self.root, "delete")
 
     def test_deleted_entity_in_aggregate_fails(self):
         (self.root / "Registry.kt").write_text("Transient")
@@ -64,12 +74,13 @@ class GeneratedContractTest(unittest.TestCase):
         inspect_generated(self.root, "no-op")
         file = self.root / "TransientTable.kt"
         file.write_text("gate_before")
-        self.manifest(["catalog"])
+        self.manifest(["catalog"], "before")
         inspect_generated(self.root, "add")
         file.write_text("gate_after")
-        self.manifest([])
+        self.manifest([], "after")
         inspect_generated(self.root, "modify")
         file.unlink()
+        self.manifest([])
         inspect_generated(self.root, "delete")
 
 

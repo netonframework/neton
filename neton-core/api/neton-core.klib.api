@@ -207,6 +207,36 @@ open annotation class neton.core.module/ModuleArchitecture : kotlin/Annotation {
         final fun <get-origin>(): kotlin/String // neton.core.module/ModuleArchitecture.origin.<get-origin>|<get-origin>(){}[0]
 }
 
+open annotation class neton.core.module/ModuleRouteDeclaration : kotlin/Annotation { // neton.core.module/ModuleRouteDeclaration|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin/Array<kotlin/String>, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Array<kotlin/String>, kotlin/String) // neton.core.module/ModuleRouteDeclaration.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.Array<kotlin.String>;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Array<kotlin.String>;kotlin.String){}[0]
+
+    final val allowAnonymous // neton.core.module/ModuleRouteDeclaration.allowAnonymous|{}allowAnonymous[0]
+        final fun <get-allowAnonymous>(): kotlin/Boolean // neton.core.module/ModuleRouteDeclaration.allowAnonymous.<get-allowAnonymous>|<get-allowAnonymous>(){}[0]
+    final val capabilities // neton.core.module/ModuleRouteDeclaration.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): kotlin/Array<kotlin/String> // neton.core.module/ModuleRouteDeclaration.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+    final val freshAuth // neton.core.module/ModuleRouteDeclaration.freshAuth|{}freshAuth[0]
+        final fun <get-freshAuth>(): kotlin/Boolean // neton.core.module/ModuleRouteDeclaration.freshAuth.<get-freshAuth>|<get-freshAuth>(){}[0]
+    final val group // neton.core.module/ModuleRouteDeclaration.group|{}group[0]
+        final fun <get-group>(): kotlin/String // neton.core.module/ModuleRouteDeclaration.group.<get-group>|<get-group>(){}[0]
+    final val method // neton.core.module/ModuleRouteDeclaration.method|{}method[0]
+        final fun <get-method>(): kotlin/String // neton.core.module/ModuleRouteDeclaration.method.<get-method>|<get-method>(){}[0]
+    final val origin // neton.core.module/ModuleRouteDeclaration.origin|{}origin[0]
+        final fun <get-origin>(): kotlin/String // neton.core.module/ModuleRouteDeclaration.origin.<get-origin>|<get-origin>(){}[0]
+    final val pattern // neton.core.module/ModuleRouteDeclaration.pattern|{}pattern[0]
+        final fun <get-pattern>(): kotlin/String // neton.core.module/ModuleRouteDeclaration.pattern.<get-pattern>|<get-pattern>(){}[0]
+    final val permissions // neton.core.module/ModuleRouteDeclaration.permissions|{}permissions[0]
+        final fun <get-permissions>(): kotlin/Array<kotlin/String> // neton.core.module/ModuleRouteDeclaration.permissions.<get-permissions>|<get-permissions>(){}[0]
+    final val requireAuth // neton.core.module/ModuleRouteDeclaration.requireAuth|{}requireAuth[0]
+        final fun <get-requireAuth>(): kotlin/Boolean // neton.core.module/ModuleRouteDeclaration.requireAuth.<get-requireAuth>|<get-requireAuth>(){}[0]
+}
+
+open annotation class neton.core.module/ModuleRouteInventory : kotlin/Annotation { // neton.core.module/ModuleRouteInventory|null[0]
+    constructor <init>(kotlin/Array<neton.core.module/ModuleRouteDeclaration>) // neton.core.module/ModuleRouteInventory.<init>|<init>(kotlin.Array<neton.core.module.ModuleRouteDeclaration>){}[0]
+
+    final val routes // neton.core.module/ModuleRouteInventory.routes|{}routes[0]
+        final fun <get-routes>(): kotlin/Array<neton.core.module/ModuleRouteDeclaration> // neton.core.module/ModuleRouteInventory.routes.<get-routes>|<get-routes>(){}[0]
+}
+
 final enum class neton.core.annotations/RateLimitScope : kotlin/Enum<neton.core.annotations/RateLimitScope> { // neton.core.annotations/RateLimitScope|null[0]
     enum entry CUSTOM // neton.core.annotations/RateLimitScope.CUSTOM|null[0]
     enum entry GLOBAL // neton.core.annotations/RateLimitScope.GLOBAL|null[0]

@@ -36,8 +36,17 @@ def inspect_generated(directory, stage):
                             if "const val manifestJson" in line)
     payload = json.loads(manifest_literal)
     dependencies = ["catalog"] if stage == "add" else []
-    require(json.loads(payload)["modules"][0]["declaredDependencies"] == dependencies,
+    module = json.loads(payload)["modules"][0]
+    require(module["declaredDependencies"] == dependencies,
             "Application Manifest did not track the current dependency edges")
+    routes = module["routes"]
+    if stage in ("add", "modify"):
+        suffix = "before" if stage == "add" else "after"
+        require([(route["method"], route["pattern"], route["permission"], route["capabilities"])
+                 for route in routes] == [("GET", f"/billing/{suffix}", f"invoice:{suffix}", [])],
+                "Application Manifest did not track the current route and permission")
+    else:
+        require(routes == [], "Deleted or absent route survived in the Application Manifest")
     require(hashlib.sha256(payload.encode()).hexdigest() in manifest, "Application Manifest digest mismatch")
     if stage in ("add", "modify"):
         require(any(p.name == "TransientTable.kt" for p in files), "Added table missing")
@@ -122,6 +131,7 @@ def main():
         evidence["sourceClean"] = True
         for stage in ("clean", "no-op", "add", "modify", "delete"):
             entity = sources / "Transient.kt"
+            controller = billing / "InvoiceController.kt"
             if stage in ("clean", "add", "modify"):
                 deps = '"catalog"' if stage == "add" else ""
                 (billing / "Billing.kt").write_text('''package fixture.billing
@@ -130,6 +140,19 @@ import neton.core.annotations.Module
 object Billing
 ''' % deps)
             if stage in ("add", "modify"):
+                suffix = "before" if stage == "add" else "after"
+                controller.write_text('''package fixture.billing
+import neton.core.annotations.Controller
+import neton.core.annotations.Get
+import neton.core.annotations.Permission
+@Controller("/billing")
+@Permission("invoice:class")
+class InvoiceController {
+    @Get("/%s")
+    @Permission("invoice:%s")
+    fun read(): Unit = Unit
+}
+''' % (suffix, suffix))
                 column = "gate_before" if stage == "add" else "gate_after"
                 entity.write_text('''package fixture
 import neton.database.annotations.Id
@@ -142,6 +165,7 @@ fun compiledTransient() = TransientTable.toString()
 ''' % column)
             elif stage == "delete":
                 entity.unlink()
+                controller.unlink()
             with (out / f"{stage}.log").open("w") as log:
                 result = subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, timeout=1800)
             require(result.returncode == 0, f"{stage}: Native build failed; see retained log")

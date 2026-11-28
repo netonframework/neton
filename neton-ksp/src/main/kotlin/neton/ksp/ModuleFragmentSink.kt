@@ -22,6 +22,7 @@ object ModuleFragmentSink {
         val fragments = mutableListOf<Fragment>()
         val topLevelDeclarations = mutableListOf<String>()
         val stats = mutableMapOf<String, Int>()
+        val routes = mutableListOf<ManifestRoute>()
     }
 
     private val sinks = ConcurrentHashMap<String, SinkData>()
@@ -69,6 +70,13 @@ object ModuleFragmentSink {
 
     fun hasFragments(moduleId: String): Boolean =
         sinks[moduleId]?.fragments?.isNotEmpty() == true
+
+    internal fun addRoute(moduleId: String, route: ManifestRoute) {
+        sink(moduleId).routes.add(route)
+    }
+
+    internal fun getRoutes(moduleId: String): List<ManifestRoute> =
+        sinks[moduleId]?.routes?.sortedWith(compareBy({ it.group }, { it.method }, { it.pattern }, { it.origin })).orEmpty()
 
     /** 指定 moduleId 编译结束后清空（由 ModuleInitializerProcessor 调用） */
     fun clear(moduleId: String) {
