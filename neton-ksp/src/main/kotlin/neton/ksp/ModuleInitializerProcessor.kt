@@ -66,6 +66,13 @@ class ModuleInitializerProcessor(
             ModuleFragmentSink.clear(moduleId)
             return emptyList()
         }
+        val seen = mutableSetOf<String>()
+        val repeated = declaredDependencies.firstOrNull { !seen.add(it) }
+        if (repeated != null) {
+            logger.error("NETON_ARCH_DUPLICATE_DEPENDENCY: $moduleId -> $repeated", anchor?.source)
+            ModuleFragmentSink.clear(moduleId)
+            return emptyList()
+        }
         val dependencies = Dependencies(
             aggregating = true,
             *resolver.getAllFiles().toList().toTypedArray()

@@ -182,6 +182,38 @@ class LifecycleContractTest {
     }
 
     @Test
+    fun duplicateDependencyFreeModulesFailBeforeInitialization() {
+        val events = mutableListOf<String>()
+        val module = RecordingModule(events)
+        val error = assertFailsWith<IllegalStateException> {
+            Neton.run(emptyArray()) {
+                install(RecordingComponent(events)) {}
+                modules(module, module)
+            }
+        }
+        assertTrue(error.message.orEmpty().contains("NETON_ARCH_DUPLICATE_MODULE"))
+        assertEquals(listOf("component.init", "component.configure", "component.stop"), events)
+    }
+
+    @Test
+    fun duplicateModuleEdgeIsNotReportedAsCycle() {
+        val events = mutableListOf<String>()
+        val dependency = RecordingModule(events)
+        val error = assertFailsWith<IllegalStateException> {
+            Neton.run(emptyArray()) {
+                install(RecordingComponent(events)) {}
+                modules(dependency, object : ModuleInitializer {
+                    override val moduleId = "dependent"
+                    override val dependsOn = listOf(dependency.moduleId, dependency.moduleId)
+                    override fun initialize(ctx: NetonContext) = error("must not initialize")
+                })
+            }
+        }
+        assertTrue(error.message.orEmpty().contains("NETON_ARCH_DUPLICATE_DEPENDENCY"))
+        assertEquals(listOf("component.init", "component.configure", "component.stop"), events)
+    }
+
+    @Test
     fun missingModuleDependencyFailsBeforeHttpStarts() {
         val events = mutableListOf<String>()
         val component = RecordingComponent(events)

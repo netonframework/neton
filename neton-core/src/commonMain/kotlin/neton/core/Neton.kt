@@ -582,20 +582,23 @@ class Neton private constructor() {
          * 无依赖关系的模块保持用户声明顺序。
          */
         private fun topologicalSort(initializers: List<ModuleInitializer>, log: Logger?): List<ModuleInitializer> {
-            // 无依赖声明，直接按原序返回
-            if (initializers.all { it.dependsOn.isEmpty() }) return initializers
-
             val byId = mutableMapOf<String, ModuleInitializer>()
             for (init in initializers) {
                 if (byId.containsKey(init.moduleId)) {
-                    error("Duplicate moduleId '${init.moduleId}' in modules()")
+                    error("NETON_ARCH_DUPLICATE_MODULE: duplicate moduleId '${init.moduleId}' in modules()")
                 }
                 byId[init.moduleId] = init
             }
 
+            if (initializers.all { it.dependsOn.isEmpty() }) return initializers
+
             // 校验：所有 dependsOn 引用的模块必须存在
             for (init in initializers) {
+                val seen = mutableSetOf<String>()
                 for (dep in init.dependsOn) {
+                    if (!seen.add(dep)) {
+                        error("NETON_ARCH_DUPLICATE_DEPENDENCY: ${init.moduleId} -> $dep")
+                    }
                     if (dep !in byId) {
                         error("Module '${init.moduleId}' depends on '$dep', but '$dep' is not registered in modules()")
                     }

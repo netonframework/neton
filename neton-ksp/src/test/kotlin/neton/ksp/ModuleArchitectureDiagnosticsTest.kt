@@ -62,4 +62,18 @@ class ModuleArchitectureDiagnosticsTest {
             """@neton.core.annotations.Module("billing", ["catalog"]) object Billing""")
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
+
+    @Test fun duplicateDependencyAtAnchor() {
+        val result = compile(mapOf("neton.moduleId" to "billing"),
+            """@neton.core.annotations.Module("billing", ["catalog", "catalog"]) object Billing""")
+        assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode)
+        assertContains(result.messages, "Anchor.kt")
+        assertContains(result.messages, "NETON_ARCH_DUPLICATE_DEPENDENCY: billing -> catalog")
+    }
+
+    @Test fun duplicateLegacyDependency() {
+        val result = compile(mapOf("neton.moduleId" to "billing", "neton.moduleDependsOn" to "catalog,catalog"))
+        assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode)
+        assertContains(result.messages, "NETON_ARCH_DUPLICATE_DEPENDENCY: billing -> catalog")
+    }
 }
