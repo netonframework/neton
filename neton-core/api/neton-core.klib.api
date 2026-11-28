@@ -196,6 +196,17 @@ open annotation class neton.core.config/NetonConfig : kotlin/Annotation { // net
         final fun <get-order>(): kotlin/Int // neton.core.config/NetonConfig.order.<get-order>|<get-order>(){}[0]
 }
 
+open annotation class neton.core.module/ModuleArchitecture : kotlin/Annotation { // neton.core.module/ModuleArchitecture|null[0]
+    constructor <init>(kotlin/String, kotlin/Array<kotlin/String>, kotlin/String) // neton.core.module/ModuleArchitecture.<init>|<init>(kotlin.String;kotlin.Array<kotlin.String>;kotlin.String){}[0]
+
+    final val dependencies // neton.core.module/ModuleArchitecture.dependencies|{}dependencies[0]
+        final fun <get-dependencies>(): kotlin/Array<kotlin/String> // neton.core.module/ModuleArchitecture.dependencies.<get-dependencies>|<get-dependencies>(){}[0]
+    final val id // neton.core.module/ModuleArchitecture.id|{}id[0]
+        final fun <get-id>(): kotlin/String // neton.core.module/ModuleArchitecture.id.<get-id>|<get-id>(){}[0]
+    final val origin // neton.core.module/ModuleArchitecture.origin|{}origin[0]
+        final fun <get-origin>(): kotlin/String // neton.core.module/ModuleArchitecture.origin.<get-origin>|<get-origin>(){}[0]
+}
+
 final enum class neton.core.annotations/RateLimitScope : kotlin/Enum<neton.core.annotations/RateLimitScope> { // neton.core.annotations/RateLimitScope|null[0]
     enum entry CUSTOM // neton.core.annotations/RateLimitScope.CUSTOM|null[0]
     enum entry GLOBAL // neton.core.annotations/RateLimitScope.GLOBAL|null[0]
@@ -402,6 +413,10 @@ abstract fun interface neton.core.interfaces/PermissionEvaluator { // neton.core
     abstract fun allowed(neton.core.interfaces/Identity, kotlin/String, neton.core.interfaces/RequestContext): kotlin/Boolean // neton.core.interfaces/PermissionEvaluator.allowed|allowed(neton.core.interfaces.Identity;kotlin.String;neton.core.interfaces.RequestContext){}[0]
 }
 
+abstract fun interface neton.core.interfaces/PostAuthenticationHandler { // neton.core.interfaces/PostAuthenticationHandler|null[0]
+    abstract suspend fun onAuthenticated(neton.core.http/HttpContext, neton.core.interfaces/Identity, neton.core.interfaces/RequestContext) // neton.core.interfaces/PostAuthenticationHandler.onAuthenticated|onAuthenticated(neton.core.http.HttpContext;neton.core.interfaces.Identity;neton.core.interfaces.RequestContext){}[0]
+}
+
 abstract fun interface neton.core.interfaces/RequestAdmissionGate { // neton.core.interfaces/RequestAdmissionGate|null[0]
     abstract suspend fun allow(neton.core.http/HttpContext, kotlin/String?): kotlin/Boolean // neton.core.interfaces/RequestAdmissionGate.allow|allow(neton.core.http.HttpContext;kotlin.String?){}[0]
 }
@@ -443,6 +458,11 @@ abstract interface <#A: neton.core.event/DomainEvent> neton.core.event/DomainEve
 abstract interface neton.core.component/NetonLifecycle { // neton.core.component/NetonLifecycle|null[0]
     abstract suspend fun start() // neton.core.component/NetonLifecycle.start|start(){}[0]
     abstract suspend fun stop() // neton.core.component/NetonLifecycle.stop|stop(){}[0]
+}
+
+abstract interface neton.core.config/ExternalConfigSource { // neton.core.config/ExternalConfigSource|null[0]
+    abstract suspend fun currentRelease(): kotlin/String // neton.core.config/ExternalConfigSource.currentRelease|currentRelease(){}[0]
+    abstract suspend fun readRelease(kotlin/String): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.core.config/ExternalConfigSource.readRelease|readRelease(kotlin.String){}[0]
 }
 
 abstract interface neton.core.config/NetonConfigRegistry { // neton.core.config/NetonConfigRegistry|null[0]
@@ -1001,6 +1021,17 @@ final class neton.core.config/ConfigTypeException : kotlin/Exception { // neton.
         final fun <get-path>(): kotlin/String // neton.core.config/ConfigTypeException.path.<get-path>|<get-path>(){}[0]
     final val source // neton.core.config/ConfigTypeException.source|{}source[0]
         final fun <get-source>(): neton.core.config/ConfigSource // neton.core.config/ConfigTypeException.source.<get-source>|<get-source>(){}[0]
+}
+
+final class neton.core.config/ExternalConfig { // neton.core.config/ExternalConfig|null[0]
+    final fun snapshot(): neton.core.config/ExternalConfigSnapshot // neton.core.config/ExternalConfig.snapshot|snapshot(){}[0]
+}
+
+final class neton.core.config/ExternalConfigSnapshot { // neton.core.config/ExternalConfigSnapshot|null[0]
+    final val release // neton.core.config/ExternalConfigSnapshot.release|{}release[0]
+        final fun <get-release>(): kotlin/String // neton.core.config/ExternalConfigSnapshot.release.<get-release>|<get-release>(){}[0]
+
+    final fun module(kotlin/String): kotlin.collections/Map<kotlin/String, kotlin/Any?> // neton.core.config/ExternalConfigSnapshot.module|module(kotlin.String){}[0]
 }
 
 final class neton.core.config/UnknownConfigOverride { // neton.core.config/UnknownConfigOverride|null[0]
@@ -2262,6 +2293,7 @@ final class neton.core/Neton { // neton.core/Neton|null[0]
         final fun <#A2: kotlin/Any> bind(kotlin.reflect/KClass<#A2>, #A2) // neton.core/Neton.LaunchBuilder.bind|bind(kotlin.reflect.KClass<0:0>;0:0){0§<kotlin.Any>}[0]
         final fun <#A2: kotlin/Any> install(neton.core.component/NetonComponent<#A2>, kotlin/Function1<#A2, kotlin/Unit>) // neton.core/Neton.LaunchBuilder.install|install(neton.core.component.NetonComponent<0:0>;kotlin.Function1<0:0,kotlin.Unit>){0§<kotlin.Any>}[0]
         final fun configRegistry(neton.core.config/NetonConfigRegistry) // neton.core/Neton.LaunchBuilder.configRegistry|configRegistry(neton.core.config.NetonConfigRegistry){}[0]
+        final fun externalConfig(neton.core.config/ExternalConfigSource, kotlin.collections/Set<kotlin/String> = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin/Function1<neton.core.config/ExternalConfigSnapshot, kotlin/Unit>) // neton.core/Neton.LaunchBuilder.externalConfig|externalConfig(neton.core.config.ExternalConfigSource;kotlin.collections.Set<kotlin.String>;kotlin.Long;kotlin.Long;kotlin.Function1<neton.core.config.ExternalConfigSnapshot,kotlin.Unit>){}[0]
         final fun modules(kotlin/Array<out neton.core.module/ModuleInitializer>...) // neton.core/Neton.LaunchBuilder.modules|modules(kotlin.Array<out|neton.core.module.ModuleInitializer>...){}[0]
         final fun onReady(kotlin.coroutines/SuspendFunction1<neton.core/KotlinApplication, kotlin/Unit>) // neton.core/Neton.LaunchBuilder.onReady|onReady(kotlin.coroutines.SuspendFunction1<neton.core.KotlinApplication,kotlin.Unit>){}[0]
         final fun onStart(kotlin.coroutines/SuspendFunction1<neton.core/KotlinApplication, kotlin/Unit>) // neton.core/Neton.LaunchBuilder.onStart|onStart(kotlin.coroutines.SuspendFunction1<neton.core.KotlinApplication,kotlin.Unit>){}[0]

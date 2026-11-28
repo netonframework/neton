@@ -29,7 +29,9 @@ def inspect_generated(directory, stage):
     require(any(p.name == "AnchorTable.kt" for p in files), "Anchor table was not generated")
     text = "\n".join(p.read_text() for p in files)
     require("import sqlx4k" not in text, "Generated sources expose the SQL driver")
-    manifest = next(p for p in files if p.name == "GeneratedApplicationModules.kt").read_text()
+    manifests = [p for p in files if p.name == "GeneratedApplicationModules.kt"]
+    require(len(manifests) == 1, "Expected exactly one generated application registry")
+    manifest = manifests[0].read_text()
     manifest_literal = next(line.split(" = ", 1)[1] for line in manifest.splitlines()
                             if "const val manifestJson" in line)
     payload = json.loads(manifest_literal)

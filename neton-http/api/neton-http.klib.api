@@ -678,6 +678,13 @@ final class neton.http.client/RedactionPolicy { // neton.http.client/RedactionPo
     final fun toString(): kotlin/String // neton.http.client/RedactionPolicy.toString|toString(){}[0]
 }
 
+final class neton.http.config/ConsulKvConfigSource : neton.core.config/ExternalConfigSource { // neton.http.config/ConsulKvConfigSource|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin/String, kotlin.collections/Set<kotlin/String>, kotlin/String? = ..., kotlin/Int = ..., neton.http.client/HttpClient) // neton.http.config/ConsulKvConfigSource.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.collections.Set<kotlin.String>;kotlin.String?;kotlin.Int;neton.http.client.HttpClient){}[0]
+
+    final suspend fun currentRelease(): kotlin/String // neton.http.config/ConsulKvConfigSource.currentRelease|currentRelease(){}[0]
+    final suspend fun readRelease(kotlin/String): kotlin.collections/Map<kotlin/String, kotlin/String> // neton.http.config/ConsulKvConfigSource.readRelease|readRelease(kotlin.String){}[0]
+}
+
 final class neton.http.conformance/ConformanceRequest { // neton.http.conformance/ConformanceRequest|null[0]
     constructor <init>(kotlin/String, kotlin/String, kotlin/String = ..., kotlin.collections/Map<kotlin/String, kotlin.collections/List<kotlin/String>> = ..., kotlin/ByteArray = ...) // neton.http.conformance/ConformanceRequest.<init>|<init>(kotlin.String;kotlin.String;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>;kotlin.ByteArray){}[0]
 
