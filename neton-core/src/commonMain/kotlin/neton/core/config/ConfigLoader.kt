@@ -25,6 +25,22 @@ import kotlin.concurrent.AtomicReference
 object ConfigLoader {
     
     private const val DEFAULT_CONFIG_PATH = "config"
+    private val startupOverlay = AtomicReference<Map<String, String?>?>(null)
+
+    internal fun installStartupOverlay(files: Map<String, String?>) {
+        check(startupOverlay.compareAndSet(null, files.mapKeys { (key, _) -> "$DEFAULT_CONFIG_PATH/$key" })) {
+            "External configuration startup already in progress"
+        }
+    }
+
+    internal fun clearStartupOverlay() {
+        startupOverlay.value = null
+    }
+
+    private fun readSelectedFile(path: String): String? {
+        val files = startupOverlay.value
+        return if (files != null && path in files) files[path] else readConfigFile(path)
+    }
 
     /**
      * 本进程加载过的模块命名空间 → 文件内容（合并环境文件后、应用覆盖前）。
@@ -182,8 +198,8 @@ object ConfigLoader {
         if (!NAMESPACE_NAME.matches(root)) return false
         val name = root.lowercase()
         if (name == "application") return false
-        if (readConfigFile("$configPath/$name.conf") != null) return true
-        return environment != null && readConfigFile("$configPath/$name.$environment.conf") != null
+        if (readSelectedFile("$configPath/$name.conf") != null) return true
+        return environment != null && readSelectedFile("$configPath/$name.$environment.conf") != null
     }
 
     /**
@@ -210,7 +226,7 @@ object ConfigLoader {
      * 文件不存在 → null；文件存在但解析失败 → 抛 ConfigParseException（fail-fast）。
      */
     private fun loadRawConfigFile(configFilePath: String): Map<String, Any?>? {
-        val content = readConfigFile(configFilePath) ?: return null
+        val content = readSelectedFile(configFilePath) ?: return null
         return TomlParser.parse(content, configFilePath)
     }
     

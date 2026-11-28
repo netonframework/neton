@@ -34,6 +34,7 @@ kotlin {
             dependencies {
                 implementation(netonstreamHttp)
                 implementation(netonstreamTls)
+                implementation("com.netonstream:openssl:4.1.0-1")
                 implementation(libs.kotlinx.serialization.json)
             }
         }

@@ -21,4 +21,5 @@ val DEFAULT_REDACTED_HEADERS: Set<String> = setOf(
     "Cookie",
     "Set-Cookie",
     "Proxy-Authorization",
+    "X-Consul-Token",
 )

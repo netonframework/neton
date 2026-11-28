@@ -9,6 +9,9 @@ import neton.core.http.adapter.HttpCapabilityRequirements
 import neton.core.http.adapter.validateHttpCapabilities
 import neton.core.interfaces.*
 import neton.core.config.ConfigLoader
+import neton.core.config.ExternalConfig
+import neton.core.config.ExternalConfigSnapshot
+import neton.core.config.ExternalConfigSource
 import neton.core.config.EmptyNetonConfigRegistry
 import neton.core.config.NetonConfigRegistry
 import neton.core.http.*
@@ -174,6 +177,7 @@ class Neton private constructor() {
         private var userBlock: (suspend KotlinApplication.() -> Unit)? = null
         private var readyBlock: (suspend KotlinApplication.() -> Unit)? = null
         private var configRegistry: NetonConfigRegistry? = null
+        private var externalConfigFactory: ((Array<String>) -> ExternalConfig)? = null
         private val moduleInitializers = mutableListOf<ModuleInitializer>()
         private val deferredBindings = mutableListOf<(NetonContext) -> Unit>()
 
@@ -217,6 +221,23 @@ class Neton private constructor() {
          */
         fun configRegistry(registry: NetonConfigRegistry) {
             configRegistry = registry
+        }
+
+        /**
+         * Opt in before component initialization. Files are restart-only unless explicitly hot.
+         * The validator must validate the complete effective group without mutating runtime state.
+         */
+        fun externalConfig(
+            source: ExternalConfigSource,
+            hotFiles: Set<String> = emptySet(),
+            pollMillis: Long = 5_000,
+            retryMillis: Long = 500,
+            validate: (ExternalConfigSnapshot) -> Unit,
+        ) {
+            check(externalConfigFactory == null)
+            require(pollMillis in 50..300_000 && retryMillis in 50..30_000)
+            val files = hotFiles.toSet()
+            externalConfigFactory = { args -> ExternalConfig(source, args, files, validate, pollMillis, retryMillis) }
         }
 
         /**
@@ -283,10 +304,17 @@ class Neton private constructor() {
             var log: Logger? = null
             var httpAdapter: HttpAdapter? = null
             var shutdownMonitor: kotlinx.coroutines.Job? = null
+            val external = externalConfigFactory?.invoke(args)
+            var overlayInstalled = false
 
             ctx.markRegistering()
             try {
                 ctx.bind(NetonContext::class, ctx)
+                if (external != null) {
+                    ConfigLoader.installStartupOverlay(external.initialize())
+                    overlayInstalled = true
+                    ctx.bind(ExternalConfig::class, external)
+                }
                 ctx.bind(NetonConfigRegistry::class, configRegistry ?: EmptyNetonConfigRegistry)
                 // 事件总线由框架绑定，而不是让每个应用在装配层自己 bind。
                 // 发布方在模块初始化时就要取到它，取不到就写成 `events?.publish(...)`，
@@ -346,6 +374,7 @@ class Neton private constructor() {
 
                 for (component in initialized) component.start(ctx)
                 ctx.lifecycle.startAll()
+                external?.start(kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.currentCoroutineContext()))
 
                 ProcessShutdownSignals.install()
                 shutdownMonitor = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.currentCoroutineContext()).launch {
@@ -372,6 +401,8 @@ class Neton private constructor() {
             } finally {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
                     ctx.markStopping()
+                    external?.stop()
+                    if (overlayInstalled) ConfigLoader.clearStartupOverlay()
                     try {
                         kotlinx.coroutines.withTimeout(5_000) { shutdownMonitor?.cancelAndJoin() }
                     } catch (error: Throwable) {

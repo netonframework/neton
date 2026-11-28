@@ -42,6 +42,7 @@ include(":examples:backend-app")
 include(":examples:bench")
 include(":examples:release-gate")
 include(":examples:durable-dc03")
+include(":examples:external-config-contract")
 include(":examples:ksp-incremental")
 include(":examples:api-compat")
 
