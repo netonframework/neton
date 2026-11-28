@@ -1,4 +1,10 @@
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import neton.core.http.HttpHeaders
@@ -11,6 +17,7 @@ import neton.http.client.*
 import neton.saga.CompensationClaim
 import neton.saga.CompensationFinish
 import neton.saga.CompensationStore
+import neton.saga.CompensationRecovery
 
 @Serializable
 private data class SagaWire(val saga: String, val action: String, val result: String,
@@ -18,9 +25,32 @@ private data class SagaWire(val saga: String, val action: String, val result: St
 
 /** Fixed checkout example. Receipt acknowledgement is independent of Saga advancement. */
 internal class HttpSaga(private val db: DbContext, private val role: String, private val client: HttpClient,
-    private val auth: String, private val compensationAttempts: Int, private val endpoint: (String) -> String) {
+    private val auth: String, private val compensationAttempts: Int, private val auto: Boolean,
+    private val endpoint: (String) -> String) {
     private val inbox = CommittedDelivery(db)
     private val compensation = CompensationStore(db)
+    private val leases = mutableMapOf<String, CompensationClaim.Acquired>()
+    private val leaseLock = Mutex()
+
+    suspend fun renew(id: String): Boolean {
+        val lease = leaseLock.withLock { leases[id] } ?: return false
+        return compensation.renew(lease, 30_000)
+    }
+
+    suspend fun recover(saga: String, request: String, generation: Int, version: Int, evidence: String): CompensationRecovery =
+        compensation.recover("$saga:release:command", request, generation, version, "checkout-operator", evidence,
+            authorize = { _, _, proof -> proof.startsWith("receiver-idempotency-verified:") && proof.substringAfter(':').isNotBlank() },
+            restoreCheckpoint = {
+                execute("UPDATE saga_state SET state='COMPENSATING',version=version+1 WHERE id=:id AND state='NEEDS_ATTENTION' AND version=:version",
+                    mapOf("id" to saga, "version" to version)) == 1L
+            })
+
+    suspend fun runDispatcher(): Unit {
+        while (true) {
+            dispatch("")
+            delay(200)
+        }
+    }
 
     private suspend fun DbContext.wire(saga: String, action: String, result: String, expiry: Long): SagaWire {
         require(saga.length == 32 && saga.all { it in "0123456789abcdef" })
@@ -105,7 +135,8 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
         val pending = id.ifEmpty {
             db.fetchAll("""
                 SELECT message_id FROM saga_queue q WHERE receipt IS NULL AND NOT EXISTS (
-                    SELECT 1 FROM ns_compensation c WHERE c.id=q.message_id AND c.state='NEEDS_ATTENTION'
+                    SELECT 1 FROM ns_compensation c WHERE c.id=q.message_id AND
+                      (c.state='NEEDS_ATTENTION' OR (c.state='LEASED' AND c.lease_until > clock_timestamp()))
                 ) ORDER BY message_id LIMIT 1
             """.trimIndent())
                 .singleOrNull()?.string("message_id") ?: return "IDLE"
@@ -125,7 +156,7 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
             return when (val lease = compensation.claim(pending, 30_000, onAttention)) {
                 is CompensationClaim.Unavailable -> lease.name
                 is CompensationClaim.Acquired -> {
-                    val receipt = send(raw, msg)
+                    val receipt = sendClaimed(lease, raw, msg)
                     val result = compensation.finish(lease, receipt != null, {
                         check(execute("UPDATE saga_queue SET receipt=:receipt WHERE message_id=:id AND receipt IS NULL",
                             key + ("receipt" to checkNotNull(receipt).receiptId)) == 1L)
@@ -141,6 +172,24 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
         }
         return "HANDED_OFF"
     }
+
+    private suspend fun sendClaimed(lease: CompensationClaim.Acquired, raw: String, msg: SagaWire): DeliveryReceipt? =
+        coroutineScope {
+            leaseLock.withLock { leases[lease.id] = lease }
+            val renewer = if (auto) launch {
+                while (true) {
+                    delay(10_000)
+                    if (!compensation.renew(lease, 30_000)) break
+                }
+            } else null
+            try { send(raw, msg) } finally {
+                // No external work in this cleanup: only the local handle is removed.
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    renewer?.cancelAndJoin()
+                    leaseLock.withLock { if (leases[lease.id] === lease) leases.remove(lease.id) }
+                }
+            }
+        }
 
     private suspend fun send(raw: String, msg: SagaWire): DeliveryReceipt? {
         val response = try {

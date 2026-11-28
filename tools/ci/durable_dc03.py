@@ -57,6 +57,7 @@ def database(role):
             sql((ROOT / "neton-durable/sql/postgresql/V001__dc03_inbox.sql").read_text())
         if saga:
             sql((ROOT / "neton-saga/sql/postgresql/V001__compensation.sql").read_text())
+            sql((ROOT / "neton-saga/sql/postgresql/V002__recovery.sql").read_text())
         sql((ROOT / f"examples/durable-dc03/sql/{'saga' if saga else role}.sql").read_text())
         password = quote(env.get("PGPASSWORD") or "local-fixture", safe="")
         yield f"postgresql://{quote(user, safe='')}:{password}@127.0.0.1:{port}/{name}", sql
@@ -66,7 +67,7 @@ def database(role):
 
 @contextmanager
 def hold_table(sql, table):
-    if table not in {"outbox", "nd_dc03_inbox"}:
+    if table not in {"outbox", "nd_dc03_inbox", "ns_compensation"}:
         raise ValueError("not a fixture lock target")
     locker = subprocess.Popen(["psql", "-XqAtw", "-h", "127.0.0.1", "-d", sql("SELECT current_database();")],
                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
@@ -96,7 +97,8 @@ def stop(proc):
         proc.wait()
 
 
-def start(stack, binary, role, uri, token, relay_port=None, target="ledger", saga_urls=None, attempts=8):
+def start(stack, binary, role, uri, token, relay_port=None, target="ledger", saga_urls=None, attempts=8,
+          operator=None, auto=False, renew=False):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -108,6 +110,11 @@ def start(stack, binary, role, uri, token, relay_port=None, target="ledger", sag
                DC03_URL=f"http://127.0.0.1:{relay_port}/receive")
     env.update({"DC03_SAGA_" + name.upper(): url for name, url in (saga_urls or {}).items()})
     env["DC03_SAGA_ATTEMPTS"] = str(attempts)
+    env["DC03_SAGA_AUTO"] = str(int(auto))
+    env["DC03_SAGA_RENEW"] = str(int(renew))
+    env.pop("DC03_SAGA_OPERATOR", None)
+    if operator is not None:
+        env["DC03_SAGA_OPERATOR"] = operator
     log = stack.enter_context((work / "process.log").open("wb"))
     proc = subprocess.Popen([binary], cwd=work, env=env, stdout=log, stderr=log)
     stack.callback(stop, proc)

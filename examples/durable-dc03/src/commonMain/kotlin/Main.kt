@@ -1,6 +1,11 @@
 import neton.durable.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import neton.core.Neton
@@ -63,17 +68,47 @@ fun main(args: Array<String>) {
     val auth = "Bearer " + env("TOKEN").also { require(it.length >= 32) }
     val db = SqlxDatabase.initialize(DatabaseConfig(DatabaseDriver.POSTGRESQL, env("DB")))
     val client = if (role != "receiver") HttpClient.create { } else null
+    val auto = getEnv("DC03_SAGA_AUTO") == "1"
+    val fixtureRenew = getEnv("DC03_SAGA_RENEW") == "1"
+    val operator = getEnv("DC03_SAGA_OPERATOR")?.let { "Bearer " + it }
+    require(operator == null || (operator != auth && operator.length >= 39))
+    var worker: Job? = null
     val saga = if (role in setOf("coordinator", "stock", "payment")) {
-        HttpSaga(db, role, checkNotNull(client), auth, getEnv("DC03_SAGA_ATTEMPTS")?.toInt() ?: 8) {
+        HttpSaga(db, role, checkNotNull(client), auth, getEnv("DC03_SAGA_ATTEMPTS")?.toInt() ?: 8, auto) {
             target -> env("SAGA_" + target.uppercase())
         }
     } else null
     try {
         Neton.run(args) {
             http { port = env("PORT").toInt() }
+            if (saga != null && auto) onStart {
+                worker = CoroutineScope(Dispatchers.Default).launch { saga.runDispatcher() }
+            }
             routing {
                 get("/ready") { ctx -> ctx.response.text(role) }
                 if (saga != null) {
+                    if (role == "coordinator") post("/saga/recover") { ctx ->
+                        if (operator == null || ctx.request.headers["Authorization"] != operator) {
+                            ctx.response.status = HttpStatus.FORBIDDEN
+                            ctx.response.text("FORBIDDEN")
+                        } else try {
+                            val fields = ctx.request.text().split('|', limit = 5)
+                            require(fields.size == 5)
+                            val result = saga.recover(fields[0], fields[1], fields[2].toInt(), fields[3].toInt(), fields[4])
+                            if (result.name == "CONFLICT") ctx.response.status = HttpStatus.CONFLICT
+                            if (result.name == "FORBIDDEN") ctx.response.status = HttpStatus.FORBIDDEN
+                            ctx.response.text(result.name)
+                        } catch (_: IllegalArgumentException) {
+                            ctx.response.status = HttpStatus.BAD_REQUEST
+                            ctx.response.text("INVALID")
+                        }
+                    }
+                    if (fixtureRenew) post("/saga/renew") { ctx ->
+                        if (ctx.request.headers["Authorization"] != auth) {
+                            ctx.response.status = HttpStatus.UNAUTHORIZED
+                            ctx.response.text("unauthorized")
+                        } else ctx.response.text(if (saga.renew(ctx.request.text())) "RENEWED" else "FENCED")
+                    }
                     if (role == "coordinator") post("/saga/begin") { ctx ->
                         if (ctx.request.headers["Authorization"] != auth) {
                             ctx.response.status = HttpStatus.UNAUTHORIZED
@@ -150,5 +185,8 @@ fun main(args: Array<String>) {
                 }
             }
         }
-    } finally { runBlocking { try { client?.close() } finally { SqlxDatabase.close() } } }
+    } finally { runBlocking {
+        worker?.cancelAndJoin()
+        try { client?.close() } finally { SqlxDatabase.close() }
+    } }
 }

@@ -9,6 +9,7 @@ sealed interface CompensationClaim {
 }
 
 enum class CompensationFinish { HANDED_OFF, RETRY_READY, NEEDS_ATTENTION, FENCED }
+enum class CompensationRecovery { RESUMED, REPLAYED, CONFLICT, FORBIDDEN }
 
 /**
  * PostgreSQL authority for a single durable compensation command. [id] parameters are stable,
@@ -48,6 +49,52 @@ class CompensationStore(private val db: DbContext) {
         }
     }
 
+    suspend fun renew(claim: CompensationClaim.Acquired, leaseMillis: Int): Boolean {
+        require(leaseMillis > 0)
+        check(!db.inTransaction())
+        return db.transaction {
+            val row = lock(claim.id)
+            if (row.state != "LEASED" || row.generation != claim.generation) return@transaction false
+            execute("""
+                UPDATE ns_compensation SET lease_until=GREATEST(lease_until,clock_timestamp()+CAST(:ms AS bigint)*interval '1 millisecond')
+                WHERE id=:id AND lease_until > clock_timestamp()
+            """.trimIndent(), mapOf("id" to claim.id, "ms" to leaseMillis)) == 1L
+        }
+    }
+
+    /**
+     * Authorize with a trusted application principal and evidence policy, before reading command state.
+     * A successful restore adds exactly one attempt to the same command. The workflow CAS callback
+     * must make no changes on false; it and the audit commit with enabling dispatch.
+     */
+    suspend fun recover(id: String, requestId: String, generation: Int, version: Int, actor: String, evidence: String,
+        authorize: suspend (String, String, String) -> Boolean,
+        restoreCheckpoint: suspend DbContext.() -> Boolean,
+    ): CompensationRecovery {
+        check(!db.inTransaction())
+        if (!authorize(actor, id, evidence)) return CompensationRecovery.FORBIDDEN
+        require(requestId.length in 1..128 && actor.length in 1..128 && evidence.length in 1..1024)
+        return db.transaction {
+            val row = lockOrNull(id) ?: return@transaction CompensationRecovery.CONFLICT
+            val key = mapOf("id" to id, "request" to requestId)
+            val prior = fetchAll("""
+                SELECT generation,workflow_version,actor,evidence FROM ns_compensation_recovery
+                WHERE id=:id AND request_id=:request
+            """.trimIndent(), key).singleOrNull()
+            if (prior != null) return@transaction if (prior.int("generation") == generation &&
+                prior.int("workflow_version") == version && prior.string("actor") == actor && prior.string("evidence") == evidence
+            ) CompensationRecovery.REPLAYED else CompensationRecovery.CONFLICT
+            if (row.state != "NEEDS_ATTENTION" || row.generation != generation || row.max == Int.MAX_VALUE ||
+                !restoreCheckpoint()) return@transaction CompensationRecovery.CONFLICT
+            check(execute("UPDATE ns_compensation SET max_attempts=max_attempts+1,state='READY' WHERE id=:id", key.filterKeys { it == "id" }) == 1L)
+            check(execute("""
+                INSERT INTO ns_compensation_recovery(id,request_id,generation,workflow_version,actor,evidence)
+                VALUES (:id,:request,:gen,:version,:actor,:evidence)
+            """.trimIndent(), key + mapOf("gen" to generation, "version" to version, "actor" to actor, "evidence" to evidence)) == 1L)
+            CompensationRecovery.RESUMED
+        }
+    }
+
     /** Record a matched durable receipt, or report uncertainty without inventing a business result. */
     suspend fun finish(
         claim: CompensationClaim.Acquired,
@@ -82,9 +129,11 @@ class CompensationStore(private val db: DbContext) {
 
     private data class Row(val state: String, val generation: Int, val max: Int)
 
-    private suspend fun DbContext.lock(id: String): Row =
+    private suspend fun DbContext.lock(id: String): Row = checkNotNull(lockOrNull(id))
+
+    private suspend fun DbContext.lockOrNull(id: String): Row? =
         fetchAll("SELECT state,generation,max_attempts FROM ns_compensation WHERE id=:id FOR UPDATE",
-            mapOf("id" to id)).single().let { Row(it.string("state"), it.int("generation"), it.int("max_attempts")) }
+            mapOf("id" to id)).singleOrNull()?.let { Row(it.string("state"), it.int("generation"), it.int("max_attempts")) }
 
     // Evaluate the lease against database time only after acquiring the row lock.
     private suspend fun DbContext.unexpired(id: String): Boolean =

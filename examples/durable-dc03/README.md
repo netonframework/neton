@@ -34,6 +34,10 @@ worker fencing and the exhaustion audit use the reusable `neton-saga` store. The
 an exhausted command stays pending with one audit after restart, and holds a real HTTP receipt while a second
 coordinator takes over. After the lease is made expired in PostgreSQL, the second coordinator can write and
 the old one cannot. If the final attempt expires, takeover instead records an audit without a new delivery.
-Workflow versioning, retry scheduling, reconciliation, operator actions and cleanup are outside this example.
+The recovery case uses a separate operator credential, a versioned checkpoint,
+and a concurrent repeated operation ID. After restart a lifecycle-owned worker
+scans pending rows and drains the queues without manual dispatch. The example's
+operator evidence is an attestation, not an independent reconciliation backend.
+Workflow definition versioning, production retry scheduling, reconciliation and cleanup remain outside this example.
 Loopback credentials are not a production transport security configuration. No broker or release publication
 is required.

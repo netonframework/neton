@@ -11,20 +11,22 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from durable_dc03 import database, expect, request, start
+from durable_dc03 import database, expect, hold_table, request, start
 
 
 def run(binary, scenario):
     with ExitStack() as stack:
         roles = ("coordinator", "stock", "payment")
         token = secrets.token_hex(32)
+        operator = secrets.token_hex(32)
         saga = uuid.uuid4().hex
         stores = {role: stack.enter_context(database(role)) for role in roles}
         services, urls, seen = {}, {}, {}
-        losses = {"release:command", "release:result"} if scenario == "replay" else set()
+        losses = ({"release:command", "release:result"} if scenario == "replay" else
+                  {"release:command"} if scenario == "recovery" else set())
         held_ack, resume_ack = threading.Event(), threading.Event()
         hold_release = scenario in ("takeover", "expired")
-        attempts = {"exhaustion": 2, "expired": 1}.get(scenario, 8)
+        attempts = {"exhaustion": 2, "expired": 1, "recovery": 1}.get(scenario, 8)
 
         def state():
             return stores["coordinator"][1]("SELECT state,version FROM saga_state;")
@@ -47,7 +49,14 @@ def run(binary, scenario):
                     raw = self.rfile.read(int(self.headers["Content-Length"]))
                     identity = json.loads(raw)["identity"]
                     mid = identity["messageId"]
-                    status, ack = request(services[role][1], self.path, raw, token)
+                    try:
+                        status, ack = request(services[role][1], self.path, raw, token)
+                    except ConnectionRefusedError:
+                        if scenario != "recovery" or role != "coordinator":
+                            raise
+                        # A participant can drain its outbox before the restarted coordinator binds.
+                        self.send_error(503)
+                        return
                     if status == 200:
                         rid = stores[role][1](
                             "SELECT receipt_id::text FROM nd_dc03_inbox WHERE message_id=:'id';", id=mid)
@@ -78,16 +87,18 @@ def run(binary, scenario):
             stack.callback(relay.shutdown)
             return f"http://127.0.0.1:{relay.server_port}"
 
-        def boot():
-            for role in roles:
+        def boot(auto=False):
+            # Start the compensation target before enabling the coordinator's one restored attempt.
+            for role in (("stock", "payment", "coordinator") if auto else roles):
                 services[role] = start(stack, binary, role, stores[role][0], token, saga_urls=urls,
-                                       attempts=attempts)
+                                       attempts=attempts, operator=operator if role == "coordinator" else None,
+                                       auto=auto, renew=hold_release)
 
-        def crash_and_restart():
+        def crash_and_restart(auto=False):
             for proc, _ in services.values():
                 proc.kill()
                 proc.wait(timeout=5)
-            boot()
+            boot(auto)
 
         def call(role, route, body, answer):
             expect(request(services[role][1], "/saga/" + route, body, token), (200, answer.encode()))
@@ -112,6 +123,45 @@ def run(binary, scenario):
         coordinator_sql = stores["coordinator"][1]
         lease = "SELECT state,generation FROM ns_compensation;"
         audit = "SELECT generation,event,reason FROM ns_compensation_audit;"
+        if scenario == "recovery":
+            dispatch("coordinator", "release:command", "NEEDS_ATTENTION")
+            expect(stock(), "f|1")
+            expect(state(), "NEEDS_ATTENTION|3")
+            port = services["coordinator"][1]
+            base = f"{saga}|recovery-01|1|3|receiver-idempotency-verified:incident-17"
+            restore = "/saga/recover"
+            expect(request(port, restore, base, token), (403, b"FORBIDDEN"))
+            expect(request(port, restore, base.replace("|3|", "|2|"), operator), (409, b"CONFLICT"))
+            expect(request(port, restore, base.replace("|1|", "|0|"), operator), (409, b"CONFLICT"))
+            expect(request(port, restore, base.replace("receiver-idempotency-verified:", "invalid:"), operator),
+                   (403, b"FORBIDDEN"))
+            expect(state(), "NEEDS_ATTENTION|3")
+            expect(coordinator_sql("SELECT count(*) FROM ns_compensation_recovery;"), "0")
+            with ThreadPoolExecutor(2) as pool:
+                with hold_table(coordinator_sql, "ns_compensation") as wait_for:
+                    jobs = [pool.submit(request, port, restore, base, operator) for _ in range(2)]
+                    wait_for(2)
+                expect(sorted(job.result() for job in jobs), [(200, b"REPLAYED"), (200, b"RESUMED")])
+            expect(request(port, restore, base + "-mismatch", operator), (409, b"CONFLICT"))
+            expect(state(), "COMPENSATING|4")
+            expect(coordinator_sql("SELECT state,generation,max_attempts FROM ns_compensation;"), "READY|1|2")
+            crash_and_restart(auto=True)
+            count_pending = "SELECT count(*) FROM saga_queue WHERE receipt IS NULL;"
+            deadline = time.monotonic() + 15
+            while state() != "COMPENSATED|5" or any(stores[r][1](count_pending) != "0" for r in roles):
+                if time.monotonic() >= deadline:
+                    raise AssertionError("automatic restart did not complete queues")
+                time.sleep(.05)
+            expect(stock(), "f|1")
+            first, second = seen[f"{saga}:release:command"]
+            expect(first, second)
+            expect(coordinator_sql("""
+                SELECT request_id,actor,generation,workflow_version,evidence FROM ns_compensation_recovery;
+            """), "recovery-01|checkout-operator|1|3|receiver-idempotency-verified:incident-17")
+            expect(request(services["coordinator"][1], restore, base, operator), (200, b"REPLAYED"))
+            expect(state(), "COMPENSATED|5")
+            print("Saga recovery PASS: authorization and CAS enforced; concurrent replay audited once; automatic restart reused original command")
+            return
         if scenario == "exhaustion":
             stock_sql = stores["stock"][1]
             stock_sql("ALTER TABLE reservation ADD CONSTRAINT unavailable CHECK(reserved);")
@@ -145,13 +195,24 @@ def run(binary, scenario):
                     expect(held_ack.wait(7), True)
                     expect(stock(), "f|1")
                     expect(coordinator_sql(lease), "LEASED|1")
+                    coordinator_sql("UPDATE ns_compensation SET lease_until=clock_timestamp()+interval '5 seconds';")
+                    expect(request(old_port, "/saga/renew", command_id, token), (200, b"RENEWED"))
+                    expect(coordinator_sql("SELECT lease_until > clock_timestamp()+interval '20 seconds' FROM ns_compensation;"), "t")
                     expect(request(replacement, "/saga/dispatch", command_id, token), (200, b"BUSY"))
                     coordinator_sql("UPDATE ns_compensation SET lease_until=clock_timestamp()-interval '1 second';")
+                    with ThreadPoolExecutor(2) as competitors:
+                        with hold_table(coordinator_sql, "ns_compensation") as wait_for:
+                            new = competitors.submit(request, replacement, "/saga/dispatch", command_id, token)
+                            renewed = competitors.submit(request, old_port, "/saga/renew", command_id, token)
+                            wait_for(2)
+                        takeover = new.result()
+                        expect(renewed.result(), (200, b"FENCED"))
                     if scenario == "expired":
-                        expect(request(replacement, "/saga/dispatch", command_id, token), (200, b"NEEDS_ATTENTION"))
+                        expect(takeover, (200, b"NEEDS_ATTENTION"))
                     else:
-                        expect(request(replacement, "/saga/dispatch", command_id, token), (200, b"HANDED_OFF"))
+                        expect(takeover, (200, b"HANDED_OFF"))
                         expect(coordinator_sql(lease), "HANDED_OFF|2")
+                    expect(request(old_port, "/saga/renew", command_id, token), (200, b"FENCED"))
                 finally:
                     resume_ack.set()
                 expect(old.result(timeout=10), (200, b"FENCED"))
@@ -215,5 +276,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("binary", type=Path)
     binary = parser.parse_args().binary.resolve(strict=True)
-    for scenario in ("replay", "exhaustion", "takeover", "expired"):
+    for scenario in ("replay", "exhaustion", "takeover", "expired", "recovery"):
         run(binary, scenario)
