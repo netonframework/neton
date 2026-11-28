@@ -61,6 +61,12 @@ class ModuleInitializerProcessor(
         val anchor = findModuleAnchor(resolver, moduleId)
         val declaredDependencies = anchor?.dependsOn
             ?: options["neton.moduleDependsOn"].orEmpty().split(',').map(String::trim).filter(String::isNotEmpty)
+        val invalid = declaredDependencies.firstOrNull { !MODULE_ARCHITECTURE_ID.matches(it) }
+        if (invalid != null) {
+            logger.error("NETON_ARCH_INVALID_DEPENDENCY: $moduleId -> $invalid", anchor?.source)
+            ModuleFragmentSink.clear(moduleId)
+            return emptyList()
+        }
         if (moduleId in declaredDependencies) {
             logger.error("NETON_ARCH_MODULE_CYCLE: $moduleId -> $moduleId", anchor?.source)
             ModuleFragmentSink.clear(moduleId)
@@ -251,6 +257,12 @@ class ModuleInitializerProcessor(
             w.write(" * 顺序: configs → logics(@Logic) → RuntimeBootstrap → routes → jobs → validators。\n")
             w.write(" * 模块侧薄壳: `object {X}ModuleInitializer : ModuleInitializer by $className`。\n")
             w.write(" */\n")
+            val location = anchor.source.location as? FileLocation
+            val origin = anchor.source.qualifiedName?.asString().orEmpty() +
+                (location?.let { " (${it.filePath.replace('\\', '/').substringAfterLast('/')}:${it.lineNumber})" }.orEmpty())
+            w.write("@$MODULE_ARCHITECTURE(${kotlinString(moduleId)}, ")
+            w.write(anchor.dependsOn.joinToString(", ", "[", "]", transform = ::kotlinString))
+            w.write(", ${kotlinString(origin)})\n")
             w.write("object $className : ModuleInitializer {\n\n")
             w.write("    override val moduleId: String = \"$moduleId\"\n\n")
 

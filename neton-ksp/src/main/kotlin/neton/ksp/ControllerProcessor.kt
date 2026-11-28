@@ -700,7 +700,8 @@ ${
                         param.annotations.firstOrNull { it.shortName.asString() == "CurrentUser" || it.shortName.asString() == "AuthenticationPrincipal" }
 
                     val (actualParamName, isBody) = when {
-                        pathVar != null -> (pathVar.arguments.firstOrNull()?.value as? String ?: paramName) to false
+                        pathVar != null -> ((pathVar.arguments.firstOrNull()?.value as? String)
+                            ?.takeIf { it.isNotEmpty() } ?: paramName) to false
                         queryParam != null -> (queryParam.arguments.firstOrNull()?.value as? String
                             ?: paramName) to false
 

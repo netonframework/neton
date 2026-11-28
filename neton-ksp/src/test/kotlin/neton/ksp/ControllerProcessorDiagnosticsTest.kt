@@ -295,6 +295,15 @@ class ControllerProcessorDiagnosticsTest {
         """,
     )
 
+    @Test
+    fun lockKeyUsesParameterNameForDefaultPathVariableAlias() = assertAccepted(
+        """
+        @Get("/a/{id}")
+        @Lock(key = "order:{id}")
+        suspend fun a(@PathVariable id: Long): Reply = Reply("x")
+        """,
+    )
+
     // ---- 生成的代码本身 ----
 
     @Test

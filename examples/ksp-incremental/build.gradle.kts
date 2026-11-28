@@ -20,19 +20,17 @@ kotlin {
         binary.linkerOpts("-L${project(":neton-core").file("build/nativeInterop/$gateTarget").absolutePath}", "-lenv")
         binary.linkTaskProvider.configure { dependsOn(":neton-core:archivePosixEnv$capital") }
     }
+    target.compilations.getByName("main").defaultSourceSet.kotlin.apply {
+        srcDir("src/nativeApp/kotlin")
+        providers.gradleProperty("gate.sources").orNull?.let { srcDir(it) }
+    }
     sourceSets.commonMain {
-        providers.gradleProperty("gate.sources").orNull?.let { kotlin.srcDir(it) }
-        kotlin.srcDir("build/generated/ksp/$gateTarget/${gateTarget}Main/kotlin")
         dependencies {
             implementation(project(":neton-core"))
             implementation(project(":neton-database"))
+            implementation(project(":examples:ksp-incremental:billing"))
         }
     }
 }
 dependencies { add("ksp$capital", project(":neton-ksp")) }
-tasks.matching { it.name.startsWith("compileKotlin") }.configureEach { dependsOn("kspKotlin$capital") }
-afterEvaluate {
-    kotlin.sourceSets.findByName("${gateTarget}Main")?.let { source ->
-        source.kotlin.setSrcDirs(source.kotlin.srcDirs.filterNot { it.invariantSeparatorsPath.contains("generated/ksp") })
-    }
-}
+ksp { arg("neton.modules", "billing,catalog") }

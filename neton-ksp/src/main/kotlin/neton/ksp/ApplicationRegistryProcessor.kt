@@ -53,7 +53,7 @@ class ApplicationRegistryProcessor(
             return emptyList()
         }
 
-        val refs = mutableListOf<Pair<String, String>>()  // id to FQN
+        val refs = mutableListOf<ManifestModule>()
         for (id in ids) {
             if (!APP_MODULE_ID_PATTERN.matches(id)) {
                 logger.error(
@@ -67,22 +67,34 @@ class ApplicationRegistryProcessor(
             }
             val manifestFqn = "neton.module.$id.generated.${pascal}ModuleManifest"
             val legacyFqn = "init.${pascal}ModuleInitializer"
-            val fqn = when {
-                resolver.getClassDeclarationByName(resolver.getKSNameFromString(manifestFqn)) != null ->
-                    manifestFqn
-                resolver.getClassDeclarationByName(resolver.getKSNameFromString(legacyFqn)) != null ->
-                    legacyFqn
-                else -> {
-                    logger.error(
-                        "neton.modules entry '$id': neither $manifestFqn (manifest mode) nor " +
+            val declaration =
+                resolver.getClassDeclarationByName(resolver.getKSNameFromString(manifestFqn))
+                    ?: resolver.getClassDeclarationByName(resolver.getKSNameFromString(legacyFqn))
+                    ?: run {
+                        logger.error(
+                            "NETON_ARCH_MISSING_MODULE: neton.modules entry '$id': neither $manifestFqn (manifest mode) nor " +
                                 "$legacyFqn (legacy hand-written initializer) found on the classpath. " +
                                 "Check the module id spelling and the gradle dependency."
-                    )
-                    return emptyList()
-                }
+                        )
+                        return emptyList()
+                    }
+            val metadata = declaration.annotations.firstOrNull {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == MODULE_ARCHITECTURE
+            }?.arguments?.associate { it.name?.asString() to it.value }
+            if (metadata != null && metadata["id"] != id) {
+                logger.error("NETON_ARCH_MODULE_ID_MISMATCH: expected '$id', got '${metadata["id"]}'", declaration)
+                return emptyList()
             }
-            refs.add(id to fqn)
+            val dependencies = metadata?.get("dependencies") as? List<*>
+            val origin = metadata?.get("origin") as? String
+            if (metadata != null && (dependencies == null || dependencies.any { it !is String } || origin == null)) {
+                logger.error("NETON_ARCH_INVALID_METADATA: $id", declaration)
+                return emptyList()
+            }
+            refs += ManifestModule(id, declaration.qualifiedName!!.asString(), declaration,
+                dependencies?.filterIsInstance<String>(), origin)
         }
+        if (!checkArchitecture(refs, logger)) return emptyList()
 
         val dependencies = Dependencies(
             aggregating = true,
@@ -92,7 +104,7 @@ class ApplicationRegistryProcessor(
         return emptyList()
     }
 
-    private fun generateRegistry(refs: List<Pair<String, String>>, dependencies: Dependencies) {
+    private fun generateRegistry(refs: List<ManifestModule>, dependencies: Dependencies) {
         val pkg = "neton.application.generated"
         val className = "GeneratedApplicationModules"
 
@@ -115,17 +127,20 @@ class ApplicationRegistryProcessor(
             w.write(" */\n")
             w.write("object $className {\n\n")
             w.write("    val modules: List<ModuleInitializer> = listOf(\n")
-            refs.forEach { (id, fqn) ->
-                w.write("        $fqn,  // $id\n")
+            refs.forEach { module ->
+                w.write("        ${module.entry},  // ${module.id}\n")
             }
-            w.write("    )\n")
+            w.write("    )\n\n")
+            val manifest = architectureJson(refs)
+            w.write("    const val manifestJson: String = ${kotlinString(manifest)}\n")
+            w.write("    const val manifestSha256: String = ${kotlinString(architectureDigest(manifest))}\n")
             w.write("}\n")
         }
 
         logger.info(
             "Generated $pkg.$className with ${refs.size} module(s): " +
-                    refs.joinToString { (id, fqn) ->
-                        "$id=${if (fqn.contains(".generated.")) "manifest" else "legacy"}"
+                    refs.joinToString { module ->
+                        "${module.id}=${if (module.dependencies != null) "manifest" else "opaque"}"
                     }
         )
     }

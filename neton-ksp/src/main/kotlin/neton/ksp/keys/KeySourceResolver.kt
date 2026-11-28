@@ -72,7 +72,7 @@ internal object KeySourceResolver {
         p.kotlinName to when {
             p.typeQualified in INJECTED_PARAM_TYPES || p.isUploadFileList -> null
             p.annotations.any { it in NON_ARGS_PARAM_ANNOTATIONS } -> null
-            "PathVariable" in p.annotations -> p.pathVariableAlias ?: p.kotlinName
+            "PathVariable" in p.annotations -> p.pathVariableAlias?.takeIf { it.isNotEmpty() } ?: p.kotlinName
             "QueryParam" in p.annotations -> p.queryParamAlias ?: p.kotlinName
             "Query" in p.annotations -> p.queryAlias?.takeIf { it.isNotEmpty() } ?: p.kotlinName
             p.kotlinName in pathParamNames -> p.kotlinName

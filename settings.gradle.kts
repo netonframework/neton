@@ -44,6 +44,7 @@ include(":examples:release-gate")
 include(":examples:durable-dc03")
 include(":examples:external-config-contract")
 include(":examples:ksp-incremental")
+include(":examples:ksp-incremental:billing")
 include(":examples:api-compat")
 
 // Hyper4k and Ktor compatibility adapters are independent repositories.

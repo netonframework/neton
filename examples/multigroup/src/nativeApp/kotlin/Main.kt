@@ -1,5 +1,5 @@
-import config.defaultConfigRegistry
 import neton.core.Neton
+import neton.core.generated.GeneratedNetonConfigRegistry
 import neton.http.http
 import neton.redis.redis
 import neton.security.security
@@ -13,7 +13,7 @@ import neton.routing.routing
 fun main(args: Array<String>) {
     Neton.run(args) {
 
-        defaultConfigRegistry()?.let { configRegistry(it) }
+        configRegistry(GeneratedNetonConfigRegistry)
 
         http {
             port = 8080

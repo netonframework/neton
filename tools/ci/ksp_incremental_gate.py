@@ -29,6 +29,14 @@ def inspect_generated(directory, stage):
     require(any(p.name == "AnchorTable.kt" for p in files), "Anchor table was not generated")
     text = "\n".join(p.read_text() for p in files)
     require("import sqlx4k" not in text, "Generated sources expose the SQL driver")
+    manifest = next(p for p in files if p.name == "GeneratedApplicationModules.kt").read_text()
+    manifest_literal = next(line.split(" = ", 1)[1] for line in manifest.splitlines()
+                            if "const val manifestJson" in line)
+    payload = json.loads(manifest_literal)
+    dependencies = ["catalog"] if stage == "add" else []
+    require(json.loads(payload)["modules"][0]["declaredDependencies"] == dependencies,
+            "Application Manifest did not track the current dependency edges")
+    require(hashlib.sha256(payload.encode()).hexdigest() in manifest, "Application Manifest digest mismatch")
     if stage in ("add", "modify"):
         require(any(p.name == "TransientTable.kt" for p in files), "Added table missing")
         require(("gate_before" if stage == "add" else "gate_after") in text,
@@ -87,6 +95,8 @@ def main():
         return
     sources = out / "sources"
     sources.mkdir()
+    billing = out / "billing-sources"
+    billing.mkdir()
     fixture = root / "examples/ksp-incremental"
     require(not (fixture / "build").exists(), "Use fresh fixture outputs")
     generated = fixture / f"build/generated/ksp/{args.target}/{args.target}Main/kotlin"
@@ -98,18 +108,25 @@ def main():
     command = [str(root / wrapper) if os.name == "nt" else wrapper,
                "--console=plain", "--warning-mode=fail", "--no-build-cache",
                "-Pnetonstream.local=false",
-               f"-Pgate.target={args.target}", f"-Pgate.sources={sources}",
+               f"-Pgate.target={args.target}", f"-Pgate.sources={sources}", f"-Pgate.billingSources={billing}",
                "-Pksp.incremental=true",
                f":examples:ksp-incremental:linkReleaseExecutable{capital}"]
     binary = fixture / f"build/bin/{args.target}/releaseExecutable" / (
         "ksp-incremental.exe" if os.name == "nt" else "ksp-incremental.kexe")
-    previous = None
+    previous = initial = None
     try:
         require(not subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip(),
                 "Incremental release evidence requires clean committed inputs")
         evidence["sourceClean"] = True
         for stage in ("clean", "no-op", "add", "modify", "delete"):
             entity = sources / "Transient.kt"
+            if stage in ("clean", "add", "modify"):
+                deps = '"catalog"' if stage == "add" else ""
+                (billing / "Billing.kt").write_text('''package fixture.billing
+import neton.core.annotations.Module
+@Module(id = "billing", dependsOn = [%s])
+object Billing
+''' % deps)
             if stage in ("add", "modify"):
                 column = "gate_before" if stage == "add" else "gate_after"
                 entity.write_text('''package fixture
@@ -128,8 +145,12 @@ fun compiledTransient() = TransientTable.toString()
             require(result.returncode == 0, f"{stage}: Native build failed; see retained log")
             inspect_generated(generated, stage)
             current = snapshot(generated)
+            if stage == "clean":
+                initial = current
             if stage == "no-op":
                 require(current == previous, "No-op build changed generated code")
+            if stage == "delete":
+                require(current == initial, "Deleting the transient input did not restore clean output")
             exit_code = None
             if args.defer_native_execution:
                 (out / "binaries").mkdir(exist_ok=True)
