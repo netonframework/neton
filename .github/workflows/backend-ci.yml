@@ -367,13 +367,13 @@ jobs:
   release-gates:
     name: Neton release gates
     if: always()
-    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts, public-app, dependency-baseline, transport-stability, transport-arm64-runtime]
+    needs: [reference-release, framework-checks, native-core-checks, postgres-contracts, durable-http-contracts, redis-contracts, ksp-incremental, ksp-arm64-runtime, api-abi, candidate-artifacts, public-app, dependency-baseline, transport-stability, transport-arm64-runtime]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gate on this candidate
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==13 and all(job["result"]=="success" for job in results.values()), results'
+        run: python3 -c 'import json, os; results=json.loads(os.environ["RESULTS"]); assert len(results)==14 and all(job["result"]=="success" for job in results.values()), results'
 
   postgres-contracts:
     runs-on: ubuntu-24.04
@@ -408,14 +408,6 @@ jobs:
         run: |
           python3 -m unittest discover -s tools/ci -p 'test_integration_report.py'
           python3 tools/ci/verify-integration-report.py neton-database/build/test-results/linuxX64Test
-      - name: Durable HTTP crash and receipt contracts
-        env:
-          PGUSER: neton_gate
-          PGPASSWORD: disposable_gate_only
-          PGPORT: "16439"
-        run: |
-          ./gradlew --no-daemon -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :examples:durable-dc03:linkDebugExecutableLinuxX64
-          python3 tools/ci/durable_dc03.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
       - name: Retain database test reports
         if: always()
         uses: actions/upload-artifact@v7.0.2
@@ -423,6 +415,40 @@ jobs:
           name: postgres-contracts-${{ github.sha }}
           path: neton-database/build/test-results/linuxX64Test/
           if-no-files-found: error
+
+  durable-http-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16.6
+        env:
+          POSTGRES_USER: neton_gate
+          POSTGRES_PASSWORD: disposable_gate_only
+          POSTGRES_DB: neton_gate_ci
+        ports:
+          - 16439:5432
+        options: >-
+          --health-cmd "pg_isready -U neton_gate -d neton_gate_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Durable HTTP crash and receipt contracts
+        env:
+          PGUSER: neton_gate
+          PGPASSWORD: disposable_gate_only
+          PGPORT: "16439"
+        run: |
+          command -v psql || sudo apt-get install -y postgresql-client-16
+          ./gradlew --no-daemon -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :examples:durable-dc03:linkDebugExecutableLinuxX64
+          python3 tools/ci/durable_dc03.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
 
   redis-contracts:
     runs-on: ubuntu-24.04
