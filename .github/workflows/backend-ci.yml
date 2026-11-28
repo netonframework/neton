@@ -25,6 +25,7 @@ jobs:
       - name: Reject missing, changed or non-release publications
         run: |
           python3 -m unittest discover -s tools/ci -p test_release_baseline.py
+          python3 -m unittest discover -s tools/ci -p test_retry_gradle_central.py
           python3 -m unittest discover -s tools/ci -p test_repeat_transport_tests.py
           python3 -m unittest discover -s tools/ci -p test_http_soak.py
           python3 tools/ci/verify_release_baseline.py --online --output build/release-baseline/central.json
@@ -445,15 +446,25 @@ jobs:
           java-version: "17"
           cache: gradle
       - name: Durable HTTP crash and receipt contracts
+        shell: bash
         env:
           PGUSER: neton_gate
           PGPASSWORD: disposable_gate_only
           PGPORT: "16439"
         run: |
           command -v psql || sudo apt-get install -y postgresql-client-16
-          ./gradlew --no-daemon -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :examples:durable-dc03:linkDebugExecutableLinuxX64
+          bash tools/ci/retry-gradle-central.sh "$RUNNER_TEMP/durable-gradle" \
+            ./gradlew --no-daemon --console=plain -I tools/ci/require-published-dependencies.init.gradle \
+            -Pnetonstream.local=false -Pneton.database.driver=postgres :examples:durable-dc03:linkDebugExecutableLinuxX64
           python3 tools/ci/durable_dc03.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
           python3 tools/ci/durable_saga.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
+      - name: Retain Durable build logs
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: durable-gradle-${{ github.sha }}
+          path: ${{ runner.temp }}/durable-gradle-*.log
+          if-no-files-found: error
 
   redis-contracts:
     runs-on: ubuntu-24.04
@@ -481,19 +492,8 @@ jobs:
           NETON_TEST_REDIS_REQUIRED: "true"
           NETON_TEST_REDIS_PORT: "16387"
         run: |
-          for attempt in 1 2 3; do
-            log="$RUNNER_TEMP/redis-gradle-$attempt.log"
-            if ./gradlew --no-daemon --console=plain --warning-mode=fail -Pnetonstream.local=false :neton-redis:linuxX64Test 2>&1 | tee "$log"; then
-              exit 0
-            fi
-            # Retry only dependency throttling before Gradle started any task.
-            if [[ "$attempt" == 3 ]] || grep -q '^> Task ' "$log" ||
-               ! grep -Fq "A problem occurred configuring root project" "$log" ||
-               ! grep -Eq "Could not (GET|HEAD) 'https://repo\.maven\.apache\.org/maven2/[^']+'. Received status code 429 from server" "$log"; then
-              exit 1
-            fi
-            sleep "$((attempt * 30))"
-          done
+          bash tools/ci/retry-gradle-central.sh "$RUNNER_TEMP/redis-gradle" \
+            ./gradlew --no-daemon --console=plain --warning-mode=fail -Pnetonstream.local=false :neton-redis:linuxX64Test
       - name: Verify Redis executed against the real server
         run: python3 tools/ci/verify-integration-report.py neton-redis/build/test-results/linuxX64Test redis
       - name: Retain Redis test reports
