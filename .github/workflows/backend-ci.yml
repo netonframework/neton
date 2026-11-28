@@ -476,10 +476,24 @@ jobs:
           java-version: "17"
           cache: gradle
       - name: Redis batch contracts against a real server
+        shell: bash
         env:
           NETON_TEST_REDIS_REQUIRED: "true"
           NETON_TEST_REDIS_PORT: "16387"
-        run: ./gradlew --no-daemon --warning-mode=fail -Pnetonstream.local=false :neton-redis:linuxX64Test
+        run: |
+          for attempt in 1 2 3; do
+            log="$RUNNER_TEMP/redis-gradle-$attempt.log"
+            if ./gradlew --no-daemon --console=plain --warning-mode=fail -Pnetonstream.local=false :neton-redis:linuxX64Test 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            # Retry only dependency throttling before Gradle started any task.
+            if [[ "$attempt" == 3 ]] || grep -q '^> Task ' "$log" ||
+               ! grep -Fq "A problem occurred configuring root project" "$log" ||
+               ! grep -Eq "Could not (GET|HEAD) 'https://repo\.maven\.apache\.org/maven2/[^']+'. Received status code 429 from server" "$log"; then
+              exit 1
+            fi
+            sleep "$((attempt * 30))"
+          done
       - name: Verify Redis executed against the real server
         run: python3 tools/ci/verify-integration-report.py neton-redis/build/test-results/linuxX64Test redis
       - name: Retain Redis test reports
@@ -487,7 +501,9 @@ jobs:
         uses: actions/upload-artifact@v7.0.2
         with:
           name: redis-contracts-${{ github.sha }}
-          path: neton-redis/build/test-results/linuxX64Test/
+          path: |
+            neton-redis/build/test-results/linuxX64Test/
+            ${{ runner.temp }}/redis-gradle-*.log
           if-no-files-found: error
 
   framework-checks:
