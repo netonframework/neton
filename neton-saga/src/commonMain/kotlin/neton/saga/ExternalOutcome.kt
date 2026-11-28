@@ -16,4 +16,5 @@ class ExternalReconciler<Operation, Evidence, Result>(
 data class CompensationTransfer(
     val id: String, val plan: String, val source: String, val target: String,
     val generation: Int, val budget: Int, val dueAt: String, val payload: String,
+    val state: String = "READY", val audit: String = "[]", val recovery: String = "[]",
 )

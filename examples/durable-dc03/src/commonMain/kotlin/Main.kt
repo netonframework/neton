@@ -101,8 +101,8 @@ fun main(args: Array<String>) {
                                     "retire" -> if (fields.size == 3) saga.retire(id, fields[1], resource, fields[2])
                                         ?.let { Json.encodeToString(it) } else null
                                     "retirement" -> saga.retirement(id)?.let { Json.encodeToString(it) }
-                                    else -> if (fields.size == 2 && saga.activate(id, fields[1], resource,
-                                            env("SAGA_SOURCE"), env("SAGA_SOURCE_URL"), operator)) "ACTIVE" else null
+                                    else -> if (fields.size == 2) saga.activate(id, fields[1], resource,
+                                            env("SAGA_SOURCE"), env("SAGA_SOURCE_URL"), operator) else null
                                 }
                                 if (result == null) ctx.response.status = HttpStatus.CONFLICT
                                 ctx.response.text(result ?: "CONFLICT")

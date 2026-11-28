@@ -44,7 +44,11 @@ outcome on an uncertain retry; a 404 is not proof that compensation can run agai
 An additional checkout scenario retires a command in one coordinator database,
 rejects activation on a different target identity, restarts both coordinators and
 finishes through the selected target using an operation-matched outcome. The source
-remains fenced. Workflow definition versioning, general external evidence providers
-and cleanup remain outside this example.
+remains fenced. A second migration scenario drains a live lease, migrates the
+checkout checkpoint and existing receipts, and compares audit history on both
+databases. It drops the target HTTP activation acknowledgement after commit
+and recovers the original activation from the target while the source is offline.
+Workflow definition versioning, general external evidence providers and cleanup
+remain outside this example.
 Loopback credentials are not a production transport security configuration. No broker or release publication
 is required.

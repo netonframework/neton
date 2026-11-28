@@ -38,14 +38,20 @@ External participants can supply an `ExternalOutcomeQuery` and an operation/evid
 binder. A missing or mismatched result cannot authorize execution. Authority
 authentication and evidence validation are part of the adapter contract.
 
-V004 adds a one-way, explicitly operated transfer of an already-attempted, quiescent
-compensation to a uniquely named target. Source retirement and the frozen snapshot
-commit together. Activation imports the snapshot and enables the command in a single
-destination transaction, using proof fetched from the configured source. Both sides
-retain the original command identity and never reopen the source. Deployments must
-use unique, non-cloned resource identities and an authenticated control channel.
+V004/V005 support an explicitly operated, one-way handoff to a uniquely named target.
+The persisted drain intent disallows new claims and renewal. A current worker can
+finish within its original lease. An expired worker is fenced and its attempt remains
+consumed. Retrying retirement uses the same plan; there is no reopen operation.
+Retirement stores the frozen snapshot and the audit/recovery history together.
+
+The target verifies proof fetched from its configured source, then commits the
+snapshot, application checkpoint and activation receipt in a single local
+transaction. A retry of the same plan can read that original receipt even if
+the source process is unavailable. Deployments must use unique, non-cloned
+resource identities and an authenticated control channel.
 
 This is not a workflow definition engine, full workflow migration, a multi-tenant
 admission policy, cross-database consensus or a generic evidence backend. The HTTP
-acceptance covers a controlled handoff of one unresolved checkout compensation;
-it does not migrate audit history or support moving an active lease.
+acceptance covers the checkout checkpoint, scoped Inbox/Outbox, compensation,
+and audit records. It does not move live leases or cover arbitrary application
+schemas, batched migration, external objects or all r26 migration faults.

@@ -33,14 +33,16 @@ internal data class SagaOutcome(val receipt: DeliveryReceipt, val resultWire: St
 
 @Serializable
 internal data class HandoffWire(val id: String, val plan: String, val source: String, val target: String,
-    val generation: Int, val budget: Int, val dueAt: String, val payload: String) {
+    val generation: Int, val budget: Int, val dueAt: String, val payload: String,
+    val state: String = "READY", val audit: String = "[]", val recovery: String = "[]") {
     constructor(value: CompensationTransfer) : this(value.id, value.plan, value.source, value.target,
-        value.generation, value.budget, value.dueAt, value.payload)
-    fun proof() = CompensationTransfer(id, plan, source, target, generation, budget, dueAt, payload)
+        value.generation, value.budget, value.dueAt, value.payload, value.state, value.audit, value.recovery)
+    fun proof() = CompensationTransfer(id, plan, source, target, generation, budget, dueAt, payload, state, audit, recovery)
 }
 
 @Serializable
-private data class CheckoutSnapshot(val saga: String, val version: Int, val wire: String)
+private data class CheckoutSnapshot(val saga: String, val version: Int, val wire: String,
+    val state: String, val outbox: String, val inbox: String)
 
 /** Fixed checkout example. Receipt acknowledgement is independent of Saga advancement. */
 internal class HttpSaga(private val db: DbContext, private val role: String, private val client: HttpClient,
@@ -120,12 +122,22 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
     }
 
     suspend fun retire(saga: String, plan: String, local: String, target: String): HandoffWire? {
-        return compensation.retire("$saga:release:command", plan, local, target) {
+        return compensation.retire("$saga:release:command", plan, local, target, onAttention = {
+            execute("UPDATE saga_state SET state='NEEDS_ATTENTION',version=version+1 WHERE id=:id AND state='COMPENSATING'",
+                mapOf("id" to saga))
+        }) {
             fetchAll("""
-                SELECT s.version,q.wire FROM saga_state s JOIN saga_queue q ON q.message_id=:command
-                WHERE s.id=:id AND s.state='COMPENSATING' AND q.receipt IS NULL
+                SELECT s.version,s.state,q.wire,
+                  (SELECT COALESCE(jsonb_agg(to_jsonb(o) ORDER BY o.message_id), '[]')::text
+                   FROM saga_queue o WHERE split_part(o.message_id,':',1)=:id) AS outbox,
+                  (SELECT COALESCE(jsonb_agg(to_jsonb(i) ORDER BY i.message_id), '[]')::text
+                   FROM nd_dc03_inbox i WHERE i.namespace='checkout' AND i.target_id='coordinator'
+                     AND split_part(i.message_id,':',1)=:id) AS inbox
+                FROM saga_state s JOIN saga_queue q ON q.message_id=:command
+                WHERE s.id=:id AND s.state IN ('COMPENSATING','COMPENSATED','NEEDS_ATTENTION')
             """.trimIndent(), mapOf("id" to saga, "command" to "$saga:release:command")).singleOrNull()?.let {
-                Json.encodeToString(CheckoutSnapshot(saga, it.int("version"), it.string("wire")))
+                Json.encodeToString(CheckoutSnapshot(saga, it.int("version"), it.string("wire"),
+                    it.string("state"), it.string("outbox"), it.string("inbox")))
             }
         }?.let(::HandoffWire)
     }
@@ -133,24 +145,31 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
     suspend fun retirement(saga: String): HandoffWire? =
         compensation.retirement("$saga:release:command")?.let(::HandoffWire)
 
-    suspend fun activate(saga: String, plan: String, local: String, source: String, sourceUrl: String, control: String): Boolean {
+    suspend fun activate(saga: String, plan: String, local: String, source: String, sourceUrl: String, control: String): String? {
+        compensation.activation("$saga:release:command", plan, local, source)?.let { return it }
         val response = try {
             withTimeoutOrNull(8_000) {
                 client.request(HttpClientRequest(HttpClientMethod.Post, "$sourceUrl/saga/retirement",
                     HttpHeaders.of("Authorization" to control), HttpClientBody.Json(saga)))
             }
-        } catch (_: HttpClientException) { null } ?: return false
-        if (response.statusCode != 200) return false
+        } catch (_: HttpClientException) { null } ?: return null
+        if (response.statusCode != 200) return null
         val proof = Json.decodeFromString<HandoffWire>(response.body)
-        if (proof.id != "$saga:release:command" || proof.plan != plan) return false
+        if (proof.id != "$saga:release:command" || proof.plan != plan) return null
         val snapshot = Json.decodeFromString<CheckoutSnapshot>(proof.payload)
         val command = Json.decodeFromString<SagaWire>(snapshot.wire)
         if (snapshot.saga != saga || command.saga != saga || command.action != "release" || command.result.isNotEmpty() ||
-            db.wire(saga, "release", "", command.expiry) != command) return false
+            db.wire(saga, "release", "", command.expiry) != command ||
+            snapshot.state !in setOf("COMPENSATING", "COMPENSATED", "NEEDS_ATTENTION")) return null
         return compensation.activate(proof.proof(), local, source) {
-            check(execute("INSERT INTO saga_state(id,state,version) VALUES(:id,'COMPENSATING',:version)",
-                mapOf("id" to saga, "version" to snapshot.version)) == 1L)
-            enqueue(command)
+            check(execute("INSERT INTO saga_state(id,state,version) VALUES(:id,:state,:version)",
+                mapOf("id" to saga, "state" to snapshot.state, "version" to snapshot.version)) == 1L)
+            execute("INSERT INTO saga_queue SELECT * FROM jsonb_populate_recordset(NULL::saga_queue,CAST(:data AS jsonb))",
+                mapOf("data" to snapshot.outbox))
+            execute("INSERT INTO nd_dc03_inbox SELECT * FROM jsonb_populate_recordset(NULL::nd_dc03_inbox,CAST(:data AS jsonb))",
+                mapOf("data" to snapshot.inbox))
+            check(fetchAll("SELECT wire FROM saga_queue WHERE message_id=:id", mapOf("id" to proof.id))
+                .single().string("wire") == snapshot.wire)
         }
     }
 
@@ -212,7 +231,8 @@ internal class HttpSaga(private val db: DbContext, private val role: String, pri
             db.fetchAll("""
                 SELECT message_id FROM saga_queue q WHERE receipt IS NULL AND NOT EXISTS (
                     SELECT 1 FROM ns_compensation c WHERE c.id=q.message_id AND
-                      (c.retired OR c.state='NEEDS_ATTENTION' OR c.next_attempt_at > clock_timestamp() OR
+                      (c.retired OR EXISTS(SELECT 1 FROM ns_compensation_drain d WHERE d.id=c.id) OR
+                       c.state='NEEDS_ATTENTION' OR c.next_attempt_at > clock_timestamp() OR
                        (c.state='LEASED' AND c.lease_until > clock_timestamp()))
                 ) ORDER BY message_id LIMIT 1
             """.trimIndent())

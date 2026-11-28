@@ -23,10 +23,10 @@ def run(binary, scenario):
         stores = {role: stack.enter_context(database(role)) for role in roles}
         services, urls, seen, queried, deliveries = {}, {}, {}, {}, {}
         losses = ({"release:command", "release:result"} if scenario == "replay" else
-                  {"release:command"} if scenario in ("recovery", "schedule", "transfer") else set())
+                  {"release:command"} if scenario in ("recovery", "schedule", "transfer", "migration") else set())
         held_ack, resume_ack = threading.Event(), threading.Event()
         hold_release = scenario in ("takeover", "expired", "schedule")
-        attempts = {"exhaustion": 2, "expired": 1, "recovery": 1}.get(scenario, 8)
+        attempts = {"exhaustion": 2, "expired": 1, "recovery": 1, "migration": 1}.get(scenario, 8)
 
         def state():
             return stores["coordinator"][1]("SELECT state,version FROM saga_state WHERE id=:'id';", id=saga)
@@ -61,6 +61,10 @@ def run(binary, scenario):
                         return
                     if self.path == "/saga/outcome":
                         queried.setdefault(mid, []).append((status, ack))
+                        if scenario == "migration" and status == 200 and len(queried[mid]) == 1:
+                            held_ack.set()
+                            if not resume_ack.wait(7):
+                                raise AssertionError("migration did not release the existing worker")
                         if scenario == "transfer" and status == 200 and len(queried[mid]) == 1:
                             bad = json.loads(ack)
                             bad["receipt"]["identity"]["invocationId"] = "different-operation"
@@ -100,8 +104,9 @@ def run(binary, scenario):
             for role in (("stock", "payment", "coordinator") if auto else roles):
                 services[role] = start(stack, binary, role, stores[role][0], token, saga_urls=urls,
                                        attempts=attempts, operator=operator if role == "coordinator" else None,
-                                       auto=auto, renew=hold_release, scheduled=scenario in ("schedule", "transfer"),
-                                       control={"RESOURCE": "source-1"} if role == "coordinator" and scenario == "transfer" else None)
+                                       auto=auto, renew=hold_release or scenario == "migration",
+                                       scheduled=scenario in ("schedule", "transfer", "migration"),
+                                       control={"RESOURCE": "source-1"} if role == "coordinator" and scenario in ("transfer", "migration") else None)
 
         def crash_and_restart(auto=False):
             for proc, _ in services.values():
@@ -132,7 +137,7 @@ def run(binary, scenario):
         coordinator_sql = stores["coordinator"][1]
         lease = "SELECT state,generation FROM ns_compensation;"
         audit = "SELECT generation,event,reason FROM ns_compensation_audit;"
-        if scenario == "transfer":
+        if scenario in ("transfer", "migration"):
             target_uri, target_sql = stack.enter_context(database("coordinator"))
             source_port = services["coordinator"][1]
             plan = uuid.uuid4().hex
@@ -147,6 +152,76 @@ def run(binary, scenario):
 
             target_proc, target_port = boot_target()
             expect(request(target_port, "/saga/activate", activation, operator), (409, b"CONFLICT"))
+            if scenario == "migration":
+                dispatch("coordinator", "release:command", "NEEDS_ATTENTION")
+                expect(stock(), "f|1")
+                recovery = f"{saga}|recovery-01|1|3|receiver-idempotency-verified:migration"
+                expect(request(source_port, "/saga/recover", recovery, operator), (200, b"RESUMED"))
+                with ThreadPoolExecutor(1) as pool:
+                    pending = pool.submit(request, source_port, "/saga/dispatch", cid, token)
+                    try:
+                        expect(held_ack.wait(7), True)
+                        expect(coordinator_sql(lease), "LEASED|2")
+                        expect(request(source_port, "/saga/retire", retire, operator), (409, b"CONFLICT"))
+                        expect(request(source_port, "/saga/retirement", saga, operator), (409, b"CONFLICT"))
+                        expect(request(target_port, "/saga/activate", activation, operator), (409, b"CONFLICT"))
+                        dispatch("coordinator", "release:command", "DRAINING")
+                        expect(request(source_port, "/saga/renew", cid, token), (200, b"FENCED"))
+                    finally:
+                        resume_ack.set()
+                    expect(pending.result(), (200, b"HANDED_OFF"))
+                expect(state(), "COMPENSATED|5")
+                expect(request(source_port, "/saga/retire", retire, operator)[0], 200)
+                expect(request(source_port, "/saga/retire", f"{saga}|{plan}|wrong", operator), (409, b"CONFLICT"))
+                discarded = []
+
+                class DropActivation(BaseHTTPRequestHandler):
+                    def log_message(self, *args):
+                        pass
+
+                    def do_POST(self):
+                        raw = self.rfile.read(int(self.headers["Content-Length"]))
+                        status, ack = request(target_port, self.path, raw, operator)
+                        expect(status, 200)
+                        expect(target_sql("SELECT activation_id::text FROM ns_compensation_handoff;"), ack.decode())
+                        discarded.append(ack)
+                        self.close_connection = True
+                        self.connection.shutdown(socket.SHUT_RDWR)
+
+                relay = stack.enter_context(ThreadingHTTPServer(("127.0.0.1", 0), DropActivation))
+                thread = threading.Thread(target=relay.serve_forever, daemon=True)
+                thread.start()
+                stack.callback(thread.join)
+                stack.callback(relay.shutdown)
+                try:
+                    request(relay.server_port, "/saga/activate", activation, operator)
+                except OSError:
+                    pass
+                else:
+                    raise AssertionError("target activation response was not lost")
+                expect(len(discarded), 1)
+                for proc in (target_proc, services["coordinator"][0]):
+                    proc.kill()
+                    proc.wait(timeout=5)
+                # Recover activation from local truth while the retired source is unavailable.
+                _, target_port = boot_target(auto=True)
+                expect(request(target_port, "/saga/activate", activation, operator), (200, discarded[0]))
+                expect(request(target_port, "/saga/activate", f"{saga}|wrong", operator), (409, b"CONFLICT"))
+                expect(request(target_port, "/saga/recover", recovery, operator), (200, b"REPLAYED"))
+                expect(target_sql("SELECT state,version FROM saga_state;"), "COMPENSATED|5")
+                for table in ("ns_compensation_audit", "ns_compensation_recovery", "nd_dc03_inbox", "saga_queue"):
+                    sql = f"SELECT jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)) FROM {table} t;"
+                    expect(target_sql(sql), coordinator_sql(sql))
+                expect(deliveries[cid], 1)
+                expect(stock(), "f|1")
+                expect(coordinator_sql("SELECT retired FROM ns_compensation;"), "t")
+                services["coordinator"] = start(stack, binary, "coordinator", stores["coordinator"][0], token,
+                                                saga_urls=urls, operator=operator, control={"RESOURCE": "source-1"})
+                dispatch("coordinator", answer="IDLE")
+                dispatch("stock", "release:result", "UNKNOWN")
+                expect(deliveries[cid], 1)
+                print("Saga drained migration PASS: active claim drained, audit and receipts preserved, lost activation ACK recovered locally, no duplicate compensation")
+                return
             dispatch("coordinator", "release:command", "UNKNOWN")
             expect(stock(), "f|1")
             expect(request(source_port, "/saga/retire", retire, token), (403, b"FORBIDDEN"))
@@ -161,19 +236,21 @@ def run(binary, scenario):
             fake_proc.kill()
             fake_proc.wait(timeout=5)
             expect(target_sql("SELECT count(*) FROM ns_compensation;"), "0")
-            expect(request(target_port, "/saga/activate", activation, operator), (200, b"ACTIVE"))
+            active = request(target_port, "/saga/activate", activation, operator)
+            expect(active[0], 200)
+            uuid.UUID(active[1].decode())
             target_proc.kill()
             target_proc.wait(timeout=5)
             crash_and_restart()
             source_port = services["coordinator"][1]
             _, target_port = boot_target()
-            expect(request(target_port, "/saga/activate", activation, operator), (200, b"ACTIVE"))
+            expect(request(target_port, "/saga/activate", activation, operator), active)
             expect(target_sql("SELECT count(*) FROM ns_compensation_handoff;"), "1")
             expect(target_sql(lease), "READY|1")
             target_sql("UPDATE ns_compensation SET next_attempt_at=clock_timestamp()-interval '1 second';")
             expect(request(target_port, "/saga/dispatch", cid, token), (200, b"UNKNOWN"))
             expect(target_sql("SELECT state,version FROM saga_state;"), "COMPENSATING|2")
-            expect(target_sql("SELECT count(*) FROM nd_dc03_inbox;"), "0")
+            expect(target_sql("SELECT count(*) FROM nd_dc03_inbox;"), "2")
             target_sql("UPDATE ns_compensation SET next_attempt_at=clock_timestamp()-interval '1 second';")
             expect(request(target_port, "/saga/dispatch", cid, token), (200, b"HANDED_OFF"))
             expect(target_sql("SELECT state,version FROM saga_state;"), "COMPENSATED|3")
@@ -391,5 +468,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("binary", type=Path)
     binary = parser.parse_args().binary.resolve(strict=True)
-    for scenario in ("replay", "exhaustion", "takeover", "expired", "recovery", "schedule", "transfer"):
+    for scenario in ("replay", "exhaustion", "takeover", "expired", "recovery", "schedule", "transfer", "migration"):
         run(binary, scenario)

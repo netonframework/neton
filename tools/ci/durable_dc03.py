@@ -60,6 +60,7 @@ def database(role):
             sql((ROOT / "neton-saga/sql/postgresql/V002__recovery.sql").read_text())
             sql((ROOT / "neton-saga/sql/postgresql/V003__scheduling.sql").read_text())
             sql((ROOT / "neton-saga/sql/postgresql/V004__handoff.sql").read_text())
+            sql((ROOT / "neton-saga/sql/postgresql/V005__drained_migration.sql").read_text())
         sql((ROOT / f"examples/durable-dc03/sql/{'saga' if saga else role}.sql").read_text())
         password = quote(env.get("PGPASSWORD") or "local-fixture", safe="")
         yield f"postgresql://{quote(user, safe='')}:{password}@127.0.0.1:{port}/{name}", sql

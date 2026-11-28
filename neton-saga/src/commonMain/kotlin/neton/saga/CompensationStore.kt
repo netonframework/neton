@@ -5,7 +5,7 @@ import neton.database.sql.PostgresDialect
 
 sealed interface CompensationClaim {
     class Acquired internal constructor(val id: String, val generation: Int) : CompensationClaim
-    enum class Unavailable : CompensationClaim { BUSY, HANDED_OFF, NEEDS_ATTENTION, BACKOFF, AT_CAPACITY, RETIRED }
+    enum class Unavailable : CompensationClaim { BUSY, HANDED_OFF, NEEDS_ATTENTION, BACKOFF, AT_CAPACITY, DRAINING, RETIRED }
 }
 
 enum class CompensationFinish { HANDED_OFF, RETRY_READY, NEEDS_ATTENTION, FENCED }
@@ -45,6 +45,7 @@ class CompensationStore(private val db: DbContext) {
             val capacity = admission()
             val row = lock(id)
             if (row.retired) return@transaction CompensationClaim.Unavailable.RETIRED
+            if (draining(id)) return@transaction CompensationClaim.Unavailable.DRAINING
             when (row.state) {
                 "HANDED_OFF" -> return@transaction CompensationClaim.Unavailable.HANDED_OFF
                 "NEEDS_ATTENTION" -> return@transaction CompensationClaim.Unavailable.NEEDS_ATTENTION
@@ -73,7 +74,7 @@ class CompensationStore(private val db: DbContext) {
             // An admission scan cannot miss a concurrently extended lease.
             admission()
             val row = lock(claim.id)
-            if (row.retired || row.state != "LEASED" || row.generation != claim.generation) return@transaction false
+            if (row.retired || draining(claim.id) || row.state != "LEASED" || row.generation != claim.generation) return@transaction false
             execute("""
                 UPDATE ns_compensation SET lease_until=GREATEST(lease_until,clock_timestamp()+CAST(:ms AS bigint)*interval '1 millisecond')
                 WHERE id=:id AND lease_until > clock_timestamp()
@@ -103,7 +104,7 @@ class CompensationStore(private val db: DbContext) {
             if (prior != null) return@transaction if (prior.int("generation") == generation &&
                 prior.int("workflow_version") == version && prior.string("actor") == actor && prior.string("evidence") == evidence
             ) CompensationRecovery.REPLAYED else CompensationRecovery.CONFLICT
-            if (row.retired || row.state != "NEEDS_ATTENTION" || row.generation != generation || row.max == Int.MAX_VALUE ||
+            if (row.retired || draining(id) || row.state != "NEEDS_ATTENTION" || row.generation != generation || row.max == Int.MAX_VALUE ||
                 !restoreCheckpoint()) return@transaction CompensationRecovery.CONFLICT
             check(execute("UPDATE ns_compensation SET max_attempts=max_attempts+1,state='READY',next_attempt_at=clock_timestamp() WHERE id=:id",
                 mapOf("id" to id)) == 1L)
@@ -165,8 +166,9 @@ class CompensationStore(private val db: DbContext) {
         }
     }
 
-    /** Retire only an already attempted, quiescent command. Retrying never changes the target. */
+    /** Persist the drain intent before waiting. Active workers may finish but cannot renew. */
     suspend fun retire(id: String, plan: String, source: String, target: String,
+        onAttention: suspend DbContext.() -> Unit,
         snapshot: suspend DbContext.() -> String?,
     ): CompensationTransfer? {
         require(plan.isNotBlank() && source.isNotBlank() && target.isNotBlank() && source != target)
@@ -176,11 +178,20 @@ class CompensationStore(private val db: DbContext) {
             transfer(id)?.let {
                 return@transaction it.takeIf { row.retired && it.plan == plan && it.source == source && it.target == target }
             }
-            if (row.retired || row.state != "READY" || row.generation == 0 ||
-                fetchAll("SELECT 1 FROM ns_compensation_audit WHERE id=:id", mapOf("id" to id)).isNotEmpty()
-            ) return@transaction null
+            if (row.retired || row.generation == 0) return@transaction null
+            val keys = mapOf("id" to id, "plan" to plan, "source" to source, "target" to target)
+            execute("INSERT INTO ns_compensation_drain(id,plan,source,target) VALUES(:id,:plan,:source,:target) ON CONFLICT DO NOTHING", keys)
+            if (fetchAll("SELECT 1 FROM ns_compensation_drain WHERE id=:id AND plan=:plan AND source=:source AND target=:target",
+                    keys).isEmpty()) return@transaction null
+            if (row.state == "LEASED") {
+                if (unexpired(id)) return@transaction null
+                // An expired worker is fenced, and its attempt remains consumed.
+                if (row.generation == row.max) attention(id, row.generation, "LEASE_EXPIRED", onAttention)
+                else setState(id, "READY")
+            }
             val payload = snapshot() ?: return@transaction null
-            insertHandoff(id, plan, source, target, payload)
+            insertHandoff(id, plan, source, target, payload, history(id, "ns_compensation_audit"),
+                history(id, "ns_compensation_recovery"))
             check(execute("UPDATE ns_compensation SET retired=true WHERE id=:id", mapOf("id" to id)) == 1L)
             transfer(id)
         }
@@ -189,51 +200,80 @@ class CompensationStore(private val db: DbContext) {
     /** Call only with proof fetched from the preconfigured trusted source, never a client-supplied snapshot. */
     suspend fun activate(proof: CompensationTransfer, local: String, expectedSource: String,
         import: suspend DbContext.(String) -> Unit,
-    ): Boolean {
+    ): String? {
         check(!db.inTransaction())
         if (proof.target != local || proof.source != expectedSource || local == expectedSource ||
-            proof.generation !in 1 until proof.budget) return false
+            proof.generation !in 1..proof.budget ||
+            proof.state !in setOf("READY", "HANDED_OFF", "NEEDS_ATTENTION") ||
+            (proof.state == "READY" && proof.generation == proof.budget)) return null
         return db.transaction {
             val key = mapOf("id" to proof.id)
             val inserted = execute("""
-                INSERT INTO ns_compensation(id,max_attempts,generation,next_attempt_at)
-                VALUES(:id,:max,:gen,CAST(:due AS timestamptz)) ON CONFLICT(id) DO NOTHING
-            """.trimIndent(), key + mapOf("max" to proof.budget, "gen" to proof.generation, "due" to proof.dueAt))
+                INSERT INTO ns_compensation(id,max_attempts,generation,next_attempt_at,state)
+                VALUES(:id,:max,:gen,CAST(:due AS timestamptz),:state) ON CONFLICT(id) DO NOTHING
+            """.trimIndent(), key + mapOf("max" to proof.budget, "gen" to proof.generation, "due" to proof.dueAt, "state" to proof.state))
             if (inserted == 0L) {
                 lock(proof.id)
                 val previous = fetchAll("""
-                    SELECT plan,source,target,payload,generation,budget,
+                    SELECT plan,source,target,payload,generation,budget,state,audit,recovery,activation_id::text AS activation,
                            due_at=CAST(:due AS timestamptz) AS due_matches
                     FROM ns_compensation_handoff WHERE id=:id
                 """.trimIndent(), key + ("due" to proof.dueAt)).singleOrNull()
-                return@transaction previous?.let {
+                return@transaction previous?.takeIf {
                     it.string("plan") == proof.plan && it.string("source") == proof.source &&
                         it.string("target") == proof.target && it.string("payload") == proof.payload &&
-                        it.int("generation") == proof.generation && it.int("budget") == proof.budget && it.boolean("due_matches")
-                } ?: false
+                        it.int("generation") == proof.generation && it.int("budget") == proof.budget && it.boolean("due_matches") &&
+                        it.string("state") == proof.state && it.string("audit") == proof.audit && it.string("recovery") == proof.recovery
+                }?.string("activation")
             }
-            insertHandoff(proof.id, proof.plan, proof.source, proof.target, proof.payload)
+            insertHandoff(proof.id, proof.plan, proof.source, proof.target, proof.payload, proof.audit, proof.recovery)
+            restoreHistory("ns_compensation_audit", proof.id, proof.audit)
+            restoreHistory("ns_compensation_recovery", proof.id, proof.recovery)
             import(proof.payload)
-            true
+            checkNotNull(activation(proof.id, proof.plan, local, expectedSource))
         }
     }
 
-    private suspend fun DbContext.insertHandoff(id: String, plan: String, source: String, target: String, payload: String) {
+    suspend fun activation(id: String, plan: String, local: String, source: String): String? =
+        db.fetchAll("""
+            SELECT h.activation_id::text AS activation FROM ns_compensation_handoff h JOIN ns_compensation c USING(id)
+            WHERE h.id=:id AND h.plan=:plan AND h.target=:target AND h.source=:source AND NOT c.retired
+        """.trimIndent(), mapOf("id" to id, "plan" to plan, "target" to local, "source" to source))
+            .singleOrNull()?.string("activation")
+
+    private suspend fun DbContext.draining(id: String): Boolean =
+        fetchAll("SELECT 1 FROM ns_compensation_drain WHERE id=:id", mapOf("id" to id)).isNotEmpty()
+
+    private suspend fun DbContext.history(id: String, table: String): String =
+        fetchAll("SELECT COALESCE(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)), '[]')::text AS data FROM $table t WHERE id=:id",
+            mapOf("id" to id)).single().string("data")
+
+    private suspend fun DbContext.restoreHistory(table: String, id: String, payload: String) {
+        val key = mapOf("id" to id, "payload" to payload)
+        val rows = "jsonb_populate_recordset(NULL::$table, CAST(:payload AS jsonb))"
+        check(fetchAll("SELECT 1 FROM $rows r WHERE r.id IS DISTINCT FROM :id", key).isEmpty())
+        execute("INSERT INTO $table SELECT * FROM $rows", mapOf("payload" to payload))
+    }
+
+    private suspend fun DbContext.insertHandoff(id: String, plan: String, source: String, target: String, payload: String,
+        audit: String, recovery: String) {
         check(execute("""
-            INSERT INTO ns_compensation_handoff(id,plan,source,target,payload,generation,budget,due_at)
-            SELECT id,:plan,:source,:target,:payload,generation,max_attempts,next_attempt_at
+            INSERT INTO ns_compensation_handoff(id,plan,source,target,payload,generation,budget,due_at,state,audit,recovery)
+            SELECT id,:plan,:source,:target,:payload,generation,max_attempts,next_attempt_at,state,:audit,:recovery
             FROM ns_compensation WHERE id=:id
         """.trimIndent(),
-            mapOf("id" to id, "plan" to plan, "source" to source, "target" to target, "payload" to payload)) == 1L)
+            mapOf("id" to id, "plan" to plan, "source" to source, "target" to target, "payload" to payload,
+                "audit" to audit, "recovery" to recovery)) == 1L)
     }
 
     private suspend fun DbContext.transfer(id: String): CompensationTransfer? =
         fetchAll("""
-            SELECT generation,budget,due_at::text AS due,plan,source,target,payload
+            SELECT generation,budget,due_at::text AS due,plan,source,target,payload,state,audit,recovery
             FROM ns_compensation_handoff WHERE id=:id
         """.trimIndent(), mapOf("id" to id)).singleOrNull()?.let {
             CompensationTransfer(id, it.string("plan"), it.string("source"), it.string("target"),
-                it.int("generation"), it.int("budget"), it.string("due"), it.string("payload"))
+                it.int("generation"), it.int("budget"), it.string("due"), it.string("payload"),
+                it.string("state"), it.string("audit"), it.string("recovery"))
         }
 
     private data class Row(val state: String, val generation: Int, val max: Int, val retired: Boolean)
