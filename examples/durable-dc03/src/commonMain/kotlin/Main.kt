@@ -59,16 +59,54 @@ private suspend fun deliver(db: DbContext, client: HttpClient, url: String, auth
 fun main(args: Array<String>) {
     fun env(key: String) = requireNotNull(getEnv("DC03_" + key))
     val role = env("ROLE")
-    require(role in setOf("sender", "receiver"))
+    require(role in setOf("sender", "receiver", "coordinator", "stock", "payment"))
     val auth = "Bearer " + env("TOKEN").also { require(it.length >= 32) }
     val db = SqlxDatabase.initialize(DatabaseConfig(DatabaseDriver.POSTGRESQL, env("DB")))
-    val client = if (role == "sender") HttpClient.create { } else null
+    val client = if (role != "receiver") HttpClient.create { } else null
+    val saga = if (role in setOf("coordinator", "stock", "payment")) {
+        HttpSaga(db, role, checkNotNull(client), auth) { target -> env("SAGA_" + target.uppercase()) }
+    } else null
     try {
         Neton.run(args) {
             http { port = env("PORT").toInt() }
             routing {
                 get("/ready") { ctx -> ctx.response.text(role) }
-                if (client == null) post("/receive") { ctx ->
+                if (saga != null) {
+                    if (role == "coordinator") post("/saga/begin") { ctx ->
+                        if (ctx.request.headers["Authorization"] != auth) {
+                            ctx.response.status = HttpStatus.UNAUTHORIZED
+                            ctx.response.text("unauthorized")
+                        } else {
+                            val (id, expiry) = ctx.request.text().split(':', limit = 2)
+                            saga.begin(id, expiry.toLong())
+                            ctx.response.text("READY")
+                        }
+                    }
+                    post("/saga/receive") { ctx ->
+                        if (ctx.request.headers["Authorization"] != auth) {
+                            ctx.response.status = HttpStatus.UNAUTHORIZED
+                            ctx.response.text("unauthorized")
+                        } else try {
+                            ctx.response.text(Json.encodeToString(saga.receive(ctx.request.text())), "application/json")
+                        } catch (_: DeliveryConflict) {
+                            ctx.response.status = HttpStatus.CONFLICT
+                            ctx.response.text("ID_CONFLICT")
+                        } catch (_: DeliveryExpired) {
+                            ctx.response.status = HttpStatus.GONE
+                            ctx.response.text("EXPIRED")
+                        } catch (_: IllegalArgumentException) {
+                            ctx.response.status = HttpStatus.BAD_REQUEST
+                            ctx.response.text("INVALID")
+                        }
+                    }
+                    post("/saga/dispatch") { ctx ->
+                        if (ctx.request.headers["Authorization"] != auth) {
+                            ctx.response.status = HttpStatus.UNAUTHORIZED
+                            ctx.response.text("unauthorized")
+                        } else ctx.response.text(saga.dispatch(ctx.request.text()))
+                    }
+                }
+                if (role == "receiver") post("/receive") { ctx ->
                     if (ctx.request.headers["Authorization"] != auth) {
                         ctx.response.status = HttpStatus.UNAUTHORIZED
                         ctx.response.text("unauthorized")
@@ -83,7 +121,7 @@ fun main(args: Array<String>) {
                         ctx.response.text("EXPIRED")
                     }
                 }
-                if (client != null) post("/produce") { ctx ->
+                if (role == "sender") post("/produce") { ctx ->
                     if (ctx.request.headers["Authorization"] != auth) {
                         ctx.response.status = HttpStatus.UNAUTHORIZED
                         ctx.response.text("unauthorized")
@@ -98,14 +136,14 @@ fun main(args: Array<String>) {
                         ctx.response.text("READY")
                     }
                 }
-                if (client != null) post("/recover") { ctx ->
+                if (role == "sender") post("/recover") { ctx ->
                     if (ctx.request.headers["Authorization"] != auth) {
                         ctx.response.status = HttpStatus.UNAUTHORIZED
                         ctx.response.text("unauthorized")
                     } else {
                         val next = db.fetchAll("SELECT message_id FROM outbox WHERE state IN ('READY','UNKNOWN') ORDER BY message_id LIMIT 1")
                             .singleOrNull()
-                        ctx.response.text(if (next == null) "IDLE" else deliver(db, client, env("URL"), auth, next.string("message_id")))
+                        ctx.response.text(if (next == null) "IDLE" else deliver(db, checkNotNull(client), env("URL"), auth, next.string("message_id")))
                     }
                 }
             }

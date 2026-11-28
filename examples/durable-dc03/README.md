@@ -5,6 +5,7 @@ Build and run from the framework root on macOS ARM64:
 ```sh
 ./gradlew :examples:durable-dc03:linkDebugExecutableMacosArm64
 python3 tools/ci/durable_dc03.py examples/durable-dc03/build/bin/macosArm64/debugExecutable/durable-dc03.kexe
+python3 tools/ci/durable_saga.py examples/durable-dc03/build/bin/macosArm64/debugExecutable/durable-dc03.kexe
 ```
 
 Requires local PostgreSQL, psql/createdb/dropdb and a role allowed to create disposable databases.
@@ -19,6 +20,16 @@ Sender and receiver are separate native Neton processes. The Python relay is a f
 3. The sender retries the original bytes, validates the matching receipt and persists HANDED_OFF. A subsequent scan is idle.
 4. Concurrent delivery and a second subscriber check duplicate suppression and isolation of the receipt namespace.
 
-The example handles one synchronous local credit operation. It does not implement a Saga coordinator, an async
-result channel, garbage collection, or exactly-once execution of external I/O. Loopback fixture credentials
-are not a production transport security configuration. No broker or release publication is required.
+The second script starts three real Neton services (checkout coordinator, stock and payment), each with its
+own database. A fixed checkout workflow reserves stock, receives an asynchronous payment decline, then releases
+stock in compensation. The stock effect and its result Outbox commit with the command Inbox; the coordinator's
+state change and next command commit with the result Inbox. The driver separately dispatches persisted requests
+and callbacks so it can select crash boundaries deterministically without depending on timer scheduling.
+
+It verifies rollback of a failed release, loss of both the compensation command receipt and result receipt
+after commit, and process restarts. Recovery scans persisted queues, resends identical command/result bytes
+and gets the original receipts; stock is released once, the coordinator advances once per result, and delivering
+a result does not enqueue another result. This is a fixed workflow, not the production Saga API: bounded retry,
+deadlines/reconciliation, worker fencing, audit/operator actions, workflow versioning and cleanup are outside
+this example. Loopback credentials are not a production transport security configuration. No broker or release
+publication is required.

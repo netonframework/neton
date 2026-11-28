@@ -449,6 +449,7 @@ jobs:
           command -v psql || sudo apt-get install -y postgresql-client-16
           ./gradlew --no-daemon -I tools/ci/require-published-dependencies.init.gradle -Pnetonstream.local=false -Pneton.database.driver=postgres :examples:durable-dc03:linkDebugExecutableLinuxX64
           python3 tools/ci/durable_dc03.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
+          python3 tools/ci/durable_saga.py examples/durable-dc03/build/bin/linuxX64/debugExecutable/durable-dc03.kexe
 
   redis-contracts:
     runs-on: ubuntu-24.04

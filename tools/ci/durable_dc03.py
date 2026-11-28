@@ -52,9 +52,10 @@ def database(role):
             for key, value in values.items():
                 args.extend(["-v", f"{key}={value}"])
             return subprocess.check_output(args, env=env, input=statement, text=True).strip()
-        if role == "receiver":
+        saga = role in {"coordinator", "stock", "payment"}
+        if role == "receiver" or saga:
             sql((ROOT / "neton-durable/sql/postgresql/V001__dc03_inbox.sql").read_text())
-        sql((ROOT / f"examples/durable-dc03/sql/{role}.sql").read_text())
+        sql((ROOT / f"examples/durable-dc03/sql/{'saga' if saga else role}.sql").read_text())
         password = quote(env.get("PGPASSWORD") or "local-fixture", safe="")
         yield f"postgresql://{quote(user, safe='')}:{password}@127.0.0.1:{port}/{name}", sql
     finally:
@@ -93,7 +94,7 @@ def stop(proc):
         proc.wait()
 
 
-def start(stack, binary, role, uri, token, relay_port=None, target="ledger"):
+def start(stack, binary, role, uri, token, relay_port=None, target="ledger", saga_urls=None):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -103,6 +104,7 @@ def start(stack, binary, role, uri, token, relay_port=None, target="ledger"):
         f'[application]\nname = "dc03-{role}"\n[server]\nhost = "127.0.0.1"\nport = {port}\n')
     env = dict(os.environ, DC03_ROLE=role, DC03_TOKEN=token, DC03_DB=uri, DC03_PORT=str(port), DC03_TARGET=target,
                DC03_URL=f"http://127.0.0.1:{relay_port}/receive")
+    env.update({"DC03_SAGA_" + name.upper(): url for name, url in (saga_urls or {}).items()})
     log = stack.enter_context((work / "process.log").open("wb"))
     proc = subprocess.Popen([binary], cwd=work, env=env, stdout=log, stderr=log)
     stack.callback(stop, proc)
