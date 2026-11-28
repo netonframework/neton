@@ -49,6 +49,8 @@ val appleSwiftLibDir: String? by lazy {
 // ---------- Maven Central 发布（仅库模块，排除示例） ----------
 val netonVersion = project.property("netonVersion") as String
 val netonGroup = project.property("netonGroup") as String
+val unreleasedProjects = setOf("neton-durable", "neton-saga")
+extra["neton.unreleasedProjects"] = unreleasedProjects
 
 subprojects {
     configurations.configureEach {
@@ -95,7 +97,7 @@ subprojects {
     }
 
     // These modules are built and tested, but not in the current release inventory.
-    if (name == "neton-durable" || name == "neton-saga") return@subprojects
+    if (name in unreleasedProjects) return@subprojects
 
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
